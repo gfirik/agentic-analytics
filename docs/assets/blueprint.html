@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>agentic-analytics Blueprint</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one long engineering blueprint — thesis, live pipeline, input↔output with traceable citations, decision logic, fixes, doors, stack. Graph-paper ground, ink type, highlighter for evidence. */
+:root{
+  --bg:#f2f4f3; --paper:#fbfcfb; --ink:#14201c; --muted:#5a6863; --line:#d3dbd8; --grid:#e3e9e6;
+  --accent:#0f6e66; --accent-soft:#d6ebe8; --hl:#f2c14e; --hl-soft:#fbecc2; --bad:#b4442f; --good:#2f7d4a;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1413; --paper:#141c1a; --ink:#e3ebe8; --muted:#93a39e; --line:#2a3634; --grid:#1a2422;
+  --accent:#4fbfb2; --accent-soft:#163633; --hl:#e0b04a; --hl-soft:#3a3018; --bad:#e07a62; --good:#6cc48a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1413; --paper:#141c1a; --ink:#e3ebe8; --muted:#93a39e; --line:#2a3634; --grid:#1a2422;
+  --accent:#4fbfb2; --accent-soft:#163633; --hl:#e0b04a; --hl-soft:#3a3018; --bad:#e07a62; --good:#6cc48a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 80px;display:grid;gap:72px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(2.4rem,6vw,4.4rem);line-height:1.02;font-weight:800}
+h2{font-size:clamp(1.6rem,3.4vw,2.3rem);line-height:1.1;font-weight:700}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:0;max-width:65ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+.lede{font-size:1.15rem;color:var(--muted)}
+section{display:grid;gap:22px}
+.sec-head{display:grid;gap:10px}
+mark{background:linear-gradient(transparent 55%,var(--hl) 55%);color:inherit;padding:0 2px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:6px}
+
+/* hero */
+.hero{display:grid;gap:20px;padding-top:12px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px}
+.tag{font-family:var(--mono);font-size:.78rem;border:1px solid var(--line);background:var(--paper);padding:3px 10px;border-radius:99px;color:var(--muted)}
+.thesis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:8px}
+.thesis div{border-top:2px solid var(--ink);padding-top:10px;display:grid;gap:4px}
+.thesis b{font-family:var(--display);font-size:1.05rem}
+.thesis span{color:var(--muted);font-size:.95rem}
+
+/* pipeline */
+.pipe-wrap{overflow-x:auto;padding:18px}
+.pipe{width:100%;min-width:760px;height:auto;display:block}
+.node rect{fill:var(--paper);stroke:var(--line);stroke-width:1.5;transition:stroke .3s,fill .3s}
+.node text{fill:var(--ink);font-family:var(--body);font-size:14px}
+.node .sub{fill:var(--muted);font-family:var(--mono);font-size:11px}
+.node.active rect{stroke:var(--accent);fill:var(--accent-soft);stroke-width:2.5}
+.node.done rect{stroke:var(--accent)}
+.file rect{fill:var(--bg)}
+.edge{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:4 4}
+.edge.lit{stroke:var(--accent);stroke-dasharray:none}
+.packet{fill:var(--hl);stroke:var(--ink);stroke-width:1}
+.lane-label{fill:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.pipe-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:0 18px 18px}
+button{font:inherit;cursor:pointer}
+.btn{font-family:var(--body);font-weight:600;font-size:.92rem;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:4px}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:focus-visible,.chip:focus-visible,.tab:focus-visible{outline:3px solid var(--hl);outline-offset:2px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps i{width:22px;height:6px;border-radius:3px;background:var(--line);display:block;transition:background .3s}
+.steps i.on{background:var(--accent)}
+.log{border-top:1px solid var(--line);padding:16px 18px;font-family:var(--mono);font-size:.84rem;display:grid;gap:8px;min-height:190px}
+.log-line{display:grid;grid-template-columns:110px 1fr;gap:12px;opacity:.38;transition:opacity .35s}
+.log-line.on{opacity:1}
+.log-line b{color:var(--accent);font-weight:500}
+.log-line span{min-width:0;overflow-wrap:anywhere}
+
+/* io */
+.io{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.io{grid-template-columns:minmax(0,1fr)}}
+.io-col{display:grid;gap:12px;min-width:0}
+.col-title{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.files{display:flex;flex-wrap:wrap;gap:6px}
+.file-chip{font-family:var(--mono);font-size:.76rem;padding:3px 8px;border-radius:3px;background:var(--paper);border:1px solid var(--line)}
+.table-scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.86rem}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--mono);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td:first-child,th:first-child{text-align:left}
+tr.row-hl td{background:var(--hl-soft)}
+td.cell-hl{background:var(--hl)!important;color:#14201c;font-weight:600}
+.rowid{font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-right:6px}
+.docbox{padding:14px 16px;display:grid;gap:6px;font-size:.9rem;transition:background .3s}
+.docbox .src{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+.docbox.hl{background:var(--hl-soft)}
+.docbox q{quotes:"“" "”"}
+
+.report{padding:18px;display:grid;gap:16px}
+.report-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.verify{font-family:var(--mono);font-size:.74rem;color:var(--good);border:1px solid var(--good);padding:2px 8px;border-radius:99px}
+.finding{display:grid;gap:8px;padding:12px 14px;border-left:3px solid var(--bad);background:var(--bg);border-radius:0 4px 4px 0}
+.finding.ok{border-left-color:var(--accent)}
+.finding .k{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--mono);font-size:.74rem;border:1px solid var(--ink);background:transparent;color:var(--ink);padding:2px 8px;border-radius:3px}
+.chip[aria-pressed="true"]{background:var(--hl);border-color:var(--hl);color:#14201c}
+.hint{font-size:.85rem;color:var(--muted)}
+pre{margin:0;overflow-x:auto;padding:16px;font-family:var(--mono);font-size:.8rem;line-height:1.55;color:var(--ink)}
+.j-k{color:var(--accent)} .j-s{color:var(--muted)} .j-n{color:var(--bad)}
+details.json summary{cursor:pointer;padding:12px 16px;font-family:var(--mono);font-size:.82rem;color:var(--accent)}
+
+/* decision logic */
+.ladder{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;counter-reset:s}
+@media (max-width:900px){.ladder{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rung{padding:16px 14px;border:1px solid var(--line);margin:-1px 0 0 -1px;background:var(--paper);display:grid;gap:6px;align-content:start}
+.rung .n{font-family:var(--mono);font-size:.72rem;color:var(--accent)}
+.rung b{font-family:var(--display);font-size:1rem}
+.rung span{font-size:.86rem;color:var(--muted)}
+.rec{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:0}
+@media (max-width:760px){.rec{grid-template-columns:minmax(0,1fr)}}
+.rec>div{padding:20px;display:grid;gap:10px;align-content:start}
+.rec>div+div{border-left:1px solid var(--line)}
+@media (max-width:760px){.rec>div+div{border-left:0;border-top:1px solid var(--line)}}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:6px 12px;font-size:.9rem}
+.kv dt{font-family:var(--mono);font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.kv dd{margin:0;min-width:0}
+.range{position:relative;height:28px;margin-top:4px}
+.range .axis{position:absolute;left:0;right:0;top:13px;height:2px;background:var(--line)}
+.range .band{position:absolute;top:6px;height:16px;background:var(--accent-soft);border:1.5px solid var(--accent);border-radius:2px}
+.range .mid{position:absolute;top:2px;width:2px;height:24px;background:var(--accent)}
+.range-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.conf{display:inline-flex;gap:3px;vertical-align:middle;margin-right:6px}
+.conf i{width:10px;height:10px;border-radius:2px;background:var(--line);display:block}
+.conf i.on{background:var(--accent)}
+
+/* fixes */
+.fix-table{overflow-x:auto}
+.fix-table table td,.fix-table table th{white-space:normal;text-align:left;vertical-align:top;font-size:.9rem;padding:12px}
+.fix-table td:first-child{font-weight:600;width:24%}
+.fix-table td:nth-child(2){color:var(--muted);width:34%}
+
+/* doors */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{background:transparent;border:0;border-bottom:2px solid transparent;padding:10px 16px;font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.door-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr)}
+@media (max-width:760px){.door-body{grid-template-columns:minmax(0,1fr)}}
+.door-body>div:first-child{padding:20px;display:grid;gap:8px;align-content:start;border-right:1px solid var(--line)}
+@media (max-width:760px){.door-body>div:first-child{border-right:0;border-bottom:1px solid var(--line)}}
+
+/* stack */
+.stack{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.layer{padding:16px;display:grid;gap:6px;align-content:start}
+.layer .eyebrow{color:var(--muted)}
+.layer b{font-family:var(--display);font-size:1.02rem}
+.layer span{font-size:.88rem;color:var(--muted)}
+
+.foot{display:grid;gap:10px;border-top:2px solid var(--ink);padding-top:18px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">fhsystems · open-source blueprint · agentic-analytics</span>
+  <h1>agentic-analytics: an AI analyst where every number traces back to a row.</h1>
+  <p class="lede">Drop in whatever a business has: spreadsheets, PDFs, exports, emails. Get back a diagnosis of what happened, what went wrong, what the market says, and what to do next. Each claim links to the cell, page or URL it came from, and every figure is recomputed before the report ships.</p>
+  <div class="hero-meta">
+    <span class="tag">self-hosted · one docker compose up</span>
+    <span class="tag">API + MCP server + CLI</span>
+    <span class="tag">Claude or local models via Ollama</span>
+    <span class="tag">Apache-2.0</span>
+  </div>
+  <div class="thesis">
+    <div><b>Numbers are computed, never guessed</b><span>Tables go into DuckDB and every figure comes from SQL the engine actually ran.</span></div>
+    <div><b>Every claim carries its source</b><span>Row, cell, PDF page, email or URL. Click it and see the evidence.</span></div>
+    <div><b>Decisions, not summaries</b><span>Ranked actions with expected impact ranges, confidence and the check that proves them right or wrong.</span></div>
+  </div>
+</header>
+
+<section id="pipeline">
+  <div class="sec-head">
+    <span class="eyebrow">01 · how one report is made</span>
+    <h2>Watch a pile of files turn into a verified report</h2>
+    <p class="lede">Three lanes run on purpose: tables are queried, documents are searched, the web adds outside context. An analyst agent plans across all three, and a separate verifier recomputes everything before anything leaves the engine.</p>
+  </div>
+  <div class="panel">
+    <div class="pipe-wrap">
+      <svg class="pipe" viewBox="0 0 1000 400" role="img" aria-label="Pipeline: four input files flow into ingest, split into tables, documents and web lanes, meet at the analyst agent, pass a verifier and become a report.">
+        <g id="edges">
+          <path class="edge" id="e0" d="M170 52 C200 52 200 190 230 190"/>
+          <path class="edge" id="e1" d="M170 132 C200 132 200 190 230 190"/>
+          <path class="edge" id="e2" d="M170 212 C200 212 200 190 230 190"/>
+          <path class="edge" id="e3" d="M170 292 C200 292 200 190 230 190"/>
+          <path class="edge" id="e4" d="M390 190 C420 190 420 70 450 70"/>
+          <path class="edge" id="e5" d="M390 190 L450 190"/>
+          <path class="edge" id="e6" d="M390 190 C420 190 420 315 450 315"/>
+          <path class="edge" id="e7" d="M610 70 C640 70 640 190 670 190"/>
+          <path class="edge" id="e8" d="M610 190 L670 190"/>
+          <path class="edge" id="e9" d="M610 315 C640 315 640 190 670 190"/>
+          <path class="edge" id="e10" d="M810 190 C830 190 830 105 850 105"/>
+          <path class="edge" id="e11" d="M915 140 L915 245"/>
+        </g>
+        <text class="lane-label" x="20" y="22">INPUT</text>
+        <text class="lane-label" x="450" y="22">THREE LANES</text>
+        <text class="lane-label" x="850" y="22">OUTPUT</text>
+        <g class="node file" data-step="0"><rect x="20" y="32" width="150" height="40" rx="4"/><text x="32" y="57">sales-2026.xlsx</text></g>
+        <g class="node file" data-step="0"><rect x="20" y="112" width="150" height="40" rx="4"/><text x="32" y="137">price-list.pdf</text></g>
+        <g class="node file" data-step="0"><rect x="20" y="192" width="150" height="40" rx="4"/><text x="32" y="217">email-0412.eml</text></g>
+        <g class="node file" data-step="0"><rect x="20" y="272" width="150" height="40" rx="4"/><text x="32" y="297">ops-notes.docx</text></g>
+        <g class="node" data-step="0"><rect x="230" y="150" width="160" height="80" rx="4"/><text x="244" y="182">Ingest &amp; map</text><text class="sub" x="244" y="204">Docling · table regions</text><text class="sub" x="244" y="219">types · periods · units</text></g>
+        <g class="node" data-step="1"><rect x="450" y="35" width="160" height="70" rx="4"/><text x="464" y="64">Tables → SQL</text><text class="sub" x="464" y="86">DuckDB · real math</text></g>
+        <g class="node" data-step="2"><rect x="450" y="155" width="160" height="70" rx="4"/><text x="464" y="184">Docs → search</text><text class="sub" x="464" y="206">BM25 + vectors + rerank</text></g>
+        <g class="node" data-step="3"><rect x="450" y="280" width="160" height="70" rx="4"/><text x="464" y="309">Web → context</text><text class="sub" x="464" y="331">benchmarks · market</text></g>
+        <g class="node" data-step="4"><rect x="670" y="150" width="140" height="80" rx="4"/><text x="684" y="182">Analyst agent</text><text class="sub" x="684" y="204">plan · decompose</text><text class="sub" x="684" y="219">diagnose · decide</text></g>
+        <g class="node" data-step="5"><rect x="850" y="70" width="130" height="70" rx="4"/><text x="864" y="99">Verifier</text><text class="sub" x="864" y="121">recompute · cite-check</text></g>
+        <g class="node" data-step="6"><rect x="850" y="245" width="130" height="90" rx="4"/><text x="864" y="276">Report</text><text class="sub" x="864" y="298">report.json</text><text class="sub" x="864" y="314">report.html</text></g>
+        <g id="packets"></g>
+      </svg>
+    </div>
+    <div class="pipe-controls">
+      <button class="btn" id="run">Run the pipeline</button>
+      <button class="btn ghost" id="stepBtn">Next step</button>
+      <div class="steps" id="stepbar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="log" id="log" aria-live="polite">
+      <div class="log-line"><b>ingest</b><span>4 files in. sales-2026.xlsx has 2 sheets and 3 table regions; the merged header row is unpacked into columns month, revenue, orders, wholesale, refunds. price-list.pdf is 4 pages via Docling.</span></div>
+      <div class="log-line"><b>tables · sql</b><span>SELECT month, revenue, wholesale, revenue - wholesale AS retail, refunds FROM monthly ORDER BY month; → 6 rows, Jan–Jun 2026</span></div>
+      <div class="log-line"><b>docs · search</b><span>price-list.pdf p.2, score 0.91: “Wholesale prices increase 12% from 15 March.” email-0412.eml, score 0.88: “we are pausing our standing order.”</span></div>
+      <div class="log-line"><b>web · context</b><span>industry-benchmark.example: typical 2026 wholesale price rises for specialty roasters 5–8%. Marked external, never mixed with your numbers.</span></div>
+      <div class="log-line"><b>agent · plan</b><span>Revenue fell 7,900 in April. Decompose: wholesale −8,500, retail +600. Wholesale explains 108% of the drop. Check docs for a cause in March–April.</span></div>
+      <div class="log-line"><b>verifier</b><span>14 numbers recomputed from SQL, 0 mismatches. 7 citations resolve to a row, page or URL. 1 claim downgraded to medium confidence (cause inferred from one email).</span></div>
+      <div class="log-line"><b>report</b><span>report.json (schema v1) and report.html written. 2 findings, 2 recommendations, 1 open question for the owner.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="io">
+  <div class="sec-head">
+    <span class="eyebrow">02 · input and output, side by side</span>
+    <h2>Click any citation and the evidence lights up</h2>
+    <p class="lede">Example data for a fictional coffee roaster. On the left is what the business uploads. On the right is what the engine returns. The citations are links into the source, not decoration.</p>
+  </div>
+  <div class="io">
+    <div class="io-col">
+      <div class="col-title"><h3>Input</h3><span class="hint">example files</span></div>
+      <div class="files"><span class="file-chip">sales-2026.xlsx</span><span class="file-chip">price-list.pdf</span><span class="file-chip">email-0412.eml</span><span class="file-chip">ops-notes.docx</span></div>
+      <div class="panel table-scroll">
+        <table id="src">
+          <thead><tr><th>Month</th><th>Revenue</th><th>Orders</th><th>Wholesale</th><th>Retail</th><th>Refunds</th></tr></thead>
+          <tbody>
+            <tr data-row="jan"><td><span class="rowid">r2</span>Jan</td><td data-col="rev">41,200</td><td>980</td><td data-col="wh">14,800</td><td data-col="rt">26,400</td><td data-col="ref">1.1%</td></tr>
+            <tr data-row="feb"><td><span class="rowid">r3</span>Feb</td><td data-col="rev">42,900</td><td>1,010</td><td data-col="wh">15,300</td><td data-col="rt">27,600</td><td data-col="ref">1.0%</td></tr>
+            <tr data-row="mar"><td><span class="rowid">r4</span>Mar</td><td data-col="rev">44,100</td><td>1,050</td><td data-col="wh">15,900</td><td data-col="rt">28,200</td><td data-col="ref">1.2%</td></tr>
+            <tr data-row="apr"><td><span class="rowid">r5</span>Apr</td><td data-col="rev">36,200</td><td>1,020</td><td data-col="wh">7,400</td><td data-col="rt">28,800</td><td data-col="ref">1.3%</td></tr>
+            <tr data-row="may"><td><span class="rowid">r6</span>May</td><td data-col="rev">35,800</td><td>1,005</td><td data-col="wh">7,100</td><td data-col="rt">28,700</td><td data-col="ref">2.9%</td></tr>
+            <tr data-row="jun"><td><span class="rowid">r7</span>Jun</td><td data-col="rev">37,000</td><td>1,040</td><td data-col="wh">7,300</td><td data-col="rt">29,700</td><td data-col="ref">3.4%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel docbox" id="doc-price"><span class="src">price-list.pdf · page 2</span><q>Wholesale prices increase 12% from 15 March 2026.</q></div>
+      <div class="panel docbox" id="doc-email"><span class="src">email-0412.eml · 12 Apr · from the hotel group buyer</span><q>After the new price list we are pausing our standing order while we compare suppliers.</q></div>
+      <div class="panel docbox" id="doc-ops"><span class="src">ops-notes.docx · §3</span><q>Switched to the new packaging supplier on 28 April.</q></div>
+      <div class="panel docbox" id="doc-web"><span class="src">web · industry-benchmark.example (illustrative source)</span><q>Specialty roasters raised wholesale prices 5–8% on average in 2026.</q></div>
+    </div>
+
+    <div class="io-col">
+      <div class="col-title"><h3>Output</h3><span class="hint">report.html, rendered from report.json</span></div>
+      <div class="panel report">
+        <div class="report-head"><h3>Business diagnosis · Jan–Jun 2026</h3><span class="verify">✓ 14/14 numbers verified</span></div>
+        <div class="finding">
+          <span class="k">Where it went wrong · finding 1</span>
+          <p>Revenue fell <b>17.9%</b> in April (44,100 → 36,200). Retail grew; <b>wholesale fell 8,500 (−53%)</b> right after a 12% wholesale price rise, and the hotel group paused its standing order.</p>
+          <div class="chips">
+            <button class="chip" data-rows="mar,apr" data-cols="rev,wh,rt" aria-pressed="false">sales r4–r5</button>
+            <button class="chip" data-doc="doc-price" aria-pressed="false">price-list p.2</button>
+            <button class="chip" data-doc="doc-email" aria-pressed="false">email 12 Apr</button>
+            <button class="chip" data-doc="doc-web" aria-pressed="false">web benchmark</button>
+          </div>
+        </div>
+        <div class="finding">
+          <span class="k">Where it went wrong · finding 2</span>
+          <p>The refund rate nearly tripled, from <b>1.2% to 3.4%</b>, starting in May, the first full month after the packaging supplier changed. That costs about <b>810 a month</b> above the old baseline.</p>
+          <div class="chips">
+            <button class="chip" data-rows="mar,apr,may,jun" data-cols="ref" aria-pressed="false">sales r4–r7</button>
+            <button class="chip" data-doc="doc-ops" aria-pressed="false">ops-notes §3</button>
+          </div>
+        </div>
+        <div class="finding ok">
+          <span class="k">What's working</span>
+          <p>Retail revenue rose every month but one, from 26,400 to 29,700 (+12.5% over the period).</p>
+          <div class="chips"><button class="chip" data-rows="jan,feb,mar,apr,may,jun" data-cols="rt" aria-pressed="false">sales r2–r7</button></div>
+        </div>
+        <p class="hint">Tap a citation to highlight its rows, cells or passage on the left. Tap again to clear.</p>
+      </div>
+      <details class="panel json">
+        <summary>Show the raw report.json this was rendered from</summary>
+<pre><span class="j-s">{</span>
+  <span class="j-k">"schema"</span>: <span class="j-s">"agentic-analytics.report/v1"</span>,
+  <span class="j-k">"period"</span>: { <span class="j-k">"from"</span>: <span class="j-s">"2026-01"</span>, <span class="j-k">"to"</span>: <span class="j-s">"2026-06"</span> },
+  <span class="j-k">"findings"</span>: [{
+    <span class="j-k">"id"</span>: <span class="j-s">"F1"</span>, <span class="j-k">"type"</span>: <span class="j-s">"regression"</span>,
+    <span class="j-k">"claim"</span>: <span class="j-s">"Revenue fell 17.9% in April, driven by wholesale"</span>,
+    <span class="j-k">"numbers"</span>: [{
+      <span class="j-k">"label"</span>: <span class="j-s">"revenue_change_pct"</span>, <span class="j-k">"value"</span>: <span class="j-n">-17.9</span>,
+      <span class="j-k">"sql"</span>: <span class="j-s">"SELECT (apr.revenue/mar.revenue-1)*100 …"</span>,
+      <span class="j-k">"rows"</span>: [<span class="j-s">"sales-2026.xlsx#Monthly!r4"</span>, <span class="j-s">"#Monthly!r5"</span>]
+    }],
+    <span class="j-k">"citations"</span>: [
+      { <span class="j-k">"kind"</span>: <span class="j-s">"doc"</span>, <span class="j-k">"ref"</span>: <span class="j-s">"price-list.pdf#p2"</span> },
+      { <span class="j-k">"kind"</span>: <span class="j-s">"doc"</span>, <span class="j-k">"ref"</span>: <span class="j-s">"email-0412.eml"</span> },
+      { <span class="j-k">"kind"</span>: <span class="j-s">"web"</span>, <span class="j-k">"ref"</span>: <span class="j-s">"https://industry-benchmark.example/…"</span> }
+    ],
+    <span class="j-k">"confidence"</span>: <span class="j-s">"high"</span>
+  }],
+  <span class="j-k">"recommendations"</span>: [{
+    <span class="j-k">"id"</span>: <span class="j-s">"R1"</span>, <span class="j-k">"action"</span>: <span class="j-s">"Offer the hotel group a 6% volume tier"</span>,
+    <span class="j-k">"because"</span>: [<span class="j-s">"F1"</span>],
+    <span class="j-k">"impact"</span>: { <span class="j-k">"metric"</span>: <span class="j-s">"monthly_revenue"</span>, <span class="j-k">"low"</span>: <span class="j-n">4000</span>, <span class="j-k">"high"</span>: <span class="j-n">7500</span> },
+    <span class="j-k">"confidence"</span>: <span class="j-s">"medium"</span>,
+    <span class="j-k">"next_check"</span>: <span class="j-s">"wholesale revenue for July ≥ 11,000"</span>
+  }],
+  <span class="j-k">"open_questions"</span>: [<span class="j-s">"Did other wholesale clients reduce volume?"</span>],
+  <span class="j-k">"verification"</span>: { <span class="j-k">"numbers_checked"</span>: <span class="j-n">14</span>, <span class="j-k">"mismatches"</span>: <span class="j-n">0</span> }
+<span class="j-s">}</span></pre>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="decide">
+  <div class="sec-head">
+    <span class="eyebrow">03 · how a recommendation is earned</span>
+    <h2>Six steps from a number to a decision you can defend</h2>
+    <p class="lede">Most tools jump from “here is a chart” to generic advice. The engine walks a fixed ladder, and any recommendation that can't cite evidence from the rungs below it is dropped.</p>
+  </div>
+  <div class="ladder">
+    <div class="rung"><span class="n">step 1</span><b>Measure</b><span>KPIs per period, computed in SQL: revenue, margin, mix, rates.</span></div>
+    <div class="rung"><span class="n">step 2</span><b>Detect</b><span>Changes, breaks and anomalies against the business's own history.</span></div>
+    <div class="rung"><span class="n">step 3</span><b>Decompose</b><span>Split each change into its drivers: segment, product, client, price, volume.</span></div>
+    <div class="rung"><span class="n">step 4</span><b>Explain</b><span>Match drivers to events in documents and to outside benchmarks.</span></div>
+    <div class="rung"><span class="n">step 5</span><b>Decide</b><span>Options ranked by expected impact, effort and risk, each with a range.</span></div>
+    <div class="rung"><span class="n">step 6</span><b>Check</b><span>The metric and date that will prove the call right or wrong.</span></div>
+  </div>
+  <div class="panel rec">
+    <div>
+      <span class="eyebrow">recommendation R1 · from the example</span>
+      <h3>Offer the hotel group a 6% volume tier to bring back the standing order</h3>
+      <p>Wholesale is the whole April drop, and it lines up with the 12% rise. That rise was above the 5–8% the market moved, so a tier that lands near the market rate is the cheapest fix with the largest upside.</p>
+      <dl class="kv">
+        <dt>Evidence</dt><dd>F1 · sales r4–r5 · price-list p.2 · email 12 Apr · web benchmark</dd>
+        <dt>Confidence</dt><dd><span class="conf" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span>Medium. The cause rests on one email.</dd>
+        <dt>Next check</dt><dd>July wholesale revenue at or above 11,000</dd>
+        <dt>Not advised</dt><dd>Across-the-board price cuts. Retail is growing and doesn't need them.</dd>
+      </dl>
+    </div>
+    <div>
+      <span class="eyebrow">expected impact · monthly revenue</span>
+      <div class="range" aria-label="Expected impact between 4,000 and 7,500 a month, midpoint 5,750">
+        <div class="axis"></div>
+        <div class="band" style="left:40%;width:35%"></div>
+        <div class="mid" style="left:57.5%"></div>
+      </div>
+      <div class="range-labels"><span>0</span><span>+5,000</span><span>+10,000</span></div>
+      <p class="hint">The range comes from recovering 50–90% of the lost 8,500, net of the 6% discount. Both inputs are shown in the report, so the owner can change them and see a new range.</p>
+      <span class="eyebrow" style="margin-top:8px">open question for the owner</span>
+      <p>Did any other wholesale clients cut volume after 15 March? The data can't separate them yet.</p>
+    </div>
+  </div>
+</section>
+
+<section id="fixes">
+  <div class="sec-head">
+    <span class="eyebrow">04 · what others leave broken</span>
+    <h2>The problems users complain about, and how this engine closes each one</h2>
+  </div>
+  <div class="panel fix-table">
+    <table>
+      <thead><tr><th>Problem in today's tools</th><th>Where it shows up</th><th>What this engine does</th></tr></thead>
+      <tbody>
+        <tr><td>Confidently wrong numbers</td><td>Chat analysts that do arithmetic in the model; reviews of AI data tools cite figures that were simply wrong.</td><td>The model never computes. DuckDB runs the SQL, and a verifier recomputes every number in the report before it ships.</td></tr>
+        <tr><td>Spreadsheets treated as text</td><td>Most RAG platforms chunk an Excel file like a document, so totals and trends are invented.</td><td>Tables are detected and loaded as real tables, including merged headers and several tables on one sheet. Text gets search, numbers get SQL.</td></tr>
+        <tr><td>No way to check a claim</td><td>Answers arrive as prose with no source.</td><td>Every claim carries a row, cell, page or URL, and the citation is clickable in the HTML report.</td></tr>
+        <tr><td>Advice with no basis</td><td>“Consider improving marketing.”</td><td>Recommendations must cite findings, carry an impact range and confidence, and name the check that will judge them.</td></tr>
+        <tr><td>Tables, documents and the web never meet</td><td>Text-to-SQL tools ignore documents; research agents ignore your numbers.</td><td>One analysis joins all three lanes, and outside sources are always labelled as outside.</td></tr>
+        <tr><td>Business data leaves the building</td><td>Hosted tools upload files to a vendor; some consumer tiers train on them.</td><td>Self-hosted by default, works fully offline with Ollama, no telemetry.</td></tr>
+        <tr><td>Hard to plug into a real system</td><td>Chat UIs only.</td><td>A typed JSON schema, an HTTP API, an MCP server and a CLI. The UI is optional.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="doors">
+  <div class="sec-head">
+    <span class="eyebrow">05 · one engine, four doors</span>
+    <h2>Use it from code, from an AI agent, from a terminal or from a chat</h2>
+  </div>
+  <div class="panel">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-door="api" id="t-api">HTTP API</button>
+      <button class="tab" role="tab" aria-selected="false" data-door="mcp" id="t-mcp">MCP server</button>
+      <button class="tab" role="tab" aria-selected="false" data-door="cli" id="t-cli">CLI</button>
+      <button class="tab" role="tab" aria-selected="false" data-door="tg" id="t-tg">Telegram demo</button>
+    </div>
+    <div class="door-body">
+      <div id="door-text"></div>
+      <pre id="door-code"></pre>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="sec-head">
+    <span class="eyebrow">06 · what it's built from</span>
+    <h2>A TypeScript engine with one small Python helper</h2>
+    <p class="lede">It all ships as one compose file: the engine, a Docling parser, an optional SearXNG for web search and an optional Ollama for local models. No external database to run.</p>
+  </div>
+  <div class="stack">
+    <div class="panel layer"><span class="eyebrow">core</span><b>Node 22 · TypeScript · Hono</b><span>Engine, HTTP API, job runner. pnpm monorepo.</span></div>
+    <div class="panel layer"><span class="eyebrow">models</span><b>Vercel AI SDK</b><span>Claude by default; OpenAI or any Ollama model behind the same interface.</span></div>
+    <div class="panel layer"><span class="eyebrow">data</span><b>DuckDB</b><span>SQL over tables plus full-text and vector search over text, in one embedded file.</span></div>
+    <div class="panel layer"><span class="eyebrow">parsing</span><b>Docling sidecar · SheetJS</b><span>PDFs, Word, scans via Docling; messy Excel via SheetJS and table-region detection.</span></div>
+    <div class="panel layer"><span class="eyebrow">web</span><b>SearXNG · Brave · Tavily</b><span>Pluggable search. Self-hosted SearXNG by default, API keys optional.</span></div>
+    <div class="panel layer"><span class="eyebrow">contract</span><b>Zod → JSON Schema</b><span>One schema validates the model's output and defines the API, MCP tools and HTML report.</span></div>
+    <div class="panel layer"><span class="eyebrow">doors</span><b>MCP SDK · CLI · grammY</b><span>MCP server, terminal tool and Telegram bot on top of the same API.</span></div>
+    <div class="panel layer"><span class="eyebrow">proof</span><b>Vitest · eval datasets</b><span>Sample businesses with known answers. Every release must keep 0 number mismatches.</span></div>
+  </div>
+</section>
+
+<footer class="foot">
+  <span class="eyebrow">next</span>
+  <p>Lock the report schema and the eval datasets first, then build lane by lane: tables, documents, web, agent, verifier, doors. The agentic-analytics is a placeholder until it's checked against existing products.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var nodes = Array.prototype.slice.call(document.querySelectorAll('.node'));
+  var lines = Array.prototype.slice.call(document.querySelectorAll('.log-line'));
+  var bars = Array.prototype.slice.call(document.querySelectorAll('#stepbar i'));
+  var packets = document.getElementById('packets');
+  var NS = 'http://www.w3.org/2000/svg';
+  var stepEdges = [['e0','e1','e2','e3'],['e4'],['e5'],['e6'],['e7','e8','e9'],['e10'],['e11']];
+  var step = -1, timer = null, running = false;
+
+  function paint(){
+    nodes.forEach(function(n){
+      var s = +n.getAttribute('data-step');
+      n.classList.toggle('active', s === step);
+      n.classList.toggle('done', s < step);
+    });
+    lines.forEach(function(l,i){ l.classList.toggle('on', i <= step); });
+    bars.forEach(function(b,i){ b.classList.toggle('on', i <= step); });
+    document.querySelectorAll('.edge').forEach(function(e){ e.classList.remove('lit'); });
+    for (var i=0;i<=step && i<stepEdges.length;i++) stepEdges[i].forEach(function(id){ document.getElementById(id).classList.add('lit'); });
+  }
+  function fly(ids){
+    if (reduce) return;
+    ids.forEach(function(id){
+      var p = document.getElementById(id); var len = p.getTotalLength();
+      var c = document.createElementNS(NS,'circle'); c.setAttribute('r','5'); c.setAttribute('class','packet');
+      packets.appendChild(c);
+      var t0 = null, dur = 700;
+      function frame(ts){
+        if (!t0) t0 = ts; var k = Math.min(1,(ts-t0)/dur);
+        var pt = p.getPointAtLength(len*k); c.setAttribute('cx',pt.x); c.setAttribute('cy',pt.y);
+        if (k<1) requestAnimationFrame(frame); else c.remove();
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+  function advance(){
+    step = step >= 6 ? 0 : step + 1;
+    paint(); fly(stepEdges[step]);
+  }
+  function run(){
+    if (running) return; running = true; step = -1; paint();
+    var i = 0;
+    (function tick(){
+      advance(); i++;
+      if (i < 7) timer = setTimeout(tick, reduce ? 150 : 1100);
+      else running = false;
+    })();
+  }
+  document.getElementById('run').addEventListener('click', run);
+  document.getElementById('stepBtn').addEventListener('click', function(){ if (timer) clearTimeout(timer); running = false; advance(); });
+  // resting state: everything visible and lit as complete
+  step = 6; paint();
+
+  // citations
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  function clearHl(){
+    document.querySelectorAll('tr.row-hl').forEach(function(r){ r.classList.remove('row-hl'); });
+    document.querySelectorAll('td.cell-hl').forEach(function(c){ c.classList.remove('cell-hl'); });
+    document.querySelectorAll('.docbox.hl').forEach(function(d){ d.classList.remove('hl'); });
+  }
+  chips.forEach(function(ch){
+    ch.addEventListener('click', function(){
+      var was = ch.getAttribute('aria-pressed') === 'true';
+      chips.forEach(function(c){ c.setAttribute('aria-pressed','false'); });
+      clearHl();
+      if (was) return;
+      ch.setAttribute('aria-pressed','true');
+      var rows = ch.getAttribute('data-rows'), cols = ch.getAttribute('data-cols'), doc = ch.getAttribute('data-doc');
+      var target = null;
+      if (rows){
+        rows.split(',').forEach(function(r){
+          var tr = document.querySelector('tr[data-row="'+r+'"]'); if (!tr) return;
+          tr.classList.add('row-hl'); target = target || tr;
+          (cols||'').split(',').forEach(function(c){ var td = tr.querySelector('td[data-col="'+c+'"]'); if (td) td.classList.add('cell-hl'); });
+        });
+        target = document.getElementById('src');
+      }
+      if (doc){ target = document.getElementById(doc); target.classList.add('hl'); }
+      if (target && window.innerWidth < 860) target.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block:'center'});
+    });
+  });
+
+  // doors
+  var doors = {
+    api:{t:'<h3>HTTP API</h3><p>Post files, get a job, fetch the report. Any backend can call it.</p><p class="hint">Fits: SaaS products, internal tools, n8n flows.</p>',
+      c:'curl -X POST http://localhost:8080/v1/reports \\\n  -F "files=@sales-2026.xlsx" \\\n  -F "files=@price-list.pdf" \\\n  -F "files=@email-0412.eml" \\\n  -F \'options={"web":true,"period":"2026-01..2026-06"}\'\n\n# → 202 { "job": "rpt_8f2c", "status": "running" }\n\ncurl http://localhost:8080/v1/reports/rpt_8f2c\n# → 200 { "schema": "agentic-analytics.report/v1", "findings": [...] }'},
+    mcp:{t:'<h3>MCP server</h3><p>Claude, Cursor or any agent calls the engine as a tool and gets the typed report back.</p><p class="hint">Fits: AI agents and assistants that need trustworthy numbers.</p>',
+      c:'// claude_desktop_config.json\n{\n  "mcpServers": {\n    "agentic-analytics": {\n      "command": "npx",\n      "args": ["agentic-analytics", "mcp"],\n      "env": { "AA_URL": "http://localhost:8080" }\n    }\n  }\n}\n\n// tools exposed\nanalyze_files   → report.json\nask_report      → answer with citations\nexplain_number  → the SQL and rows behind a figure'},
+    cli:{t:'<h3>CLI</h3><p>Point it at a folder and get the report in one command. This is the first thing people will try.</p><p class="hint">Fits: developers, analysts, the launch GIF.</p>',
+      c:'$ npx agentic-analytics analyze ./q2-exports --web --open\n\n✓ 4 files · 3 tables · 2 documents\n✓ 14 numbers computed · 0 mismatches\n✓ 2 findings · 2 recommendations\n→ ./q2-exports/agentic-analytics/report.html'},
+    tg:{t:'<h3>Telegram demo</h3><p>Send files to a bot, get the HTML report and a short summary back. A thin client on the same API.</p><p class="hint">Fits: demos, non-technical owners.</p>',
+      c:'You:  [sales-2026.xlsx] [price-list.pdf]\n      what went wrong this spring?\n\nBot:  Revenue fell 17.9% in April, all from wholesale\n      (−8,500). It follows a 12% price rise on 15 Mar.\n      Suggested: a 6% volume tier for the hotel group,\n      +4,000 to +7,500 a month, medium confidence.\n      📎 report.html'}
+  };
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  function show(k){
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', t.getAttribute('data-door')===k ? 'true':'false'); });
+    document.getElementById('door-text').innerHTML = doors[k].t;
+    document.getElementById('door-code').textContent = doors[k].c;
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ show(t.getAttribute('data-door')); }); });
+  show('api');
+})();
+</script>
+
+</html>

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.turbo/
+coverage/
+.env
+.env.*
+!.env.example
+data/
+*.duckdb
+*.duckdb.wal
+.DS_Store
+evals/results/*.json
+!evals/results/.gitkeep
+.autopilot/
