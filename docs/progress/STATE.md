@@ -55,4 +55,6 @@ _None yet._
 
 ## Known gaps carried forward
 
-_None yet._
+- [M0] `aa doctor` probes a hardcoded list of free OpenAI-compatible endpoints (Groq, OpenRouter) instead of the provider config in specs/models.md §4 — switch to the config loader when M1 adds it
+- [M0] docker-compose images for searxng, docling and ollama use `:latest` — pin versions before M10/M12
+- [M0] `aa serve` doesn't exist yet, so the engine container runs `aa doctor` and exits — M10

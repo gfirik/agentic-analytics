@@ -7,7 +7,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 STATE=docs/progress/STATE.md
 
 probe=$(mktemp -d)
-trap 'rm -rf "$probe"' EXIT
+trap 'rm -rf "$probe" packages/store/.bun-runtime-probe.ts' EXIT
 cat > "$probe/probe.ts" <<'TS'
 import { DuckDBInstance } from "@duckdb/node-api";
 const instance = await DuckDBInstance.create(":memory:");
