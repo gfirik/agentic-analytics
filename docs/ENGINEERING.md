@@ -4,19 +4,19 @@
 
 **Requirements:**
 - Node 22+
-- pnpm 9+
+- Bun 1.4+ (package manager only; the runtime is Node 22, see D7/D14)
 - git
 - Docker (optional, for SearXNG and Docling)
 - Ollama (for local models)
 
 ```bash
 git clone git@github.com:gfirik/agentic-analytics.git && cd agentic-analytics
-pnpm i
+bun install
 cp .env.example .env
 ollama pull bge-m3            # embeddings (~1.2 GB)
 ollama pull qwen3.5:9b        # example local model; any tool-calling model works
-pnpm check
-pnpm dev                      # API + viewer on http://localhost:8080
+bun run check
+bun run dev                   # API + viewer on http://localhost:8080
 ```
 
 **Faster free option for development (no credit card).** Use a free OpenAI-compatible endpoint (Groq, Cerebras, OpenRouter free models, GitHub Models). Put the key in `.env` and point the planner role at it in `agentic-analytics.config.yaml`.
@@ -35,13 +35,13 @@ docker compose --profile docling up -d   # docling-serve on :5001
 
 | Script | Does |
 |---|---|
-| `pnpm check` | biome check + tsc --noEmit + vitest run + schema drift. Must pass before every push. |
-| `pnpm test` / `pnpm test:watch` | unit tests |
-| `pnpm dev` | server + viewer in watch mode |
-| `pnpm build` | build all packages and apps |
-| `pnpm eval:smoke` | end-to-end smoke suite with FakeModel |
-| `pnpm eval:full -- --model <profile>` | full eval with a real model (manual) |
-| `pnpm docs:dev` | docs site locally (from M12) |
+| `bun run check` | biome check + tsc --noEmit + vitest run + schema drift. Must pass before every push. |
+| `bun run test` / `bun run test:watch` | unit tests |
+| `bun run dev` | server + viewer in watch mode |
+| `bun run build` | build all packages and apps |
+| `bun run eval:smoke` | end-to-end smoke suite with FakeModel |
+| `bun run eval:full --model <profile>` | full eval with a real model (manual) |
+| `bun run docs:dev` | docs site locally (from M12) |
 
 ## 3. Git workflow
 
@@ -74,7 +74,7 @@ docker compose --profile docling up -d   # docling-serve on :5001
 
 | Workflow | Trigger | Steps |
 |---|---|---|
-| `ci.yml` | PR, push to main | install (pnpm cache) → biome → typecheck → unit tests → schema drift → `eval:smoke` (FakeModel) → injection suite |
+| `ci.yml` | PR, push to main | install (`oven-sh/setup-bun`, Bun cache; Node 22 for the runtime) → biome → typecheck → unit tests → schema drift → `eval:smoke` (FakeModel) → injection suite |
 | `docs.yml` | push to main (from M12) | build Starlight → deploy GitHub Pages |
 | `release.yml` | tag `v*` | build → test → Docker image → push to GHCR → GitHub Release with notes |
 

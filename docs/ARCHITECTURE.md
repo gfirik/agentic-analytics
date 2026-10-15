@@ -134,7 +134,7 @@ Apps: `server` (Hono), `cli` (citty), `mcp` (MCP SDK, stdio + streamable HTTP), 
 ```
 agentic-analytics/
 ├── AGENTS.md  CLAUDE.md  README.md  LICENSE  .env.example
-├── package.json  pnpm-workspace.yaml  turbo.json  biome.json  tsconfig.base.json
+├── package.json (workspaces)  bun.lock  turbo.json  biome.json  tsconfig.base.json
 ├── apps/
 │   ├── server/   cli/   mcp/   telegram/   viewer/   docs/
 ├── packages/

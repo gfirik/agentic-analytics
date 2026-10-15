@@ -6,7 +6,7 @@ The docs are part of the product, not something added at the end. Every stage of
 
 | Section | Pages |
 |---|---|
-| Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / pnpm / Ollama / free endpoint), Your first report (coffee-roaster walkthrough) |
+| Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / Bun / Ollama / free endpoint), Your first report (coffee-roaster walkthrough) |
 | How it works | Pipeline overview (interactive, ported from `docs/assets/blueprint.html`); Ingest & table detection; Profiling & data quality; Metric layer; Detecting changes; Finding drivers (PVM, contribution, rate/mix, Simpson, DIFF), with worked examples and animated bar breakdowns; Documents lane (RAG: chunking, BM25, vectors, RRF, rerank, with a step-through visual); Web lane & privacy; Explain & causal grades; Decisions & impact ranges; The verifier (V1–V8 with a before/after draft example); Security & prompt injection |
 | Use it | CLI, HTTP API (generated from OpenAPI), MCP (Claude Desktop / Cursor setup), Telegram demo, Viewer |
 | Reference | Report schema (generated from JSON Schema), Metric YAML, Config, Insight templates list, Decomposers list |

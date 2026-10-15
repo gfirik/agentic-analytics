@@ -130,4 +130,4 @@ VerificationSummary = {
 ## 7. Fixtures
 
 - `packages/schema/test/fixtures/report.coffee-roaster.json` is a full valid example that mirrors the blueprint. It is used by renderer tests and docs.
-- Schema drift: `pnpm check` regenerates the JSON Schema and fails if it differs from the committed file without a schema-version note.
+- Schema drift: `bun run check` regenerates the JSON Schema and fails if it differs from the committed file without a schema-version note.

@@ -71,7 +71,7 @@ Gates can be edited in STATE.md.
 ```bash
 # tools
 node -v                  # 22+
-corepack enable          # gives pnpm
+bun --version            # 1.4+, package manager (curl -fsSL https://bun.sh/install | bash)
 gh auth login            # GitHub CLI, logged in as gfirik (needed for repo create, PRs, merges)
 # no Ollama needed: tests use FakeModel and embeddings run in-process
 
@@ -114,7 +114,7 @@ The first run handles M0, including `git init`, creating the private GitHub repo
 
 ## 7. Safety rails
 
-- **Allow-list.** `.claude/settings.json` allows only what the loop needs: pnpm, node, git, gh, docker compose, ollama, and read-only file tools.
+- **Allow-list.** `.claude/settings.json` allows only what the loop needs: bun, bunx, node, git, gh, docker compose, ollama, and read-only file tools.
 - **Hard denies:**
   - pushing to `main` directly;
   - force-pushing;
