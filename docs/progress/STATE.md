@@ -11,7 +11,7 @@ Human gate values:
 
 | Milestone | Status | Human gate | PR | Demo command | Notes |
 |---|---|---|---|---|---|
-| M0 Foundation | TODO | no | | | |
+| M0 Foundation | IN_PROGRESS | no | | | |
 | M1 Contracts & golden fixtures | TODO | notify | | | |
 | M2 Ingestion | TODO | no | | | |
 | M3 Workspace & profiling | TODO | no | | | |
