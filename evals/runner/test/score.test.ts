@@ -3,7 +3,16 @@
 import type { AnswerKey } from "@agentic-analytics/eval-generator";
 import type { Fact, Finding, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { canonicalMetrics, matchesDistractor, matchesPlanted, rescore, scoreReport, subjectOf, summarize } from "../src/index.ts";
+import {
+  canonicalMetrics,
+  matchesDistractor,
+  matchesPlanted,
+  rescore,
+  type SuiteResult,
+  scoreReport,
+  subjectOf,
+  summarize,
+} from "../src/index.ts";
 
 const fact = (id: string, label: string): Fact => ({
   id,
@@ -238,7 +247,7 @@ describe("scoring", () => {
 
   it("rescore re-scores completed datasets from kept reports and keeps timings", () => {
     const old = scoreReport(report(), { ...key, planted: [] }, { seconds: 9, tokens: { input: 1, output: 2 } });
-    const result = {
+    const result: SuiteResult = {
       suite: "smoke",
       model: "m",
       date: "2026-10-16",
@@ -247,7 +256,7 @@ describe("scoring", () => {
       bars: summarize([old]),
       seconds: 9,
       tokens: { input: 1, output: 2 },
-    } as const;
+    };
     const r = rescore(result, new Map([["t-v1", report()]]), [{ id: "t-v1", answers: key, files: {} }]);
     expect(r.scores[0]?.planted.map((p) => p.id)).toEqual(["P1", "P2"]);
     expect(r.scores[0]?.seconds).toBe(9);
