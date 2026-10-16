@@ -37,3 +37,5 @@ EXPLAIN and DECIDE.
 ## Example
 
 See `packages/core/src/job.ts`, which wires these into the EXPLAIN and DECIDE stages, and `packages/core/testing/coffee-planner.ts` for a scripted planner.
+
+**Quality items.** Issues of one kind in one column are grouped into one report item that cites the first rows and states its row count through a SQL count fact (`{{N…}} rows`, from `src/quality.sql.ts`; a `prefixed_id` count covers only the flagged prefixes), so the verifier re-runs it like any other number.

@@ -146,8 +146,9 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     source_id: string | null;
     rows: number[] | null;
     column_name: string | null;
+    prefix: string | null;
   }>(
-    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name
+    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name, i.details->>'prefix' AS prefix
         FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY TRY_CAST(substr(i.id, 2) AS INTEGER), i.id`,
   );
   // One report item per kind of issue in one column of one table: a real file can have thousands of negative
@@ -172,7 +173,8 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     const cited = [...new Set(g.flatMap((x) => x.rows ?? []))].sort((a, b) => a - b).slice(0, MAX_CITED_ROWS);
     const severity = g.map((x) => x.severity).sort((a, b) => rank[a] - rank[b])[0] ?? r.severity;
     const citations = r.source_id ? [{ source_id: r.source_id, ...(cited.length ? { rows: cited } : {}) }] : [];
-    const count = r.source_id && r.column_name ? qualityCount(r.kind, r.source_id, r.column_name) : undefined;
+    const prefixes = [...new Set(g.flatMap((x) => (x.prefix ? [x.prefix] : [])))];
+    const count = r.source_id && r.column_name ? qualityCount(r.kind, r.source_id, r.column_name, prefixes) : undefined;
     let howMany = "";
     if (count) {
       const value = Number((await ws.one<{ value: number }>(count))?.value ?? 0);
