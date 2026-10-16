@@ -17,6 +17,8 @@ for pass in $(seq 1 "$max"); do
   log="data/logs/eval-${suite}-pass${pass}.log"
   echo "[$(date -u +%FT%TZ)] pass ${pass}: bun run eval -- --suite ${suite} --model configured $*"
   bun run eval -- --suite "$suite" --model configured "$@" >"$log" 2>&1
+  # The README's results table is generated from evals/results: keep it in step with each pass.
+  bun run readme:assets >/dev/null 2>&1 || true
   grep -E '^\[[0-9]+/[0-9]+\]' "$log"
   if ! grep -qE 'failed \((RATE_LIMITED|PROVIDER: .*(429|Rate limit|rate limit|Cannot connect))' "$log"; then
     grep -E '^(Jobs completed|Planted recall|Distractor FP|Driver accuracy)' "$log"
