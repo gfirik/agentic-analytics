@@ -20,6 +20,7 @@ export {
   type ExplainResult,
   explainFindings,
   SmallExplainOutput,
+  withoutQuarantined,
 } from "./explain.ts";
 export { type Extract, ExtractOutput, type ExtractResult, extractFromHits, quarantinedSources, readExtracts, screen } from "./extractor.ts";
 export { buildFactSheet, type FactSheet, type SheetFact, sheetFact } from "./factsheet.ts";

@@ -153,7 +153,8 @@ export async function explainFindings(
       period: insight.period,
       observed: observed.map((c) => c.text),
     });
-    const seen = ctx.found.extracts.length;
+    // By id, not by position: a source quarantined during this finding removes earlier extracts from the list.
+    const known = new Set(ctx.found.extracts.map((e) => e.id));
 
     if (!options.small) {
       const run = await model.generateWithTools({
@@ -179,7 +180,7 @@ export async function explainFindings(
       const query = [def?.label ?? insight.metric, top, insight.period].filter(Boolean).join(" ");
       await (tools.search_documents as { execute(i: unknown): Promise<unknown> }).execute({ query });
     }
-    const evidence = ctx.found.extracts.slice(seen);
+    const evidence = ctx.found.extracts.filter((e) => !known.has(e.id));
     const extracts = new Map(evidence.map((e) => [e.id, e]));
     const after = await facts();
     const newFacts = [...after.values()].filter((f) => !before.has(f.id)).map(sheetFact);
@@ -253,7 +254,28 @@ export async function explainFindings(
     await options.onFinding?.(findings.length, Math.min(top.length, options.maxFindings));
     options.log?.info("finding explained", { finding: id, insight: insight.id, claims: claims.length, extracts: evidence.length });
   }
-  return { findings, dropped, downgraded, insightOf };
+  // A source quarantined by a later finding's search also takes back what earlier findings cited from it.
+  const clean = withoutQuarantined(findings, ctx.found.quarantined);
+  return { findings: clean.findings, dropped: [...dropped, ...clean.dropped], downgraded, insightOf };
+}
+
+/** Drops claims citing a quarantined source (security §3: the whole source is excluded), recording each drop. */
+export function withoutQuarantined(
+  findings: readonly Finding[],
+  quarantined: readonly string[],
+): { findings: Finding[]; dropped: Dropped[] } {
+  const bad = new Set(quarantined);
+  const dropped: Dropped[] = [];
+  const out = findings.map((f) => ({
+    ...f,
+    claims: f.claims.filter((c) => {
+      const hit = c.citations.find((x) => bad.has(x.source_id));
+      if (hit) dropped.push({ claim: c.text, reason: `source ${hit.source_id} quarantined (suspicious instructions)` });
+      return !hit;
+    }),
+  }));
+  // Every finding keeps its code-written observed claims, but a finding left with none is dropped too.
+  return { findings: out.filter((f) => f.claims.length > 0), dropped };
 }
 
 const LEVEL = { low: 0, medium: 1, high: 2 } as const;
