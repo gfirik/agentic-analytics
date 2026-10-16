@@ -52,13 +52,13 @@
     {
       "id": "S2",
       "file": "price-list.pdf",
-      "sha256": "b1067137cb1259b9cbff6217303d78c5e5c93986c80b804bab4bf39008f86c62",
+      "sha256": "1c33ff9091a1f01c887063a8b5a5e29055a6d1a2f4929a42675ee053b1965644",
       "kind": "document",
       "external": false,
       "locator": {
         "page": 2,
-        "char_start": 17,
-        "char_end": 66
+        "char_start": 16,
+        "char_end": 65
       }
     },
     {
@@ -1548,7 +1548,7 @@
       "kind": "text",
       "page": 2,
       "char_start": 0,
-      "text": "Wholesale terms\n\nWholesale prices increase 12% from 15 March 2026.\nEspresso blend 1kg ... 24.60\nFilter blend 1kg ... 23.50\nMinimum order: 10 kg. Delivery twice a week."
+      "text": "Wholesale terms\nWholesale prices increase 12% from 15 March 2026.\nEspresso blend 1kg ... 24.60\nFilter blend 1kg ... 23.50\nMinimum order: 10 kg. Delivery twice a week."
     },
     {
       "source_id": "S3",

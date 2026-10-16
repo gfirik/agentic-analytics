@@ -6,7 +6,6 @@ export const PRICE_LIST_PAGES: readonly (readonly string[])[] = [
   [
     "Northside Coffee Roasters",
     "Price list 2026",
-    "",
     "Retail (per bag)",
     "Espresso blend 250g ... 9.50",
     "Filter blend 250g ... 9.00",
@@ -14,17 +13,16 @@ export const PRICE_LIST_PAGES: readonly (readonly string[])[] = [
   ],
   [
     "Wholesale terms",
-    "",
     "Wholesale prices increase 12% from 15 March 2026.",
     "Espresso blend 1kg ... 24.60",
     "Filter blend 1kg ... 23.50",
     "Minimum order: 10 kg. Delivery twice a week.",
   ],
-  ["Payment terms", "", "Invoices are due within 14 days.", "Late payments may pause standing orders."],
-  ["Contact", "", "orders@roaster.example", "Northside Coffee Roasters, Tashkent"],
+  ["Payment terms", "Invoices are due within 14 days.", "Late payments may pause standing orders."],
+  ["Contact", "orders@roaster.example", "Northside Coffee Roasters, Tashkent"],
 ];
 
-/** Page text as a text extractor returns it: lines joined with newlines. */
+/** Page text as a text extractor returns it: lines joined with newlines (no blank lines: extractors drop them). */
 export function pageText(page: number): string {
   return (PRICE_LIST_PAGES[page - 1] ?? []).join("\n");
 }

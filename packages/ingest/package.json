@@ -9,5 +9,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "mailparser": "^3.9.39",
+    "mammoth": "^1.13.0",
+    "unpdf": "^1.9.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.9.0"
   }
 }
