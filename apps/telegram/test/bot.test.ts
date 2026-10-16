@@ -9,7 +9,7 @@ import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { createApp } from "@agentic-analytics/server";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { ApiClient, chatPolicy, createBot } from "../src/index.ts";
 
 const root = mkdtempSync(join(tmpdir(), "aa-tg-"));
@@ -128,7 +128,8 @@ describe("Telegram bot (long polling)", () => {
       .handleUpdate(message({ text: "/help", entities: [{ type: "bot_command", offset: 0, length: 5 }] }) as never)
       .catch((e: unknown) => bot.errorHandler(e as never));
     expect(errors).toHaveLength(1);
-    expect(replies).toEqual(["Something went wrong (details are in the bot's log)."]);
+    // The generic reply is sent without blocking the error handler: wait for it.
+    await vi.waitFor(() => expect(replies).toEqual(["Something went wrong (details are in the bot's log)."]));
     await bot.handleUpdate(message({ text: "/help", entities: [{ type: "bot_command", offset: 0, length: 5 }] }) as never);
     expect(replies).toHaveLength(2);
   });
