@@ -110,6 +110,13 @@
     "packages/profile": {
       "name": "@agentic-analytics/profile",
       "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+      },
+      "devDependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
+      },
     },
     "packages/report": {
       "name": "@agentic-analytics/report",
