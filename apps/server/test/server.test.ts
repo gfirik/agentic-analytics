@@ -1,6 +1,6 @@
 // M10: the HTTP door (interfaces §1). Every endpoint through `app.request`: upload → events → metric review →
 // report (JSON and HTML) → ask → explain → delete, plus health, OpenAPI, bearer auth and MCP at /mcp.
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobManager } from "@agentic-analytics/core";
@@ -136,6 +136,21 @@ describe("HTTP API", () => {
     expect(init.status).toBe(200);
     const tools = (await (await rpc("tools/list", {}, 2)).json()) as { result: { tools: { name: string }[] } };
     expect(tools.result.tools.map((t) => t.name)).toContain("analyze_files");
+  });
+
+  it("serves the viewer at / (and index.html for client routes), or a pointer when it isn't built", async () => {
+    const dir = join(root, "viewer-dist");
+    mkdirSync(join(dir, "assets"), { recursive: true });
+    writeFileSync(join(dir, "index.html"), "<!doctype html><div id=root></div>");
+    writeFileSync(join(dir, "assets", "app.js"), "console.log(1)");
+    const withViewer = createApp(manager, { viewerDir: dir });
+    expect(await (await withViewer.request("/")).text()).toContain("<div id=root>");
+    const js = await withViewer.request("/assets/app.js");
+    expect(js.headers.get("content-type")).toBe("text/javascript");
+    expect(await (await withViewer.request("/jobs/x")).text()).toContain("<div id=root>");
+    expect((await withViewer.request("/../../etc/passwd")).status).toBe(200);
+    expect(await (await withViewer.request("/../../etc/passwd")).text()).toContain("<div id=root>");
+    expect(await (await app.request("/")).text()).toContain("The viewer is not built");
   });
 
   it("DELETE removes the job", async () => {
