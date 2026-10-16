@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -56,7 +56,23 @@ describe("stageNativeLib (standalone binary)", () => {
         platform: "linux",
         arch: "x64",
       }),
-    ).rejects.toThrow();
-    void NativeLibError;
+    ).rejects.toMatchObject({ name: "Error", code: "NATIVE_LIB" });
+  });
+
+  it("a staged path that can't be replaced (a folder in its place) is a typed error", async () => {
+    const cache = join(root, "cache2");
+    const dir = join(cache, "agentic-analytics", "native", "duckdb-1.0.0-linux-x64", "libduckdb.so");
+    mkdirSync(dir, { recursive: true });
+    const err = await stageNativeLib({
+      embedded: join(root, "embedded.so"),
+      name: "libduckdb.so",
+      version: "1.0.0",
+      read: async () => new Uint8Array([1, 2]),
+      size: () => 2,
+      env: { XDG_CACHE_HOME: cache },
+      platform: "linux",
+      arch: "x64",
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NativeLibError);
   });
 });

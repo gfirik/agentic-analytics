@@ -48,11 +48,24 @@ export async function stageNativeLib(o: StageOptions): Promise<string> {
   const dir = join(cacheRoot(o.env, platform), "agentic-analytics", "native", `duckdb-${o.version}-${platform}-${o.arch ?? process.arch}`);
   const target = join(dir, o.name);
   const want = o.size(o.embedded);
-  if (sizeOf(target) === want) return target;
-  mkdirSync(dir, { recursive: true });
+  const fail = (err: unknown): never => {
+    throw new NativeLibError(`could not stage ${o.name} in ${dir}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  };
+  let have: number | undefined;
+  try {
+    have = sizeOf(target);
+  } catch (err) {
+    fail(err);
+  }
+  if (have === want) return target;
   // Write beside it, then rename: two binaries starting at once never load a half-written library.
   const tmp = `${target}.${process.pid}.tmp`;
-  writeFileSync(tmp, await o.read(o.embedded));
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(tmp, await o.read(o.embedded));
+  } catch (err) {
+    fail(err);
+  }
   try {
     renameSync(tmp, target);
   } catch (err) {
@@ -63,7 +76,7 @@ export async function stageNativeLib(o: StageOptions): Promise<string> {
       // Best effort: a leftover .tmp is rewritten on the next start.
     }
     if (sizeOf(target) === want) return target;
-    throw new NativeLibError(`could not stage ${o.name} in ${dir}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    fail(err);
   }
   return target;
 }

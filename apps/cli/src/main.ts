@@ -21,7 +21,7 @@ import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { formatEvent, runCommand } from "./run.ts";
-import { embedderChoice, isStandalone, resultsDir, runtimeVersion } from "./standalone.ts";
+import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -321,20 +321,23 @@ const evalCmd = defineCommand({
     const suite = args.suite === "full" ? "full" : "smoke";
     const model = args.model ?? "baseline";
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+    const where = resultsLocation(
+      args["results-dir"],
+      process.env,
+      process.cwd(),
+      fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+    );
     const r = await evalCommand(
       {
         suite,
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
-        resultsDir: resultsDir(
-          args["results-dir"],
-          process.env,
-          process.cwd(),
-          fileURLToPath(new URL("../../../evals/results", import.meta.url)),
-        ),
+        resultsDir: where.dir,
+        ...(where.page ? { resultsPage: where.page } : {}),
       },
       {
+        // Evals default to the hash embedder everywhere (deterministic, no download), unlike analyze.
         embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
         print,
         modelFor: (name) => {

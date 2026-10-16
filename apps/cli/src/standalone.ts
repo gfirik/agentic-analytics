@@ -7,10 +7,23 @@ type Env = Readonly<Record<string, string | undefined>>;
 
 export const isStandalone = (env: Env): boolean => env.AA_STANDALONE === "1";
 
-/** Where `aa eval` writes results: the flag, else evals/results in a source checkout, else ./eval-results (binary). */
-export function resultsDir(arg: string | undefined, env: Env, cwd: string, checkoutDefault: string): string {
-  if (arg) return arg;
-  return isStandalone(env) ? join(cwd, "eval-results") : checkoutDefault;
+/**
+ * Where `aa eval` writes results, and its RESULTS.md page: the flag's folder (page inside it), else evals/results
+ * with evals/RESULTS.md in a source checkout, else ./eval-results (page inside it) in the binary. The page never lands
+ * in a folder the user didn't name.
+ */
+export function resultsLocation(
+  arg: string | undefined,
+  env: Env,
+  cwd: string,
+  checkoutDefault: string,
+): { readonly dir: string; readonly page?: string } {
+  if (arg) return { dir: arg, page: join(arg, "RESULTS.md") };
+  if (isStandalone(env)) {
+    const dir = join(cwd, "eval-results");
+    return { dir, page: join(dir, "RESULTS.md") };
+  }
+  return { dir: checkoutDefault };
 }
 
 /**

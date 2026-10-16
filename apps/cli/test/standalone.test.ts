@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { embedderChoice, resultsDir, runtimeVersion } from "../src/standalone.ts";
+import { embedderChoice, resultsLocation, runtimeVersion } from "../src/standalone.ts";
 
 const bin = { AA_STANDALONE: "1" };
 
 describe("standalone binary choices", () => {
-  it("eval results: the flag wins; else the checkout's evals/results, or ./eval-results in the binary", () => {
-    expect(resultsDir("/out", bin, "/work", "/repo/evals/results")).toBe("/out");
-    expect(resultsDir(undefined, {}, "/work", "/repo/evals/results")).toBe("/repo/evals/results");
-    expect(resultsDir(undefined, bin, "/work", "/$bunfs/evals/results")).toMatch(/^[/\\]work[/\\]eval-results$/);
+  it("eval results: the flag's folder (page inside it); the checkout's evals/results (page beside); ./eval-results in the binary", () => {
+    const flag = resultsLocation("/out", bin, "/work", "/repo/evals/results");
+    expect([flag.dir, flag.page?.replace(/\\/g, "/")]).toEqual(["/out", "/out/RESULTS.md"]);
+    expect(resultsLocation(undefined, {}, "/work", "/repo/evals/results")).toEqual({ dir: "/repo/evals/results" });
+    const b = resultsLocation(undefined, bin, "/work", "/$bunfs/evals/results");
+    expect([b.dir, b.page].map((p) => p?.replace(/\\/g, "/"))).toEqual(["/work/eval-results", "/work/eval-results/RESULTS.md"]);
   });
 
   it("embedder: hash when asked, hash with a notice by default in the binary, an explicit model always wins", () => {

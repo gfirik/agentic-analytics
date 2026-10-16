@@ -17,7 +17,7 @@ The `agentic-analytics` / `aa` command line (citty).
 | `aa serve [--port 8080] [--host 127.0.0.1]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. `API_TOKEN` turns on bearer auth. |
 | `aa mcp` | The MCP server on stdio (Claude Desktop config: apps/mcp/README.md). |
 | `aa jobs ls \| rm <id> \| resume <id>` | Lists, deletes or resumes jobs in `AA_JOBS_DIR` (default `data/jobs`). |
-| `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>] [--small-model] [--embedder hash] [--keep-reports dir] [--results-dir dir]` | Runs the eval suite on the generated datasets. It writes `evals/results/*.json` (or `--results-dir`; `./eval-results` in the standalone binary), regenerates `RESULTS.md` beside them, and exits 1 if a bar fails (evals/runner/README.md). |
+| `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>] [--small-model] [--embedder hash] [--keep-reports dir] [--results-dir dir]` | Runs the eval suite on the generated datasets. It writes `evals/results/*.json` and regenerates `evals/RESULTS.md` in a checkout; with `--results-dir dir` (and by default in the standalone binary, `./eval-results`) both go into that folder, and exits 1 if a bar fails (evals/runner/README.md). |
 | `aa doctor` | Checks Node (≥22, required), DuckDB (required), Ollama, every configured OpenAI-compatible endpoint (keyed ones are probed), SearXNG and Docling; then calls the planner model with a one-line prompt if its provider is reachable. Prints a fix for each missing piece. Exits 1 only if a required check fails. |
 
 ## Public API

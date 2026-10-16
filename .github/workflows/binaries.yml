@@ -54,6 +54,8 @@ jobs:
           "$bin" eval --suite smoke --model baseline > default.txt || true
           grep -E "^Jobs completed: 100.0%" default.txt
           ls eval-results/*.json
+          test -f eval-results/RESULTS.md
+          ! test -f RESULTS.md
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}

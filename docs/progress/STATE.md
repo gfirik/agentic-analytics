@@ -36,9 +36,9 @@ _None._
 
 ## Deferred checks
 
-- [M13d] Release workflow end to end on a pre-release tag — PENDING (runs after this PR's review): `git tag v0.1.0-rc.1 <PR head> && git push origin v0.1.0-rc.1`, watch `gh run list --workflow release.yml`, check the pre-release has the 4 binaries + SHA256SUMS and GHCR has only `0.1.0-rc.1` (no `latest`); then clean up: `gh release delete v0.1.0-rc.1 --yes --cleanup-tag` (deletes the tag too) and delete the GHCR version: `gh api -X DELETE /user/packages/container/agentic-analytics/versions/<id>` (ids from `gh api /user/packages/container/agentic-analytics/versions`)
 These are checks that need something this machine doesn't have yet, such as a real LLM. Run them later.
 
+- [M13d] Release workflow end to end on a pre-release tag — PENDING (runs after this PR's review): `git tag v0.1.0-rc.1 <PR head> && git push origin v0.1.0-rc.1`, watch `gh run list --workflow release.yml`, check the pre-release has the 4 binaries + SHA256SUMS and GHCR has only `0.1.0-rc.1` (no `latest`); then clean up: `gh release delete v0.1.0-rc.1 --yes --cleanup-tag` (deletes the tag too) and delete the GHCR version: `gh api -X DELETE /user/packages/container/agentic-analytics/versions/<id>` (ids from `gh api /user/packages/container/agentic-analytics/versions`)
 - [M1] `aa doctor` calls the configured model with a one-line prompt — DONE in M11 with Groq (free tier): `aa doctor` with PLANNER_MODEL=openai-compatible:groq:openai/gpt-oss-120b → "✓ model call … replied \"OK\" in 0.5s" (also qwen/qwen3.8-27b, 0.3 s); llama-3.3-70b-versatile is not on this account
 
 - [M2] Docling path for PDFs without a text layer against a real docling-serve — DEFERRED (service not running; client tested with a stub) — `docker compose --profile docling up -d && DOCLING_URL=http://localhost:5001 bun run ingest fixtures/docs/scanned.pdf`
