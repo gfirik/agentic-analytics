@@ -1,0 +1,76 @@
+# Stats NZ Electronic card transactions, September 2026 release (CC BY 4.0): monthly actual card spending by
+# industry group (series ECTM.S1GA1–8). Ground truth: DuckDB over the derived file,
+# FILE = evals/real/data/nz-card-spend-by-industry.csv. No expected number comes from the engine.
+dataset: nz-card-spend
+file: nz-card-spend-by-industry.csv
+options:
+  today: "2026-10-16"
+  currency: NZD
+confirmed_metrics: nz-card-spend.metrics.yaml
+
+ground_truth:
+  - id: G1
+    about: The peak month of total card spending in each year
+    sql: >-
+      WITH r AS (SELECT split_part(Period, '.', 1)::INTEGER AS y, split_part(Period, '.', 2)::INTEGER AS mo,
+                        Data_value FROM read_csv('FILE', all_varchar = true)),
+           m AS (SELECT y, mo, sum(Data_value::DOUBLE) AS v FROM r GROUP BY ALL)
+      SELECT y, arg_max(mo, v) AS peak_month, round(max(v), 1) AS peak, count(v) AS n_months
+      FROM m WHERE v IS NOT NULL GROUP BY y ORDER BY y
+    result: >-
+      December (12) in every complete year 2003–2025, e.g. 2023 11282.6, 2024 11388.8, 2025 11321.6;
+      2002 has only Oct–Dec (December still the peak); 2026 runs to September (peak March 9976.1)
+  - id: G2
+    about: The April 2020 COVID-19 lockdown (Alert Level 4 from 26 March 2020)
+    sql: >-
+      SELECT replace(Period, '.', '-') AS month, round(sum(Data_value::DOUBLE), 1) AS spend
+      FROM read_csv('FILE', all_varchar = true) WHERE Period IN ('2020.03', '2020.04') GROUP BY 1 ORDER BY 1
+    result: "2020-03 7574.4; 2020-04 3770.7 (−50.2%)"
+  - id: G3
+    about: Suppressed values (STATUS C, Data_value blank) at the start of the series
+    sql: >-
+      SELECT count(*) AS lines, count(*) FILTER (WHERE Data_value IS NULL) AS blank_values,
+             min(Period) FILTER (WHERE Data_value IS NULL) AS first_blank, max(Period) FILTER (WHERE Data_value IS NULL) AS last_blank
+      FROM read_csv('FILE', all_varchar = true)
+    result: "lines 2568; blank_values 264 (8 series × 33 months); first_blank 2000.01; last_blank 2002.09; all STATUS C"
+  - id: G4
+    about: January against the December before it, every year
+    sql: >-
+      WITH r AS (SELECT split_part(Period, '.', 1)::INTEGER AS y, split_part(Period, '.', 2)::INTEGER AS mo,
+                        Data_value::DOUBLE AS v FROM read_csv('FILE', all_varchar = true)),
+           m AS (SELECT y, mo, sum(v) AS v FROM r GROUP BY ALL HAVING count(v) > 0)
+      SELECT count(*) AS januaries, count(*) FILTER (WHERE j.v < d.v) AS below_december,
+             round(min((j.v / d.v - 1) * 100), 1) AS min_pct, round(max((j.v / d.v - 1) * 100), 1) AS max_pct
+      FROM m j JOIN m d ON d.y = j.y - 1 AND d.mo = 12 WHERE j.mo = 1
+    result: "januaries 24; below_december 24; January is 12.1% to 20.4% below December every year (2003–2026)"
+# Not a check: the April 2020 drop (G2) is real, but findings rank recent changes first (×0.8 per month back,
+# docs/specs/analysis-library.md §6), so a 2026 report is not expected to lead with a 2020 event.
+
+checks:
+  - id: C1
+    kind: completes
+    about: The job completes on the official CSV layout (Period as year.month, e.g. 2002.10)
+  - id: C2
+    kind: verified
+    about: Every number re-computes (no mismatch, re-derivation mismatch or definition violation)
+  - id: C3
+    kind: seasonal_peak
+    about: "The December peak: December is the top month of 2023, 2024 and 2025 (G1)"
+    metric: card_spend
+    years: [2023, 2024, 2025]
+    months: [12]
+    values:
+      "2023-12": 11282.6
+      "2024-12": 11388.8
+      "2025-12": 11321.6
+    tolerance: 0.05
+  - id: C4
+    kind: seasonal_not_flagged
+    about: "The regular January fall is not reported as news (G4: January is below December in 24 of 24 years)"
+    metric: card_spend
+    months: [1]
+  - id: C5
+    kind: quality_issue
+    about: "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)"
+    issue: missing_value
+    column: data_value
