@@ -1,0 +1,19 @@
+From: Buyer <buyer@hotel.example>
+To: orders@roaster.example
+Subject: Revised order
+Date: Mon, 13 Apr 2026 10:00:00 +0500
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="b1"
+
+--b1
+Content-Type: text/plain; charset=utf-8
+
+Please see the revised quantities attached.
+
+--b1
+Content-Type: text/csv; name="order.csv"
+Content-Disposition: attachment; filename="order.csv"
+Content-Transfer-Encoding: base64
+
+c2t1LHF0eQpCRUFOLTFLRyw0CkNVUC0xMk9aLDEwMApMSUQtMTJPWiwxMDAK
+--b1--

@@ -1,0 +1,15 @@
+{
+  "tables": [
+    {
+      "sheet": "Stock",
+      "range": "C3:E6",
+      "hidden_sheet": false,
+      "header_rows": [3],
+      "columns": ["SKU", "On hand", "Reorder at"],
+      "transposed": false,
+      "notes": ["Inventory"],
+      "rows": [[4, ["BEAN-1KG", 40, 10], false], [5, ["CUP-12OZ", 900, 200], false], [6, ["LID-12OZ", 850, 200], false]]
+    }
+  ],
+  "issues": []
+}

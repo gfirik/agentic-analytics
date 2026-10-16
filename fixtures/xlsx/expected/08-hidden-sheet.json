@@ -1,0 +1,30 @@
+{
+  "tables": [
+    {
+      "sheet": "Visible",
+      "range": "A1:B4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Name", "Score"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["Ann", 7], false], [3, ["Bob", 9], false], [4, ["Cy", 6], false]]
+    },
+    {
+      "sheet": "Lookup",
+      "range": "A1:B4",
+      "hidden_sheet": true,
+      "header_rows": [1],
+      "columns": ["Code", "Label"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["A", "Alpha"], false], [3, ["B", "Beta"], false], [4, ["C", "Gamma"], false]]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "hidden_sheet",
+      "sheet": "Lookup"
+    }
+  ]
+}

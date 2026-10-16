@@ -1,0 +1,15 @@
+{
+  "name": "@agentic-analytics/fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsx build.ts"
+  },
+  "dependencies": {
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

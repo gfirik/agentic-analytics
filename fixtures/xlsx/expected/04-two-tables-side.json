@@ -1,0 +1,25 @@
+{
+  "tables": [
+    {
+      "sheet": "Monthly",
+      "range": "A1:C4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Month", "Revenue", "Orders"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["Jan", 100, 10], false], [3, ["Feb", 110, 11], false], [4, ["Mar", 120, 12], false]]
+    },
+    {
+      "sheet": "Monthly",
+      "range": "E1:G4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Month", "Rent", "Staff"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["Jan", 30, 5], false], [3, ["Feb", 30, 5], false], [4, ["Mar", 31, 6], false]]
+    }
+  ],
+  "issues": []
+}

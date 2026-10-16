@@ -1,0 +1,15 @@
+{
+  "tables": [
+    {
+      "sheet": "Продажи",
+      "range": "A1:C5",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Товар", "Количество", "Сумма"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["Кофе", 10, 1000], false], [3, ["Чай", 5, 300], false], [4, ["Сахар", 2, 50], false], [5, ["Итого", 17, 1350], true]]
+    }
+  ],
+  "issues": []
+}

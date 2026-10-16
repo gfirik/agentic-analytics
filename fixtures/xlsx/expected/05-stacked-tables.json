@@ -1,0 +1,25 @@
+{
+  "tables": [
+    {
+      "sheet": "Lists",
+      "range": "A1:B4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Product", "Units"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["Beans", 10], false], [3, ["Cups", 20], false], [4, ["Lids", 30], false]]
+    },
+    {
+      "sheet": "Lists",
+      "range": "A6:C9",
+      "hidden_sheet": false,
+      "header_rows": [6],
+      "columns": ["Supplier", "City", "Rating"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[7, ["Acme", "Tashkent", 4], false], [8, ["Beta", "Samarkand", 5], false], [9, ["Gamma", "Bukhara", 3], false]]
+    }
+  ],
+  "issues": []
+}

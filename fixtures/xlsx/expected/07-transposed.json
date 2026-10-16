@@ -1,0 +1,31 @@
+{
+  "tables": [
+    {
+      "sheet": "KPIs",
+      "range": "A1:F4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Metric", "period", "value"],
+      "transposed": true,
+      "notes": [],
+      "rows": [
+        [2, ["Revenue", "Jan", 100], false],
+        [2, ["Revenue", "Feb", 110], false],
+        [2, ["Revenue", "Mar", 120], false],
+        [2, ["Revenue", "Apr", 130], false],
+        [2, ["Revenue", "Total", 460], true],
+        [3, ["Orders", "Jan", 10], false],
+        [3, ["Orders", "Feb", 11], false],
+        [3, ["Orders", "Mar", 12], false],
+        [3, ["Orders", "Apr", 13], false],
+        [3, ["Orders", "Total", 46], true],
+        [4, ["Refunds", "Jan", 1], false],
+        [4, ["Refunds", "Feb", 2], false],
+        [4, ["Refunds", "Mar", 1], false],
+        [4, ["Refunds", "Apr", 3], false],
+        [4, ["Refunds", "Total", 7], true]
+      ]
+    }
+  ],
+  "issues": []
+}

@@ -1,0 +1,22 @@
+{
+  "tables": [
+    {
+      "sheet": "Daily",
+      "range": "A1:B8",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Date", "Sales"],
+      "transposed": false,
+      "notes": [],
+      "rows": [
+        [2, ["2026-03-01", 10], false],
+        [3, ["2026-03-02", 12], false],
+        [4, ["2026-03-03", 9], false],
+        [6, ["2026-03-04", 14], false],
+        [7, ["2026-03-05", 11], false],
+        [8, ["2026-03-06", 13], false]
+      ]
+    }
+  ],
+  "issues": []
+}

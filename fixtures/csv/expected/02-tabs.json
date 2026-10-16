@@ -1,0 +1,15 @@
+{
+  "tables": [
+    {
+      "sheet": null,
+      "range": "A1:C4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["sku", "qty", "price"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, ["BEAN-1KG", 4, 24.6], false], [3, ["CUP-12OZ", 100, 0.12], false], [4, ["LID-12OZ", 100, 0.05], false]]
+    }
+  ],
+  "issues": []
+}
