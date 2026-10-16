@@ -38,7 +38,12 @@ export function searxngProvider(options: SearxngOptions): SearchProvider {
           "PROVIDER",
           `SearXNG answered HTTP ${res.status}${res.status === 403 ? " (enable the json format in settings.yml)" : ""}`,
         );
-      const body = (await res.json()) as { results?: { url?: unknown; title?: unknown; content?: unknown }[] };
+      let body: { results?: { url?: unknown; title?: unknown; content?: unknown }[] };
+      try {
+        body = (await res.json()) as typeof body;
+      } catch {
+        throw new WebError("PROVIDER", "SearXNG did not answer with JSON (is the json format enabled in settings.yml?)");
+      }
       const out: SearchResult[] = [];
       for (const r of body.results ?? []) {
         if (typeof r.url !== "string" || !/^https?:\/\//i.test(r.url)) continue;

@@ -65,7 +65,8 @@ export function checkUrl(
     throw new WebError("BAD_URL", `only http and https are fetched, not ${url.protocol}`);
   if (url.username || url.password) throw new WebError("BAD_URL", "URLs with credentials are not fetched");
   if (url.port && !ports.includes(Number(url.port))) throw new WebError("BAD_URL", `non-standard port ${url.port} is not fetched`);
-  const host = url.hostname.replace(/^\[|\]$/g, "");
+  // "localhost." and "localhost" are the same name: drop the trailing dot before matching.
+  const host = url.hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "");
   // The URL parser already turns "2130706433" and "0x7f.1" into dotted IPv4, so literal checks see the real address.
   if ((parseIPv4(host) !== undefined || parseIPv6(host)) && blocked(host))
     throw new WebError("BLOCKED_ADDRESS", `${host} is a private or reserved address`);
@@ -87,6 +88,15 @@ function request(
   body: string;
 }> {
   return new Promise((resolve, reject) => {
+    let timedOut = false;
+    const fail = (e: Error) =>
+      reject(
+        timedOut
+          ? new WebError("TIMEOUT", `no complete answer within ${options.timeoutMs} ms`)
+          : e instanceof WebError
+            ? e
+            : new WebError("FETCH_FAILED", e.message),
+      );
     const lib = url.protocol === "https:" ? https : http;
     const req = lib.request(
       url,
@@ -137,11 +147,16 @@ function request(
           chunks.push(c);
         });
         res.on("end", () => resolve({ status, contentType, body: Buffer.concat(chunks).toString("utf8") }));
-        res.on("error", reject);
+        res.on("error", fail);
       },
     );
-    req.setTimeout(options.timeoutMs, () => req.destroy(new WebError("TIMEOUT", `no answer within ${options.timeoutMs} ms`)));
-    req.on("error", (err) => reject(err instanceof WebError ? err : new WebError("FETCH_FAILED", err.message)));
+    // A total deadline, not an idle timeout: a server dripping one byte at a time can't hold the job.
+    const deadline = setTimeout(() => {
+      timedOut = true;
+      req.destroy(new WebError("TIMEOUT", `no complete answer within ${options.timeoutMs} ms`));
+    }, options.timeoutMs);
+    req.on("close", () => clearTimeout(deadline));
+    req.on("error", fail);
     req.end();
   });
 }
@@ -155,8 +170,12 @@ export async function safeFetch(raw: string, options: SafeFetchOptions = {}): Pr
   };
   const maxRedirects = options.maxRedirects ?? 3;
   let url = checkUrl(raw, options.privateValues, opts.blocked, options.ports);
+  const start = Date.now();
   for (let hop = 0; ; hop++) {
-    const res = await request(url, opts);
+    // One budget for the whole fetch, redirects included.
+    const left = opts.timeoutMs - (Date.now() - start);
+    if (left <= 0) throw new WebError("TIMEOUT", `no complete answer within ${opts.timeoutMs} ms`);
+    const res = await request(url, { ...opts, timeoutMs: left });
     if (res.location !== undefined) {
       if (hop >= maxRedirects) throw new WebError("TOO_MANY_REDIRECTS", `more than ${maxRedirects} redirects`);
       // Each redirect target goes through every check again.

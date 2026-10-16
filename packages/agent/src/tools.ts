@@ -116,6 +116,14 @@ const ScenarioInput = z.discriminatedUnion("type", [
   z.object({ type: z.literal("retain_at_risk"), atRisk: z.string(), low: z.number(), high: z.number(), cost: z.number().optional() }),
 ]);
 
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+};
+
 export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
   const get_facts = tool(
     "Look up computed facts by id, or by a word in their label. Returns id, value, unit and label.",
@@ -228,7 +236,8 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
       return {
         query_sent: result.query,
         external: true,
-        extracts: x.extracts.map((e) => ({ id: e.id, kind: e.kind, url: e.file, text: e.text, quote: e.quote, external: true })),
+        // The site only: a result URL's path is attacker-controlled text (security §2).
+        extracts: x.extracts.map((e) => ({ id: e.id, kind: e.kind, site: hostOf(e.file), text: e.text, quote: e.quote, external: true })),
         ...(result.skipped.length ? { skipped: result.skipped.map((s) => s.code) } : {}),
       };
     },

@@ -49,6 +49,7 @@ export {
   type DrillDownQuery,
   type DrillDownResult,
   drillDown,
+  externalFacts,
   loadAnalysis,
   nextFactNumber,
   parseQuotedRange,

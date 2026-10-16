@@ -12,6 +12,7 @@ import {
   analyzeJob,
   benchmarkFacts,
   drillDown,
+  externalFacts,
   loadAnalysis,
   nextFactNumber,
   parseQuotedRange,
@@ -122,6 +123,12 @@ describe("external benchmarks (agent-and-verifier §4)", () => {
     expect(parseQuotedRange("refunds run 1 to 2 percent of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1 to 2 percent" });
     expect(parseQuotedRange("about 3,5% of orders")).toEqual({ low: 3.5, high: 3.5, unit: "percent", text: "3,5%" });
     expect(parseQuotedRange("between 2024 and 2026 prices rose")).toBeUndefined();
+    // Not percentages: never read (thousands, money and scale words, counts).
+    expect(parseQuotedRange("roasters ship 1,000-2,000 orders a month")).toBeUndefined();
+    expect(parseQuotedRange("revenue of $1.2–1.5 million")).toBeUndefined();
+    // Two numbers joined by "and" are not a range; the percentage is read on its own.
+    expect(parseQuotedRange("In 12 stores and 40% of cafes, prices rose")).toEqual({ low: 40, high: 40, unit: "percent", text: "40%" });
+    expect(parseQuotedRange("margins of 1,500.5% are rare")).toEqual({ low: 1500.5, high: 1500.5, unit: "percent", text: "1,500.5%" });
     expect(parseQuotedRange("no numbers here")).toBeUndefined();
   });
 
@@ -142,6 +149,51 @@ describe("external benchmarks (agent-and-verifier §4)", () => {
     // 3.4 is above the range → gap = 3.4 − 2 = 1.4
     expect(v(r.gap)?.value).toBeCloseTo(1.4, 9);
     expect(v(r.gap)?.computation.inputs).toEqual([refund?.id, r.low, r.high]);
+  });
+
+  it("web numbers never enter scenarios or the own side of a comparison", async () => {
+    const all = await readFacts(ws);
+    const refund = all.find((f) => f.label === "refund_rate_2026-06");
+    const march = all.find((f) => f.label === "refund_rate_2026-03");
+    const revenue = all.find((f) => f.label === "revenue_2026-06");
+    const quote = "typically 1–2% of sales";
+    const r = await benchmarkFacts(ws, defs, catalog, "month", refund?.id ?? "", {
+      range: parseQuotedRange(quote) as NonNullable<ReturnType<typeof parseQuotedRange>>,
+      source_id: "W1",
+      quote,
+      label: "benchmark",
+    });
+    expect([...externalFacts(await readFacts(ws))]).toEqual(expect.arrayContaining([r.low, r.high, r.gap]));
+    // "Reduce refunds to the industry rate": the baseline would be a web number → refused.
+    await expect(
+      scenarioFacts(ws, defs, catalog, "month", {
+        type: "remove_excess_rate",
+        current: refund?.id ?? "",
+        baseline: r.high,
+        base: revenue?.id ?? "",
+        low: 0.5,
+        high: 0.9,
+      }),
+    ).rejects.toMatchObject({ code: "EXTERNAL_FACT" });
+    await expect(
+      scenarioFacts(
+        ws,
+        defs,
+        catalog,
+        "month",
+        { type: "remove_excess_rate", current: refund?.id ?? "", baseline: march?.id ?? "", base: revenue?.id ?? "", low: 0.5, high: 0.9 },
+        [r.gap],
+      ),
+    ).rejects.toMatchObject({ code: "EXTERNAL_FACT" });
+    // A gap or an external fact can't be the "own" side.
+    await expect(
+      benchmarkFacts(ws, defs, catalog, "month", r.gap, {
+        range: { low: 1, high: 2, unit: "percent", text: "1–2%" },
+        source_id: "W1",
+        quote,
+        label: "x",
+      }),
+    ).rejects.toMatchObject({ code: "EXTERNAL_FACT" });
   });
 
   it("refuses to compare different units", async () => {

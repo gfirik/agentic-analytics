@@ -213,13 +213,20 @@ export async function scenarioFacts(
   req: ScenarioRequest,
   justifiedBy: readonly string[] = [],
 ): Promise<ScenarioResult> {
-  const facts = new Map((await readFacts(ws)).map((f) => [f.id, f]));
+  const all = await readFacts(ws);
+  const facts = new Map(all.map((f) => [f.id, f]));
+  const external = externalFacts(all);
   const amount = (id: string) => {
     const f = facts.get(id);
     if (!f) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${id}`);
+    // Web numbers never enter the user's money (agent-and-verifier §4).
+    if (external.has(id)) throw new AnalysisError("EXTERNAL_FACT", `${id} comes from the web and can only feed a benchmark comparison`);
     return { ref: factRef(id), value: f.value };
   };
-  for (const id of justifiedBy) if (!facts.has(id)) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${id}`);
+  for (const id of justifiedBy) {
+    if (!facts.has(id)) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${id}`);
+    if (external.has(id)) throw new AnalysisError("EXTERNAL_FACT", `${id} comes from the web and can only feed a benchmark comparison`);
+  }
   const why = justifiedBy.map(factRef);
   const scenario: Scenario =
     req.type === "recover_share"
@@ -289,22 +296,24 @@ export interface QuotedRange {
   readonly text: string;
 }
 
-const NUM = String.raw`(\d+(?:[.,]\d+)?)`;
-const RANGE = new RegExp(String.raw`${NUM}\s*(%|percent|per cent)?\s*(?:–|—|-|to|and)\s*${NUM}\s*(%|percent|per cent)?`, "i");
-const SINGLE = new RegExp(String.raw`${NUM}\s*(%|percent|per cent)`, "i");
-const num = (s: string) => Number(s.replace(",", "."));
+// v0.x reads percentages only: a percent range can't be confused with counts, money or scale words, and it is
+// the unit benchmarks are usually quoted in. Thousands separators ("1,000") never read as decimals.
+const NUM = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)`;
+const PCT = String.raw`\s*(?:%|percent\b|per cent\b)`;
+const RANGE = new RegExp(String.raw`${NUM}(${PCT})?\s*(?:–|—|-|\bto\b)\s*${NUM}${PCT}(?!\s*(?:points|pp)\b)`, "i");
+const SINGLE = new RegExp(String.raw`${NUM}${PCT}`, "i");
+const num = (s: string) => Number(/^\d{1,3}(,\d{3})+/.test(s) ? s.replace(/,/g, "") : s.replace(",", "."));
 
 /**
- * The first number range ("5–8%", "1 to 2 percent") or single percentage in a quote, read as written: parsing,
- * not arithmetic. A single value is a range of one. Years are never read as values.
+ * The first percent range ("5–8%", "1 to 2 percent") or single percentage in a quote, read as written: parsing,
+ * not arithmetic. A single value is a range of one. Anything that isn't a percentage is not read (undefined).
  */
 export function parseQuotedRange(quote: string): QuotedRange | undefined {
   const r = RANGE.exec(quote);
-  if (r && !/^(19|20)\d{2}$/.test(r[1] ?? "") && !/^(19|20)\d{2}$/.test(r[3] ?? "")) {
+  if (r) {
     const low = num(r[1] ?? "");
     const high = num(r[3] ?? "");
-    if (Number.isFinite(low) && Number.isFinite(high) && low <= high)
-      return { low, high, unit: r[2] || r[4] ? "percent" : "other", text: r[0] };
+    if (Number.isFinite(low) && Number.isFinite(high) && low <= high) return { low, high, unit: "percent", text: r[0] };
   }
   const s = SINGLE.exec(quote);
   if (s) {
@@ -312,6 +321,26 @@ export function parseQuotedRange(quote: string): QuotedRange | undefined {
     if (Number.isFinite(v)) return { low: v, high: v, unit: "percent", text: s[0] };
   }
   return undefined;
+}
+
+/**
+ * Facts that are, or are computed from, external (web) numbers. They may only be the range of a benchmark
+ * (agent-and-verifier §4): never an input to scenarios, never the "own" side of a comparison.
+ */
+export function externalFacts(facts: readonly Fact[]): Set<string> {
+  const byId = new Map(facts.map((f) => [f.id, f]));
+  const memo = new Map<string, boolean>();
+  const isExternal = (id: string, seen = new Set<string>()): boolean => {
+    const known = memo.get(id);
+    if (known !== undefined) return known;
+    const f = byId.get(id);
+    if (!f || seen.has(id)) return false;
+    seen.add(id);
+    const v = f.computation.fn === "external_quote" || (f.computation.inputs ?? []).some((x) => isExternal(x, seen));
+    memo.set(id, v);
+    return v;
+  };
+  return new Set(facts.filter((f) => isExternal(f.id)).map((f) => f.id));
 }
 
 export interface BenchmarkResult {
@@ -334,11 +363,13 @@ export async function benchmarkFacts(
   ownFactId: string,
   external: { readonly range: QuotedRange; readonly source_id: string; readonly quote: string; readonly label: string },
 ): Promise<BenchmarkResult> {
-  const own = (await readFacts(ws)).find((f) => f.id === ownFactId);
+  const all = await readFacts(ws);
+  const own = all.find((f) => f.id === ownFactId);
   if (!own) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${ownFactId}`);
-  const ownUnit = own.unit === "percent" ? "percent" : "other";
-  if (ownUnit !== external.range.unit)
-    throw new AnalysisError("BAD_SLICE", `${ownFactId} is in ${own.unit}; the quoted range is in ${external.range.unit}: not comparable`);
+  if (externalFacts(all).has(own.id))
+    throw new AnalysisError("EXTERNAL_FACT", `${ownFactId} comes from the web; compare one of the job's own facts`);
+  if (own.unit !== "percent" || external.range.unit !== "percent")
+    throw new AnalysisError("BAD_SLICE", `${ownFactId} is in ${own.unit}; only percentages are compared with quoted ranges in v0.x`);
   let n = await nextFactNumber(ws);
   const ext = (side: "low" | "high", value: number): Fact => ({
     id: `N${n++}`,

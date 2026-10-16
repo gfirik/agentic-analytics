@@ -92,7 +92,10 @@ function v6Blocked(b: readonly number[]): boolean {
   if (b.slice(0, 15).every((x) => x === 0) && b[15] === 1) return true; // ::1
   if (startsWith(b, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff], 96)) return v4Blocked(embedded(12)); // ::ffff:a.b.c.d
   if (startsWith(b, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 96)) return v4Blocked(embedded(12)); // ::a.b.c.d (deprecated)
+  if (startsWith(b, [0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0], 96)) return v4Blocked(embedded(12)); // ::ffff:0:a.b.c.d (SIIT)
+  if (startsWith(b, [0x00, 0x64, 0xff, 0x9b, 0x00, 0x01], 48)) return true; // 64:ff9b:1::/48 local-use NAT64
   if (startsWith(b, [0x00, 0x64, 0xff, 0x9b], 96)) return v4Blocked(embedded(12)); // 64:ff9b::/96 NAT64
+  if (startsWith(b, [0x20, 0x01, 0x00, 0x00], 32)) return true; // Teredo 2001::/32 tunnels to arbitrary IPv4
   if (startsWith(b, [0x20, 0x02], 16)) return v4Blocked(embedded(2)); // 2002::/16 6to4 embeds an IPv4
   if (startsWith(b, [0xfc], 7)) return true; // unique local fc00::/7
   if (startsWith(b, [0xfe, 0x80], 10)) return true; // link-local fe80::/10

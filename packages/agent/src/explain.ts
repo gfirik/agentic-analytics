@@ -74,6 +74,14 @@ export interface ExplainOptions {
   readonly onFinding?: (done: number, total: number) => Promise<void>;
 }
 
+const siteOf = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+};
+
 const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
 
 function citationOf(e: Extract): Citation {
@@ -185,7 +193,16 @@ export async function explainFindings(
     const after = await facts();
     const newFacts = [...after.values()].filter((f) => !before.has(f.id)).map(sheetFact);
     const evidenceText = data({
-      extracts: evidence.map((e) => ({ id: e.id, kind: e.kind, file: e.file, date: e.date, actor: e.actor, text: e.text, quote: e.quote })),
+      extracts: evidence.map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        // Web extracts show their site only (a URL path is attacker-controlled text) and are marked external.
+        ...(e.external ? { site: siteOf(e.file), external: true } : { file: e.file }),
+        date: e.date,
+        actor: e.actor,
+        text: e.text,
+        quote: e.quote,
+      })),
       new_facts: newFacts,
     });
 

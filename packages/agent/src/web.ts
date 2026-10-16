@@ -13,7 +13,7 @@ export interface WebLane {
 
 /** Columns whose values name people or organisations (EN/RU/UZ labels). */
 const PERSONAL =
-  /customer|client|supplier|vendor|buyer|account|contact|name|person|manager|employee|staff|email|phone|клиент|покупател|поставщик|контрагент|менеджер|сотрудник|имя|mijoz|xaridor|yetkazib|ism/i;
+  /customer|client|supplier|vendor|buyer|account|contact|name|person|manager|employee|staff|email|phone|company|organi[sz]ation|\borg\b|partner|firm|brand|store|shop|клиент|покупател|поставщик|контрагент|менеджер|сотрудник|имя|компани|фирм|организаци|партнер|магазин|mijoz|xaridor|yetkazib|ism|korxona|tashkilot|hamkor|do'kon/i;
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu;
 
 /**
@@ -31,7 +31,7 @@ export async function privateTerms(ws: Workspace): Promise<PrivateTerms> {
   for (const c of cols) {
     if (!["category", "text", "id"].includes(c.type) || !PERSONAL.test(`${c.name} ${c.label}`)) continue;
     const rows = await ws.all<{ v: string | null }>(
-      sql`SELECT DISTINCT CAST(${ident(c.name)} AS VARCHAR) AS v FROM ${ident(tableName(c.table_id))} WHERE ${ident(c.name)} IS NOT NULL LIMIT 2000`,
+      sql`SELECT DISTINCT CAST(${ident(c.name)} AS VARCHAR) AS v FROM ${ident(tableName(c.table_id))} WHERE ${ident(c.name)} IS NOT NULL`,
     );
     for (const r of rows) if (r.v?.trim()) names.add(r.v.trim());
   }
@@ -68,7 +68,7 @@ export async function searchAndStore(ws: Workspace, lane: WebLane, query: string
     );
     await ws.run(
       sql`INSERT INTO web_results (id, url, title, fetched_at, extract_ids, external)
-          VALUES (${id}, ${page.url}, ${page.title}, ${page.fetched_at}::TIMESTAMPTZ::TIMESTAMP, []::VARCHAR[], true)`,
+          VALUES (${id}, ${page.url}, ${page.title}, ${page.fetched_at}::TIMESTAMPTZ AT TIME ZONE 'UTC', []::VARCHAR[], true)`,
     );
     // A few excerpts per page bound the extractor's work; benchmark statements sit near the top of most pages.
     for (const [i, span] of chunkSpans(page.text, { maxTokens: 300 }).slice(0, 3).entries())

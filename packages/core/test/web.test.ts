@@ -5,9 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { privateTerms } from "@agentic-analytics/agent";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
+import type { GenerateObjectArgs, ModelClient } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { checkReportIntegrity, type Report } from "@agentic-analytics/schema";
-import { Workspace } from "@agentic-analytics/store";
+import { sql, Workspace } from "@agentic-analytics/store";
 import { leaksPrivate } from "@agentic-analytics/web";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type JobOutcome, runJob } from "../src/index.ts";
@@ -23,13 +24,15 @@ let out: JobOutcome;
 let report: Report;
 let web: ReturnType<typeof coffeeWeb>;
 let dir: string;
+let model: ReturnType<typeof coffeePlanner>;
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "aa-web-"));
   dirs.push(dir);
   web = coffeeWeb();
+  model = coffeePlanner({ web: true });
   out = await runJob(
     { dir, files, options: { today: "2026-07-01", currency: "USD", web: true } },
-    { model: coffeePlanner({ web: true }), embedder: hashEmbedder(), web: { provider: web.provider, fetchPage: web.fetchPage } },
+    { model, embedder: hashEmbedder(), web: { provider: web.provider, fetchPage: web.fetchPage } },
   );
   report = out.report;
 }, 180_000);
@@ -41,7 +44,7 @@ describe("web-enabled run (M8 acceptance)", () => {
   });
 
   it("no private value reaches the search provider", async () => {
-    expect(web.queries).toEqual(["refunds — specialty coffee refund rate benchmark 2026"]);
+    expect(web.queries).toEqual(["refunds specialty coffee refund rate benchmark 2026"]);
     const ws = await Workspace.open(join(dir, "job.duckdb"));
     const terms = await privateTerms(ws);
     ws.close();
@@ -75,10 +78,54 @@ describe("web-enabled run (M8 acceptance)", () => {
     expect(external.every((f) => f?.citations[0]?.source_id === w?.id)).toBe(true);
   });
 
-  it("the hidden instruction on the page never reached the extractor", () => {
-    const text = JSON.stringify(report);
-    expect(text).not.toContain("Ignore previous instructions");
+  it("the hidden instruction on the page never reached the extractor (or anything else)", () => {
+    const extractorPrompts = model.calls.filter((c) => c.role === "extractor").map((c) => c.prompt);
+    expect(extractorPrompts.some((p) => p.includes("refunds of 1–2% of sales"))).toBe(true);
+    for (const p of extractorPrompts) expect(p).not.toContain("Ignore previous instructions");
+    expect(JSON.stringify(report)).not.toContain("Ignore previous instructions");
   });
+
+  it("the planner sees the web result's site, never its URL path", () => {
+    const planner = model.calls.filter((c) => c.role === "planner").map((c) => `${c.system ?? ""}${c.prompt}`);
+    expect(planner.some((p) => p.includes("/refunds"))).toBe(false);
+  });
+});
+
+describe("resume after an EXPLAIN that already searched the web", () => {
+  it("leaves one copy of each web source, result and external fact", async () => {
+    const d = mkdtempSync(join(tmpdir(), "aa-web-"));
+    dirs.push(d);
+    const w = coffeeWeb();
+    const planner = coffeePlanner({ web: true });
+    let failed = false;
+    // The refund finding's write-up fails once, after its web search and benchmark already ran.
+    const flaky: ModelClient = {
+      generateObject<T>(a: GenerateObjectArgs<T>) {
+        if (!failed && a.prompt.includes("Write the explanation") && a.system.includes("refund_rate")) {
+          failed = true;
+          return Promise.reject(new Error("provider unavailable"));
+        }
+        return planner.generateObject(a);
+      },
+      generateWithTools: (a) => planner.generateWithTools(a),
+      embed: (t) => planner.embed(t),
+    };
+    const deps = { embedder: hashEmbedder(), web: { provider: w.provider, fetchPage: w.fetchPage } };
+    await expect(
+      runJob({ dir: d, files, options: { today: "2026-07-01", currency: "USD", web: true } }, { ...deps, model: flaky }),
+    ).rejects.toMatchObject({
+      stage: "EXPLAIN",
+    });
+    const r = await runJob({ dir: d }, { ...deps, model: coffeePlanner({ web: true }) });
+    expect(r.run.resumed).toEqual(["EXPLAIN"]);
+    const ws = await Workspace.open(join(d, "job.duckdb"));
+    const n = async (q: ReturnType<typeof sql>) => (await ws.one<{ n: number }>(q))?.n;
+    expect(await n(sql`SELECT count(*) AS n FROM sources WHERE kind = 'web'`)).toBe(1);
+    expect(await n(sql`SELECT count(*) AS n FROM web_results`)).toBe(1);
+    expect(await n(sql`SELECT count(*) AS n FROM facts WHERE fn = 'external_quote'`)).toBe(2);
+    ws.close();
+    expect(checkReportIntegrity(r.report)).toEqual([]);
+  }, 180_000);
 });
 
 describe("web lane off", () => {

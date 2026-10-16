@@ -91,7 +91,8 @@ export function htmlToText(html: string): { title: string; text: string } {
   const out: string[] = [];
   // Open elements whose content is dropped: tag name per level, so nested same-name tags close correctly.
   const skipping: string[] = [];
-  const tag = /<\/?([a-zA-Z][\w-]*)([^>]*)>/g;
+  // Quote-aware attributes: a ">" inside a quoted value doesn't end the tag (and can't smuggle hidden text out).
+  const tag = /<\/?([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
   let pos = 0;
   for (let m = tag.exec(src); m; m = tag.exec(src)) {
     if (!skipping.length) out.push(src.slice(pos, m.index));
