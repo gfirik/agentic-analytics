@@ -12,7 +12,7 @@ Human gate values:
 | Milestone | Status | Human gate | PR | Demo command | Notes |
 |---|---|---|---|---|---|
 | M0 Foundation | DONE | no | [#1](https://github.com/gfirik/agentic-analytics/pull/1) | `bun install && bun run check`; `bun run aa doctor` | Bun workspaces + Turborepo, CI, doctor, drift check |
-| M1 Contracts & golden fixtures | TODO | notify | | | |
+| M1 Contracts & golden fixtures | IN_PROGRESS | notify | | | |
 | M2 Ingestion | TODO | no | | | |
 | M3 Workspace & profiling | TODO | no | | | |
 | M4 Metric layer | TODO | no | | | |
