@@ -55,7 +55,17 @@ describe("config", () => {
   it("has the new presets and no github-models; fills ${VAR} in base URLs", () => {
     const c = resolveModelConfig({ CLOUDFLARE_ACCOUNT_ID: "acc123" });
     const p = c.providers["openai-compatible"] ?? {};
-    expect(Object.keys(p).sort()).toEqual(["cerebras", "cloudflare", "google-ai-studio", "groq", "nvidia-nim", "openrouter", "sambanova"]);
+    expect(Object.keys(p).sort()).toEqual([
+      "cerebras",
+      "cloudflare",
+      "google-ai-studio",
+      "groq",
+      "mistral",
+      "nvidia-nim",
+      "openrouter",
+      "sambanova",
+    ]);
+    expect(p.mistral).toMatchObject({ base_url: "https://api.mistral.ai/v1", api_key_env: "MISTRAL_API_KEY" });
     expect(p["nvidia-nim"]).toMatchObject({ base_url: "https://integrate.api.nvidia.com/v1", api_key_env: "NVIDIA_API_KEY" });
     expect(p.cloudflare?.base_url).toBe("https://api.cloudflare.com/client/v4/accounts/acc123/ai/v1");
   });
@@ -289,5 +299,14 @@ describe("router bounds", () => {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: as above
       "https://x/a/${GROQ_API_KEY}",
     );
+  });
+
+  it("logs a failed call with the provider's short error message, keys masked", async () => {
+    const t = hosts({ "api.groq.com": [() => Response.json({ error: { message: "Invalid key gsk_abc123 for org" } }, { status: 401 })] });
+    const calls: CallRecord[] = [];
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:openai/gpt-oss-20b", GROQ_API_KEY: "g" };
+    const lm = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, onCall: (c) => calls.push(c) });
+    await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch(() => undefined);
+    expect(calls.map((c) => [c.status, c.error])).toEqual([[401, "Invalid key gsk_*** for org"]]);
   });
 });

@@ -44,6 +44,8 @@ export interface CallRecord {
   readonly ms: number;
   readonly inputTokens?: number;
   readonly outputTokens?: number;
+  /** For a failed call, the provider's own short error message (never the prompt; key-like strings masked). */
+  readonly error?: string;
 }
 
 const modelOf = (body: unknown) => {
@@ -115,7 +117,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
       init && body !== undefined && body !== null ? { ...init, body: withoutReasoning(body) as string } : init;
     const started = Date.now();
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const record = (status: number, cached: boolean, text?: string) =>
+    const record = (status: number, cached: boolean, text?: string, error?: string) =>
       o.onCall?.({
         ...(o.label?.role ? { role: o.label.role } : {}),
         provider: o.label?.provider ?? "unknown",
@@ -125,7 +127,9 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         cached,
         ms: Date.now() - started,
         ...(text ? usageOf(text) : {}),
+        ...(error ? { error } : {}),
       });
+    const fail = async (res: Response) => record(res.status, false, undefined, errorOf(await res.clone().text()));
     const key = o.cache && typeof req?.body === "string" ? cacheKey(url, req.body) : undefined;
     if (key && o.cache) {
       const hit = o.cache.get(key);
@@ -157,18 +161,18 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         }
       }
       if (res.status !== 429 || attempt >= maxRetries) {
-        record(res.status, false);
+        await fail(res);
         return res;
       }
       const text = await res.clone().text();
       const wait = retryAfterMs(res.headers, text) ?? 2 ** attempt * 5_000;
       // Another route of the same model may be free right now: hand the call back to the router.
       if (o.lease?.shouldYield(wait)) {
-        record(res.status, false);
+        await fail(res);
         throw new RouteBusyError(wait);
       }
       if (wait > maxWait) {
-        record(res.status, false);
+        await fail(res);
         return res;
       }
       await sleep(wait + 250);
@@ -187,4 +191,25 @@ function cacheable(text: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * A provider's error message, short enough for a log line: `error.message` from a JSON body, else the text. Anything
+ * that looks like a key or token is masked, since some providers echo part of the credential back.
+ */
+export function errorOf(text: string): string | undefined {
+  let msg = text;
+  try {
+    const j = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown; detail?: unknown };
+    const e = typeof j.error === "string" ? j.error : (j.error?.message ?? j.message ?? j.detail);
+    if (typeof e === "string") msg = e;
+    else if (e !== undefined) msg = JSON.stringify(e);
+  } catch {
+    // Not JSON: keep the text.
+  }
+  const clean = msg
+    .replace(/\b(gsk_|sk-|sk_|AIza|nvapi-|Bearer\s+)[\w.-]+/g, "$1***")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean ? clean.slice(0, 200) : undefined;
 }

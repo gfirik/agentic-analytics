@@ -18,6 +18,7 @@ export const OPENAI_COMPATIBLE_PRESETS: Readonly<Record<string, { base_url: stri
   "nvidia-nim": { base_url: "https://integrate.api.nvidia.com/v1", api_key_env: "NVIDIA_API_KEY" },
   "google-ai-studio": { base_url: "https://generativelanguage.googleapis.com/v1beta/openai", api_key_env: "GEMINI_API_KEY" },
   sambanova: { base_url: "https://api.sambanova.ai/v1", api_key_env: "SAMBANOVA_API_KEY" },
+  mistral: { base_url: "https://api.mistral.ai/v1", api_key_env: "MISTRAL_API_KEY" },
   cloudflare: {
     // biome-ignore lint/suspicious/noTemplateCurlyInString: a ${VAR} placeholder filled by expandUrl, not a JS template
     base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",

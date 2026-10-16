@@ -36,8 +36,12 @@ const CONFIG_FILE = "agentic-analytics.config.yaml";
 const configFile = () => (existsSync(CONFIG_FILE) ? (parse(readFileSync(CONFIG_FILE, "utf8")) as unknown) : undefined);
 
 const doctor = defineCommand({
-  meta: { name: "doctor", description: "Check Node, DuckDB, model providers, SearXNG and Docling; call the planner model once" },
-  async run() {
+  meta: {
+    name: "doctor",
+    description: "Check Node, DuckDB, model providers, SearXNG and Docling; call each role's model once",
+  },
+  args: { models: { type: "boolean", description: "List the model ids each reachable provider serves" } },
+  async run({ args }) {
     const file = configFile();
     const results = await runDoctor({
       nodeVersion: process.version,
@@ -46,6 +50,7 @@ const doctor = defineCommand({
       env: process.env,
       modelClient: (config) => createModelClient(config, { env: process.env, onCall: logCall }),
       ...(file !== undefined ? { configFile: file } : {}),
+      ...(args.models ? { listModels: true } : {}),
     });
     process.stdout.write(formatReport(results));
     process.exitCode = exitCode(results);
@@ -250,6 +255,7 @@ const serveCmd = defineCommand({
         env: process.env,
         modelClient: (config) => createModelClient(config, { env: process.env, onCall: logCall }),
         ...(file !== undefined ? { configFile: file } : {}),
+        roles: ["planner"],
       });
       const value = Object.fromEntries(results.map((r) => [r.name, { ok: r.status === "ok", detail: r.detail }]));
       cached = { at: Date.now(), value };
