@@ -108,7 +108,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
     if (i.kind === "date_format_ambiguity" && d?.assumed) {
       assumptions.push({
         kind: "date_order",
-        text: `Dates in ${i.column_name} are read day-first; no value decides the order.`,
+        text: `Dates in ${i.column_name} of ${fileName(i.file_id ?? "")}${i.sheet ? ` (${i.sheet})` : ""} are read day-first; no value decides the order.`,
         refs: { issue: i.id, source_id: i.source_id },
       });
     }

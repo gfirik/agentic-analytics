@@ -21,7 +21,9 @@ const inputs: InputFile[] = paths.flatMap(collect).map((p) => ({ name: basename(
 
 const ws = await Workspace.open();
 try {
-  const summary = await profileJob(ws, await ingest(inputs), { today });
+  const ingested = await ingest(inputs);
+  const files = ingested.files;
+  const summary = await profileJob(ws, ingested, { today });
   if (json) {
     process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
   } else {
@@ -36,10 +38,11 @@ try {
         );
       }
     }
+    const fileOf = (id?: string) => (id ? (files.find((f) => f.id === id)?.name ?? id) : "");
     out.push(`issues (${summary.issues.length})`);
     for (const i of summary.issues)
       out.push(
-        `  ${i.id.padEnd(4)} ${i.severity.padEnd(6)} ${i.kind.padEnd(22)} ${i.sheet ? `${i.sheet}!` : ""}${i.cell ?? (i.rows?.length ? `rows ${i.rows.slice(0, 3).join(",")}${i.rows.length > 3 ? "…" : ""}` : "")} — ${i.message}`,
+        `  ${i.id.padEnd(4)} ${i.severity.padEnd(6)} ${i.kind.padEnd(22)} ${fileOf(i.file_id)}${i.sheet ? `#${i.sheet}` : ""}${i.cell || i.rows?.length ? "!" : ""}${i.cell ?? (i.rows?.length ? `rows ${i.rows.slice(0, 3).join(",")}${i.rows.length > 3 ? "…" : ""}` : "")} — ${i.message}`,
       );
     out.push(`entities (${summary.entities.length})`);
     for (const e of summary.entities) {

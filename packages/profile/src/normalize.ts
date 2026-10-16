@@ -124,7 +124,8 @@ export function inferColumn(label: string, cells: readonly (Cell | undefined)[])
       };
     }
     if (currencies.size === 1) return { type: "currency", currency: [...currencies][0] ?? "", decimal, issues: [] };
-    if (MONEY_HEADER.test(label)) return { type: "currency", decimal, issues: [] };
+    // Multi-row headers read "Sales / Orders": the leaf names the quantity, so judge money by the leaf.
+    if (MONEY_HEADER.test(label.split(" / ").at(-1) ?? label)) return { type: "currency", decimal, issues: [] };
     return { type: values.every((v) => Number.isInteger(v)) ? "integer" : "decimal", decimal, issues: [] };
   }
 
