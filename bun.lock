@@ -24,11 +24,14 @@
       "dependencies": {
         "@agentic-analytics/core": "workspace:*",
         "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/mcp": "workspace:*",
         "@agentic-analytics/metrics": "workspace:*",
         "@agentic-analytics/models": "workspace:*",
         "@agentic-analytics/profile": "workspace:*",
+        "@agentic-analytics/report": "workspace:*",
         "@agentic-analytics/retrieval": "workspace:*",
         "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/server": "workspace:*",
         "@agentic-analytics/store": "workspace:*",
         "@agentic-analytics/web": "workspace:*",
         "citty": "^0.2.2",
@@ -38,6 +41,7 @@
       },
       "devDependencies": {
         "@agentic-analytics/eval-datasets": "workspace:*",
+        "@modelcontextprotocol/sdk": "^1.32.1",
       },
     },
     "apps/docs": {
@@ -80,7 +84,16 @@
       "name": "@agentic-analytics/telegram",
       "version": "0.0.0",
       "dependencies": {
+        "@agentic-analytics/report": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
         "grammy": "^1.46.0",
+      },
+      "devDependencies": {
+        "@agentic-analytics/core": "workspace:*",
+        "@agentic-analytics/eval-datasets": "workspace:*",
+        "@agentic-analytics/retrieval": "workspace:*",
+        "@agentic-analytics/server": "workspace:*",
+        "tsx": "^4.23.15",
       },
     },
     "apps/viewer": {

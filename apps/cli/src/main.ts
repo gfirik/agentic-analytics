@@ -1,18 +1,24 @@
+import { spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { createLogger, jsonLines } from "@agentic-analytics/core";
+import { fileURLToPath } from "node:url";
+import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
+import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
+import { startServer } from "@agentic-analytics/server";
 import { duckdbVersion } from "@agentic-analytics/store";
 import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
 import { parse } from "yaml";
+import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
+import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
-import { runCommand } from "./run.ts";
+import { formatEvent, runCommand } from "./run.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -43,6 +49,48 @@ const collect = (p: string): string[] =>
         .flatMap((n) => collect(join(p, n)))
     : [p];
 
+const ENGINE_VERSION = "0.0.0";
+const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
+const print = (l: string) => process.stdout.write(`${l}\n`);
+
+/** Models, embedder and web lane from the environment and config file, as every door uses them. */
+function runtime(embedderArg?: string) {
+  const config = resolveModelConfig(process.env, configFile());
+  const model = createModelClient(config, { env: process.env });
+  const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+  const embedder =
+    embedderArg === "hash" ? hashEmbedder() : transformersEmbedder({ model: embedderArg ?? config.models.embedder.model, cacheDir });
+  const planner = config.models.planner;
+  const plannerProfile = profileFor(
+    planner.provider === "openai-compatible"
+      ? `openai-compatible:${planner.endpoint}:${planner.model}`
+      : `${planner.provider}:${planner.model}`,
+  );
+  const engine = {
+    version: ENGINE_VERSION,
+    models: (["planner", "extractor", "judge"] as const).map((role) => ({
+      role,
+      provider: config.models[role].provider,
+      model: config.models[role].model,
+    })),
+  };
+  const web = () => ({
+    provider: searxngProvider({
+      baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888",
+      ...(process.env.SEARXNG_ENGINES ? { engines: process.env.SEARXNG_ENGINES } : {}),
+    }),
+  });
+  const deps = (o: JobOptions, log?: boolean): JobDeps => ({
+    model,
+    embedder,
+    engine,
+    ...(o.web ? { web: web() } : {}),
+    ...(log ? { log: createLogger(jsonLines((l) => process.stderr.write(l))) } : {}),
+  });
+  const manager = (log?: boolean) => new JobManager({ root: jobsRoot(), model, deps: (o) => deps(o, log) });
+  return { config, model, embedder, engine, web, smallModel: plannerProfile?.smallModel === true, manager };
+}
+
 /** Terminal review: one letter per choice; edits are YAML typed or pasted, ended by an empty line. */
 function terminalIO(): ReviewIO & { close(): void } {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -69,6 +117,173 @@ function terminalIO(): ReviewIO & { close(): void } {
     close: () => rl.close(),
   };
 }
+
+function terminalReview(): ReviewPrompt & { close(): void } {
+  const io = terminalIO();
+  return { show: io.show, choose: (q) => io.choose(q, ["accept", "edit", "drop"]), edit: io.edit, close: io.close };
+}
+
+const today = (t?: string) => t ?? new Date().toISOString().slice(0, 10);
+
+const analyze = defineCommand({
+  meta: {
+    name: "analyze",
+    description: "Run a full job locally with a live stage view and metric review; write the report to <out>/agentic-analytics/",
+  },
+  args: {
+    web: { type: "boolean", description: "Enable the web lane (sanitized SearXNG searches)" },
+    objective: { type: "string", description: "The business goal recommendations are ranked by" },
+    yes: { type: "boolean", description: "Keep drafted metrics as assumptions without asking" },
+    "small-model": { type: "boolean", description: "Small-model mode" },
+    out: { type: "string", description: "Folder for the report (default: the current folder)" },
+    open: { type: "boolean", description: "Open report.html when done" },
+    currency: { type: "string", description: "ISO 4217 code for money columns with no currency marked" },
+    today: { type: "string", description: "Today's date (YYYY-MM-DD)" },
+    embedder: { type: "string", description: "'hash' for the offline embedder, else the configured transformers model" },
+    log: { type: "boolean", description: "Write structured logs to stderr" },
+  },
+  async run({ args }) {
+    const paths = (args._ as string[]).flatMap(collect);
+    if (!paths.length) throw new Error("give one or more files or folders: aa analyze <paths…>");
+    const rt = runtime(args.embedder);
+    const review = args.yes ? undefined : terminalReview();
+    try {
+      const r = await analyzeCommand(
+        {
+          files: paths.map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(p)) })),
+          options: {
+            today: today(args.today),
+            ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
+            ...(args.objective ? { objective: args.objective } : {}),
+            ...(args["small-model"] || rt.smallModel ? { smallModel: true } : {}),
+            ...(args.web ? { web: true } : {}),
+          },
+          out: args.out ?? ".",
+        },
+        { manager: rt.manager(Boolean(args.log)), print, ...(review ? { review } : {}) },
+      );
+      process.exitCode = r.code;
+      if (args.open && r.htmlPath) {
+        const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
+        spawn(opener, [r.htmlPath], { detached: true, stdio: "ignore" }).unref();
+      }
+    } finally {
+      review?.close();
+    }
+  },
+});
+
+const ask = defineCommand({
+  meta: { name: "ask", description: "Ask a follow-up question about a finished job; the answer is verified claims" },
+  args: { job: { type: "positional", required: true }, question: { type: "positional", required: true } },
+  async run({ args }) {
+    process.exitCode = await askCommand(runtime("hash").manager(), args.job, args.question, print);
+  },
+});
+
+const explain = defineCommand({
+  meta: { name: "explain", description: "Show the computation behind a number: SQL, parameters, definition, input rows" },
+  args: { job: { type: "positional", required: true }, fact: { type: "positional", required: true } },
+  async run({ args }) {
+    process.exitCode = await explainCommand(runtime("hash").manager(), args.job, args.fact, print);
+  },
+});
+
+const serveCmd = defineCommand({
+  meta: { name: "serve", description: "Start the HTTP API (with the viewer at / and MCP at /mcp)" },
+  args: {
+    port: { type: "string", description: "Port (default 8080)" },
+    host: { type: "string", description: "Interface to listen on (default 127.0.0.1)" },
+    embedder: { type: "string", description: "'hash' for the offline embedder" },
+    log: { type: "boolean", description: "Write structured logs to stderr" },
+  },
+  async run({ args }) {
+    const rt = runtime(args.embedder);
+    const manager = rt.manager(Boolean(args.log));
+    let cached: { at: number; value: Record<string, { ok: boolean; detail?: string }> } | undefined;
+    const health = async () => {
+      // The doctor's checks, at most once a minute (it calls the planner model once).
+      if (cached && Date.now() - cached.at < 60_000) return cached.value;
+      const file = configFile();
+      const results = await runDoctor({
+        nodeVersion: process.version,
+        duckdbVersion,
+        fetch: globalThis.fetch,
+        env: process.env,
+        modelClient: (config) => createModelClient(config, { env: process.env }),
+        ...(file !== undefined ? { configFile: file } : {}),
+      });
+      const value = Object.fromEntries(results.map((r) => [r.name, { ok: r.status === "ok", detail: r.detail }]));
+      cached = { at: Date.now(), value };
+      return value;
+    };
+    const s = await startServer(manager, {
+      port: Number(args.port ?? process.env.PORT ?? 8080),
+      ...(args.host ? { hostname: args.host } : {}),
+      ...(process.env.API_TOKEN ? { token: process.env.API_TOKEN } : {}),
+      health,
+      mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
+      viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
+      version: ENGINE_VERSION,
+    });
+    print(`agentic-analytics API on ${s.url} (viewer at /, OpenAPI at /openapi.json, MCP at /mcp)`);
+  },
+});
+
+const mcp = defineCommand({
+  meta: { name: "mcp", description: "Start the MCP server on stdio (for Claude Desktop and other MCP clients)" },
+  args: { embedder: { type: "string", description: "'hash' for the offline embedder" } },
+  async run({ args }) {
+    await serveStdio(runtime(args.embedder).manager(), { version: ENGINE_VERSION });
+  },
+});
+
+const jobs = defineCommand({
+  meta: { name: "jobs", description: "Manage jobs: ls, rm <id>, resume <id>" },
+  subCommands: {
+    ls: defineCommand({
+      meta: { name: "ls", description: "List jobs" },
+      async run() {
+        process.exitCode = await jobsList(runtime("hash").manager(), print);
+      },
+    }),
+    rm: defineCommand({
+      meta: { name: "rm", description: "Delete a job and its data" },
+      args: { job: { type: "positional", required: true } },
+      async run({ args }) {
+        await runtime("hash").manager().delete(args.job);
+        print(`deleted ${args.job}`);
+      },
+    }),
+    resume: defineCommand({
+      meta: { name: "resume", description: "Continue a stopped job from its last completed stage" },
+      args: { job: { type: "positional", required: true }, embedder: { type: "string", description: "'hash' for the offline embedder" } },
+      async run({ args }) {
+        const manager = runtime(args.embedder).manager();
+        await manager.resume(args.job);
+        const unsubscribe = await manager.subscribe(args.job, (e) => {
+          const line = formatEvent(e);
+          if (line) print(line);
+        });
+        const s = await manager.wait(args.job);
+        unsubscribe();
+        print(`${args.job}: ${s.status}`);
+        process.exitCode = s.status === "done" ? 0 : 1;
+      },
+    }),
+  },
+});
+
+const evalCmd = defineCommand({
+  meta: { name: "eval", description: "Run the eval suites (the runner arrives in M11)" },
+  args: { suite: { type: "string" }, model: { type: "string" } },
+  run() {
+    print("The eval runner lands in M11 (docs/ROADMAP.md). Available now:");
+    print("  bun run --filter @agentic-analytics/retrieval eval:retrieval   # retrieval recall@8");
+    print("  bunx vitest run packages/core/test/injection.test.ts           # injection suite");
+    process.exitCode = 2;
+  },
+});
 
 const metrics = defineCommand({
   meta: { name: "metrics", description: "Draft, validate and confirm metric definitions for files, and show their SQL and values" },
@@ -209,7 +424,7 @@ const run = defineCommand({
 
 export const main = defineCommand({
   meta: { name: "aa", description: "agentic-analytics: files in, verified report out" },
-  subCommands: { doctor, metrics, run },
+  subCommands: { analyze, ask, explain, serve: serveCmd, mcp, jobs, eval: evalCmd, doctor, metrics, run },
 });
 
 await runMain(main);

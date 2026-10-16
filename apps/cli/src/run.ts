@@ -1,6 +1,6 @@
-// `aa run <paths…>`: one full job (ingest → … → draft report) in a job folder, with the configured models.
+// `aa run <paths…>`: one full job (ingest → … → verify → render) in a job folder, with the configured models.
 // `aa run --resume <folder>` continues a job that was interrupted. Prints each stage as it starts and ends, then a
-// short summary. The final verified report and HTML arrive with the verifier (M9) and the doors (M10).
+// short summary with the paths of the verified report.json and report.html.
 
 import { type JobDeps, type JobOptions, PipelineError, runJob } from "@agentic-analytics/core";
 import type { InputFile } from "@agentic-analytics/ingest";
@@ -56,7 +56,8 @@ export async function runCommand(
   deps.out("");
   deps.out(`job ${out.jobId} · ${r.findings.length} finding(s) · ${r.recommendations.length} recommendation(s) · ${r.facts.length} facts`);
   for (const f of r.findings) deps.out(`  ${f.id} ${f.title}`);
-  deps.out(`draft (unverified): ${out.draftPath}`);
+  deps.out(`report (verified): ${out.reportPath}`);
+  deps.out(`html: ${out.htmlPath}`);
   if (out.run.skipped.length) deps.out(`skipped: ${out.run.skipped.join(", ")}`);
   return 0;
 }

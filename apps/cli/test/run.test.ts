@@ -14,7 +14,7 @@ afterAll(() => {
 const files = Object.entries(coffeeRoasterFiles()).map(([name, bytes]) => ({ name, bytes }));
 
 describe("aa run", () => {
-  it("prints each stage and a summary, and writes the draft", async () => {
+  it("prints each stage and a summary, and writes the verified report and HTML", async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-cli-"));
     dirs.push(dir);
     const lines: string[] = [];
@@ -26,7 +26,8 @@ describe("aa run", () => {
     expect(lines).toContain("▸ EXPLAIN");
     expect(lines.some((l) => /^✓ DECIDE \(\d+ ms\)$/.test(l))).toBe(true);
     expect(lines).toContain("  F1 Revenue fell after March, driven by wholesale");
-    expect(lines).toContain(`draft (unverified): ${join(dir, "report.draft.json")}`);
+    expect(lines).toContain(`report (verified): ${join(dir, "report.json")}`);
+    expect(lines).toContain(`html: ${join(dir, "report.html")}`);
   }, 180_000);
 
   it("on a failed stage, prints how to resume instead of a stack trace", async () => {

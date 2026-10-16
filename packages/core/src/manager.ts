@@ -73,6 +73,11 @@ export class JobManager {
   private queue: Promise<void> = Promise.resolve();
   private readonly now: () => Date;
 
+  /** The folder holding one folder per job. */
+  get root(): string {
+    return this.opts.root;
+  }
+
   constructor(private readonly opts: ManagerOptions) {
     this.now = opts.now ?? (() => new Date());
     mkdirSync(opts.root, { recursive: true });
