@@ -194,6 +194,9 @@ export interface RateMix {
     readonly w1: number;
   }[];
   readonly enteringKeys: readonly string[];
+  /** Segments with a numerator but no denominator in some period: their share of the rate change. */
+  readonly unattributed: Calc;
+  readonly unattributedKeys: readonly string[];
   readonly exitingKeys: readonly string[];
   /** The overall rate moves against most segment rates: the finding must tell the segment story (spec §4.3). */
   readonly simpsonRisk: boolean;
@@ -203,7 +206,8 @@ export interface RateMix {
  * For r = Σ wᵢrᵢ with wᵢ = segment share of the whole period's denominator (spec §4.3):
  *   Mix = Σ_both (wᵢ₁ − wᵢ₀) rᵢ₀ · Rate = Σ_both wᵢ₁ (rᵢ₁ − rᵢ₀)
  *   Entering = Σ_new wᵢ₁ rᵢ₁ · Exiting = −Σ_gone wᵢ₀ rᵢ₀
- * so Mix + Rate + Entering + Exiting = r₁ − r₀ exactly, even when segments appear or disappear (like
+ *   Unattributed = Σ numerators of segments with no denominator in a period ÷ that period's denominator (Δ)
+ * so Mix + Rate + Entering + Exiting + Unattributed = r₁ − r₀ exactly, even when segments appear or disappear (like
  * new/lost in pvm.v1). Rates are num/den × `scale` (100 for percent metrics, like the metric compiler), so the
  * effects are in the metric's own unit and sum to the change between its measured facts.
  */
@@ -220,8 +224,11 @@ export function rateMix(segments: readonly RateSegment[], unit: Unit = "ratio", 
     w0: s.den0 / d0,
     w1: s.den1 / d1,
   }));
-  const overall0 = d0 > 0 ? (segments.reduce((a, s) => a + (s.den0 > 0 ? s.num0 : 0), 0) / d0) * scale : 0;
-  const overall1 = d1 > 0 ? (segments.reduce((a, s) => a + (s.den1 > 0 ? s.num1 : 0), 0) / d1) * scale : 0;
+  // The measured rate divides ALL numerators by the denominator, so overall rates include numerators of
+  // segments with no denominator in that period (e.g. refunds for a customer with no sales that month).
+  const overall0 = d0 > 0 ? (segments.reduce((a, s) => a + s.num0, 0) / d0) * scale : 0;
+  const overall1 = d1 > 0 ? (segments.reduce((a, s) => a + s.num1, 0) / d1) * scale : 0;
+  const orphan = segments.filter((s) => (!(s.den0 > 0) && s.num0 !== 0) || (!(s.den1 > 0) && s.num1 !== 0));
   // Every effect depends on the totals d0 and d1, so each cites every segment's points.
   const refs = segments.flatMap((s) => s.refs ?? []);
   const calc = (name: string, label: string, value: number): Calc => ({
@@ -253,6 +260,12 @@ export function rateMix(segments: readonly RateSegment[], unit: Unit = "ratio", 
     // 0 − x, not −x: no exiting segments must give 0, never −0.
     0 - exiting.reduce((a, s) => a + (s.num0 / d0) * scale, 0),
   );
+  const orphanTerm = (num: number, den: number, d: number) => (!(den > 0) && d > 0 ? (num / d) * scale : 0);
+  const unattributed = calc(
+    "unattributed",
+    "numerator without a denominator",
+    orphan.reduce((a, s) => a + orphanTerm(s.num1, s.den1, d1) - orphanTerm(s.num0, s.den0, d0), 0),
+  );
   const overallDir = Math.sign(overall1 - overall0);
   const against = rows.filter((r) => Math.sign(r.r1 - r.r0) === -overallDir && overallDir !== 0).length;
   return {
@@ -263,6 +276,8 @@ export function rateMix(segments: readonly RateSegment[], unit: Unit = "ratio", 
     rate,
     entering: enteringCalc,
     exiting: exitingCalc,
+    unattributed,
+    unattributedKeys: orphan.map((s) => s.key),
     segments: rows,
     enteringKeys: entering.map((s) => s.key),
     exitingKeys: exiting.map((s) => s.key),

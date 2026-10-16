@@ -20,7 +20,7 @@ import {
   trend,
   trendBreak,
 } from "./templates.ts";
-import { point, type Series, type Unit } from "./types.ts";
+import { OTHER, point, type Series, type Unit } from "./types.ts";
 
 export interface AnalyzeOptions {
   readonly from: string;
@@ -76,8 +76,6 @@ const DIM_UNIT: Record<string, Unit> = { currency: "currency", percent: "percent
 const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
 const memberFilter = (dimension: string, value: string | null) =>
   value === null ? `${dimension} IS NULL` : `${dimension} = ${quote(value)}`;
-/** The member that groups everything beyond the top N (spec §1). */
-export const OTHER = "(other)";
 const otherFilter = (dimension: string, kept: readonly (string | null)[]) => {
   const values = kept.filter((v): v is string => v !== null);
   const notIn = values.length ? `${dimension} NOT IN (${values.map(quote).join(", ")})` : undefined;
@@ -136,26 +134,22 @@ export async function analyzeJob(
         return s;
       });
       if (ranked.length > maxMembers) {
-        // The rest become one "(other)" member, so member changes still add up to the total. Its points are
-        // re-measured by the fact book through the NOT IN filter, never summed here as facts.
+        // The rest become one "(other)" member, so member changes still add up to the total. Its values come from
+        // the same NOT IN query its facts cite, so a fact's value is exactly what its SQL returns.
         const rest = ranked.slice(maxMembers);
-        const perPeriod = new Map<string, number>();
-        for (const [, points] of rest) for (const p of points) perPeriod.set(p.period, (perPeriod.get(p.period) ?? 0) + p.value);
+        const where = otherFilter(
+          dimension,
+          kept.map(([v]) => v),
+        );
+        const otherRows = await runMetric(ws, def.id, defs, catalog, { ...range, where });
         const s: Series = {
           id: `${def.id}|${dimension}=${OTHER}`,
           metric: def.id,
           unit,
           member: { dimension, value: OTHER },
-          points: [...perPeriod.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([period, value]) => ({ period, value })),
+          points: otherRows.map((r) => ({ period: r.period, value: Number(r.value ?? 0) })),
         };
-        series.set(s.id, {
-          series: s,
-          def,
-          where: otherFilter(
-            dimension,
-            kept.map(([v]) => v),
-          ),
-        });
+        series.set(s.id, { series: s, def, where });
         list.push(s);
         openQuestions.push(
           `${def.id} has ${ranked.length} ${dimension} members; the top ${maxMembers} are analysed and the other ${rest.length} are grouped as "${OTHER}".`,
@@ -292,7 +286,9 @@ export async function analyzeJob(
   const idOf = new Map<Insight, string>();
   for (const insight of material) {
     const id = `I${stored.length + 1}`;
-    const context = `${insight.template} ${insight.series} ${insight.period}`;
+    // The id makes the context unique: one template on several dimensions of the same series and period (e.g.
+    // concentration by customer and by channel) must never share derived facts.
+    const context = `${id} ${insight.template} ${insight.series} ${insight.period}`;
     const scope = await book.calcs(insight.calcs, context, insight.metric);
     const facts: Record<string, string> = {};
     for (const [role, ref] of Object.entries(insight.roles)) facts[role] = await book.resolve(ref, scope);
@@ -336,11 +332,23 @@ export async function analyzeJob(
       for (const c of calcs) facts[c.name.replace("pvm:", "")] = scope.get(c.name) ?? "";
     } else if (d.ratemix) {
       const r = d.ratemix;
-      // Entering/exiting effects only exist as facts when such segments do: a 0 with no inputs would cite nothing.
-      const calcs = [r.mix, r.rate, ...(r.enteringKeys.length ? [r.entering] : []), ...(r.exitingKeys.length ? [r.exiting] : [])];
+      // Entering/exiting/unattributed effects only exist as facts when such segments do: a 0 with no inputs would cite nothing.
+      const calcs = [
+        r.mix,
+        r.rate,
+        ...(r.enteringKeys.length ? [r.entering] : []),
+        ...(r.exitingKeys.length ? [r.exiting] : []),
+        ...(r.unattributedKeys.length ? [r.unattributed] : []),
+      ];
       const scope = await book.calcs(calcs, context);
       for (const c of calcs) facts[c.name.replace("ratemix:", "")] = scope.get(c.name) ?? "";
-      details = { simpson_risk: r.simpsonRisk, segments: r.segments, entering: r.enteringKeys, exiting: r.exitingKeys };
+      details = {
+        simpson_risk: r.simpsonRisk,
+        segments: r.segments,
+        entering: r.enteringKeys,
+        exiting: r.exitingKeys,
+        unattributed: r.unattributedKeys,
+      };
     }
     storedDecomp.push({ id, method: d.method, insight: insightId, dimension: d.dimension, facts, details });
   }

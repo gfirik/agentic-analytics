@@ -35,5 +35,10 @@ export interface Calc {
 
 export type Confidence = "high" | "medium" | "low";
 
+/** The member that groups everything beyond the top N members of a dimension (spec §1). */
+export const OTHER = "(other)";
+/** A grouping artifact, never a member to name in a finding; it still counts in sums and shares. */
+export const isOther = (m: Series): boolean => m.member?.value === OTHER;
+
 export const point = (series: string, period: string): Ref => ({ kind: "point", series, period });
 export const calcRef = (name: string): Ref => ({ kind: "calc", name });

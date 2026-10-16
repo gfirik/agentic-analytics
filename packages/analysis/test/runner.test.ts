@@ -144,6 +144,27 @@ describe("rate vs mix on the measured refund rate", () => {
   });
 });
 
+describe("one template on several dimensions keeps its own numbers", () => {
+  it("June concentration by channel is retail 80.27%, not the customer figure", () => {
+    const byDim = (dim: string) =>
+      result.insights.find((i) => i.template === "concentration.v1" && i.period === "2026-06" && i.details.dimension === dim);
+    const channel = byDim("channel");
+    // 29,700 / 37,000 = 80.27%
+    expect(fact(channel?.facts.top_share).value).toBeCloseTo(80.27027, 4);
+    // 0.8027² + 0.1973² = 0.68325
+    expect(fact(channel?.facts.hhi).value).toBeCloseTo(0.683258, 5);
+    const customer = byDim("customer");
+    if (customer) expect(customer.facts.top_share).not.toBe(channel?.facts.top_share);
+  });
+
+  it("April mix shift by channel is retail +15.61 pp", () => {
+    const mx = result.insights.find((i) => i.template === "mix_shift.v1" && i.period === "2026-04" && i.details.dimension === "channel");
+    // 28,800 / 36,200 − 28,200 / 44,100 = 79.5580% − 63.9456% = +15.6124 pp (wholesale is the mirror, −15.6124)
+    expect(Math.abs(fact(mx?.facts.share_shift_pp).value)).toBeCloseTo(15.6124, 3);
+    expect(Math.sign(fact(mx?.facts.share_shift_pp).value)).toBe(mx?.direction === "up" ? 1 : -1);
+  });
+});
+
 describe("open questions", () => {
   it("says year-over-year needs 13+ months, per metric", () => {
     expect(result.openQuestions).toContain("Year-over-year for revenue needs 13+ months; only 6 available.");

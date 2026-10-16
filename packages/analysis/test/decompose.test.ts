@@ -138,6 +138,23 @@ describe("ratemix.v1 and the Simpson guard (spec §4.3)", () => {
     expect(r.exitingKeys).toEqual(["S2"]);
   });
 
+  it("a numerator with no denominator is an unattributed effect, hand-computed", () => {
+    // S1: 10/100 → 12/100. S2: 5 refunds but no sales in period 0, nothing in period 1.
+    // Measured rates divide all numerators: r0 = (10 + 5) / 100 = 0.15, r1 = 12 / 100 = 0.12 → Δ −0.03
+    // mix = (1 − 1)·0.10 = 0 · rate = 1·0.02 = 0.02 · unattributed = 0 − 5/100 = −0.05 → −0.03
+    const r = rateMix([
+      { key: "S1", num0: 10, den0: 100, num1: 12, den1: 100 },
+      { key: "S2", num0: 5, den0: 0, num1: 0, den1: 0 },
+    ]);
+    expect(r.overall0).toBeCloseTo(0.15, 12);
+    expect(r.overall1).toBeCloseTo(0.12, 12);
+    expect(r.rate.value).toBeCloseTo(0.02, 12);
+    expect(r.unattributed.value).toBeCloseTo(-0.05, 12);
+    expect(r.unattributedKeys).toEqual(["S2"]);
+    const sum = r.mix.value + r.rate.value + r.entering.value + r.exiting.value + r.unattributed.value;
+    expect(sum).toBeCloseTo(r.overall1 - r.overall0, 12);
+  });
+
   it("scale 100 gives percentage points and no −0", () => {
     const r = rateMix([{ key: "S1", num0: 1, den0: 100, num1: 3, den1: 100 }], "percent", 100);
     expect(r.overall0).toBeCloseTo(1, 12);

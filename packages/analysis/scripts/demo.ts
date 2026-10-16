@@ -48,7 +48,10 @@ try {
     // One format for every number: grouped, at most 2 decimals, and never "-0" from rounding.
     const n = Number(f.value.toFixed(2)) || 0;
     const v = n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-    return `${v}${f.unit === "percent" ? "%" : ""} [${f.id}]`;
+    // A difference of two percentages is in percentage points, not a relative %.
+    const fn = f.computation.kind === "function" ? f.computation.fn : "";
+    const pp = ["delta", "share_shift", "ratemix.v1"].includes(fn ?? "");
+    return `${v}${f.unit === "percent" ? (pp ? " pp" : "%") : ""} [${f.id}]`;
   };
   const out: string[] = [
     `metrics: ${defs.map((d) => d.id).join(", ")}`,

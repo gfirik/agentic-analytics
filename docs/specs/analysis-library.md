@@ -94,7 +94,9 @@ Both sums run over segments with a denominator in both periods. The weights are 
 - Entering effect = Σ wᵢ₁ rᵢ₁ over segments with no denominator before
 - Exiting effect = −Σ wᵢ₀ rᵢ₀ over segments with no denominator after
 
-Mix + Rate + Entering + Exiting = r₁ − r₀ exactly. Effects are in the metric's own unit (percentage points for percent metrics).
+- Unattributed effect = the change in (numerators of segments with no denominator in that period ÷ the period's denominator), for example refunds booked for a customer with no sales that month. The measured rate counts every numerator, so this keeps the identity.
+
+Mix + Rate + Entering + Exiting + Unattributed = r₁ − r₀ exactly. Effects are in the metric's own unit (percentage points for percent metrics).
 
 **Simpson guard:** when the overall rate moves in the opposite direction to most segment rates, emit a `simpson_risk` flag. The finding must then present the segment-level story.
 

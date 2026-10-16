@@ -35,7 +35,7 @@ export {
   TEMPLATE_PRIORITY,
   topForExplain,
 } from "./rank.ts";
-export { type AnalysisResult, type AnalyzeOptions, analyzeJob, OTHER, type StoredDecomposition, type StoredInsight } from "./runner.ts";
+export { type AnalysisResult, type AnalyzeOptions, analyzeJob, type StoredDecomposition, type StoredInsight } from "./runner.ts";
 export { hhi, MAD_SCALE, mad, mannKendall, mean, median, normalCdf, robustZ, sse, theilSen, twoProportionZ } from "./stats.ts";
 export {
   anomalies,
@@ -52,4 +52,4 @@ export {
   trend,
   trendBreak,
 } from "./templates.ts";
-export { type Calc, type Confidence, calcRef, type Point, point, type Ref, type Series, type Unit } from "./types.ts";
+export { type Calc, type Confidence, calcRef, isOther, OTHER, type Point, point, type Ref, type Series, type Unit } from "./types.ts";

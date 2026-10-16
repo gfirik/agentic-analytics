@@ -4,7 +4,7 @@
 import { type Baseline, chooseBaseline, type Grain, MIN_PERIODS, materiality, noiseBand } from "./baselines.ts";
 import { type Contribution, contribution, type MemberChange } from "./decompose.ts";
 import { hhi, MAD_SCALE, mad, mannKendall, mean, median, sse, theilSen, twoProportionZ } from "./stats.ts";
-import { type Calc, type Confidence, calcRef, type Point, point, type Ref, type Series } from "./types.ts";
+import { type Calc, type Confidence, calcRef, isOther, type Point, point, type Ref, type Series } from "./types.ts";
 
 export type TemplateId =
   | "period_change.v1"
@@ -340,7 +340,9 @@ export function concentration(
   const sum = vals.reduce((a, x) => a + x.v, 0);
   if (!sum || vals.length < 2) return undefined;
   vals.sort((a, b) => b.v - a.v);
-  const top = vals[0] as { s: Series; v: number };
+  const named = vals.find((x) => !isOther(x.s));
+  if (!named) return undefined;
+  const top = named;
   const shares = vals.map((x) => x.v / sum);
   const refs = vals.map((x) => point(x.s.id, period));
   const topShare: Calc = {
@@ -380,8 +382,8 @@ export function newLost(
   dimension: string,
 ): Insight | undefined {
   const val = (m: Series, p: string) => m.points.find((x) => x.period === p)?.value ?? 0;
-  const lost = members.filter((m) => val(m, before) > 0 && val(m, after) === 0);
-  const gained = members.filter((m) => val(m, before) === 0 && val(m, after) > 0);
+  const lost = members.filter((m) => !isOther(m) && val(m, before) > 0 && val(m, after) === 0);
+  const gained = members.filter((m) => !isOther(m) && val(m, before) === 0 && val(m, after) > 0);
   if (!lost.length && !gained.length) return undefined;
   const atRisk: Calc = {
     name: "lost_value",
@@ -438,7 +440,7 @@ export function mixShift(
   const shifts = members
     .map((m) => ({ m, pp: (val(m, after) / s1 - val(m, before) / s0) * 100 }))
     .sort((a, b) => Math.abs(b.pp) - Math.abs(a.pp));
-  const top = shifts[0];
+  const top = shifts.find((x) => !isOther(x.m));
   if (!top) return undefined;
   const refs = members.flatMap((m) => [point(m.id, before), point(m.id, after)]);
   const pp: Calc = {

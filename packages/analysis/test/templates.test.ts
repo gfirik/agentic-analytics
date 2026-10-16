@@ -210,6 +210,18 @@ describe("concentration, new/lost and mix shift", () => {
     expect(i?.calcs.map((c) => c.name)).toEqual(["lost_value"]);
   });
 
+  it('"(other)" counts in sums but is never the member a finding names', () => {
+    const other = series("revenue|channel=(other)", [0, 0, 0, 0, 0, 30000], "currency", { dimension: "channel", value: "(other)" });
+    const c = concentration("revenue", REVENUE, [other, RETAIL, WHOLESALE], "2026-06", "channel");
+    // sum = 30,000 + 29,700 + 7,300 = 67,000; named top = retail 29,700 / 67,000 = 44.33%
+    expect(c?.details.top).toBe("retail");
+    expect(calc(c as Insight, "top_share")).toBeCloseTo(44.328358, 5);
+    const nl = newLost("revenue", REVENUE, [other, RETAIL], "2026-05", "2026-06", "channel");
+    expect(nl).toBeUndefined(); // "(other)" appearing is a grouping artifact, not a new member
+    const mx = mixShift("revenue", REVENUE, [other, RETAIL, WHOLESALE], "2026-05", "2026-06", "channel");
+    expect(mx?.details.member).not.toBe("(other)");
+  });
+
   it("wholesale's share fell 15.6 pp from March to April", () => {
     // 15,900 / 44,100 = 36.0544% → 7,400 / 36,200 = 20.4420% → −15.6124 pp
     const i = mixShift("revenue", REVENUE, [WHOLESALE, RETAIL], "2026-03", "2026-04", "channel");
