@@ -30,7 +30,13 @@ export interface ProviderFetchOptions {
   /** Every call, with the provider and model that served it (M13a). */
   readonly onCall?: (c: CallRecord) => void;
   /** Who is calling, for the call record. */
-  readonly label?: { readonly role?: string; readonly provider: string; readonly endpoint?: string };
+  readonly label?: {
+    readonly role?: string;
+    readonly provider: string;
+    readonly endpoint?: string;
+  };
+  /** Secret values (the configured API keys) masked in logged error messages, whatever their format. */
+  readonly secrets?: readonly string[];
 }
 
 export interface CallRecord {
@@ -129,7 +135,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         ...(text ? usageOf(text) : {}),
         ...(error ? { error } : {}),
       });
-    const fail = async (res: Response) => record(res.status, false, undefined, errorOf(await res.clone().text()));
+    const fail = async (res: Response) => record(res.status, false, undefined, errorOf(await res.clone().text(), o.secrets));
     const key = o.cache && typeof req?.body === "string" ? cacheKey(url, req.body) : undefined;
     if (key && o.cache) {
       const hit = o.cache.get(key);
@@ -151,7 +157,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         // No response at all (a reset connection, a DNS hiccup, the per-request timeout): logged like a failed call,
         // and a transient network error is retried, since nothing has run on this request yet. The caller's own
         // abort is never retried.
-        record(0, false, undefined, describeError(err));
+        record(0, false, undefined, maskSecrets(describeError(err), o.secrets));
         if (req?.signal?.aborted || !transientNetworkError(err) || netRetries >= MAX_NET_RETRIES) throw err;
         netRetries++;
         await sleep(2_000 * netRetries);
@@ -211,7 +217,7 @@ function cacheable(text: string): boolean {
  * A provider's error message, short enough for a log line: `error.message` from a JSON body, else the text. Anything
  * that looks like a key or token is masked, since some providers echo part of the credential back.
  */
-export function errorOf(text: string): string | undefined {
+export function errorOf(text: string, secrets: readonly string[] = []): string | undefined {
   let msg = text;
   try {
     const j = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown; detail?: unknown };
@@ -221,10 +227,7 @@ export function errorOf(text: string): string | undefined {
   } catch {
     // Not JSON: keep the text.
   }
-  const clean = msg
-    .replace(/\b(gsk_|sk-|sk_|AIza|nvapi-|Bearer\s+)[\w.-]+/g, "$1***")
-    .replace(/\s+/g, " ")
-    .trim();
+  const clean = maskSecrets(msg, secrets).replace(/\s+/g, " ").trim();
   return clean ? clean.slice(0, 200) : undefined;
 }
 
@@ -251,4 +254,16 @@ export function transientNetworkError(err: unknown): boolean {
     /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|EAI_AGAIN|ENOTFOUND|UND_ERR_SOCKET|UND_ERR_CONNECT_TIMEOUT|UND_ERR_CLOSED)$/.test(code) ||
     (err.name === "TypeError" && /fetch failed|terminated|socket/i.test(err.message))
   );
+}
+
+/**
+ * Masks key-like strings in text that leaves the process (logs, job status, API and chat replies): known key prefixes
+ * (Groq `gsk_`, OpenAI-style `sk-`/`csk-`, Google `AIza`, NVIDIA `nvapi-`, bearer tokens) and, exactly, any of the
+ * given secret values (the configured API keys, whatever their format).
+ */
+export function maskSecrets(text: string, secrets: readonly string[] = []): string {
+  // Word-bounded, so "whisk-large" or "task-12" stay readable; "bearer" in any case.
+  let out = text.replace(/\b(gsk_|c?sk-|sk_|AIza|nvapi-)[\w.-]{4,}/g, "$1***").replace(/\b(bearer\s+)[\w.~+/=-]{4,}/gi, "$1***");
+  for (const s of secrets) if (s.length >= 8) out = out.split(s).join("***");
+  return out;
 }

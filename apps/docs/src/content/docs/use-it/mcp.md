@@ -41,4 +41,4 @@ Then: *"Analyze the files in /path/to/exports and tell me what changed."* A long
 
 ## Cursor and others
 
-Any MCP client that launches a stdio server works the same way; clients that speak streamable HTTP can use `http://127.0.0.1:8080/mcp` while `aa serve` runs.
+Any MCP client that launches a stdio server works the same way; clients that speak streamable HTTP can use `http://127.0.0.1:8080/mcp` while `aa serve` runs. Over HTTP, `analyze_files` reads local paths only inside the folders listed in `AA_MCP_ROOTS` (comma-separated, checked after resolving symlinks; none by default), so whoever can reach the port can't read the server's files: start the server with `AA_MCP_ROOTS=/path/to/exports aa serve`, or upload through `POST /v1/jobs`.

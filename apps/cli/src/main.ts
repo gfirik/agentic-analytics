@@ -19,7 +19,7 @@ import {
   resolveModelConfig,
 } from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
-import { startServer } from "@agentic-analytics/server";
+import { ServeError, startServer } from "@agentic-analytics/server";
 import { duckdbVersion } from "@agentic-analytics/store";
 import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
@@ -239,6 +239,10 @@ const serveCmd = defineCommand({
     host: { type: "string", description: "Interface to listen on (default 127.0.0.1)" },
     embedder: { type: "string", description: "'hash' for the offline embedder" },
     log: { type: "boolean", description: "Write structured logs to stderr" },
+    "allow-no-auth": {
+      type: "boolean",
+      description: "Listen beyond localhost without API_TOKEN (only behind a proxy or a localhost-only port mapping)",
+    },
   },
   async run({ args }) {
     const rt = runtime(args.embedder);
@@ -265,6 +269,7 @@ const serveCmd = defineCommand({
       port: Number(args.port ?? process.env.PORT ?? 8080),
       ...(args.host ? { hostname: args.host } : {}),
       ...(process.env.API_TOKEN ? { token: process.env.API_TOKEN } : {}),
+      ...(args["allow-no-auth"] || process.env.AA_ALLOW_NO_AUTH === "1" ? { allowNoAuth: true } : {}),
       // Names this server may be reached by besides localhost (a LAN name, a Docker service name).
       allowedHosts: [
         ...(args.host && args.host !== "0.0.0.0" ? [args.host] : []),
@@ -274,10 +279,26 @@ const serveCmd = defineCommand({
           .filter(Boolean),
       ],
       health,
-      mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
+      onError: (err) => process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`),
+      mcp: mcpHttpHandler(manager, {
+        version: ENGINE_VERSION,
+        roots: (process.env.AA_MCP_ROOTS ?? "")
+          .split(",")
+          .map((r) => r.trim())
+          .filter(Boolean),
+      }),
       viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
       version: ENGINE_VERSION,
+    }).catch((err: unknown) => {
+      // A refused network bind is a configuration message, not a crash.
+      if (err instanceof ServeError) {
+        process.stderr.write(`${err.message}\n`);
+        process.exitCode = 1;
+        return undefined;
+      }
+      throw err;
     });
+    if (!s) return;
     print(`agentic-analytics API on ${s.url} (viewer at /, OpenAPI at /openapi.json, MCP at /mcp)`);
   },
 });

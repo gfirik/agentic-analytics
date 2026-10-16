@@ -28,6 +28,8 @@ export interface ServerOptions {
   /** Upload limit in bytes (default 200 MB). */
   readonly maxUpload?: number;
   readonly version?: string;
+  /** Receives an unexpected error; the client only gets a generic 500 (the message can name paths or SQL). */
+  readonly onError?: (err: unknown) => void;
 }
 
 const JobId = z
@@ -96,7 +98,8 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
 
   app.onError((err, c) => {
     if (err instanceof ManagerError) return c.json({ error: { code: err.code, message: err.message } }, STATUS[err.code]);
-    return c.json({ error: { code: "INTERNAL", message: err.message } }, 500);
+    o.onError?.(err);
+    return c.json({ error: { code: "INTERNAL", message: "internal error (details are in the server log)" } }, 500);
   });
 
   // DNS-rebinding guard (security §4): only the hosts this server is meant to be reached by.
@@ -118,12 +121,16 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
     await next();
   });
 
+  const expected = o.token ? new TextEncoder().encode(`Bearer ${o.token}`) : undefined;
+  /** True when no token is configured, or the request carries it (compared in constant time). */
+  const authorized = (c: Context) => {
+    if (!expected) return true;
+    const got = new TextEncoder().encode(c.req.header("authorization") ?? "");
+    return got.length === expected.length && timingSafeEqual(got, expected);
+  };
   if (o.token) {
-    const expected = new TextEncoder().encode(`Bearer ${o.token}`);
     const guard = async (c: Context, next: () => Promise<void>) => {
-      const got = new TextEncoder().encode(c.req.header("authorization") ?? "");
-      if (got.length !== expected.length || !timingSafeEqual(got, expected))
-        return c.json({ error: { code: "UNAUTHORIZED", message: "a bearer token is required" } }, 401);
+      if (!authorized(c)) return c.json({ error: { code: "UNAUTHORIZED", message: "a bearer token is required" } }, 401);
       await next();
     };
     app.use("/v1/jobs/*", guard);
@@ -385,10 +392,12 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
       },
     }),
     async (c) => {
+      // The provider, model and service details (and the model call behind them) are for the token holder: without
+      // the token, health only says the engine is up.
       const checks: Record<string, { ok: boolean; detail?: string }> = {
         engine: { ok: true },
         duckdb: { ok: true, detail: "in-process (the jobs use it; not probed here)" },
-        ...(o.health ? await o.health() : {}),
+        ...(o.health && authorized(c) ? await o.health() : {}),
       };
       return c.json({ ok: checks.engine?.ok === true && checks.duckdb?.ok === true, version: o.version ?? "0.0.0", checks }, 200);
     },

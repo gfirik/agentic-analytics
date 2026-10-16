@@ -8,6 +8,7 @@ import {
   durationMs,
   expandUrl,
   ModelError,
+  maskSecrets,
   memoryCache,
   providerFetch,
   Router,
@@ -337,5 +338,33 @@ describe("router bounds", () => {
     await expect(slow("https://x/v1/chat/completions", { method: "POST", body: "{}" })).rejects.toThrow("timed out");
     expect(calls.at(-1)?.error).toBe("TimeoutError: timed out");
     void genv;
+  });
+
+  it("masks configured keys of any format, and key-like prefixes, in errors a client throws", async () => {
+    expect(maskSecrets("bad key csk-abcdef123 and Bearer xyz12345", [])).toBe("bad key csk-*** and Bearer ***");
+    const t = hosts({
+      "api.mistral.ai": [() => Response.json({ error: { message: "key Zq9mistralKEY77 is not activated" } }, { status: 401 })],
+    });
+    const menv = { PLANNER_MODEL: "openai-compatible:mistral:mistral-small-2603", MISTRAL_API_KEY: "Zq9mistralKEY77" };
+    const lm = createModelClient(resolveModelConfig(menv), { env: menv, fetch: t.f });
+    const err = await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch((e: unknown) => e);
+    expect((err as Error).message).not.toContain("Zq9mistralKEY77");
+    expect((err as Error).message).toContain("***");
+  });
+
+  it("masks keys in the thrown error's cause chain and in call records; word-bounded, any-case bearer", async () => {
+    expect(maskSecrets("model whisk-large-v2 and task-12345 failed")).toBe("model whisk-large-v2 and task-12345 failed");
+    expect(maskSecrets("authorization: bearer abcd1234")).toBe("authorization: bearer ***");
+    const body = { error: { message: "key Zq9mistralKEY77 is not activated" } };
+    const t = hosts({ "api.mistral.ai": [() => Response.json(body, { status: 401 })] });
+    const calls: CallRecord[] = [];
+    const menv = { PLANNER_MODEL: "openai-compatible:mistral:mistral-small-2603", MISTRAL_API_KEY: "Zq9mistralKEY77" };
+    const lm = createModelClient(resolveModelConfig(menv), { env: menv, fetch: t.f, onCall: (c) => calls.push(c) });
+    const err = await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch((e: unknown) => e);
+    let chain = "";
+    for (let e: unknown = err; e instanceof Error; e = e.cause) chain += ` ${e.message}`;
+    expect(chain).not.toContain("Zq9mistralKEY77");
+    expect(JSON.stringify(calls)).not.toContain("Zq9mistralKEY77");
+    expect(calls[0]?.error).toBe("key *** is not activated");
   });
 });

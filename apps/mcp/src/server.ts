@@ -1,7 +1,7 @@
 // The MCP door (interfaces §3): five tools and two resources over the job manager. A calling model gets verified
 // numbers with their provenance; every tool description tells it to quote them, never recalculate them.
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { basename, join, resolve, sep } from "node:path";
 import type { JobManager, JobStatus } from "@agentic-analytics/core";
 import { fillPlaceholders, reportSummaryText } from "@agentic-analytics/report";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -14,6 +14,43 @@ export interface McpOptions {
   /** Today's date for new jobs (default: the current date). */
   readonly today?: () => string;
   readonly version?: string;
+  /**
+   * Where `analyze_files` may read: "any" (stdio: the caller is the user's own client) or a list of folders. Over HTTP
+   * the default is none, so a caller that can reach /mcp can't read the server's files (set AA_MCP_ROOTS to allow).
+   */
+  readonly roots?: "any" | readonly string[];
+}
+
+/** Thrown when a path is outside the allowed roots (or local paths are off). */
+export class PathNotAllowedError extends Error {
+  readonly code = "PATH_NOT_ALLOWED";
+}
+
+/** The configured roots that exist, by real path; a missing root is skipped (it allows nothing) rather than failing. */
+function realRoots(roots: readonly string[]): string[] {
+  return roots.flatMap((r) => {
+    try {
+      return [realpathSync(resolve(r))];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** The real path of `p` when it lies inside one of `roots` (after resolving symlinks), else a PathNotAllowedError. */
+export function allowedPath(p: string, roots: "any" | readonly string[]): string {
+  if (roots === "any") return resolve(p);
+  if (!roots.length)
+    throw new PathNotAllowedError("local paths are off for this server: upload the files through POST /v1/jobs, or set AA_MCP_ROOTS");
+  let real: string;
+  try {
+    real = realpathSync(resolve(p));
+  } catch {
+    throw new PathNotAllowedError("path not found or not allowed");
+  }
+  const inside = realRoots(roots).some((root) => real === root || real.startsWith(root.endsWith(sep) ? root : `${root}${sep}`));
+  if (!inside) throw new PathNotAllowedError("path not found or not allowed");
+  return real;
 }
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }] });
@@ -66,9 +103,11 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
     },
     async (a) => {
       try {
+        const roots = o.roots ?? "any";
+        // Each file is checked again at read time: collect skips symlinks, and the real path must stay inside a root.
         const files = a.paths
-          .flatMap((p) => collect(resolve(p)))
-          .map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(p)) }));
+          .flatMap((p) => collect(allowedPath(p, roots)))
+          .map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(allowedPath(p, roots))) }));
         const s = await manager.create(files, {
           today: today(),
           ...(a.currency ? { currency: a.currency.toUpperCase() } : {}),
