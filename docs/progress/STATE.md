@@ -13,7 +13,7 @@ Human gate values:
 |---|---|---|---|---|---|
 | M0 Foundation | DONE | no | [#1](https://github.com/gfirik/agentic-analytics/pull/1) | `bun install && bun run check`; `bun run aa doctor` | Bun workspaces + Turborepo, CI, doctor, drift check |
 | M1 Contracts & golden fixtures | DONE | notify | [#2](https://github.com/gfirik/agentic-analytics/pull/2) | `bun run --filter @agentic-analytics/report render:fixture`; `bun run --filter @agentic-analytics/schema validate:fixture` | Report v1 + integrity, coffee-roaster-v1 dataset, FakeModel + free providers, offline HTML report; real model call DEFERRED |
-| M2 Ingestion | IN_PROGRESS | no | | `bun run ingest fixtures/xlsx fixtures/csv fixtures/docs` | Intake, 16 xlsx + 2 csv fixtures matching hand-written expectations, PDF/DOCX/EML/MD/TXT sections; Docling real run DEFERRED |
+| M2 Ingestion | IN_PROGRESS | no | [#4](https://github.com/gfirik/agentic-analytics/pull/4) | `bun run ingest fixtures/xlsx fixtures/csv fixtures/docs` | Intake, 16 xlsx + 2 csv fixtures matching hand-written expectations, PDF/DOCX/EML/MD/TXT sections; Docling real run DEFERRED |
 | M3 Workspace & profiling | TODO | no | | | |
 | M4 Metric layer | TODO | no | | | |
 | M5 Analysis library | TODO | no | | | |
