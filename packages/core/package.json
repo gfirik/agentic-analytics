@@ -5,9 +5,25 @@
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./testing/coffee-planner.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "job:coffee": "tsx scripts/coffee-job.ts"
+  },
+  "dependencies": {
+    "@agentic-analytics/agent": "workspace:*",
+    "@agentic-analytics/analysis": "workspace:*",
+    "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/metrics": "workspace:*",
+    "@agentic-analytics/models": "workspace:*",
+    "@agentic-analytics/profile": "workspace:*",
+    "@agentic-analytics/retrieval": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
+    "@agentic-analytics/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@agentic-analytics/eval-datasets": "workspace:*"
   }
 }

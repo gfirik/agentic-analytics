@@ -22,16 +22,21 @@
         "agentic-analytics": "./bin/aa.js",
       },
       "dependencies": {
+        "@agentic-analytics/core": "workspace:*",
         "@agentic-analytics/ingest": "workspace:*",
         "@agentic-analytics/metrics": "workspace:*",
         "@agentic-analytics/models": "workspace:*",
         "@agentic-analytics/profile": "workspace:*",
+        "@agentic-analytics/retrieval": "workspace:*",
         "@agentic-analytics/schema": "workspace:*",
         "@agentic-analytics/store": "workspace:*",
         "citty": "^0.2.2",
         "tsx": "^4.23.15",
         "yaml": "^2.9.1",
         "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
       },
     },
     "apps/docs": {
@@ -74,6 +79,19 @@
     "packages/agent": {
       "name": "@agentic-analytics/agent",
       "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/analysis": "workspace:*",
+        "@agentic-analytics/metrics": "workspace:*",
+        "@agentic-analytics/models": "workspace:*",
+        "@agentic-analytics/retrieval": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/profile": "workspace:*",
+      },
     },
     "packages/analysis": {
       "name": "@agentic-analytics/analysis",
@@ -91,6 +109,20 @@
     "packages/core": {
       "name": "@agentic-analytics/core",
       "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/agent": "workspace:*",
+        "@agentic-analytics/analysis": "workspace:*",
+        "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/metrics": "workspace:*",
+        "@agentic-analytics/models": "workspace:*",
+        "@agentic-analytics/profile": "workspace:*",
+        "@agentic-analytics/retrieval": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+      },
+      "devDependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
+      },
     },
     "packages/ingest": {
       "name": "@agentic-analytics/ingest",
