@@ -139,11 +139,11 @@ describe("quarantined extractor", () => {
     ]);
     expect(r.droppedQuotes).toBe(1);
     expect(r.quarantined).toEqual(["D2"]);
+    // The injected chunk was caught by the deterministic screen: the extractor never read it.
     const stored = await ws.all<{ id: string; suspicious: boolean }>(sql`SELECT id, suspicious FROM extracts ORDER BY id`);
-    expect(stored).toEqual([
-      { id: "E1", suspicious: false },
-      { id: "E2", suspicious: true },
-    ]);
+    expect(stored).toEqual([{ id: "E1", suspicious: false }]);
+    expect(model.calls.filter((c) => c.role === "extractor")).toHaveLength(1);
+    expect(await quarantinedSources(ws)).toEqual(["D2"]);
     // the extractor saw the text only inside data delimiters, with the data rule in its system prompt
     expect(model.calls[0]?.prompt).toMatch(/^<document source="doc-1.eml">\n[\s\S]*\n<\/document>$/);
   });

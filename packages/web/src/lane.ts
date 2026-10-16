@@ -11,6 +11,8 @@ export interface WebPage {
   readonly title: string;
   readonly fetched_at: string;
   readonly text: string;
+  /** The page as fetched (bounded by the fetcher's size cap), so callers can screen hidden text too. */
+  readonly raw: string;
 }
 
 export interface WebSearchResult {
@@ -49,7 +51,13 @@ export async function webSearch(query: string, deps: WebSearchDeps): Promise<Web
       const page = await fetchPage(r.url);
       const { title, text } = /html|xml/i.test(page.contentType) ? htmlToText(page.body) : { title: "", text: page.body };
       if (!text.trim()) continue;
-      pages.push({ url: page.url, title: title || r.title, fetched_at: page.fetched_at, text: text.slice(0, deps.maxChars ?? 20_000) });
+      pages.push({
+        url: page.url,
+        title: title || r.title,
+        fetched_at: page.fetched_at,
+        text: text.slice(0, deps.maxChars ?? 20_000),
+        raw: page.body,
+      });
     } catch (err) {
       if (!(err instanceof WebError)) throw err;
       skipped.push({ url: r.url, code: err.code, message: err.message });

@@ -16,7 +16,9 @@ import {
   explainFindings,
   type OpenQuestionDraft,
   privateTerms,
+  quarantinedSources,
   readExtracts,
+  screenWorkspace,
   type ToolContext,
   writeHeadline,
 } from "@agentic-analytics/agent";
@@ -249,7 +251,21 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       },
       {
         stage: "INDEX_DOCS",
-        run: async () => indexDocuments(ws, deps.embedder),
+        reset: async (w) => {
+          await w.run(sql`DELETE FROM quarantine`);
+        },
+        run: async (ctx) => {
+          // Screen every untrusted source before any model can read it (security §3).
+          const screened = await screenWorkspace(ws);
+          if (screened.quarantined.length)
+            await ctx.bus.emit({
+              type: "warning",
+              stage: "INDEX_DOCS",
+              code: "QUARANTINED",
+              message: `${screened.quarantined.length} source(s) quarantined for text addressed to a model`,
+            });
+          return { ...(await indexDocuments(ws, deps.embedder)), quarantined: screened.quarantined };
+        },
       },
       {
         stage: "WEB_CONTEXT",
@@ -272,6 +288,8 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           await w.run(sql`DELETE FROM extracts`);
           await w.run(sql`DELETE FROM web_results`);
           await w.run(sql`DELETE FROM sources WHERE kind = 'web'`);
+          // Quarantine rows EXPLAIN created (extractor flags, web pages); INDEX_DOCS' screen rows stay.
+          await w.run(sql`DELETE FROM quarantine WHERE detected_by = 'extractor' OR source_id LIKE 'W%'`);
         },
         run: async (ctx) => {
           const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
@@ -389,7 +407,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             recommendations: d.recommendations as Recommendation[],
             analysisQuestions: measured.openQuestions,
             askedQuestions: ex.questions,
-            quarantined: ex.quarantined,
+            quarantined: await quarantinedSources(ws),
             dropped: [...ex.dropped, ...d.dropped],
             downgraded: ex.downgraded,
             facts: await factMap(),

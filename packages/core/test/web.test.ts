@@ -53,7 +53,7 @@ describe("web-enabled run (M8 acceptance)", () => {
   });
 
   it("never fetches a private address the provider returned", () => {
-    expect(web.fetched).toEqual(["https://coffee-benchmarks.example/refunds"]);
+    expect(web.fetched).toEqual(["https://coffee-benchmarks.example/refunds", "https://roaster-forum.example/thread"]);
   });
 
   it("labels external sources, claims and facts", () => {
@@ -76,6 +76,14 @@ describe("web-enabled run (M8 acceptance)", () => {
     const external = (gap?.computation.inputs ?? []).map((id) => facts.get(id)).filter((f) => f?.computation.fn === "external_quote");
     expect(external.map((f) => f?.value)).toEqual([1, 2]);
     expect(external.every((f) => f?.citations[0]?.source_id === w?.id)).toBe(true);
+  });
+
+  it("a page hiding an instruction is quarantined as a whole and flagged", () => {
+    const forum = report.sources.find((x) => x.file === "https://roaster-forum.example/thread");
+    expect(forum).toMatchObject({ kind: "web", external: true });
+    expect(report.data_quality.some((q) => q.kind === "suspicious_instruction" && q.citations[0]?.source_id === forum?.id)).toBe(true);
+    const cited = report.findings.flatMap((f) => f.claims).flatMap((c) => c.citations.map((x) => x.source_id));
+    expect(cited).not.toContain(forum?.id);
   });
 
   it("the hidden instruction on the page never reached the extractor (or anything else)", () => {
@@ -120,8 +128,9 @@ describe("resume after an EXPLAIN that already searched the web", () => {
     expect(r.run.resumed).toEqual(["EXPLAIN"]);
     const ws = await Workspace.open(join(d, "job.duckdb"));
     const n = async (q: ReturnType<typeof sql>) => (await ws.one<{ n: number }>(q))?.n;
-    expect(await n(sql`SELECT count(*) AS n FROM sources WHERE kind = 'web'`)).toBe(1);
-    expect(await n(sql`SELECT count(*) AS n FROM web_results`)).toBe(1);
+    // Two pages fetched once each (the benchmark page and the quarantined forum page), not twice.
+    expect(await n(sql`SELECT count(*) AS n FROM sources WHERE kind = 'web'`)).toBe(2);
+    expect(await n(sql`SELECT count(*) AS n FROM web_results`)).toBe(2);
     expect(await n(sql`SELECT count(*) AS n FROM facts WHERE fn = 'external_quote'`)).toBe(2);
     ws.close();
     expect(checkReportIntegrity(r.report)).toEqual([]);

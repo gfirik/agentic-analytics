@@ -22,9 +22,20 @@ export {
   SmallExplainOutput,
   withoutQuarantined,
 } from "./explain.ts";
-export { type Extract, ExtractOutput, type ExtractResult, extractFromHits, quarantinedSources, readExtracts, screen } from "./extractor.ts";
+export {
+  type Extract,
+  ExtractOutput,
+  type ExtractResult,
+  extractFromHits,
+  quarantine,
+  quarantinedSources,
+  readExtracts,
+  screen,
+} from "./extractor.ts";
 export { buildFactSheet, type FactSheet, type SheetFact, sheetFact } from "./factsheet.ts";
 export { data, PromptError, type PromptName, promptVersion, renderPrompt } from "./prompts.ts";
+export { type ScreenSummary, screenWorkspace } from "./quarantine.ts";
+export { screenText } from "./screen.ts";
 export { writeHeadline } from "./summary.ts";
 export { Budget, buildTools, type OpenQuestionDraft, type ToolContext } from "./tools.ts";
 export { privateTerms, searchAndStore, type WebLane } from "./web.ts";

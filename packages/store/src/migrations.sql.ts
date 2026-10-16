@@ -81,4 +81,11 @@ export const MIGRATIONS: readonly Migration[] = [
       "CREATE TABLE job_meta (key VARCHAR PRIMARY KEY, value JSON NOT NULL)",
     ],
   },
+  {
+    version: 5,
+    name: "quarantine",
+    // Sources quarantined for text that addresses a model (security §3), by the deterministic screen at INDEX_DOCS
+    // or by the extractor's own flag. Their text never reaches the extractor again and they appear in data quality.
+    statements: ["CREATE TABLE quarantine (source_id VARCHAR PRIMARY KEY, reason VARCHAR NOT NULL, detected_by VARCHAR NOT NULL)"],
+  },
 ];

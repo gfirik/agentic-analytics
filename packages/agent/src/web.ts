@@ -3,6 +3,8 @@
 import { chunkSpans, type SearchHit } from "@agentic-analytics/retrieval";
 import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { type FetchedPage, type PrivateTerms, type SearchProvider, type WebSearchResult, webSearch } from "@agentic-analytics/web";
+import { quarantine } from "./extractor.ts";
+import { screen } from "./screen.ts";
 
 export interface WebLane {
   readonly provider: SearchProvider;
@@ -70,6 +72,11 @@ export async function searchAndStore(ws: Workspace, lane: WebLane, query: string
       sql`INSERT INTO web_results (id, url, title, fetched_at, extract_ids, external)
           VALUES (${id}, ${page.url}, ${page.title}, ${page.fetched_at}::TIMESTAMPTZ AT TIME ZONE 'UTC', []::VARCHAR[], true)`,
     );
+    // Hidden text is dropped from what we keep, but a page that hides instructions is not to be trusted at all.
+    if (screen(page.raw) || screen(page.text)) {
+      await quarantine(ws, id, "the page addresses a model (possibly in hidden text)", "screen");
+      continue;
+    }
     // A few excerpts per page bound the extractor's work; benchmark statements sit near the top of most pages.
     for (const [i, span] of chunkSpans(page.text, { maxTokens: 300 }).slice(0, 3).entries())
       hits.push({

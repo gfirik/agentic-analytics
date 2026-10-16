@@ -43,13 +43,14 @@ type ScenarioKind =
   /** Retain a share (0.3–0.9) of value at risk, net of a retention cost share (0–0.5). */
   | { readonly type: "retain_at_risk"; readonly atRisk: Amount; readonly low: number; readonly high: number; readonly cost?: number };
 
-const BOUNDS: Record<Scenario["type"], readonly [number, number]> = {
+/** Allowed parameter ranges per scenario (fractions); the verifier re-checks stored parameters against them. */
+export const SCENARIO_BOUNDS: Record<Scenario["type"], readonly [number, number]> = {
   recover_share: [0.3, 0.9],
   price_change: [-0.15, 0.15],
   remove_excess_rate: [0, 1],
   retain_at_risk: [0.3, 0.9],
 };
-const COST_BOUNDS: readonly [number, number] = [0, 0.5];
+export const COST_BOUNDS: readonly [number, number] = [0, 0.5];
 
 export interface ImpactRange {
   readonly method: `impact.v1:${Scenario["type"]}`;
@@ -69,7 +70,7 @@ function check(name: string, v: number, [lo, hi]: readonly [number, number]): vo
 }
 
 export function impactRange(s: Scenario, unit: Unit = "currency"): ImpactRange {
-  const bounds = BOUNDS[s.type];
+  const bounds = SCENARIO_BOUNDS[s.type];
   if (!bounds) throw new ImpactError("UNKNOWN_SCENARIO", "unknown scenario type");
   check("low", s.low, bounds);
   check("high", s.high, bounds);
