@@ -101,9 +101,11 @@ function explanation(r: FakeRequest, small: boolean): unknown {
       title:
         packaging && metric.includes("refund")
           ? "Refund rate rose after the packaging switch"
-          : paused
+          : paused && metric === "revenue"
             ? "Revenue fell as a hotel paused its wholesale order"
-            : `A change in ${metric.replace(/_/g, " ")}`,
+            : paused && metric === "wholesale_revenue"
+              ? "Wholesale revenue fell as a hotel paused its order"
+              : `A change in ${metric.replace(/_/g, " ")}`,
       links: [
         ...(paused && (metric === "revenue" || metric === "wholesale_revenue")
           ? [{ extract_id: paused.id, causal_grade: "document_supported" }]

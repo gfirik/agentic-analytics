@@ -129,6 +129,8 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(r.report.findings.length).toBeLessThanOrEqual(3);
     expect(r.report.recommendations.length).toBeLessThanOrEqual(2);
     expect(m.calls.some((c) => c.kind === "tools")).toBe(false);
+    // Each finding's title fits its own metric (the hotel story only on revenue findings).
+    for (const f of r.report.findings) if (/retail/i.test(f.claims[0]?.text ?? "")) expect(f.title).not.toMatch(/hotel/i);
     expect(checkReportIntegrity(r.report)).toEqual([]);
   }, 180_000);
 });

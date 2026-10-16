@@ -256,7 +256,14 @@ export async function explainFindings(
   }
   // A source quarantined by a later finding's search also takes back what earlier findings cited from it.
   const clean = withoutQuarantined(findings, ctx.found.quarantined);
-  return { findings: clean.findings, dropped: [...dropped, ...clean.dropped], downgraded, insightOf };
+  // Keep ids gap-free (F1, F2, …) and the finding → insight map in step when a finding was dropped.
+  const renumbered = clean.findings.map((f, i) => ({ ...f, id: `F${i + 1}` }));
+  const kept: Record<string, string> = {};
+  clean.findings.forEach((f, i) => {
+    const insight = insightOf[f.id];
+    if (insight) kept[`F${i + 1}`] = insight;
+  });
+  return { findings: renumbered, dropped: [...dropped, ...clean.dropped], downgraded, insightOf: kept };
 }
 
 /** Drops claims citing a quarantined source (security §3: the whole source is excluded), recording each drop. */
