@@ -1,0 +1,23 @@
+{
+  "name": "@agentic-analytics/eval-generator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build:datasets": "tsx scripts/build.ts"
+  },
+  "dependencies": {
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "@agentic-analytics/ingest": "workspace:*"
+  }
+}

@@ -4,10 +4,11 @@
 
 import type { Config, RoleModel } from "@agentic-analytics/schema";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
+import { APICallError, generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
+import { providerFetch } from "./fetch.ts";
 import { generateValidated } from "./retry.ts";
 import {
   addUsage,
@@ -37,7 +38,10 @@ export function supportsStructuredOutputs(m: RoleModel, config: Config): boolean
 }
 
 export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps): LanguageModel {
-  const common = { supportsStructuredOutputs: supportsStructuredOutputs(m, config), ...(deps.fetch ? { fetch: deps.fetch } : {}) };
+  const common = {
+    supportsStructuredOutputs: supportsStructuredOutputs(m, config),
+    fetch: providerFetch(deps.fetch ?? fetch, { timeoutMs: config.timeouts.model_ms }),
+  };
   if (m.provider === "ollama") {
     const base = config.providers.ollama?.base_url;
     if (!base) throw new ModelError("CONFIG", "ollama is used but providers.ollama.base_url is not set");
@@ -64,6 +68,9 @@ export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps):
 
 export function createModelClient(config: Config, deps: ProviderDeps): ModelClient {
   const timeoutMs = config.timeouts.model_ms;
+  // The longest a call may take: each request's timeout, plus the most rate-limit waiting providerFetch allows
+  // (4 waits of at most 90 s) per request.
+  const callCap = (requests: number) => requests * (timeoutMs + 4 * 90_000);
   const model = (role: Role) => languageModel(config.models[role], config, deps);
   const usageOf = (u: { inputTokens?: number | undefined; outputTokens?: number | undefined } | undefined, latencyMs: number): Usage => ({
     inputTokens: u?.inputTokens ?? 0,
@@ -90,10 +97,20 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
               prompt,
               output: Output.object({ schema: args.schema }),
               maxRetries: 0,
-              abortSignal: AbortSignal.timeout(timeoutMs),
+              // One request with its own timeout (providerFetch); this bounds the call, rate-limit waits included.
+              abortSignal: AbortSignal.timeout(callCap(1)),
             });
             return { value: res.output as unknown, usage: usageOf(res.usage, performance.now() - started) };
           } catch (err) {
+            // An endpoint that validates JSON itself (Groq: 400 `json_validate_failed`) refuses malformed output
+            // with an error; that is an invalid attempt to retry with feedback, not a provider failure.
+            if (
+              APICallError.isInstance(err) &&
+              err.statusCode === 400 &&
+              /json_validate_failed|failed to validate json/i.test(`${err.message} ${err.responseBody ?? ""}`)
+            ) {
+              return { invalid: "the JSON did not validate against the schema", usage: usageOf(undefined, performance.now() - started) };
+            }
             if (NoObjectGeneratedError.isInstance(err)) {
               return {
                 invalid: err.cause instanceof Error ? err.cause.message : err.message,
@@ -124,7 +141,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           tools,
           stopWhen: stepCountIs(args.maxSteps),
           maxRetries: 0,
-          abortSignal: AbortSignal.timeout(timeoutMs),
+          // Each step is one request with its own timeout (providerFetch); this bounds the loop, waits included.
+          abortSignal: AbortSignal.timeout(callCap(args.maxSteps)),
         });
         const steps: Step[] = res.steps.map((s) => ({
           text: s.text,

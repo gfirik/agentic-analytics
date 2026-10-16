@@ -9,7 +9,11 @@ data/
 *.duckdb
 *.duckdb.wal
 .DS_Store
-evals/results/*.json
+# Baseline smoke runs are local; full-suite and real-model results are published (RESULTS.md is rebuilt from them)
+evals/results/*-baseline-smoke.json
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/
+
+# Generated eval datasets: files are rebuilt from the seeded generator; answer keys are versioned
+evals/datasets/generated/*/files/

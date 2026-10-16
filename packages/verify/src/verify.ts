@@ -157,6 +157,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       )
     ).map((s) => [s.id, s]),
   );
+  const fileOf = new Map(draft.sources.map((x) => [x.id, x.file]));
   const external = externalFacts([...all.values()]);
   const labelOf = (metric: string) => ctx.defs.find((d) => d.id === metric)?.label ?? metric;
   const memo = new Map<string, Set<string>>();
@@ -220,11 +221,14 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     if (unknown) return drop("V1", `placeholder {{${unknown}}} is not a listed fact`);
     // Quoted text may hold digits only when it really is quoted: from a cited source, or a name from the data.
     for (const span of quotedSpans(c.text).filter((q) => /\p{Nd}/u.test(q))) {
-      const fromSource = c.citations.some((x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span));
-      // A name from the data: a whole member value (`[dim=value]`) or label, never a fragment like a period's "04".
-      const names = (l: string) => [l, ...[...l.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] ?? "")];
+      // From a cited source: its text, the quote, or the source's own file name ("“email-0412.eml” says: …", which
+      // code writes in small-model mode).
+      const fromSource = c.citations.some(
+        (x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span) || fileOf.get(x.source_id) === span,
+      );
+      // A name from the data: a whole member value or label, never a fragment like a period's "04".
       const fromData =
-        /\p{L}/u.test(span) && [...all.values()].some((f) => names(f.label).some((n) => n.toLowerCase() === span.toLowerCase()));
+        /\p{L}/u.test(span) && [...all.values()].some((f) => dataNames(f.label).some((n) => n.toLowerCase() === span.toLowerCase()));
       if (!fromSource && !fromData) return drop("V1", `quoted “${span}” is not from a cited source or the data`);
     }
     // A decline is stated as a magnitude (report-schema §5a): "fell {{N}}" with a negative N reads as a double
@@ -576,6 +580,18 @@ export function parseMeasured(label: string): { metric: string; where: string | 
           ? `${dim} IS NULL`
           : `${dim} = '${(value ?? "").replace(/'/g, "''")}'`;
   return { metric: metric as string, where, period: period as string };
+}
+
+/**
+ * The names a fact label carries from the data (V1's quoted-digits rule): the whole label, member values of
+ * `metric[dim=value]_period`, and the member of a decomposition fact `… by dim:kind:value`.
+ */
+export function dataNames(label: string): string[] {
+  return [
+    label,
+    ...[...label.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] ?? ""),
+    ...[...label.matchAll(/ by [^:]+:[a-z_]+:(.+)$/g)].map((m) => m[1] ?? ""),
+  ];
 }
 
 /** Text inside quotation marks (“…” or "…"). */

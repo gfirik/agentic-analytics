@@ -165,6 +165,20 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     expect(reasonFor(r.report, fragment)).toBe("V1: quoted “04” is not from a cited source or the data");
   });
 
+  it("a quoted file name of the cited source is not a free numeral (small-model sentences quote it)", async () => {
+    const d = clone(draft);
+    const email = d.sources.find((x) => x.file === "email-0412.eml");
+    const text = "“email-0412.eml” says: “After the new price list we are pausing our standing order while we compare suppliers.”";
+    const cited = claim(text, [], { causal_grade: "document_supported", citations: [{ source_id: email?.id as string }] });
+    // The same file name cited from another source is still refused.
+    const other = d.sources.find((x) => x.file === "ops-notes.docx");
+    const wrong = claim("“email-0412.eml” mentions a pause.", [], { citations: [{ source_id: other?.id as string }] });
+    f1(d).claims.push(cited, wrong);
+    const r = await verify(d);
+    expect(f1(r.report).claims.map((c) => c.text)).toContain(text);
+    expect(reasonFor(r.report, wrong.text)).toBe("V1: quoted “email-0412.eml” is not from a cited source or the data");
+  });
+
   it("other causal phrasings are reworded too, and so is a causal title without a document (V6)", async () => {
     const d = clone(draft);
     f1(d).claims.push(claim("Revenue fell because Hotel Group paused orders.", []), claim("The drop was driven by wholesale.", []));

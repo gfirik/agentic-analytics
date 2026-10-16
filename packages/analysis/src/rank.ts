@@ -93,11 +93,29 @@ export function topForExplain(ranked: readonly Ranked[], max = 7): Ranked[] {
     const i = TEMPLATE_PRIORITY.indexOf(t);
     return i < 0 ? TEMPLATE_PRIORITY.length : i;
   };
-  return [...groups.values()]
+  const reps = [...groups.values()]
     .map((g) => {
       const rep = [...g].sort((a, b) => priority(a.insight.template) - priority(b.insight.template))[0] as Ranked;
       return { ...rep, score: Math.max(...g.map((x) => x.score)) };
     })
-    .sort((a, b) => b.score - a.score || a.insight.series.localeCompare(b.insight.series))
-    .slice(0, max);
+    .sort((a, b) => b.score - a.score || a.insight.series.localeCompare(b.insight.series));
+  // One slot per metric family first: the best whole-metric change of each family (a channel slice such as
+  // `wholesale_revenue` belongs to `revenue`), in score order, then everything else in score order. A rate's
+  // materiality is a small share of its own total, so without this a refund rate tripling loses every slot to
+  // restatements of one revenue drop (spec §6; found by the eval suite in M11). EXPLAIN keeps this order.
+  const metrics = [...new Set(reps.map((r) => r.insight.metric))];
+  const seen = new Set<string>();
+  const firsts = reps.filter((r) => {
+    const f = metricFamily(r.insight.metric, metrics);
+    return !r.insight.member && !seen.has(f) && seen.add(f);
+  });
+  return [...firsts, ...reps.filter((r) => !firsts.includes(r))].slice(0, max);
+}
+
+/**
+ * The family a metric belongs to: the other metric it is a slice of (`wholesale_revenue` → `revenue`), else itself.
+ * A slice id is `<prefix>_<parent>` with a non-empty prefix, as the metric drafts name channel slices.
+ */
+export function metricFamily(metric: string, metrics: readonly string[]): string {
+  return metrics.find((x) => x !== metric && metric.length > x.length + 1 && metric.endsWith(`_${x}`)) ?? metric;
 }

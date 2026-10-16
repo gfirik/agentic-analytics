@@ -1,6 +1,6 @@
 # @agentic-analytics/eval-datasets
 
-Synthetic business datasets with answer keys (docs/EVALS.md §1). M1 ships the hand-built golden dataset; the seeded generator for 30+ datasets lands in M11.
+Synthetic business datasets with answer keys (docs/EVALS.md §1). M1 ships the hand-built golden dataset. The 30 generated datasets from M11 are in `generated/<id>/answers.yaml` (their files are rebuilt by `evals/generator`).
 
 ## coffee-roaster-v1
 

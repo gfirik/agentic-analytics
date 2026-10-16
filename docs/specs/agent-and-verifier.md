@@ -125,7 +125,7 @@ All passes run on the draft report. Results are written to the `verification` ta
   - `external_quote` is re-parsed from its stored text.
   A function without a rule counts as a mismatch. Cited input rows must exist in their table.
 - **V3** re-derives the headline measures, i.e. total facts of sum/count metrics referenced by finding claims or the headline. The alternate path is the metric grouped by its first dimension, summed in code. Ratios with metric numerator and denominator are re-derived the same way. Member-level facts are checked by V2 only.
-- **V1** also refuses digits inside quotation marks unless the quoted text comes from a cited source or is a name in the data (a fact label).
+- **V1** also refuses digits inside quotation marks unless the quoted text comes from a cited source (its text, the quote, or the source's file name) or is a whole name in the data (a member value in a fact label, `metric[dim=value]_…` or `… by dim:kind:value`).
 - **V4:**
   - each fact's metric exists with the same unit and currency;
   - a measured fact's SQL and parameters are re-compiled from its definition for its period and member filter, and must be identical (period and filters);

@@ -3,6 +3,7 @@ export { type Recomputed, recomputeFacts, same, TOLERANCE, VerifyError } from ".
 export {
   type CheckRow,
   checkFactRows,
+  dataNames,
   isCausal,
   parseMeasured,
   persistChecks,

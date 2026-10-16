@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ImpactError, impactRange } from "../src/impact.ts";
-import { insightChange, rankInsights, topForExplain } from "../src/rank.ts";
+import { insightChange, metricFamily, rankInsights, topForExplain } from "../src/rank.ts";
 import { type Insight, periodChange, trendBreak } from "../src/templates.ts";
 import type { Series } from "../src/types.ts";
 
@@ -119,5 +119,44 @@ describe("ranking (spec §6)", () => {
       ["trend_break.v1", "revenue", 0.15],
       ["trend_break.v1", "refund_rate", 0.01],
     ]);
+  });
+
+  it("gives each metric family one slot before any family gets a second (a channel slice is in its parent's family)", () => {
+    const mk = (metric: string, period: string, score: number, member?: string) => ({
+      insight: {
+        template: "period_change.v1",
+        metric,
+        series: member ? `${metric}|customer=${member}` : metric,
+        period,
+        ...(member ? { member: { dimension: "customer", value: member } } : {}),
+      } as unknown as Insight,
+      impactShare: score,
+      score,
+    });
+    // Three restatements of one revenue drop outscore the refund rate tripling (0.012); with max = 3 the rate still
+    // gets a slot, ahead of the wholesale slice and the year-on-year restatement.
+    const top = topForExplain(
+      [
+        mk("revenue", "2026-06", 0.27),
+        mk("wholesale_revenue", "2026-04", 0.25),
+        mk("revenue", "2026-04", 0.2),
+        mk("revenue", "2026-04", 0.19, "Key Co"),
+        mk("refund_rate", "2026-05", 0.012),
+      ],
+      3,
+    );
+    expect(top.map((r) => [r.insight.series, r.insight.period])).toEqual([
+      ["revenue", "2026-06"],
+      ["refund_rate", "2026-05"],
+      ["wholesale_revenue", "2026-04"],
+    ]);
+  });
+
+  it("metricFamily: a slice id is <prefix>_<parent>", () => {
+    const ms = ["revenue", "wholesale_revenue", "refund_rate", "orders"];
+    expect(metricFamily("wholesale_revenue", ms)).toBe("revenue");
+    expect(metricFamily("refund_rate", ms)).toBe("refund_rate");
+    expect(metricFamily("revenue", ms)).toBe("revenue");
+    expect(metricFamily("orders", ms)).toBe("orders");
   });
 });

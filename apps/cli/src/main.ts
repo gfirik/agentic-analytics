@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
+import { evalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
@@ -286,13 +287,41 @@ const jobs = defineCommand({
 });
 
 const evalCmd = defineCommand({
-  meta: { name: "eval", description: "Run the eval suites (the runner arrives in M11)" },
-  args: { suite: { type: "string" }, model: { type: "string" } },
-  run() {
-    print("The eval runner lands in M11 (docs/ROADMAP.md). Available now:");
-    print("  bun run --filter @agentic-analytics/retrieval eval:retrieval   # retrieval recall@8");
-    print("  bunx vitest run packages/core/test/injection.test.ts           # injection suite");
-    process.exitCode = 2;
+  meta: { name: "eval", description: "Run the eval suite on the generated datasets and update evals/RESULTS.md" },
+  args: {
+    suite: { type: "string", description: "smoke (3 datasets) or full (30 datasets); default smoke" },
+    model: {
+      type: "string",
+      description: "baseline (scripted heuristic, no LLM), configured (the .env/config models), or a model like ollama:qwen3.5:9b",
+    },
+    "small-model": { type: "boolean", description: "Small-model mode" },
+    embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
+    "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
+  },
+  async run({ args }) {
+    const suite = args.suite === "full" ? "full" : "smoke";
+    const model = args.model ?? "baseline";
+    const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+    const r = await evalCommand(
+      {
+        suite,
+        model,
+        ...(args["small-model"] ? { smallModel: true } : {}),
+        ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+        resultsDir: fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+      },
+      {
+        embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
+        print,
+        modelFor: (name) => {
+          // One model for every role, unless "configured" keeps the per-role settings.
+          const env =
+            name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
+          return createModelClient(resolveModelConfig(env, configFile()), { env: process.env });
+        },
+      },
+    );
+    process.exitCode = r.bars.every((b) => b.pass !== false) ? 0 : 1;
   },
 });
 

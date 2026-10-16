@@ -1,0 +1,165 @@
+{
+  "suite": "smoke",
+  "model": "openai-compatible:groq:openai/gpt-oss-120b (small-model mode)",
+  "date": "2026-10-16",
+  "datasets": 3,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 150.999,
+      "tokens": {
+        "input": 18113,
+        "output": 8898
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": ["Q1", "Q2"],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": false
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 37.046,
+      "tokens": {
+        "input": 961,
+        "output": 2780
+      },
+      "completed": false,
+      "error": "PROVIDER: EXPLAIN failed: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01khtmmfe2e15vbadebjy3bane` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197944, Requested 3960. Please try again in 13m42.528s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.922,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "PROVIDER: EXPLAIN failed: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01khtmmfe2e15vbadebjy3bane` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197934, Requested 2468. Please try again in 2m53.664s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 0.3333333333333333,
+      "bar": "100%",
+      "pass": false
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0,
+      "bar": "\u2265 80%",
+      "pass": false
+    },
+    {
+      "metric": "Driver accuracy",
+      "bar": "\u2265 90%"
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "bar": "\u2265 80%"
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "\u2264 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 0.5,
+      "bar": "\u2265 90%",
+      "pass": false
+    },
+    {
+      "metric": "Citation precision",
+      "bar": "\u2265 95%"
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 0,
+      "bar": "\u2265 70%",
+      "pass": false
+    }
+  ],
+  "seconds": 191.991,
+  "tokens": {
+    "input": 19074,
+    "output": 11678
+  },
+  "note": "Groq free tier. The daily token quota (200k/day) ran out after the first job, so two jobs failed with a rate-limit error; rerun when the quota resets. Its one completed job was scored before the metric-concept mapping and its report was not kept, so that row may undercount (the run predates --keep-reports)."
+}

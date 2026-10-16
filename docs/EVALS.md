@@ -36,6 +36,8 @@ It also generates the documents that mention those events, plus **distractors**:
 
 There are at least 3 variants each with different seeds and planted events: **30+ datasets** in total. The golden set (hand-reviewed) is 10 of them.
 
+**v0.1 generator (M11):** 10 archetypes × 3 variants = 30 generated datasets (evals/generator/README.md), plus the two hand-built ones (coffee-roaster-v1, printing-shop-v1). The planted events are a key client lost after a price rise (all variants), a supplier switch that raises refunds (v2), and a new product cannibalizing an old one (v3). Each dataset also has a ×1000 typo, date ambiguity (v1), a noise blip inside the band, a seasonal December peak (v3) as a distractor, and coincidental and irrelevant documents. The Simpson's-paradox and concentration-risk setups are not generated yet.
+
 **`answers.yaml` example:**
 
 ```yaml
@@ -61,6 +63,8 @@ quality:
 
 ## 2. Metrics
 
+How a finding is matched to a planted event (by the subject its code-written first claim states, never by wording) is described in evals/runner/README.md.
+
 | Metric | Definition | v0.1 bar |
 |---|---|---|
 | Number mismatches | V2/V3 failures in shipped reports | 0 |
@@ -80,8 +84,8 @@ quality:
 ## 3. Suites
 
 - **`unit`** (CI, every push): analysis math, parsers and schema. No models.
-- **`smoke`** (CI, every PR): 3 datasets end-to-end with `FakeModel` scripted responses. This checks the plumbing, the verifier failure policy and the injection suite.
-- **`full`** (manual, local or free endpoint): all datasets with a real model. Command: `aa eval --suite full --model <profile>`. Writes `evals/results/<date>-<model>.json` and the markdown table.
+- **`smoke`** (CI, every PR): 3 datasets end-to-end with the `baseline` scripted FakeModel (`evals/runner/test/smoke.test.ts`). This checks the plumbing and the model-independent invariants. The verifier failure policy and the injection suite have their own tests in the same CI run.
+- **`full`** (manual, local or free endpoint): all datasets with a real model. Command: `aa eval --suite full --model <provider:model>` (or `--model baseline` offline, `--model configured` for the .env models). Writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md`. It exits 1 when any bar fails.
 - **External** (P1): subsets of DABstep and DDR-Bench, for credibility in the docs.
 
 ## 4. Publishing

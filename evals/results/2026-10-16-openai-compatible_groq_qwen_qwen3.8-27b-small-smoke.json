@@ -1,0 +1,177 @@
+{
+  "suite": "smoke",
+  "model": "openai-compatible:groq:qwen/qwen3.8-27b (small-model mode)",
+  "date": "2026-10-16",
+  "datasets": 3,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 359.668,
+      "tokens": {
+        "input": 29841,
+        "output": 5424
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 3,
+          "driver": false,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": ["Q1", "Q2"],
+      "citationsChecked": 1,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": false
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 359.714,
+      "tokens": {
+        "input": 28955,
+        "output": 4544
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": false,
+          "cause": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": ["Q1"],
+      "citationsChecked": 2,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": false
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 454.129,
+      "tokens": {
+        "input": 26417,
+        "output": 5378
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": ["Q1"],
+      "citationsChecked": 2,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": false
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Driver accuracy",
+      "value": 0,
+      "bar": "≥ 90%",
+      "pass": false
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "value": 0.5,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "≤ 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Citation precision",
+      "value": 1,
+      "bar": "≥ 95%",
+      "pass": true
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 0,
+      "bar": "≥ 70%",
+      "pass": false
+    }
+  ],
+  "seconds": 1173.543,
+  "tokens": {
+    "input": 85213,
+    "output": 15346
+  },
+  "note": "Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, so the planted ×1000 cost typo surfaced as the top finding (an engine gap recorded in STATE). Rescored from the kept reports after the review fix that stopped Costs-sheet sums counting as revenue."
+}

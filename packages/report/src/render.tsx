@@ -1,5 +1,9 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 // report.json → one self-contained report.html (docs/specs/report-schema.md §6).
 // Server-side React only: no hydration, no external requests, inline CSS and a small inline script.
+// The pragmas above select the automatic JSX runtime wherever this file is compiled: the CLI runs it through tsx
+// from the repo root, where no tsconfig sets `jsx` (without them RENDER failed with "React is not defined").
 import type { Citation, Claim, Evidence, Fact, Finding, Recommendation, Report, ReportMetric, Source } from "@agentic-analytics/schema";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

@@ -14,7 +14,8 @@
       "!docs/assets",
       "!packages/schema/json",
       "!packages/schema/test/fixtures",
-      "!evals/injection/fixtures"
+      "!evals/injection/fixtures",
+      "!evals/results"
     ]
   },
   "formatter": {
