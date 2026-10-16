@@ -5,7 +5,9 @@ This is the single source of truth for progress between agent sessions. Agents u
 Human gate values:
 - `no`: merge and continue.
 - `notify`: merge, continue, and message Firdavs to review when convenient.
-- `yes`: stop at AWAITING_REVIEW until Firdavs approves. Only M12 is `yes`, because making the repo public and launching is his call.
+- `yes`: stop at AWAITING_REVIEW until Firdavs approves. M12 was `yes` (launching is his call).
+
+Since 2026-10-16 (maintainer's instruction, from PR #15 on): post the spec-reviewer and QA verdicts on the PR as a comment, put the real results in the description, then mark it ready and squash-merge when CI is green and both reviews pass, and notify. Making the repo public, enabling Pages, changing repo settings or pushing a `v*` release tag still need his explicit yes (pre-release `-rc` tags for testing are fine).
 
 ## Milestones
 
@@ -231,6 +233,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 - [M13b] Interface defaults from the security review: `aa serve` refuses a non-loopback bind without API_TOKEN (opt-out `--allow-no-auth` or `AA_ALLOW_NO_AUTH=1`, set by docker-compose, whose ports are 127.0.0.1-only); MCP over HTTP reads local paths only inside `AA_MCP_ROOTS` (none by default; stdio unchanged); the Telegram bot needs `TELEGRAM_ALLOWED_CHATS` unless `TELEGRAM_PUBLIC=1`; `runJob` refuses path-like input names with JobError `BAD_INPUT` — interfaces §1/§3, security §6
 - [M13b] Key masking: configured key values (≥ 8 chars, any format) and word-bounded prefixes (`gsk_`, `sk-`, `csk-`, `sk_`, `AIza`, `nvapi-`, any-case `bearer`) are masked in provider errors (message and cause chain) and call records; shorter keys and unprefixed headers (`x-api-key`, Basic auth) that aren't configured keys are not — security §6, models README
+- [M13b] Gate `no` for this PR and the other items of the 2026-10-16 batch (and M13a once its eval results are in): the maintainer's review policy of 2026-10-16 replaces the stop-for-review gate with reviewer + QA verdicts posted on the PR and a self-merge when CI is green (see the gate notes at the top) — maintainer instruction
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
