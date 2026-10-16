@@ -269,7 +269,7 @@ const serveCmd = defineCommand({
       port: Number(args.port ?? process.env.PORT ?? 8080),
       ...(args.host ? { hostname: args.host } : {}),
       ...(process.env.API_TOKEN ? { token: process.env.API_TOKEN } : {}),
-      ...(args["allow-no-auth"] ? { allowNoAuth: true } : {}),
+      ...(args["allow-no-auth"] || process.env.AA_ALLOW_NO_AUTH === "1" ? { allowNoAuth: true } : {}),
       // Names this server may be reached by besides localhost (a LAN name, a Docker service name).
       allowedHosts: [
         ...(args.host && args.host !== "0.0.0.0" ? [args.host] : []),
@@ -280,7 +280,13 @@ const serveCmd = defineCommand({
       ],
       health,
       onError: (err) => process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`),
-      mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
+      mcp: mcpHttpHandler(manager, {
+        version: ENGINE_VERSION,
+        roots: (process.env.AA_MCP_ROOTS ?? "")
+          .split(",")
+          .map((r) => r.trim())
+          .filter(Boolean),
+      }),
       viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
       version: ENGINE_VERSION,
     });

@@ -158,3 +158,16 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     }
   });
 });
+
+describe("runJob input names (security review)", () => {
+  it("refuses a file name that is a path", async () => {
+    for (const name of ["../escape.csv", "a/b.csv", "..", "c:\\x\\y.csv"]) {
+      await expect(
+        runJob(
+          { dir: tempDir(), files: [{ name, bytes: new Uint8Array([97]) }], options },
+          { model: coffeePlanner(), embedder: hashEmbedder() },
+        ),
+      ).rejects.toMatchObject({ code: "BAD_INPUT" });
+    }
+  });
+});

@@ -16,6 +16,6 @@ ENV AA_JOBS_DIR=/data/jobs
 VOLUME ["/data"]
 EXPOSE 8080
 # Inside the container the API listens on all interfaces; compose publishes it on the host's localhost only.
-# 0.0.0.0 inside the container; docker-compose publishes the port on the host's 127.0.0.1 only. Set API_TOKEN
-# before publishing it anywhere else.
-CMD ["node", "apps/cli/bin/aa.js", "serve", "--host", "0.0.0.0", "--port", "8080", "--allow-no-auth"]
+# 0.0.0.0 inside the container, so the server refuses to start without API_TOKEN. docker-compose sets
+# AA_ALLOW_NO_AUTH=1 because it publishes the port on the host's 127.0.0.1 only; a plain `docker run -p` needs a token.
+CMD ["node", "apps/cli/bin/aa.js", "serve", "--host", "0.0.0.0", "--port", "8080"]

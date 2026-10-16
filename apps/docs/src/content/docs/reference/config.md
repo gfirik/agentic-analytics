@@ -20,6 +20,8 @@ Settings come from `.env` (gitignored; copy `.env.example`) and an optional `age
 | `AA_JOBS_DIR` | `data/jobs` | where jobs live |
 | `API_TOKEN` | — | bearer auth for the API and `/mcp` |
 | `AA_ALLOWED_HOSTS` | — | host names the API may be reached by besides localhost |
+| `AA_MCP_ROOTS` | — | folders `analyze_files` may read when MCP is called over HTTP (`/mcp`); none by default |
+| `AA_ALLOW_NO_AUTH` | — | `1` lets `aa serve` listen beyond localhost without `API_TOKEN` (docker-compose sets it: its port is published on 127.0.0.1 only) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHATS`, `AA_API_URL` | — | the Telegram demo (it refuses to start with no allowed chats) |
 | `TELEGRAM_PUBLIC` | — | `1` lets the Telegram bot answer any chat |
 

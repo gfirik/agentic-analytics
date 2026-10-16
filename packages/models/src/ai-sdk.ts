@@ -64,6 +64,7 @@ export function languageModel(
       ...(call.lease ? { lease: call.lease } : {}),
       ...(deps.cache ? { cache: deps.cache } : {}),
       ...(deps.onCall ? { onCall: deps.onCall } : {}),
+      secrets: secretsOf(config, deps.env),
       label: { ...(call.role ? { role: call.role } : {}), provider: m.provider, ...(m.endpoint ? { endpoint: m.endpoint } : {}) },
     }),
   };
@@ -94,10 +95,7 @@ export function languageModel(
 export function createModelClient(config: Config, deps: ProviderDeps): ModelClient {
   const timeoutMs = config.timeouts.model_ms;
   // The configured keys, masked in any error message this client throws (it ends up in status.json, SSE and chats).
-  const secrets = Object.values(config.providers["openai-compatible"] ?? {}).flatMap((e) => {
-    const v = e.api_key_env ? deps.env[e.api_key_env] : undefined;
-    return v ? [v] : [];
-  });
+  const secrets = secretsOf(config, deps.env);
   const providerError = (err: unknown) => toProviderError(err, secrets);
   // The longest a call may take: each request's timeout, plus the most rate-limit waiting providerFetch allows
   // (4 waits of at most 90 s) per request.
@@ -214,9 +212,31 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
   };
 }
 
+/** The configured API key values, masked in every error message and log line this package produces. */
+function secretsOf(config: Config, env: Env): string[] {
+  return Object.values(config.providers["openai-compatible"] ?? {}).flatMap((e) => {
+    const v = e.api_key_env ? env[e.api_key_env] : undefined;
+    return v ? [v] : [];
+  });
+}
+
+/**
+ * A provider failure as a ModelError whose message and cause chain are masked: callers print `cause.message` too
+ * (doctor), so the original error is not attached as is.
+ */
 function toProviderError(err: unknown, secrets: readonly string[]): ModelError {
-  if (err instanceof ModelError) return new ModelError(err.code, maskSecrets(err.message, secrets), { cause: err });
+  const masked = (e: unknown, depth = 0): Error | undefined => {
+    if (!(e instanceof Error) || depth > 4) return undefined;
+    const copy = new Error(maskSecrets(e.message, secrets), { cause: masked(e.cause, depth + 1) });
+    copy.name = e.name;
+    return copy;
+  };
+  if (err instanceof ModelError) {
+    const cause = masked(err.cause);
+    return new ModelError(err.code, maskSecrets(err.message, secrets), cause ? { cause } : undefined);
+  }
   const name = err instanceof Error ? err.name : "";
   const message = maskSecrets(err instanceof Error ? err.message : String(err), secrets);
-  return new ModelError(name === "TimeoutError" || name === "AbortError" ? "TIMEOUT" : "PROVIDER", message, { cause: err });
+  const cause = masked(err instanceof Error ? err.cause : undefined);
+  return new ModelError(name === "TimeoutError" || name === "AbortError" ? "TIMEOUT" : "PROVIDER", message, cause ? { cause } : undefined);
 }

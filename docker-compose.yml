@@ -15,6 +15,8 @@ services:
         required: false
     environment:
       DATA_DIR: /data
+      # The port below is published on 127.0.0.1 only, so the engine may listen without a token inside the container.
+      AA_ALLOW_NO_AUTH: "1"
       SEARXNG_URL: http://searxng:8080
       DOCLING_URL: http://docling:5001
     volumes:
