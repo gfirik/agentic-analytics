@@ -94,6 +94,8 @@ const CHANNEL = /channel|segment|канал|сегмент|kanal/i;
 export const MAX_GROUPING_VALUES = 2000;
 /** A category with at least this many distinct values per row (and more than 50) is an identifier, not a grouping. */
 export const ID_LIKE_SHARE = 0.5;
+/** Below this many rows the per-row share says nothing (60 customers in 100 rows is still a grouping). */
+export const ID_LIKE_MIN_ROWS = 500;
 
 type ProfiledTable = ProfileSummary["tables"][number];
 
@@ -108,7 +110,7 @@ export function groupingColumns(table: ProfiledTable, statusCol?: ProfiledTable[
       .filter((c) => c.type === "category" && c !== status && c.distinct_count >= 2 && c.distinct_count <= MAX_GROUPING_VALUES)
       // An id-like column (an invoice number, an email: nearly one value per row) explains nothing and multiplies the
       // member series; a grouping repeats its values across rows.
-      .filter((c) => c.distinct_count <= 50 || c.distinct_count < ID_LIKE_SHARE * table.detail_rows)
+      .filter((c) => c.distinct_count <= 50 || table.detail_rows < ID_LIKE_MIN_ROWS || c.distinct_count < ID_LIKE_SHARE * table.detail_rows)
       .map((c) => c.name)
   );
 }

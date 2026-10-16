@@ -117,7 +117,9 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
       const best = Math.max(...g.map((x) => x.score));
       const strong = g.filter((x) => x.score >= REPRESENTATIVE_SHARE * best);
       const rep = [...strong].sort((a, b) => priority(a.insight.template) - priority(b.insight.template))[0] as Ranked;
-      return { ...rep, score: best };
+      // The group carries its best score and its largest impact share: the member slot's floor applies to the event,
+      // not to whichever template happens to speak for it.
+      return { ...rep, score: best, impactShare: Math.max(...g.map((x) => x.impactShare)) };
     })
     // On a tie, the earlier period first: two groups of one series that score the same are the onset of a change
     // and a later restatement of it, and the onset is the finding (eval suite, M13a).

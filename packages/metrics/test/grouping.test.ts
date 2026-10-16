@@ -50,4 +50,9 @@ describe("grouping columns", () => {
     const all = { ...def, id: "revenue", filters: [] } as unknown as MetricDef;
     expect(withGroupingDimensions(all, summary).dimensions).toEqual(["channel", "customer", "region"]);
   });
+
+  it("on a small table the per-row share doesn't apply: 60 customers in 100 rows is a grouping", () => {
+    const small = { ...table, detail_rows: 100, columns: [cat("customer", 60)] } as unknown as typeof table;
+    expect(groupingColumns(small)).toEqual(["customer"]);
+  });
 });

@@ -147,6 +147,9 @@ export class Router {
         "RATE_LIMITED",
         `every route is rate-limited: ${routes.map((r, i) => `${routeKey(r)} for ${Math.ceil((waits[i] ?? 0) / 1000)} s`).join("; ")}. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.`,
       );
+    // `attempt` counts every pass, sleeps included, so a call makes at most MAX_ATTEMPTS_PER_ROUTE × routes requests
+    // once limits are hit (usually fewer). Past the deadline it stops even if a route has just freed up: the budget
+    // is spent.
     for (let attempt = 0; ; attempt++) {
       const now = this.now();
       const waits = routes.map((r) => this.state(r).availableIn(now));
