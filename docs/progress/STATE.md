@@ -5,7 +5,9 @@ This is the single source of truth for progress between agent sessions. Agents u
 Human gate values:
 - `no`: merge and continue.
 - `notify`: merge, continue, and message Firdavs to review when convenient.
-- `yes`: stop at AWAITING_REVIEW until Firdavs approves. Only M12 is `yes`, because making the repo public and launching is his call.
+- `yes`: stop at AWAITING_REVIEW until Firdavs approves. M12 was `yes` (launching is his call).
+
+Since 2026-10-16 (maintainer's instruction, from PR #15 on): post the spec-reviewer and QA verdicts on the PR as a comment, put the real results in the description, then mark it ready and squash-merge when CI is green and both reviews pass, and notify. Making the repo public, enabling Pages, changing repo settings or pushing a `v*` release tag still need his explicit yes (pre-release `-rc` tags for testing are fine).
 
 ## Milestones
 
@@ -24,7 +26,7 @@ Human gate values:
 | M10 Doors | DONE | no | [#12](https://github.com/gfirik/agentic-analytics/pull/12) | `bun run aa analyze <paths> [--yes]`; `bun run aa serve` (API + viewer + /mcp); `bun run aa mcp`; `TELEGRAM_BOT_TOKEN=… bun run --filter @agentic-analytics/telegram start` | JobManager shared by every door; HTTP API (SSE, OpenAPI, auth, DNS-rebinding guard), MCP (stdio + HTTP), CLI analyze/ask/explain/serve/mcp/jobs, Telegram (long polling), Vite viewer, RENDER → report.html; identical facts via CLI/API/MCP; Claude Desktop and real Telegram DEFERRED |
 | M11 Evals at scale | DONE | notify | [#13](https://github.com/gfirik/agentic-analytics/pull/13) | `bun run eval -- --suite full --model baseline` (offline, 30 datasets); `GROQ_API_KEY=… bun run eval -- --suite smoke --small-model --model openai-compatible:groq:qwen/qwen3.8-27b` | Seeded generator (10 archetypes × 3 variants), runner + honest scoring, baseline model, CI smoke suite, RESULTS.md; first real-model runs (Groq) fixed 5 integration bugs; bars not met yet (recall 72%, distractor FP 20%) |
 | M12 Docs site & launch | AWAITING_REVIEW | yes | [#14](https://github.com/gfirik/agentic-analytics/pull/14) | `bun run --filter @agentic-analytics/docs build`; `bun run readme:check` + `PW_CHANNEL=chrome bun run readme:check:browser`; `AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash` | Docs site (35 pages, islands from a real engine run), README hero/GIF/diagrams/tables generated and checked, evidence excerpts, unit-error guard, release and docs workflows, launch checklist; the public steps (repo public, Pages, v0.1.0 tag, posts) are the maintainer's: docs/LAUNCH.md |
-| M13c README pipeline GIF | AWAITING_REVIEW | yes | [#18](https://github.com/gfirik/agentic-analytics/pull/18) | `bun run readme:pipeline` (PW_CHANNEL=chrome locally); `bun run readme:check`; `PW_CHANNEL=chrome bun run readme:check:browser`; `bunx vitest run scripts/test/pipeline.test.ts` | "How it works" diagram replaced by light/dark GIFs (14.8 s, ~1.1 MB each, 960×720) + still PNGs via `<picture>`, ported from blueprint.html; data from one real web-enabled scripted run (−17.9% N30, wholesale −$8,500 / 108%, hotel email D1, V1–V8 table, R1 +$3,995 to +$7,191); the docs `<Pipeline />` island plays the same scene |
+| M13c README pipeline GIF | IN_PROGRESS | no | [#18](https://github.com/gfirik/agentic-analytics/pull/18) | `bun run readme:pipeline` (PW_CHANNEL=chrome locally); `bun run readme:check`; `PW_CHANNEL=chrome bun run readme:check:browser`; `bunx vitest run scripts/test/pipeline.test.ts` | "How it works" diagram replaced by light/dark GIFs (14.8 s, ~1.1 MB each, 960×720) + still PNGs via `<picture>`, ported from blueprint.html; data from one real web-enabled scripted run (−17.9% N30, wholesale −$8,500 / 108%, hotel email D1, V1–V8 table, R1 +$3,995 to +$7,191); the docs `<Pipeline />` island plays the same scene |
 
 Order: M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8 → M9 → M10 → M11 → M12. In autopilot it runs sequentially. Parallel worktrees are an interactive option only.
 
@@ -227,6 +229,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M13c] The README `<picture>` serves the still PNG of the finished report under `prefers-reduced-motion: reduce` (per color scheme), the GIF otherwise, and the light PNG as the `<img>` fallback; its alt text is generated from the same data. The architecture Mermaid diagram moved into a collapsed "The packages" block under the list; ARCHITECTURE.md keeps both diagrams — DOCS-SITE §3
 - [M13c] `readme:check` ties the GIFs to their inputs by a SHA-256 of `pipeline.json` + `pipeline-scene.ts` recorded in `pipeline-gif.json` (GIF encoders aren't byte-stable, so the GIFs themselves aren't compared), and enforces ≤ 3 MB, ≤ 15 s and ≥ 720 px; the browser job checks the `<picture>` variant choice and that no frame's text leaves the canvas — DOCS-SITE §3
 
+- [M13c] Gate `no`: the maintainer's 2026-10-16 review policy replaces the stop-for-review gate for this batch (reviewer + QA verdicts posted on the PR, self-merge when CI is green) — maintainer instruction
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
