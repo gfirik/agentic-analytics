@@ -133,7 +133,7 @@ export async function decide(input: DecideInput): Promise<{ recommendations: Rec
       // A scenario the engine refuses (unknown fact, parameter out of range) is the candidate's problem and is
       // recorded; anything else is an engine failure and stops the stage.
       const code = err instanceof Error && "code" in err ? String(err.code) : "";
-      if (!["UNKNOWN_FACT", "PARAM_OUT_OF_RANGE", "BAD_RANGE", "UNKNOWN_SCENARIO"].includes(code)) throw err;
+      if (!["UNKNOWN_FACT", "EXTERNAL_FACT", "PARAM_OUT_OF_RANGE", "BAD_RANGE", "UNKNOWN_SCENARIO"].includes(code)) throw err;
       drop(`scenario rejected: ${err instanceof Error ? err.message : String(err)}`);
       continue;
     }

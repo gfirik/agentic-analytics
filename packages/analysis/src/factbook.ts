@@ -8,7 +8,14 @@ import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import type { Calc, Ref, Series } from "./types.ts";
 
-export type AnalysisErrorCode = "UNKNOWN_SERIES" | "NO_VALUE" | "CALC_UNDEFINED" | "CIRCULAR_CALCS" | "BAD_SLICE" | "UNKNOWN_FACT";
+export type AnalysisErrorCode =
+  | "UNKNOWN_SERIES"
+  | "NO_VALUE"
+  | "CALC_UNDEFINED"
+  | "CIRCULAR_CALCS"
+  | "BAD_SLICE"
+  | "UNKNOWN_FACT"
+  | "EXTERNAL_FACT";
 
 export class AnalysisError extends Error {
   constructor(

@@ -9,7 +9,7 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 import { AnalysisError, FactBook, type SeriesInfo } from "./factbook.ts";
 import { impactRange, type Scenario } from "./impact.ts";
 import { otherFilter, persistFacts, type StoredDecomposition, type StoredInsight } from "./runner.ts";
-import { topContributors } from "./templates.ts";
+import { benchmarkGap, topContributors } from "./templates.ts";
 import { factRef, OTHER, type Series, type Unit } from "./types.ts";
 
 const UNITS: Record<string, Unit> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
@@ -213,13 +213,20 @@ export async function scenarioFacts(
   req: ScenarioRequest,
   justifiedBy: readonly string[] = [],
 ): Promise<ScenarioResult> {
-  const facts = new Map((await readFacts(ws)).map((f) => [f.id, f]));
+  const all = await readFacts(ws);
+  const facts = new Map(all.map((f) => [f.id, f]));
+  const external = externalFacts(all);
   const amount = (id: string) => {
     const f = facts.get(id);
     if (!f) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${id}`);
+    // Web numbers never enter the user's money (agent-and-verifier §4).
+    if (external.has(id)) throw new AnalysisError("EXTERNAL_FACT", `${id} comes from the web and can only feed a benchmark comparison`);
     return { ref: factRef(id), value: f.value };
   };
-  for (const id of justifiedBy) if (!facts.has(id)) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${id}`);
+  for (const id of justifiedBy) {
+    if (!facts.has(id)) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${id}`);
+    if (external.has(id)) throw new AnalysisError("EXTERNAL_FACT", `${id} comes from the web and can only feed a benchmark comparison`);
+  }
   const why = justifiedBy.map(factRef);
   const scenario: Scenario =
     req.type === "recover_share"
@@ -277,4 +284,124 @@ export async function scenarioFacts(
     params: r.params.map((p) => scope.get(p.name) ?? ""),
     newFacts,
   };
+}
+
+// ── External benchmarks (agent-and-verifier §4) ─────────────────────────────────────────────────────────────
+
+export interface QuotedRange {
+  readonly low: number;
+  readonly high: number;
+  readonly unit: "percent" | "other";
+  /** The exact text the numbers were read from (a substring of the quote). */
+  readonly text: string;
+}
+
+// v0.x reads percentages only: a percent range can't be confused with counts, money or scale words, and it is
+// the unit benchmarks are usually quoted in. Thousands separators ("1,000") never read as decimals.
+const NUM = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)`;
+/** A minus sign belongs to the number only when it doesn't follow a digit ("−3%", not the dash of "1–2%"). */
+const SIGN = String.raw`(?<![\d.,])([-−]?)`;
+const PCT = String.raw`\s*(?:%|percent\b|per cent\b)`;
+const RANGE = new RegExp(String.raw`${SIGN}${NUM}(${PCT})?\s*(?:–|—|-|\bto\b)\s*${SIGN}${NUM}${PCT}(?!\s*(?:points|pp)\b)`, "i");
+const SINGLE = new RegExp(String.raw`${SIGN}${NUM}${PCT}`, "i");
+const num = (sign: string | undefined, s: string) =>
+  (sign ? -1 : 1) * Number(/^\d{1,3}(,\d{3})+/.test(s) ? s.replace(/,/g, "") : s.replace(",", "."));
+
+/**
+ * The first percent range ("5–8%", "1 to 2 percent", "−5% to −2%") or single percentage ("−3%") in a quote, read
+ * as written, signs included: parsing, not arithmetic. A single value is a range of one. Anything that isn't a
+ * percentage is not read (undefined).
+ */
+export function parseQuotedRange(quote: string): QuotedRange | undefined {
+  const r = RANGE.exec(quote);
+  if (r) {
+    const low = num(r[1], r[2] ?? "");
+    const high = num(r[4], r[5] ?? "");
+    if (Number.isFinite(low) && Number.isFinite(high) && low <= high) return { low, high, unit: "percent", text: r[0] };
+  }
+  const s = SINGLE.exec(quote);
+  if (s) {
+    const v = num(s[1], s[2] ?? "");
+    if (Number.isFinite(v)) return { low: v, high: v, unit: "percent", text: s[0] };
+  }
+  return undefined;
+}
+
+/**
+ * Facts that are, or are computed from, external (web) numbers. They may only be the range of a benchmark
+ * (agent-and-verifier §4): never an input to scenarios, never the "own" side of a comparison.
+ */
+export function externalFacts(facts: readonly Fact[]): Set<string> {
+  const byId = new Map(facts.map((f) => [f.id, f]));
+  const memo = new Map<string, boolean>();
+  const isExternal = (id: string, seen = new Set<string>()): boolean => {
+    const known = memo.get(id);
+    if (known !== undefined) return known;
+    const f = byId.get(id);
+    if (!f || seen.has(id)) return false;
+    seen.add(id);
+    const v = f.computation.fn === "external_quote" || (f.computation.inputs ?? []).some((x) => isExternal(x, seen));
+    memo.set(id, v);
+    return v;
+  };
+  return new Set(facts.filter((f) => isExternal(f.id)).map((f) => f.id));
+}
+
+export interface BenchmarkResult {
+  readonly low: string;
+  readonly high: string;
+  readonly gap: string;
+  readonly newFacts: Fact[];
+}
+
+/**
+ * benchmark_gap.v1 (analysis-library §3) of an existing fact against a range quoted from an external source. The
+ * range becomes two `external_quote` facts citing the quote (never mixed with the user's numbers); the gap is the
+ * distance from the fact to the range (0 inside it).
+ */
+export async function benchmarkFacts(
+  ws: Workspace,
+  defs: readonly MetricDef[],
+  catalog: Catalog,
+  grain: Grain,
+  ownFactId: string,
+  external: { readonly range: QuotedRange; readonly source_id: string; readonly quote: string; readonly label: string },
+): Promise<BenchmarkResult> {
+  const all = await readFacts(ws);
+  const own = all.find((f) => f.id === ownFactId);
+  if (!own) throw new AnalysisError("UNKNOWN_FACT", `unknown fact ${ownFactId}`);
+  if (externalFacts(all).has(own.id))
+    throw new AnalysisError("EXTERNAL_FACT", `${ownFactId} comes from the web; compare one of the job's own facts`);
+  if (own.unit !== "percent" || external.range.unit !== "percent")
+    throw new AnalysisError("BAD_SLICE", `${ownFactId} is in ${own.unit}; only percentages are compared with quoted ranges in v0.x`);
+  let n = await nextFactNumber(ws);
+  const ext = (side: "low" | "high", value: number): Fact => ({
+    id: `N${n++}`,
+    label: `external ${external.label} (${side})`,
+    value,
+    unit: own.unit,
+    computation: { kind: "function", fn: "external_quote", params: { text: external.range.text, side } },
+    citations: [{ source_id: external.source_id, quote: external.quote }],
+    verified: false,
+  });
+  const low = ext("low", external.range.low);
+  const high = ext("high", external.range.high);
+  await persistFacts(ws, [low, high]);
+  // The template reads the own value from a series; its point ref is then pointed at the existing fact.
+  const series: Series = {
+    id: "benchmark:own",
+    metric: own.metric_id ?? "external",
+    unit: own.unit as Unit,
+    points: [{ period: "own", value: own.value }],
+  };
+  const insight = benchmarkGap(
+    { series, period: "own" },
+    { low: factRef(low.id), high: factRef(high.id), lowValue: low.value, highValue: high.value },
+  );
+  if (!insight) throw new AnalysisError("NO_VALUE", "no value to compare");
+  const calcs = insight.calcs.map((c) => ({ ...c, inputs: c.inputs.map((r) => (r.kind === "point" ? factRef(own.id) : r)) }));
+  const book = new FactBook(ws, defs, catalog, grain, new Map(), new Set(defs.map((d) => d.id)), await nextFactNumber(ws));
+  const scope = await book.calcs(calcs, `benchmark ${own.id} vs ${external.source_id}`, own.metric_id);
+  await persistFacts(ws, book.facts);
+  return { low: low.id, high: high.id, gap: scope.get("gap") ?? "", newFacts: [low, high, ...book.facts] };
 }

@@ -21,7 +21,8 @@
     "@agentic-analytics/profile": "workspace:*",
     "@agentic-analytics/retrieval": "workspace:*",
     "@agentic-analytics/schema": "workspace:*",
-    "@agentic-analytics/store": "workspace:*"
+    "@agentic-analytics/store": "workspace:*",
+    "@agentic-analytics/web": "workspace:*"
   },
   "devDependencies": {
     "@agentic-analytics/eval-datasets": "workspace:*",

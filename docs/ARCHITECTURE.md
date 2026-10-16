@@ -105,7 +105,7 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | `fts_main_chunks` | DuckDB FTS (BM25) index over chunk prefix and text |
 | `retrieval_meta` | the embedder, dimension and stemmer that built the chunk index |
 | `extracts` | quarantined-extractor outputs (structured, typed), with source refs |
-| `web_results` | URL, title, fetched_at, extract refs. Always `external = true`. |
+| `web_results` | URL, title, fetched_at, extract refs. Always `external = true`. Each fetched page is also a `sources` row (`kind = 'web'`, id `W…`) holding its readable text and URL/title/fetch time in `meta`. |
 | `claims` | every sentence-level claim in the draft report, with fact and citation refs |
 | `verification` | per-claim and per-number verification results |
 | `events` | progress log |

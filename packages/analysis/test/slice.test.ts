@@ -8,7 +8,17 @@ import { profileJob } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { analyzeJob, drillDown, loadAnalysis, nextFactNumber, readFacts, scenarioFacts } from "../src/index.ts";
+import {
+  analyzeJob,
+  benchmarkFacts,
+  drillDown,
+  externalFacts,
+  loadAnalysis,
+  nextFactNumber,
+  parseQuotedRange,
+  readFacts,
+  scenarioFacts,
+} from "../src/index.ts";
 
 const dir = join(import.meta.dirname, "..", "..", "..", "evals/datasets/coffee-roaster-v1/files");
 const range = { from: "2026-01", to: "2026-06", grain: "month" as const };
@@ -99,5 +109,107 @@ describe("propose_scenario: impact.v1 over existing facts", () => {
     ).rejects.toMatchObject({
       code: "PARAM_OUT_OF_RANGE",
     });
+  });
+});
+
+describe("external benchmarks (agent-and-verifier §4)", () => {
+  it("reads quoted ranges as written, never years", () => {
+    expect(parseQuotedRange("Specialty roasters raised wholesale prices 5–8% on average in 2026.")).toEqual({
+      low: 5,
+      high: 8,
+      unit: "percent",
+      text: "5–8%",
+    });
+    expect(parseQuotedRange("refunds run 1 to 2 percent of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1 to 2 percent" });
+    expect(parseQuotedRange("about 3,5% of orders")).toEqual({ low: 3.5, high: 3.5, unit: "percent", text: "3,5%" });
+    expect(parseQuotedRange("between 2024 and 2026 prices rose")).toBeUndefined();
+    // Signs are kept: a negative benchmark never becomes a positive fact.
+    expect(parseQuotedRange("growth of -3% last year")).toEqual({ low: -3, high: -3, unit: "percent", text: "-3%" });
+    expect(parseQuotedRange("margins fell −5% to −2%")).toEqual({ low: -5, high: -2, unit: "percent", text: "−5% to −2%" });
+    expect(parseQuotedRange("refunds of 1–2% of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1–2%" });
+    expect(parseQuotedRange("refunds of 1-2% of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1-2%" });
+    // Not percentages: never read (thousands, money and scale words, counts).
+    expect(parseQuotedRange("roasters ship 1,000-2,000 orders a month")).toBeUndefined();
+    expect(parseQuotedRange("revenue of $1.2–1.5 million")).toBeUndefined();
+    // Two numbers joined by "and" are not a range; the percentage is read on its own.
+    expect(parseQuotedRange("In 12 stores and 40% of cafes, prices rose")).toEqual({ low: 40, high: 40, unit: "percent", text: "40%" });
+    expect(parseQuotedRange("margins of 1,500.5% are rare")).toEqual({ low: 1500.5, high: 1500.5, unit: "percent", text: "1,500.5%" });
+    expect(parseQuotedRange("no numbers here")).toBeUndefined();
+  });
+
+  it("June refund rate 3.4% vs a quoted 1–2%: gap 1.4 points, external facts cite the quote", async () => {
+    const refund = (await readFacts(ws)).find((f) => f.label === "refund_rate_2026-06");
+    expect(refund?.value).toBeCloseTo(3.4, 9);
+    const quote = "Specialty coffee roasters typically see refunds of 1–2% of sales.";
+    const r = await benchmarkFacts(ws, defs, catalog, "month", refund?.id ?? "", {
+      range: parseQuotedRange(quote) as NonNullable<ReturnType<typeof parseQuotedRange>>,
+      source_id: "W1",
+      quote,
+      label: "refund rate benchmark",
+    });
+    const v = (id: string) => r.newFacts.find((f) => f.id === id);
+    expect([v(r.low)?.value, v(r.high)?.value]).toEqual([1, 2]);
+    expect(v(r.low)?.computation).toEqual({ kind: "function", fn: "external_quote", params: { text: "1–2%", side: "low" } });
+    expect(v(r.low)?.citations).toEqual([{ source_id: "W1", quote }]);
+    // 3.4 is above the range → gap = 3.4 − 2 = 1.4
+    expect(v(r.gap)?.value).toBeCloseTo(1.4, 9);
+    expect(v(r.gap)?.computation.inputs).toEqual([refund?.id, r.low, r.high]);
+  });
+
+  it("web numbers never enter scenarios or the own side of a comparison", async () => {
+    const all = await readFacts(ws);
+    const refund = all.find((f) => f.label === "refund_rate_2026-06");
+    const march = all.find((f) => f.label === "refund_rate_2026-03");
+    const revenue = all.find((f) => f.label === "revenue_2026-06");
+    const quote = "typically 1–2% of sales";
+    const r = await benchmarkFacts(ws, defs, catalog, "month", refund?.id ?? "", {
+      range: parseQuotedRange(quote) as NonNullable<ReturnType<typeof parseQuotedRange>>,
+      source_id: "W1",
+      quote,
+      label: "benchmark",
+    });
+    expect([...externalFacts(await readFacts(ws))]).toEqual(expect.arrayContaining([r.low, r.high, r.gap]));
+    // "Reduce refunds to the industry rate": the baseline would be a web number → refused.
+    await expect(
+      scenarioFacts(ws, defs, catalog, "month", {
+        type: "remove_excess_rate",
+        current: refund?.id ?? "",
+        baseline: r.high,
+        base: revenue?.id ?? "",
+        low: 0.5,
+        high: 0.9,
+      }),
+    ).rejects.toMatchObject({ code: "EXTERNAL_FACT" });
+    await expect(
+      scenarioFacts(
+        ws,
+        defs,
+        catalog,
+        "month",
+        { type: "remove_excess_rate", current: refund?.id ?? "", baseline: march?.id ?? "", base: revenue?.id ?? "", low: 0.5, high: 0.9 },
+        [r.gap],
+      ),
+    ).rejects.toMatchObject({ code: "EXTERNAL_FACT" });
+    // A gap or an external fact can't be the "own" side.
+    await expect(
+      benchmarkFacts(ws, defs, catalog, "month", r.gap, {
+        range: { low: 1, high: 2, unit: "percent", text: "1–2%" },
+        source_id: "W1",
+        quote,
+        label: "x",
+      }),
+    ).rejects.toMatchObject({ code: "EXTERNAL_FACT" });
+  });
+
+  it("refuses to compare different units", async () => {
+    const revenue = (await readFacts(ws)).find((f) => f.label === "revenue_2026-06");
+    await expect(
+      benchmarkFacts(ws, defs, catalog, "month", revenue?.id ?? "", {
+        range: { low: 5, high: 8, unit: "percent", text: "5–8%" },
+        source_id: "W1",
+        quote: "5–8%",
+        label: "x",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_SLICE" });
   });
 });

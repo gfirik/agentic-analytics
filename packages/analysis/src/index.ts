@@ -44,11 +44,16 @@ export {
   type StoredInsight,
 } from "./runner.ts";
 export {
+  type BenchmarkResult,
+  benchmarkFacts,
   type DrillDownQuery,
   type DrillDownResult,
   drillDown,
+  externalFacts,
   loadAnalysis,
   nextFactNumber,
+  parseQuotedRange,
+  type QuotedRange,
   readFacts,
   type ScenarioRequest,
   type ScenarioResult,

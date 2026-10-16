@@ -7,6 +7,7 @@ import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
 import { duckdbVersion } from "@agentic-analytics/store";
+import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
 import { parse } from "yaml";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
@@ -125,7 +126,10 @@ const run = defineCommand({
     currency: { type: "string", description: "ISO 4217 code for money columns with no currency marked" },
     objective: { type: "string", description: "The business goal recommendations are ranked by" },
     "small-model": { type: "boolean", description: "Small-model mode: fewer tool calls and findings, form-filling explanations" },
-    web: { type: "boolean", description: "Enable the web lane (built in M8)" },
+    web: {
+      type: "boolean",
+      description: "Enable the web lane: sanitized searches through SearXNG ($SEARXNG_URL, default http://localhost:8888)",
+    },
     embedder: { type: "string", description: "'hash' for the offline embedder, else the configured transformers model" },
     log: { type: "boolean", description: "Write structured logs to stderr" },
   },
@@ -175,6 +179,17 @@ const run = defineCommand({
       {
         model,
         embedder,
+        // The web lane uses the self-hosted SearXNG (docker compose --profile web up -d searxng).
+        ...(args.web
+          ? {
+              web: {
+                provider: searxngProvider({
+                  baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888",
+                  ...(process.env.SEARXNG_ENGINES ? { engines: process.env.SEARXNG_ENGINES } : {}),
+                }),
+              },
+            }
+          : {}),
         engine: {
           version: "0.0.0",
           models: (["planner", "extractor", "judge"] as const).map((role) => ({
@@ -186,7 +201,7 @@ const run = defineCommand({
         ...(args.log ? { log: createLogger(jsonLines((l) => process.stderr.write(l))) } : {}),
         out: (l) => process.stdout.write(`${l}\n`),
         // The resume hint must keep the embedder the job was indexed with.
-        resumeFlags: args.embedder ? ["--embedder", args.embedder] : [],
+        resumeFlags: [...(args.embedder ? ["--embedder", args.embedder] : []), ...(args.web ? ["--web"] : [])],
       },
     );
   },
