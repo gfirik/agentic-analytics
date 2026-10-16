@@ -87,13 +87,14 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
     const { summary, catalog } = await coffee();
     const model = new FakeModel([{ role: "extractor", match: "<DATA>", object: PROPOSAL }]);
     const defs = (await draftMetrics(summary, catalog, { model, defaultCurrency: "USD" })).validation.accepted;
-    // The proposal gave wholesale_revenue no dimensions; the refund status column is a filter, never a grouping.
+    // The proposal gave wholesale_revenue no dimensions; the refund status column is a filter, never a grouping, and
+    // channel is pinned by the slice's own filter (channel = 'wholesale'), so splitting by it would only restate it.
     expect(
       defs
         .find((d) => d.id === "wholesale_revenue")
         ?.dimensions?.slice()
         .sort(),
-    ).toEqual(["channel", "customer", "product"]);
+    ).toEqual(["customer", "product"]);
     // revenue keeps the model's order.
     expect(defs.find((d) => d.id === "revenue")?.dimensions).toEqual(["channel", "customer", "product"]);
     // Ratios are left alone.

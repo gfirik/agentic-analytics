@@ -92,18 +92,25 @@ const CHANNEL = /channel|segment|канал|сегмент|kanal/i;
  */
 /** Grouping columns can have many values: the analysis keeps the top members and an "(other)" bucket. */
 export const MAX_GROUPING_VALUES = 2000;
+/** A category with at least this many distinct values per row (and more than 50) is an identifier, not a grouping. */
+export const ID_LIKE_SHARE = 0.5;
 
 type ProfiledTable = ProfileSummary["tables"][number];
 
 /**
  * The columns a change can be explained by (customer, channel, product, …): categories with 2 to
- * MAX_GROUPING_VALUES values, except a refund/return status column, which is a filter rather than a grouping.
+ * MAX_GROUPING_VALUES values, except a refund/return status column (a filter rather than a grouping) and id-like columns.
  */
 export function groupingColumns(table: ProfiledTable, statusCol?: ProfiledTable["columns"][number]): string[] {
   const status = statusCol ?? table.columns.find((c) => c.type === "category" && c.top_values.some((v) => REFUND_VALUE.test(v.value)));
-  return table.columns
-    .filter((c) => c.type === "category" && c !== status && c.distinct_count >= 2 && c.distinct_count <= MAX_GROUPING_VALUES)
-    .map((c) => c.name);
+  return (
+    table.columns
+      .filter((c) => c.type === "category" && c !== status && c.distinct_count >= 2 && c.distinct_count <= MAX_GROUPING_VALUES)
+      // An id-like column (an invoice number, an email: nearly one value per row) explains nothing and multiplies the
+      // member series; a grouping repeats its values across rows.
+      .filter((c) => c.distinct_count <= 50 || c.distinct_count < ID_LIKE_SHARE * table.detail_rows)
+      .map((c) => c.name)
+  );
 }
 
 /** A drafted sum, count or average gets every grouping column of its table, after the ones it named. */
@@ -112,7 +119,11 @@ export function withGroupingDimensions(def: MetricDef, summary: ProfileSummary):
   const table = summary.tables.find((t) => t.name === def.table);
   if (!table) return def;
   const have = def.dimensions ?? [];
-  const add = groupingColumns(table).filter((c) => !have.includes(c));
+  // A column the metric's filter pins to one value (`channel = 'wholesale'`) has a single member, whose series is
+  // the metric itself: splitting by it only restates the whole-metric change.
+  const pinned = (c: string) =>
+    (def.filters ?? []).some((f) => new RegExp(`(^|[^\\w"])"?${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?\\s*=\\s*'`).test(f));
+  const add = groupingColumns(table).filter((c) => !have.includes(c) && !pinned(c));
   return add.length ? { ...def, dimensions: [...have, ...add] } : def;
 }
 

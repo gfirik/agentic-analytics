@@ -47,7 +47,7 @@ export {
   type StoredDecomposition,
   type StoredInsight,
 } from "./runner.ts";
-export { MIN_SPIKE, SEASON_SHARE, seasonalMatch, touchesSeason } from "./seasonal.ts";
+export { MIN_SPIKE, SEASON_MAX, SEASON_SHARE, seasonalMatch, touchesSeason } from "./seasonal.ts";
 export {
   type BenchmarkResult,
   benchmarkFacts,

@@ -86,7 +86,7 @@ export const TEMPLATE_PRIORITY: readonly string[] = [
  */
 /** A group's representative must carry at least this share of the group's best score. */
 export const REPRESENTATIVE_SHARE = 0.5;
-/** A member change competes for the member slot when it is at least this share of its metric's period total. */
+/** A member change competes for the member slot when its impact share (see impactShare) is at least this. */
 export const MEMBER_MIN_SHARE = 0.02;
 
 /** The insight's relative change (its `change_pct` calc, in percent), or 0 when it has none. */
@@ -143,7 +143,7 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
     return parent && parent.score >= REPRESENTATIVE_SHARE * best.score ? parent : best;
   });
   // Then one slot for the most dramatic change of a single member (a product, a customer): the largest relative
-  // change among members that matter (≥ MEMBER_MIN_SHARE of the metric's change). A product cannibalized by a
+  // change among members that matter (impact share ≥ MEMBER_MIN_SHARE: |Δ| over the objective's period total). A product cannibalized by a
   // launch falls by most of its value; a member that only restates a whole-metric drop falls by that drop's share.
   // Without the slot such a story always ranks below the whole-metric restatements (eval suite, M13a).
   const groupOf = (r: Ranked) => groups.get(`${r.insight.series}@${r.insight.period}`) ?? [r];
