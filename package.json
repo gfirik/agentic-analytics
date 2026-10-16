@@ -24,7 +24,8 @@
     "schema:drift": "tsx scripts/schema-drift.ts",
     "schema:write": "tsx scripts/schema-drift.ts --write",
     "aa": "node apps/cli/bin/aa.js",
-    "ingest": "tsx packages/ingest/scripts/demo.ts"
+    "ingest": "tsx packages/ingest/scripts/demo.ts",
+    "profile": "tsx packages/profile/scripts/demo.ts"
   },
   "devDependencies": {
     "@agentic-analytics/schema": "workspace:*",

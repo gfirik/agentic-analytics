@@ -100,7 +100,14 @@ describe("intake", () => {
     };
     let aborted = false;
     const res = await ingest([{ name: "scan.pdf", bytes: fx("docs/scanned.pdf") }], {
-      docling: { convertPdf: (b, n, s) => (s?.addEventListener("abort", () => (aborted = true)), slowDocling.convertPdf(b, n, s)) },
+      docling: {
+        convertPdf: (b, n, s) => {
+          s?.addEventListener("abort", () => {
+            aborted = true;
+          });
+          return slowDocling.convertPdf(b, n, s);
+        },
+      },
       limits: { timeoutMs: 30 },
     });
     await new Promise((r) => setTimeout(r, 200));

@@ -1,6 +1,10 @@
 // Exercises the real AI SDK path against a stub fetch that speaks the OpenAI chat-completions format.
 // No network: every request is answered in-process (AGENTS.md §2.4).
 import { describe, expect, it } from "vitest";
+
+// The groq tests deliberately use an endpoint without structured outputs; its warning is expected noise here.
+(globalThis as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
+
 import { z } from "zod";
 import { createModelClient, ModelError, resolveModelConfig } from "../src/index.ts";
 
