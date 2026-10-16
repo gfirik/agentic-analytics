@@ -69,4 +69,16 @@ export const MIGRATIONS: readonly Migration[] = [
       "CREATE TABLE retrieval_meta (embedder VARCHAR NOT NULL, dims INTEGER NOT NULL, stemmer VARCHAR NOT NULL, fts BOOLEAN NOT NULL, chunks INTEGER NOT NULL)",
     ],
   },
+  {
+    version: 4,
+    name: "job_stages, job_meta",
+    // Pipeline checkpoints (ARCHITECTURE §2): a crashed job resumes after its last completed stage. `output` keeps
+    // a stage's small results (e.g. the EXPLAIN drafts); `first_fact` is where the stage's new facts start, so a
+    // stage that is re-run first removes what its interrupted run left behind.
+    statements: [
+      `CREATE TABLE job_stages (stage VARCHAR PRIMARY KEY, status VARCHAR NOT NULL, started_at TIMESTAMP, completed_at TIMESTAMP,
+        first_fact INTEGER, output JSON)`,
+      "CREATE TABLE job_meta (key VARCHAR PRIMARY KEY, value JSON NOT NULL)",
+    ],
+  },
 ];

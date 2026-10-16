@@ -76,7 +76,7 @@ const DIM_UNIT: Record<string, Unit> = { currency: "currency", percent: "percent
 const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
 const memberFilter = (dimension: string, value: string | null) =>
   value === null ? `${dimension} IS NULL` : `${dimension} = ${quote(value)}`;
-const otherFilter = (dimension: string, kept: readonly (string | null)[]) => {
+export const otherFilter = (dimension: string, kept: readonly (string | null)[]): string => {
   const values = kept.filter((v): v is string => v !== null);
   const notIn = values.length ? `${dimension} NOT IN (${values.map(quote).join(", ")})` : undefined;
   // SQL NOT IN never matches NULL: NULL belongs to "other" only when it isn't one of the kept members.
@@ -504,12 +504,7 @@ async function rateMixFor(
 }
 
 async function persist(ws: Workspace, r: AnalysisResult): Promise<void> {
-  for (const f of r.facts) {
-    const c = f.computation;
-    await ws.run(sql`INSERT INTO facts (id, label, value, unit, currency, metric_id, kind, sql, params, fn, inputs, input_rows, definition_id)
-      VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
-        ${c.params ? JSON.stringify(c.params) : null}::JSON, ${c.fn ?? null}, ${JSON.stringify(c.inputs ?? [])}::VARCHAR[], ${JSON.stringify(f.citations)}::JSON, ${f.metric_id ?? null})`);
-  }
+  await persistFacts(ws, r.facts);
   for (const i of r.insights) {
     await ws.run(
       sql`INSERT INTO insights VALUES (${i.id}, ${i.template}, ${i.metric}, ${i.period}, ${JSON.stringify(i)}::JSON, ${JSON.stringify(Object.values(i.facts))}::VARCHAR[])`,
@@ -519,5 +514,15 @@ async function persist(ws: Workspace, r: AnalysisResult): Promise<void> {
     await ws.run(
       sql`INSERT INTO decompositions VALUES (${d.id}, ${d.method}, ${d.insight}, ${JSON.stringify(d)}::JSON, ${JSON.stringify(Object.values(d.facts))}::VARCHAR[])`,
     );
+  }
+}
+
+/** Appends facts to the workspace `facts` table (the analysis, then any facts the agent's tools add). */
+export async function persistFacts(ws: Workspace, facts: readonly Fact[]): Promise<void> {
+  for (const f of facts) {
+    const c = f.computation;
+    await ws.run(sql`INSERT INTO facts (id, label, value, unit, currency, metric_id, kind, sql, params, fn, inputs, input_rows, definition_id)
+      VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
+        ${c.params ? JSON.stringify(c.params) : null}::JSON, ${c.fn ?? null}, ${JSON.stringify(c.inputs ?? [])}::VARCHAR[], ${JSON.stringify(f.citations)}::JSON, ${f.metric_id ?? null})`);
   }
 }
