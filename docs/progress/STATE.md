@@ -36,6 +36,7 @@ _None._
 
 ## Deferred checks
 
+- [M13d] Release workflow end to end on a pre-release tag — PENDING (runs after this PR's review): `git tag v0.1.0-rc.1 <PR head> && git push origin v0.1.0-rc.1`, watch `gh run list --workflow release.yml`, check the pre-release has the 4 binaries + SHA256SUMS and GHCR has only `0.1.0-rc.1` (no `latest`); then clean up: `gh release delete v0.1.0-rc.1 --yes --cleanup-tag` (deletes the tag too) and delete the GHCR version: `gh api -X DELETE /user/packages/container/agentic-analytics/versions/<id>` (ids from `gh api /user/packages/container/agentic-analytics/versions`)
 These are checks that need something this machine doesn't have yet, such as a real LLM. Run them later.
 
 - [M1] `aa doctor` calls the configured model with a one-line prompt — DONE in M11 with Groq (free tier): `aa doctor` with PLANNER_MODEL=openai-compatible:groq:openai/gpt-oss-120b → "✓ model call … replied \"OK\" in 0.5s" (also qwen/qwen3.8-27b, 0.3 s); llama-3.3-70b-versatile is not on this account
@@ -224,6 +225,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 ## Known gaps carried forward
 
+- [M13d] Standalone binaries: no in-process ONNX embedder (hash by default; sharp + onnxruntime native libraries would have to be embedded like DuckDB's), no viewer at `/` in `aa serve`, no macOS x64 or Linux musl targets, macOS binary not signed or notarized (Gatekeeper quarantine must be cleared after a browser download), the cached library is checked by size only (a same-size replacement in the user's own cache isn't detected) — next release
 - [M0] docker-compose images for searxng, docling and ollama use `:latest`, and the engine image was not built in M10 (disk quota on this machine) — pin versions and build it in M12
 - [M1→M7] `ModelClient.embed` still throws `NOT_AVAILABLE` unless an embedder is injected. The pipeline doesn't need it: `runJob` takes the retrieval `Embedder` (`transformersEmbedder`, or `hashEmbedder` offline) directly in `JobDeps.embedder`. Remove `embed` from `ModelClient` or wire it to the same embedder (the doors pass the embedder through `JobDeps`) — M12 (retargeted from M11, which built the eval harness)
 - [M2] The per-file timeout only bounds the async parsers (pdf.js, mammoth, mailparser, Docling); when it fires, Docling is aborted through its AbortSignal, the other async parsers run to completion in the background, and in both cases their output is discarded. The synchronous paths — SheetJS read, region detection, CSV and plain text — are **not bounded at all** until parsing moves to worker threads (security §5), which needs a compiled worker entry — M12 (the doors run the TS through tsx; no bundle yet) (retargeted from M11, which built the eval harness)

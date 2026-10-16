@@ -77,17 +77,6 @@ The runtime stays Node 22 until DuckDB is verified under Bun (see D7). `scripts/
 
 **Supersedes:** the "pnpm workspaces" row of the AGENTS.md stack table.
 
-## D16. Standalone CLI binaries run on Bun's runtime (2026-10-16)
-
-Release tags also attach `aa` binaries built with `bun build --compile` (Linux x64/arm64, macOS arm64, Windows x64) with SHA256 checksums. A compiled binary runs on Bun's runtime, an exception to D7 (Node 22 is the runtime) limited to that artifact; the Node CLI, Docker image, CI and tests are unchanged. Verified on 2026-10-16:
-
-- DuckDB's addon links against its shared library (`libduckdb.so`/`.dylib`/`duckdb.dll`), which `bun build --compile` doesn't carry, so the binary embeds the library, writes it once to a per-version cache folder and loads it before the addon (`apps/cli/src/native-lib.ts`, `scripts/build-binary.ts`).
-- The same offline eval gives byte-identical results through the binary and through Node (timings aside).
-- The in-process ONNX embedder doesn't load in the binary (Transformers.js needs the sharp and onnxruntime native libraries), so the binary defaults to the hash embedder and says so; Docker remains the install path for semantic document search.
-- Prompts are inlined into `packages/agent/src/prompts.gen.ts` (checked by `bun run prompts:check`) instead of read from disk next to the source.
-
-Each target is built and smoke tested (doctor + a full offline eval) on its own native runner (`.github/workflows/binaries.yml`), on pull requests that touch the build and on every tag.
-
 ## D15. VHS and Playwright for README assets; Astro Starlight docs (2026-10-16)
 
 The README visuals and their checks (docs/DOCS-SITE.md §3) use two free, local, dev-only tools:
@@ -98,3 +87,16 @@ The README visuals and their checks (docs/DOCS-SITE.md §3) use two free, local,
 The docs site is Astro Starlight (already in the AGENTS.md §3 stack), deployed to GitHub Pages once the repo is public.
 
 Nothing here runs in the engine, and no paid service is involved.
+
+## D16. Standalone CLI binaries run on Bun's runtime (2026-10-16)
+
+Release tags also attach `aa` binaries built with `bun build --compile` (Linux x64/arm64, macOS arm64, Windows x64) with SHA256 checksums. A compiled binary runs on Bun's runtime, an exception to D7 (Node 22 is the runtime) limited to that artifact; the Node CLI, Docker image, CI and tests are unchanged. Verified on 2026-10-16:
+
+- DuckDB's addon links against its shared library (`libduckdb.so`/`.dylib`/`duckdb.dll`), which `bun build --compile` doesn't carry, so the binary embeds the library, writes it once to a per-version cache folder and loads it before the addon (`apps/cli/src/native-lib.ts`, `scripts/build-binary.ts`).
+- The same offline eval gives byte-identical results through the binary and through Node (timings aside).
+- The cache folder is named after the `@duckdb/node-api` package version plus platform and architecture (e.g. `duckdb-1.5.6-r.1-linux-x64`).
+- `aa serve` in the binary has no viewer at `/` (its page points at a job's `report.html`); the API and MCP work.
+- The in-process ONNX embedder doesn't load in the binary (Transformers.js needs the sharp and onnxruntime native libraries), so the binary defaults to the hash embedder and says so; Docker remains the install path for semantic document search.
+- Prompts are inlined into `packages/agent/src/prompts.gen.ts` (checked by `bun run prompts:check`) instead of read from disk next to the source.
+
+Each target is built and smoke tested (doctor + a full offline eval) on its own native runner (`.github/workflows/binaries.yml`), on pull requests that touch the build and on every tag.
