@@ -5,9 +5,16 @@
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@agentic-analytics/schema": "workspace:*",
+    "@ai-sdk/openai-compatible": "^3.0.70",
+    "ai": "^7.0.142",
+    "zod": "^4.6.7"
   }
 }
