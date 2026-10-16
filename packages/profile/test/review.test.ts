@@ -168,6 +168,12 @@ describe("smaller review fixes", () => {
     expect(issues.map((i) => [i.kind, i.row])).toEqual([["rate_above_100", 3]]);
   });
 
+  it("rate names need a whole word: Corporate is not a rate", async () => {
+    const t = table([{ name: "corporate_clients", label: "Corporate clients", letter: "A", type: "integer" }], [[120], [140], [130]]);
+    const ws = await loaded(t);
+    expect(await runRules(ws, t, await profileTable(ws, t), "2026-07-01")).toEqual([]);
+  });
+
   it("column names stay unique even when a label looks suffixed", () => {
     expect(columnNames(["x", "x", "x_2"])).toEqual(["x", "x_2", "x_2_2"]);
   });

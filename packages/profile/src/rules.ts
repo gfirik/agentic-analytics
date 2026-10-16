@@ -16,7 +16,7 @@ export interface RuleIssue {
 }
 
 const COUNT_NAME = /qty|quantity|count|units|pcs|pieces|orders|кол|шт|количество|soni|dona/i;
-const RATE_NAME = /rate|ratio|share|percent|pct|%|доля|ставка|процент|ulush|foiz/i;
+const RATE_NAME = /\b(rate|ratio|share|percent|pct)\b|%|доля|ставка|процент|ulush|foiz/i;
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
 const FACTOR = { 1: "10", 2: "100", 3: "1,000" } as const;
 

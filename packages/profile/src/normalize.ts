@@ -270,8 +270,10 @@ export function normalizeTable(t: TableRegion, grain: Grain = "month"): Normaliz
   for (const i of mixed) {
     const col = columns[i];
     if (!col) continue;
-    let name = `${col.name}_currency`;
-    for (let k = 2; taken.has(name); k++) name = `${col.name}_currency_${k}`;
+    // Identifiers are capped at 63 characters: leave room for "_currency" and a numeric suffix.
+    const stem = col.name.slice(0, 50);
+    let name = `${stem}_currency`;
+    for (let k = 2; taken.has(name); k++) name = `${stem}_currency_${k}`;
     taken.add(name);
     columns.push({ name, label: `${col.label} (currency)`, letter: col.letter, type: "category" });
     rows.forEach((r, j) => {

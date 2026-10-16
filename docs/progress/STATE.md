@@ -14,7 +14,7 @@ Human gate values:
 | M0 Foundation | DONE | no | [#1](https://github.com/gfirik/agentic-analytics/pull/1) | `bun install && bun run check`; `bun run aa doctor` | Bun workspaces + Turborepo, CI, doctor, drift check |
 | M1 Contracts & golden fixtures | DONE | notify | [#2](https://github.com/gfirik/agentic-analytics/pull/2) | `bun run --filter @agentic-analytics/report render:fixture`; `bun run --filter @agentic-analytics/schema validate:fixture` | Report v1 + integrity, coffee-roaster-v1 dataset, FakeModel + free providers, offline HTML report; real model call DEFERRED |
 | M2 Ingestion | DONE | no | [#4](https://github.com/gfirik/agentic-analytics/pull/4) | `bun run ingest fixtures/xlsx fixtures/csv fixtures/docs` | Intake, 16 xlsx + 2 csv fixtures matching hand-written expectations, PDF/DOCX/EML/MD/TXT sections; Docling real run DEFERRED |
-| M3 Workspace & profiling | IN_PROGRESS | no | | | |
+| M3 Workspace & profiling | IN_PROGRESS | no | | `bun run profile evals/datasets/coffee-roaster-v1/files --today 2026-07-01` | DuckDB workspace + migrations; normalization, profiling, rules, entities; typo, date ambiguity and Hotel Group link found |
 | M4 Metric layer | TODO | no | | | |
 | M5 Analysis library | TODO | no | | | |
 | M6 Retrieval | TODO | no | | | |
@@ -98,6 +98,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M3] Entity links: confidence 1 for the canonical spelling, 0.99 for a different spelling with the same normalized name, otherwise the Jaro–Winkler similarity to the canonical name computed directly (never inherited through other members); similar names also need ≥ 50% token overlap (tokens of 4+ letters may differ by one typo) and identical number-bearing tokens ("1kg" ≠ "250g"); the canonical name is the most frequent raw spelling; links below 0.97 become assumptions — ingestion spec §7
 - [M3] Mixed-currency columns get a companion `<column>_currency` column with each row's currency, so amounts can be grouped or filtered by currency and are never summed across currencies or converted — ingestion spec §6
 - [M3] Missing periods are listed at the table's own data grain (day, ISO week named by its Monday, or month), capped at 500, over detail rows only — ingestion spec §5
+- [M3] ISO date-times with a `Z` or `±hh:mm` offset keep their wall-clock time (business data is local time; `_period` follows the date as written); offsets are not converted to UTC — ingestion spec §6
 - [M3] Rate checks: percent columns (fractions) above 1, and rate-named plain-number columns (percentage points) above 100 — ingestion spec §5
 - [M3] Money-named headers no longer include "total" ("Total units" is a count, not money) — ingestion spec §5
 - [M3] Root script `bun run profile <paths…> [--json] [--today]` is the M3 demo; `today` is injected so the future-date rule is deterministic — ROADMAP M3
