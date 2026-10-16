@@ -68,6 +68,33 @@ describe("AI SDK model client (stubbed transport)", () => {
     expect(JSON.stringify(seen[1]?.body.messages)).toContain("rejected by validation");
   });
 
+  it("treats an endpoint's own JSON-validation refusal (Groq 400 json_validate_failed) as an invalid attempt", async () => {
+    const seen: { url: string; auth: string | null; body: Record<string, unknown> }[] = [];
+    const ok = stubFetch([{ content: '{"reply":"OK"}' }], seen);
+    let first = true;
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      if (first) {
+        first = false;
+        return Response.json(
+          {
+            error: {
+              message: "Failed to validate JSON. Please adjust your prompt.",
+              type: "invalid_request_error",
+              code: "json_validate_failed",
+            },
+          },
+          { status: 400 },
+        );
+      }
+      return ok(input, init);
+    }) as typeof fetch;
+    const env = { PLANNER_MODEL: "openai-compatible:groq:openai/gpt-oss-20b", GROQ_API_KEY: "k" };
+    const client = createModelClient(resolveModelConfig(env), { env, fetch: fetchImpl });
+    const res = await client.generateObject({ role: "planner", schema: z.object({ reply: z.string() }), system: "s", prompt: "p" });
+    expect(res.object.reply).toBe("OK");
+    expect(JSON.stringify(seen[0]?.body.messages)).toContain("rejected by validation");
+  });
+
   it("sends the key from the named env var to openai-compatible endpoints", async () => {
     const seen: { url: string; auth: string | null; body: Record<string, unknown> }[] = [];
     const env = { PLANNER_MODEL: "openai-compatible:groq:llama-3.3-70b", GROQ_API_KEY: "test-key" };

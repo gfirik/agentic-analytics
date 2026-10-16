@@ -40,11 +40,49 @@ export function subjectOf(f: Finding, report: Report): Subject | undefined {
   const after = derived ? (derived[4] as string).slice(0, 7) : (periods.at(-1) as string);
   const before = periods.find((p) => p < after);
   return {
-    metric: head[1] as string,
+    metric: canonicalMetrics(report).get(head[1] as string) ?? (head[1] as string),
     ...(head[2] && head[3] ? { member: { dimension: head[2], member: head[3] } } : {}),
     ...(before ? { before } : {}),
     period: after,
   };
+}
+
+/**
+ * The answer key's concept for each report metric, read from its definition (never its id or label wording, which
+ * a real model chooses freely: `total_revenue`, `monthly_revenue`, `refund_rate_amount`):
+ * - a ratio whose numerator is about refunds → `refund_rate`;
+ * - a currency sum that keeps paid rows and filters on one value of another column (`channel = 'wholesale'`) → that
+ *   channel's revenue slice; with no such filter → `revenue`;
+ * - a count of order ids → `orders`.
+ * Anything else keeps its id.
+ */
+export function canonicalMetrics(report: Report): Map<string, string> {
+  const out = new Map<string, string>();
+  const metrics = report.metrics ?? [];
+  const byId = new Map(metrics.map((m) => [m.id, m]));
+  const refundish = (t: string) => /refund|return/i.test(t);
+  // A filter that keeps refunded rows (`status = 'refunded'`), not one that excludes them (`status != 'refunded'`).
+  const selectsRefunds = (f: string) => /(?<![!<>])=\s*'[^']*refund/i.test(f);
+  for (const m of metrics) {
+    const filters = m.filters ?? [];
+    let concept = m.id;
+    if (m.type === "ratio") {
+      const num = m.numerator;
+      const numText = num
+        ? "metric" in num
+          ? `${num.metric} ${(byId.get(num.metric)?.filters ?? []).join(" ")}`
+          : `${num.expression} ${(num.filters ?? []).join(" ")}`
+        : "";
+      if (refundish(numText)) concept = "refund_rate";
+    } else if (m.type === "sum" && m.unit === "currency" && !filters.some(selectsRefunds)) {
+      const slice = filters
+        .map((f) => /^\s*"?([A-Za-z_][\w ]*)"?\s*=\s*'([^']+)'\s*$/.exec(f))
+        .find((x) => x && !/status/i.test(x[1] as string));
+      concept = slice ? sliceOf(slice[2] as string, "revenue") : "revenue";
+    } else if ((m.type === "count" || m.type === "count_distinct") && /order/i.test(`${m.expression ?? ""} ${m.id}`)) concept = "orders";
+    out.set(m.id, concept);
+  }
+  return out;
 }
 
 /** A metric id as the deterministic metric drafts name a channel's slice ("self-serve" → `self_serve_revenue`). */

@@ -422,3 +422,33 @@ describe("open questions in report wording", () => {
     expect(reportQuestion("Something else entirely", defs)).toBeUndefined();
   });
 });
+
+describe("DECIDE degrades when the model can't produce valid actions (models §5)", () => {
+  it("ships no recommendations and records why, instead of failing the job", async () => {
+    const { decide } = await import("../src/index.ts");
+    const model = new FakeModel([{ role: "planner", repeat: true, object: { candidates: "not a list" } }]);
+    const finding = {
+      id: "F1",
+      type: "regression",
+      severity: "high",
+      title: "Revenue fell",
+      claims: [{ text: "Revenue fell.", facts: [], citations: [], causal_grade: "observed", verified: false }],
+      method: "m",
+      confidence: "high",
+      confidence_reasons: [],
+      assumptions: [],
+    } as const;
+    const r = await decide({
+      model,
+      findings: [finding],
+      objective: "Grow profit",
+      factsheet: "{}",
+      periodEnd: "2026-06-30",
+      maxRecommendations: 5,
+    } as unknown as Parameters<typeof decide>[0]);
+    expect(r.recommendations).toEqual([]);
+    expect(r.dropped[0]?.reason).toMatch(
+      /^the model's candidate actions failed validation: structured output failed validation after 3 attempts/,
+    );
+  });
+});

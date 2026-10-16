@@ -4,6 +4,7 @@ export { type EvalArgs, type EvalDeps, EvalRunError, evalCommand, resultsPage } 
 export { type RunOptions, resultsMarkdown, runSuite, type Suite, type SuiteResult, suiteDatasets } from "./run.ts";
 export {
   type Bar,
+  canonicalMetrics,
   type DatasetScore,
   matchesDistractor,
   matchesPlanted,

@@ -1,7 +1,7 @@
 // The eval runner (docs/EVALS.md §3): runs every dataset of a suite as a full job with the given model, scores each
 // report against its answer key, and writes `evals/results/<date>-<model>.json` plus the markdown table that
 // RESULTS.md collects. Jobs run one at a time in temporary folders that are removed afterwards.
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type JobOptions, runJob } from "@agentic-analytics/core";
@@ -64,6 +64,8 @@ export interface RunOptions {
   readonly smallModel?: boolean;
   readonly datasets?: readonly Dataset[];
   readonly onDataset?: (s: DatasetScore, i: number, n: number) => void;
+  /** Keep each report as `<dir>/<dataset>.json` (real-model runs cost tokens; this lets them be inspected later). */
+  readonly keepReports?: string;
   readonly now?: () => Date;
 }
 
@@ -87,6 +89,10 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
         { model, embedder: o.embedder },
       );
       score = scoreReport(out.report, ds.answers, { seconds: (Date.now() - started) / 1000, tokens });
+      if (o.keepReports) {
+        mkdirSync(o.keepReports, { recursive: true });
+        writeFileSync(join(o.keepReports, `${ds.id}.json`), `${JSON.stringify(out.report, null, 2)}\n`);
+      }
     } catch (err) {
       // A stage failure wraps the stage's own error; the verifier's mismatch codes are what count here.
       const cause = err instanceof Error && err.cause instanceof Error ? err.cause : err;

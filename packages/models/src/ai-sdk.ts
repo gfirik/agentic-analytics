@@ -4,7 +4,7 @@
 
 import type { Config, RoleModel } from "@agentic-analytics/schema";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
+import { APICallError, generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
@@ -99,6 +99,15 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
             });
             return { value: res.output as unknown, usage: usageOf(res.usage, performance.now() - started) };
           } catch (err) {
+            // An endpoint that validates JSON itself (Groq: 400 `json_validate_failed`) refuses malformed output
+            // with an error; that is an invalid attempt to retry with feedback, not a provider failure.
+            if (
+              APICallError.isInstance(err) &&
+              err.statusCode === 400 &&
+              /json_validate_failed|failed to validate json/i.test(`${err.message} ${err.responseBody ?? ""}`)
+            ) {
+              return { invalid: "the JSON did not validate against the schema", usage: usageOf(undefined, performance.now() - started) };
+            }
             if (NoObjectGeneratedError.isInstance(err)) {
               return {
                 invalid: err.cause instanceof Error ? err.cause.message : err.message,

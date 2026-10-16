@@ -82,17 +82,26 @@ const EFFORT = { low: 1, medium: 1.5, high: 2 } as const;
 export async function decide(input: DecideInput): Promise<{ recommendations: Recommendation[]; dropped: Dropped[] }> {
   const dropped: Dropped[] = [];
   if (!input.findings.length) return { recommendations: [], dropped };
-  const { object } = await input.model.generateObject({
-    role: "planner",
-    schema: DecideOutput,
-    system: renderPrompt("decide", {
-      objective: input.objective,
-      findings: data(input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) }))),
-      factsheet: input.factsheet,
-      period_end: input.periodEnd,
-    }),
-    prompt: "Propose the candidate actions.",
-  });
+  let object: DecideOutput;
+  try {
+    ({ object } = await input.model.generateObject({
+      role: "planner",
+      schema: DecideOutput,
+      system: renderPrompt("decide", {
+        objective: input.objective,
+        findings: data(input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) }))),
+        factsheet: input.factsheet,
+        period_end: input.periodEnd,
+      }),
+      prompt: "Propose the candidate actions.",
+    }));
+  } catch (err) {
+    // The model couldn't produce valid candidate actions even after the validation retries (models §5). The
+    // findings still stand: the report ships with no recommendations, and the reason is recorded.
+    if (!(err instanceof Error && "code" in err && err.code === "INVALID_OUTPUT")) throw err;
+    dropped.push({ claim: "(candidate actions)", reason: `the model's candidate actions failed validation: ${err.message.slice(0, 200)}` });
+    return { recommendations: [], dropped };
+  }
   const findingIds = new Set(input.findings.map((f) => f.id));
   const scored: { rec: Omit<Recommendation, "id">; score: number }[] = [];
   for (const c of object.candidates) {

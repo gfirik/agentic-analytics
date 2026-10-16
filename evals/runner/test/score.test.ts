@@ -3,7 +3,7 @@
 import type { AnswerKey } from "@agentic-analytics/eval-generator";
 import type { Fact, Finding, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { matchesDistractor, matchesPlanted, scoreReport, subjectOf, summarize } from "../src/index.ts";
+import { canonicalMetrics, matchesDistractor, matchesPlanted, scoreReport, subjectOf, summarize } from "../src/index.ts";
 
 const fact = (id: string, label: string): Fact => ({
   id,
@@ -197,5 +197,37 @@ describe("scoring", () => {
     expect(bars["Quality-issue recall"]?.value).toBe(0.5); // 1 of 2
     expect(bars["Citation precision"]?.value).toBe(0.75); // (4 − 1) / 4
     expect(bars["Distractor FP rate"]?.pass).toBe(false);
+  });
+
+  it("maps report metrics to the answer key's concepts by definition, whatever the model named them", () => {
+    const sum = (id: string, filters: string[], expression = "coalesce(amount,0)") =>
+      ({ id, label: id, type: "sum", table: "t_t1", expression, filters, unit: "currency", currency: "USD" }) as const;
+    const r = {
+      metrics: [
+        sum("total_revenue", ["status = 'paid'"]),
+        sum("monthly_revenue", [], "coalesce(revenue,0)"),
+        sum("refunded_amount", ["status = 'refunded'"]),
+        sum("wholesale_rev", ["status != 'refunded'", "channel = 'wholesale'"]),
+        { id: "paid_orders", label: "x", type: "count", table: "t_t1", expression: "order_id", filters: [], unit: "count" },
+        {
+          id: "refund_rate_amount",
+          label: "x",
+          type: "ratio",
+          numerator: { metric: "refunded_amount" },
+          denominator: { metric: "total_revenue" },
+          unit: "percent",
+        },
+        { id: "units", label: "x", type: "sum", table: "t_t1", expression: "qty", filters: [], unit: "count" },
+      ],
+    } as unknown as Report;
+    expect(Object.fromEntries(canonicalMetrics(r))).toEqual({
+      total_revenue: "revenue",
+      monthly_revenue: "revenue",
+      refunded_amount: "refunded_amount",
+      wholesale_rev: "wholesale_revenue",
+      paid_orders: "orders",
+      refund_rate_amount: "refund_rate",
+      units: "units",
+    });
   });
 });

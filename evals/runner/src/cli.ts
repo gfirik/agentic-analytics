@@ -24,6 +24,8 @@ export interface EvalArgs {
   readonly smallModel?: boolean;
   /** Where results files go (default evals/results) and where RESULTS.md is written (its parent). */
   readonly resultsDir: string;
+  /** Keep each dataset's report.json in this folder. */
+  readonly keepReports?: string;
 }
 
 export interface EvalDeps {
@@ -48,6 +50,7 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
     ...(baseline ? { note: BASELINE_NOTE } : {}),
     embedder: d.embedder,
     ...(a.smallModel ? { smallModel: true } : {}),
+    ...(a.keepReports ? { keepReports: a.keepReports } : {}),
     ...(d.now ? { now: d.now } : {}),
     onDataset: (s, i, n) =>
       d.print(

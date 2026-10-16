@@ -296,6 +296,7 @@ const evalCmd = defineCommand({
     },
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
+    "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
   },
   async run({ args }) {
     const suite = args.suite === "full" ? "full" : "smoke";
@@ -306,6 +307,7 @@ const evalCmd = defineCommand({
         suite,
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
+        ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
         resultsDir: fileURLToPath(new URL("../../../evals/results", import.meta.url)),
       },
       {
