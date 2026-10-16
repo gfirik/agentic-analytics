@@ -13,7 +13,8 @@
       "!**/.turbo",
       "!docs/assets",
       "!packages/schema/json",
-      "!packages/schema/test/fixtures"
+      "!packages/schema/test/fixtures",
+      "!evals/injection/fixtures"
     ]
   },
   "formatter": {

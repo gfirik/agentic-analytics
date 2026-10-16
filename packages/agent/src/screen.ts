@@ -29,7 +29,8 @@ const PATTERNS: readonly RegExp[] = [
   /\bdo not (?:mention|report|include|disclose)\b[^.\n]{0,60}\b(?:your|the) (?:report|summary|answer|analysis|findings)\b/i,
   // Data exfiltration: a URL carrying a query string, or a request to send something to a URL.
   /https?:\/\/[^\s?]+\?[^\s]*=/i,
-  /\b(?:send|post|submit|append|upload|forward|отправь\w*|yuboring)\b[^.\n]{0,80}https?:\/\//iu,
+  // Unicode-aware boundaries: JavaScript's \b only knows ASCII letters, so it never matches before "отправь".
+  /(?<![\p{L}])(?:send|post|submit|append|upload|forward|отправ\p{L}*|пришли\p{L}*|yubor\p{L}*)(?![\p{L}])[^.\n]{0,80}https?:\/\//iu,
   // Russian.
   /игнорир\w*|забудь\w*[^.\n]{0,30}(?:инструкц|правил)|не обращай\w* внимани\w*[^.\n]{0,30}(?:инструкц|правил)/iu,
   /(?:^|[\s"'(«])(?:ии|ассистент\w*|нейросет\w*)(?![\p{L}])[^.\n]{0,50}(?:долж\w*|напиши|сообщи|отправь|укажи|скажи)/iu,

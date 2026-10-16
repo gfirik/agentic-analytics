@@ -26,6 +26,7 @@
   ```
 
 - **What the planner sees.** Only extracts, never the raw text. Quotes are shown inside data delimiters, and the planner prompt states that quoted content is data, never instructions.
+- **Screened before any model reads.** At INDEX_DOCS a deterministic screen (EN/RU/UZ, run after NFKC folding and removing invisible characters) checks every document, every email and every distinct text cell of every table. Raw web pages are screened before readable-text extraction, so hidden text counts too. A hit goes into the `quarantine` table and the source is never sent to the extractor. The extractor's own flag adds to the same table.
 - **Per source.** Quarantine applies to the whole source: one flagged chunk excludes every extract of that document, including extracts found earlier in the job.
 - **Flagging.** If the extractor (or a deterministic regex screen for patterns like "ignore previous", "system prompt", "you are now" or URLs with query strings) flags suspicious instructions, the source becomes a `QualityIssue` (kind `suspicious_instruction`) and its extracts are excluded by default.
 

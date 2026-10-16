@@ -27,6 +27,7 @@ describe("prompts (agent-and-verifier §9)", () => {
     "explain-form": { finding: '{"id":"I5"}', factsheet: '{"insights":[]}', evidence: '{"extracts":[]}' },
     decide: { objective: "Grow profit", findings: "[]", factsheet: "{}", period_end: "2026-06-30" },
     summary: { findings: "[]" },
+    judge: { claim: '"The hotel paused its order."', sources: "[]" },
   };
   for (const name of Object.keys(vars) as PromptName[]) {
     it(`${name} renders and matches its snapshot`, () => {
@@ -75,6 +76,12 @@ describe("injection screen (security spec §3)", () => {
 
   it("leaves ordinary business text alone", () => {
     for (const t of [
+      "The pricing model should include a markup for small orders.",
+      "Don't forget to update the POS system before Monday.",
+      "Our sales agent must call the hotel about the new order.",
+      "Send the invoice to accounts@roaster.example by Friday.",
+      "Модель ценообразования должна учитывать доставку.",
+      "Hisob-fakturani juma kuni yuboring.",
       "After the new price list we are pausing our standing order while we compare suppliers.",
       "Please ignore the old invoice; it was cancelled.",
       "See https://roaster.example/price-list for prices.",

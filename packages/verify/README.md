@@ -1,14 +1,29 @@
 # @agentic-analytics/verify
 
-All verification passes (V1–V8) and the failure policy.
+The verifier runs passes V1–V8 over the draft report, then applies the failure policy (docs/specs/agent-and-verifier.md §7).
+- **Engine bugs fail the job:** a V2 or V3 mismatch, or a cited row that doesn't exist, writes a diagnostic and ships nothing.
+- **Bad claims are dropped or downgraded:**
+  - claims failing V1, V4, V5 or V8 are dropped;
+  - V6 rewrites causal wording to correlational wording.
+- **The cascade** drops findings left without claims and recommendations left without findings, along with references to them.
 
-- **Status:** empty skeleton. Built in M9 (docs/ROADMAP.md).
 - **Spec:** docs/specs/agent-and-verifier.md §7
+- **Status:** built in M9.
 
 ## Public API
 
-Everything public is exported from `src/index.ts`. Nothing is exported yet.
+- `verifyReport(draft, { ws, defs, catalog, grain, periodEnd, judge? })` returns `{ report, checks }`. It throws `VerifyError` (`RECOMPUTE_MISMATCH`, `REDERIVE_MISMATCH`, `CITATION_MISMATCH`, `UNVERIFIABLE`) with a diagnostic.
+- `recomputeFacts(ws, facts, all)` is V2. SQL facts are re-run with their stored parameters. Function facts are recomputed from their inputs by a registry (`delta`, `sum`, `mean`, `pct_change`, `share`, `contribution.v1`, `hhi`, `theil_sen`, `mann_kendall`, `robust_z`, `share_shift`, `pvm.v1`, `ratemix.v1`, `impact.v1:*`, `scenario_param` bounds, `external_quote` re-parsing, `benchmark_gap.v1`). The relative tolerance is `TOLERANCE` = 1e-9.
+- `isCausal(text)` and `rewriteCorrelational(text)` are V6's EN/RU/UZ lexicon and its rewrites.
+- `checkFactRows(ws, facts)` is the part of V5 that checks a fact's cited rows exist in its table.
+- `persistChecks(ws, checks)` writes one row per check to the `verification` table.
 
 ## Example
 
-Added when the package is implemented.
+```ts
+const { report, checks } = await verifyReport(draft, { ws, defs, catalog, grain: "month", periodEnd: "2026-06-30", judge: model });
+// report.verification: numbers_checked, rederived_metrics, definition_violations, citations_checked/unsupported,
+// claims_dropped, claims_downgraded
+```
+
+In a job, the VERIFY stage reads `report.draft.json` and writes `report.json`. On an engine bug it writes `diagnostics.json` instead.

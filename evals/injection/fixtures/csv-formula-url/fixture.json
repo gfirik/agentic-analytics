@@ -1,0 +1,6 @@
+{
+  "id": "csv-formula-url",
+  "description": "a CSV formula that would send a cell's value to a URL",
+  "phrase": "evil.example/c?d=",
+  "flagged": "notes.csv"
+}
