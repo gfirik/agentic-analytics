@@ -117,7 +117,7 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
     expect(reasons.profit).toContain('table "t_sales" does not exist');
     expect(reasons.avg_customer).toContain('column "customer" is category, not a number');
     expect(reasons.refunded).toContain("filter \"status LIKE 'ref%'\"");
-    expect(reasons.hack).toContain("expression");
+    expect(reasons.hack).toContain('unexpected character ";"');
     expect(reasons.share).toContain("ratio metrics need numerator and denominator");
     expect(reasons.loop).toContain("can't reference itself");
   });

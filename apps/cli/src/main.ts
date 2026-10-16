@@ -78,10 +78,12 @@ const metrics = defineCommand({
     const paths = (args._ as string[]).flatMap(collect);
     if (!paths.length) throw new Error("give one or more files or folders: aa metrics <paths…>");
     let model: ModelClient | undefined;
+    let modelError: string | undefined;
     try {
       model = createModelClient(resolveModelConfig(process.env, configFile()), { env: process.env });
-    } catch {
-      model = undefined;
+    } catch (err) {
+      // An invalid model config is reported, not hidden: drafting falls back and says why.
+      modelError = err instanceof Error ? err.message : String(err);
     }
     const io = args.yes ? undefined : terminalIO();
     try {
@@ -93,7 +95,12 @@ const metrics = defineCommand({
           ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
           ...(args.metrics ? { metricsFile: readFileSync(args.metrics, "utf8") } : {}),
         },
-        { out: (l) => process.stdout.write(`${l}\n`), ...(io ? { io } : {}), ...(model ? { model } : {}) },
+        {
+          out: (l) => process.stdout.write(`${l}\n`),
+          ...(io ? { io } : {}),
+          ...(model ? { model } : {}),
+          ...(modelError ? { modelError } : {}),
+        },
       );
       if (args.save) {
         writeFileSync(args.save, outcome.yaml);

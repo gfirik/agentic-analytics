@@ -51,7 +51,7 @@ export interface DraftResult {
 export async function draftMetrics(
   summary: ProfileSummary,
   catalog: Catalog,
-  options: ValidateOptions & { readonly model?: ModelClient } = {},
+  options: ValidateOptions & { readonly model?: ModelClient; readonly noModelReason?: string } = {},
 ): Promise<DraftResult> {
   const digest = buildDigest(summary);
   let note: string;
@@ -70,7 +70,7 @@ export async function draftMetrics(
       note = `the model was unavailable (${err instanceof Error ? err.message.slice(0, 120) : String(err)}); used deterministic fallbacks`;
     }
   } else {
-    note = "no model configured; used deterministic fallbacks";
+    note = `${options.noModelReason ?? "no model configured"}; used deterministic fallbacks`;
   }
   return { source: "fallback", validation: validateMetrics(fallbackMetrics(summary), catalog, options), digest, note };
 }
@@ -83,6 +83,11 @@ const CHANNEL = /channel|segment|канал|сегмент|kanal/i;
  * Deterministic drafts (spec §2.4): money-named currency columns become `revenue`; refund/return statuses give
  * `refund_rate`; an id column gives `orders`; a channel-like category with 2–5 values gives `<member>_revenue`.
  */
+/** Cell text becomes a metric id and label here, so it must look like a plain short name (security §3 screen). */
+function safeMemberName(value: string): boolean {
+  return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !/ignore|instruction|system|prompt|you are|https?:/i.test(value);
+}
+
 export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
   const out: MetricDef[] = [];
   const tables = [...summary.tables].filter((t) => t.date_column).sort((a, b) => b.detail_rows - a.detail_rows);
@@ -93,7 +98,8 @@ export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
   const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
   const statusCol = table.columns.find((c) => c.type === "category" && c.top_values.some((v) => REFUND_VALUE.test(v.value)));
   const refundValues = statusCol ? statusCol.top_values.map((v) => v.value).filter((v) => REFUND_VALUE.test(v)) : [];
-  const notRefunded = statusCol ? [`${statusCol.name} NOT IN (${refundValues.map(quote).join(", ")})`] : [];
+  // Rows with no status are not refunds, so they count towards revenue.
+  const notRefunded = statusCol ? [`${statusCol.name} IS NULL OR ${statusCol.name} NOT IN (${refundValues.map(quote).join(", ")})`] : [];
   const dimensions = table.columns.filter((c) => c.type === "category" && c !== statusCol && c.distinct_count <= 50).map((c) => c.name);
   const base = { table: table.name, time_column: table.date_column ?? "", status: "assumed" as const };
 
@@ -134,7 +140,7 @@ export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
   const channel = table.columns.find(
     (c) => c.type === "category" && CHANNEL.test(c.label) && c.distinct_count >= 2 && c.distinct_count <= 5,
   );
-  for (const member of channel?.top_values ?? []) {
+  for (const member of (channel?.top_values ?? []).filter((m) => safeMemberName(m.value))) {
     const id = `${member.value
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "_")

@@ -177,6 +177,11 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
   if ((def.type === "sum" || def.type === "count" || def.type === "count_distinct") && def.unit === "percent") {
     reasons.push(`a ${def.type} of values can't be a percentage; use avg or a ratio`);
   }
+  if ((def.type === "sum" || def.type === "avg") && def.expression && def.unit !== "currency") {
+    const cols = parseOr(() => exprColumns(parseExpression(def.expression ?? "")), [], "") ?? [];
+    if (cols.some((c) => table.columns.get(c)?.type === "currency"))
+      reasons.push(`a ${def.type} of a money column must have unit currency, not ${def.unit}`);
+  }
   if ((def.type === "count" || def.type === "count_distinct") && def.unit !== "count")
     reasons.push(`a ${def.type} metric's unit must be count, not ${def.unit}`);
   const time = def.time_column ?? table.dateColumn;

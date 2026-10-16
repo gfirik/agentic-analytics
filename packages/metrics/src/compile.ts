@@ -18,8 +18,19 @@ export interface MetricQuery {
   readonly where?: string;
 }
 
+export type MetricCompileCode =
+  | "UNKNOWN_METRIC"
+  | "UNKNOWN_TABLE"
+  | "UNKNOWN_COLUMN"
+  | "NOT_NUMERIC"
+  | "NO_TIME_COLUMN"
+  | "UNSUPPORTED_TYPE";
+
 export class MetricCompileError extends Error {
-  constructor(message: string) {
+  constructor(
+    readonly code: MetricCompileCode,
+    message: string,
+  ) {
     super(message);
     this.name = "MetricCompileError";
   }
@@ -67,10 +78,11 @@ function tableCte(
   const existing = ctx.done.get(key);
   if (existing) return existing;
   const t = ctx.catalog.get(table);
-  if (!t) throw new MetricCompileError(`unknown table ${table}`);
-  for (const g of ctx.groups) if (!t.columns.has(g)) throw new MetricCompileError(`group-by column "${g}" does not exist in ${table}`);
+  if (!t) throw new MetricCompileError("UNKNOWN_TABLE", `unknown table ${table}`);
+  for (const g of ctx.groups)
+    if (!t.columns.has(g)) throw new MetricCompileError("UNKNOWN_COLUMN", `group-by column "${g}" does not exist in ${table}`);
   const col = (n: string) => {
-    if (!t.columns.has(n)) throw new MetricCompileError(`column "${n}" does not exist in ${table}`);
+    if (!t.columns.has(n)) throw new MetricCompileError("UNKNOWN_COLUMN", `column "${n}" does not exist in ${table}`);
     return q(n);
   };
   const where = [
@@ -93,10 +105,24 @@ function tableCte(
 function joinCtes(ctx: Ctx, names: readonly string[], combine: (value: (i: number) => string) => string): string {
   const keys = ["period", ...ctx.groups.map((g) => q(g))];
   const [first, ...rest] = names;
-  if (!first) throw new MetricCompileError("nothing to join");
-  const from = rest.reduce((acc, n) => `${acc} FULL JOIN ${n} USING (${keys.join(", ")})`, first);
+  if (!first) throw new MetricCompileError("UNSUPPORTED_TYPE", "nothing to join");
+  // Join on period and groups with IS NOT DISTINCT FROM, so a NULL group (e.g. no channel) matches itself;
+  // each output key is the first non-null across the joined CTEs.
+  const from = rest.reduce((acc, n, i) => {
+    const on = keys
+      .map(
+        (k) =>
+          `coalesce(${names
+            .slice(0, i + 1)
+            .map((p) => `${p}.${k}`)
+            .join(", ")}) IS NOT DISTINCT FROM ${n}.${k}`,
+      )
+      .join(" AND ");
+    return `${acc} FULL JOIN ${n} ON ${on}`;
+  }, first);
+  const select = keys.map((k) => `coalesce(${names.map((n) => `${n}.${k}`).join(", ")}) AS ${k}`).join(", ");
   const name = `m${ctx.ctes.length + 1}`;
-  ctx.ctes.push(`${name} AS (SELECT ${keys.join(", ")}, ${combine((i) => `${names[i]}.value`)} AS value FROM ${from})`);
+  ctx.ctes.push(`${name} AS (SELECT ${select}, ${combine((i) => `${names[i]}.value`)} AS value FROM ${from})`);
   return name;
 }
 
@@ -110,11 +136,11 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
         const term = t as { metric: string } | { table: string; expression: string; filters?: string[] };
         if ("metric" in term) {
           const ref = ctx.defs.get(term.metric);
-          if (!ref) throw new MetricCompileError(`${side} metric ${term.metric} is not defined`);
+          if (!ref) throw new MetricCompileError("UNKNOWN_METRIC", `${side} metric ${term.metric} is not defined`);
           return metricCte(ctx, ref);
         }
         const table = ctx.catalog.get(term.table);
-        if (!table?.dateColumn) throw new MetricCompileError(`${side} table ${term.table} has no date column`);
+        if (!table?.dateColumn) throw new MetricCompileError("NO_TIME_COLUMN", `${side} table ${term.table} has no date column`);
         const e = parseExpression(term.expression);
         return tableCte(
           ctx,
@@ -138,17 +164,21 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
       const refs = [...new Set(exprColumns(e))];
       const ctes = refs.map((r) => {
         const ref = ctx.defs.get(r);
-        if (!ref) throw new MetricCompileError(`derived metric references unknown metric ${r}`);
+        if (!ref) throw new MetricCompileError("UNKNOWN_METRIC", `derived metric references unknown metric ${r}`);
         return metricCte(ctx, ref);
       });
-      name = joinCtes(ctx, ctes, (v) => compileExpr(e, ctx.b, (r) => v(refs.indexOf(r))));
+      // Additive inputs (sums, counts) with no rows in a period are 0 there; averages and ratios stay unknown.
+      const additive = (r: string) => ["sum", "count", "count_distinct"].includes(ctx.defs.get(r)?.type ?? "");
+      name = joinCtes(ctx, ctes, (v) =>
+        compileExpr(e, ctx.b, (r) => (additive(r) ? `coalesce(${v(refs.indexOf(r))}, 0)` : v(refs.indexOf(r)))),
+      );
       break;
     }
     default: {
       const table = def.table ?? "";
       const t = ctx.catalog.get(table);
       const time = def.time_column ?? t?.dateColumn;
-      if (!t || !time) throw new MetricCompileError(`metric ${def.id} has no table or time column`);
+      if (!t || !time) throw new MetricCompileError("NO_TIME_COLUMN", `metric ${def.id} has no table or time column`);
       const e = def.expression ? parseExpression(def.expression) : undefined;
       // Percent columns hold fractions; a percent-unit average is reported in percentage points.
       const percentPoints =
@@ -167,14 +197,14 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
           case "count_distinct":
             return `count(DISTINCT ${x})`;
           default:
-            throw new MetricCompileError(`unsupported metric type ${def.type}`);
+            throw new MetricCompileError("UNSUPPORTED_TYPE", `unsupported metric type ${def.type}`);
         }
       };
       name = tableCte(ctx, `metric:${def.id}`, table, time, aggregate, def.filters ?? []);
       if (e)
         for (const c of exprColumns(e))
           if (def.type !== "count" && def.type !== "count_distinct" && !NUMERIC_TYPES.has(t.columns.get(c)?.type ?? "text"))
-            throw new MetricCompileError(`column ${c} is not numeric`);
+            throw new MetricCompileError("NOT_NUMERIC", `column ${c} is not numeric`);
     }
   }
   ctx.done.set(`metric:${def.id}`, name);
@@ -185,7 +215,7 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
 export function compileMetric(id: string, defs: readonly MetricDef[], catalog: Catalog, query: MetricQuery): Sql {
   const byId = new Map(defs.map((d) => [d.id, d]));
   const def = byId.get(id);
-  if (!def) throw new MetricCompileError(`unknown metric ${id}`);
+  if (!def) throw new MetricCompileError("UNKNOWN_METRIC", `unknown metric ${id}`);
   const ctx: Ctx = {
     defs: byId,
     catalog,

@@ -2,8 +2,13 @@
 // into a typed AST and compiled with checked identifiers and parameters, so nothing a model writes ever reaches
 // SQL as text (AGENTS.md §2.6, §4).
 
+export type MetricLangCode = "TOKEN" | "PARSE" | "FUNCTION";
+
 export class MetricLangError extends Error {
-  constructor(message: string) {
+  constructor(
+    readonly code: MetricLangCode,
+    message: string,
+  ) {
     super(message);
     this.name = "MetricLangError";
   }
@@ -34,13 +39,13 @@ export function tokenize(src: string): Token[] {
       const upper = word.toUpperCase();
       if (KEYWORDS.has(upper)) out.push({ t: "kw", v: upper as Extract<Token, { t: "kw" }>["v"] });
       else if (/^[a-z_][a-z0-9_]*$/.test(word)) out.push({ t: "ident", v: word });
-      else throw new MetricLangError(`identifier "${word}" must be lower snake_case`);
+      else throw new MetricLangError("TOKEN", `identifier "${word}" must be lower snake_case`);
       i = j;
       continue;
     }
     if (/[0-9.]/.test(ch)) {
       const m = /^(\d+(\.\d+)?|\.\d+)/.exec(src.slice(i));
-      if (!m) throw new MetricLangError(`bad number at "${src.slice(i, i + 10)}"`);
+      if (!m) throw new MetricLangError("TOKEN", `bad number at "${src.slice(i, i + 10)}"`);
       out.push({ t: "number", v: Number(m[0]) });
       i += m[0].length;
       continue;
@@ -49,7 +54,7 @@ export function tokenize(src: string): Token[] {
       let j = i + 1;
       let s = "";
       for (;;) {
-        if (j >= src.length) throw new MetricLangError("unterminated string literal");
+        if (j >= src.length) throw new MetricLangError("TOKEN", "unterminated string literal");
         if (src[j] === "'") {
           if (src[j + 1] === "'") {
             s += "'";
@@ -76,7 +81,7 @@ export function tokenize(src: string): Token[] {
       i++;
       continue;
     }
-    throw new MetricLangError(`unexpected character "${ch}"`);
+    throw new MetricLangError("TOKEN", `unexpected character "${ch}"`);
   }
   return out;
 }
@@ -111,7 +116,7 @@ class Parser {
   }
   private next(): Token {
     const t = this.tokens[this.i++];
-    if (!t) throw new MetricLangError("unexpected end of input");
+    if (!t) throw new MetricLangError("PARSE", "unexpected end of input");
     return t;
   }
   private isOp(v: string): boolean {
@@ -124,7 +129,7 @@ class Parser {
   }
   private expectOp(v: string): void {
     const t = this.next();
-    if (t.t !== "op" || t.v !== v) throw new MetricLangError(`expected "${v}"`);
+    if (t.t !== "op" || t.v !== v) throw new MetricLangError("PARSE", `expected "${v}"`);
   }
 
   expr(): Expr {
@@ -154,7 +159,8 @@ class Parser {
     }
     if (t.t === "ident") {
       if (this.isOp("(")) {
-        if (t.v !== "abs" && t.v !== "coalesce") throw new MetricLangError(`function "${t.v}" is not allowed (only abs, coalesce)`);
+        if (t.v !== "abs" && t.v !== "coalesce")
+          throw new MetricLangError("FUNCTION", `function "${t.v}" is not allowed (only abs, coalesce)`);
         this.next();
         const args = [this.expr()];
         while (this.isOp(",")) {
@@ -162,12 +168,12 @@ class Parser {
           args.push(this.expr());
         }
         this.expectOp(")");
-        if (t.v === "abs" && args.length !== 1) throw new MetricLangError("abs takes one argument");
+        if (t.v === "abs" && args.length !== 1) throw new MetricLangError("FUNCTION", "abs takes one argument");
         return { k: "call", fn: t.v, args };
       }
       return { k: "col", name: t.v };
     }
-    throw new MetricLangError(`unexpected "${String(t.v)}" in expression`);
+    throw new MetricLangError("PARSE", `unexpected "${String(t.v)}" in expression`);
   }
 
   filter(): Filter {
@@ -207,7 +213,7 @@ class Parser {
       const n = this.next();
       if (n.t === "number") return -n.v;
     }
-    throw new MetricLangError("expected a literal (quoted text, number, true or false)");
+    throw new MetricLangError("PARSE", "expected a literal (quoted text, number, true or false)");
   }
   private operand(): Operand {
     const t = this.peek();
@@ -223,16 +229,16 @@ class Parser {
       this.next();
       const negated = this.isKw("NOT");
       if (negated) this.next();
-      if (!this.isKw("NULL")) throw new MetricLangError("expected NULL after IS");
+      if (!this.isKw("NULL")) throw new MetricLangError("PARSE", "expected NULL after IS");
       this.next();
-      if (left.k !== "col") throw new MetricLangError("IS NULL needs a column");
+      if (left.k !== "col") throw new MetricLangError("PARSE", "IS NULL needs a column");
       return { k: "null", col: left.name, negated };
     }
     const negatedIn = this.isKw("NOT");
     if (negatedIn) this.next();
     if (this.isKw("IN")) {
       this.next();
-      if (left.k !== "col") throw new MetricLangError("IN needs a column on the left");
+      if (left.k !== "col") throw new MetricLangError("PARSE", "IN needs a column on the left");
       this.expectOp("(");
       const values = [this.literal()];
       while (this.isOp(",")) {
@@ -242,12 +248,12 @@ class Parser {
       this.expectOp(")");
       return { k: "in", col: left.name, values, negated: negatedIn };
     }
-    if (negatedIn) throw new MetricLangError("expected IN after NOT");
+    if (negatedIn) throw new MetricLangError("PARSE", "expected IN after NOT");
     const t = this.next();
     if (t.t !== "op" || !["=", "<>", "<", "<=", ">", ">="].includes(t.v))
-      throw new MetricLangError("expected a comparison (=, <>, <, <=, >, >=, IN, IS NULL)");
+      throw new MetricLangError("PARSE", "expected a comparison (=, <>, <, <=, >, >=, IN, IS NULL)");
     const right = this.operand();
-    if (left.k !== "col" && right.k !== "col") throw new MetricLangError("a comparison needs a column");
+    if (left.k !== "col" && right.k !== "col") throw new MetricLangError("PARSE", "a comparison needs a column");
     return { k: "cmp", op: t.v as "=" | "<>" | "<" | "<=" | ">" | ">=", left, right };
   }
 }
@@ -255,14 +261,14 @@ class Parser {
 export function parseExpression(src: string): Expr {
   const p = new Parser(tokenize(src));
   const e = p.expr();
-  if (!p.done()) throw new MetricLangError(`unexpected text after the expression in "${src}"`);
+  if (!p.done()) throw new MetricLangError("PARSE", `unexpected text after the expression in "${src}"`);
   return e;
 }
 
 export function parseFilter(src: string): Filter {
   const p = new Parser(tokenize(src));
   const f = p.filter();
-  if (!p.done()) throw new MetricLangError(`unexpected text after the filter in "${src}"`);
+  if (!p.done()) throw new MetricLangError("PARSE", `unexpected text after the filter in "${src}"`);
   return f;
 }
 

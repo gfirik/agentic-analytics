@@ -126,10 +126,10 @@ describe("compiled metric SQL (hand-computed)", () => {
   });
 
   it("derived metrics combine other metrics per period", async () => {
-    // Jan: 10 − 20 = −10. Feb: refunds has no Feb row, so the difference is NULL (unknown, not guessed).
+    // Jan: 10 − 20 = −10. Feb: no refund rows, and sums are additive, so refunds are 0: 70 − 0 = 70.
     const rows = await run("net");
     expect(rows.find((r) => r.period === "2026-01")?.value).toBe(-10);
-    expect(rows.find((r) => r.period === "2026-02")?.value).toBeNull();
+    expect(rows.find((r) => r.period === "2026-02")?.value).toBe(70);
   });
 
   it("group by a dimension, extra filter, period range and quarter grain", async () => {

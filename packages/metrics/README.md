@@ -16,7 +16,11 @@ The metric layer: draft metric definitions (model, else deterministic fallbacks)
 | `buildDigest(summary)` | What a model sees: tables, columns, types and ≤ 5 samples per column. Customers, suppliers, people, emails and phones are masked. |
 | `describeMetric(def)` | "Revenue = sum of amount where status is not refunded, per month, in USD" |
 | `reviewMetrics(drafts, catalog, io?, { yes? })` | Accept, edit (YAML, re-validated) or drop each draft. `--yes` keeps new drafts as assumptions; confirmed ones stay confirmed. A final re-validation drops metrics whose inputs were dropped. |
-| `metricsYaml`, `parseMetricsYaml`, `saveMetricDefs` | `agentic-analytics.metrics.yaml` for reuse, and the `metric_defs` workspace table. |
+| `metricsYaml`, `parseMetricsYaml`, `saveMetricDefs` | `agentic-analytics.metrics.yaml` for reuse, and the `metric_defs` workspace table (YAML, SQL and its params, status). |
+| `fallbackMetrics(summary)` | The deterministic drafts on their own (spec §2.4). |
+| `loadCatalog(ws)` | Tables, typed columns and date columns of a workspace, as the metric layer sees them. |
+| `periodExpr(column, grain)` | Period key SQL at a grain (`%Y-%m`, ISO week `%G-W%V`, quarter, …). |
+| `MetricLangError`, `MetricCompileError` | Typed errors with a `code` (`TOKEN`/`PARSE`/`FUNCTION`; `UNKNOWN_METRIC`/`UNKNOWN_TABLE`/`UNKNOWN_COLUMN`/`NOT_NUMERIC`/`NO_TIME_COLUMN`/`UNSUPPORTED_TYPE`). |
 
 ## Example
 

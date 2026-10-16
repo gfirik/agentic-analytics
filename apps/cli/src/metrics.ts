@@ -17,7 +17,7 @@ import {
   validateMetrics,
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import { profileJob } from "@agentic-analytics/profile";
+import { periodOf, profileJob } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 
@@ -35,6 +35,8 @@ export interface MetricsDeps {
   readonly out: (line: string) => void;
   readonly io?: ReviewIO;
   readonly model?: ModelClient;
+  /** Why no model client could be built (e.g. an invalid model config), shown instead of "no model configured". */
+  readonly modelError?: string;
 }
 
 export interface MetricsOutcome {
@@ -63,7 +65,11 @@ export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDe
       source = "file" as const;
       out(`Loaded ${drafts.length} metric(s) from the metrics file.`);
     } else {
-      const draft = await draftMetrics(summary, catalog, { ...validateOptions, ...(deps.model ? { model: deps.model } : {}) });
+      const draft = await draftMetrics(summary, catalog, {
+        ...validateOptions,
+        ...(deps.model ? { model: deps.model } : {}),
+        ...(deps.modelError ? { noModelReason: `model config invalid (${deps.modelError})` } : {}),
+      });
       drafts = draft.validation.accepted;
       rejected = draft.validation.rejected;
       source = draft.source;
@@ -81,10 +87,12 @@ export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDe
     });
     for (const d of reviewed.dropped) out(`  dropped ${d.id}: ${d.reason}`);
 
+    // The period range at the job's grain, so values, wording ("per week") and the saved YAML agree.
+    const grain = summary.grain;
     const periods = summary.tables
-      .flatMap((t) => (t.date_first && t.date_last ? [t.date_first.slice(0, 7), t.date_last.slice(0, 7)] : []))
+      .flatMap((t) => (t.date_first && t.date_last ? [periodOf(t.date_first, grain), periodOf(t.date_last, grain)] : []))
       .sort();
-    const range = { from: periods[0] ?? "0000-01", to: periods[periods.length - 1] ?? "9999-12" };
+    const range = { from: periods[0] ?? "0000", to: periods[periods.length - 1] ?? "9999", grain };
     await saveMetricDefs(ws, reviewed.metrics, catalog, range);
 
     out("");

@@ -94,7 +94,9 @@ describe("workspace", () => {
       await a.run(sql`INSERT INTO entities VALUES ('E1', 'customer', 'Hotel Group')`);
       a.close();
       const b = await ws(path);
-      expect(await b.all(sql`SELECT version FROM schema_migrations`)).toEqual([{ version: 1 }]);
+      expect(await b.all(sql`SELECT version FROM schema_migrations ORDER BY version`)).toEqual(
+        MIGRATIONS.map((m) => ({ version: m.version })),
+      );
       expect((await b.one(sql`SELECT canonical_name AS n FROM entities`))?.n).toBe("Hotel Group");
     } finally {
       rmSync(dir, { recursive: true, force: true });
