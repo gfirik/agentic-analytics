@@ -60,6 +60,14 @@
         "yaml": "^2.9.1",
       },
     },
+    "fixtures": {
+      "name": "@agentic-analytics/fixtures",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
+        "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+      },
+    },
     "packages/agent": {
       "name": "@agentic-analytics/agent",
       "version": "0.0.0",
@@ -159,6 +167,8 @@
     "@agentic-analytics/docs": ["@agentic-analytics/docs@workspace:apps/docs"],
 
     "@agentic-analytics/eval-datasets": ["@agentic-analytics/eval-datasets@workspace:evals/datasets"],
+
+    "@agentic-analytics/fixtures": ["@agentic-analytics/fixtures@workspace:fixtures"],
 
     "@agentic-analytics/ingest": ["@agentic-analytics/ingest@workspace:packages/ingest"],
 

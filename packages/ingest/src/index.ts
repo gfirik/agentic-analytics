@@ -1,2 +1,10 @@
-// Public API of @agentic-analytics/ingest. Implemented in M2; see docs/specs/ingestion-and-profiling.md.
-export {};
+export { colLetter, rangeA1 } from "./a1.ts";
+export { delimitedToGrid, parseDelimited } from "./csv.ts";
+export { createDoclingClient, DOCLING_PAGE_BREAK, type DoclingClient } from "./docs/docling.ts";
+export { IngestError, withTimeout } from "./errors.ts";
+export { MAX_CELLS_PER_SHEET, readWorkbookGrids, serialToIso } from "./grid.ts";
+export { sha256Hex } from "./hash.ts";
+export { DEFAULT_LIMITS, type IngestLimits, type IngestOptions, ingest } from "./ingest.ts";
+export { type DetectedTable, detectTables, type Grid, isPeriodLabel } from "./regions.ts";
+export { delimiterOf, sniff } from "./sniff.ts";
+export type * from "./types.ts";
