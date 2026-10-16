@@ -16,7 +16,7 @@ Human gate values:
 | M2 Ingestion | DONE | no | [#4](https://github.com/gfirik/agentic-analytics/pull/4) | `bun run ingest fixtures/xlsx fixtures/csv fixtures/docs` | Intake, 16 xlsx + 2 csv fixtures matching hand-written expectations, PDF/DOCX/EML/MD/TXT sections; Docling real run DEFERRED |
 | M3 Workspace & profiling | DONE | no | [#5](https://github.com/gfirik/agentic-analytics/pull/5) | `bun run profile evals/datasets/coffee-roaster-v1/files --today 2026-07-01` | DuckDB workspace + migrations; normalization, profiling, rules, entities; typo, date ambiguity and Hotel Group link found |
 | M4 Metric layer | DONE | no | [#6](https://github.com/gfirik/agentic-analytics/pull/6) | `bun run aa metrics evals/datasets/coffee-roaster-v1/files --yes --currency USD --today 2026-07-01` | Metric language, validation with reasons, SQL compiler, drafting + fallback, `aa metrics` confirm flow; real-model drafting DEFERRED |
-| M5 Analysis library | IN_PROGRESS | no | | `bun run analyze evals/datasets/coffee-roaster-v1/files --today 2026-07-01 --currency USD` | Stats, baselines + noise band, 10 templates, contribution/PVM/ratemix (+Simpson guard)/diff, impact scenarios, ranking, fact book with SQL provenance; goldens −17.9%, 107.6%, 1.2→3.4 exact |
+| M5 Analysis library | DONE | no | [#7](https://github.com/gfirik/agentic-analytics/pull/7) | `bun run analyze evals/datasets/coffee-roaster-v1/files --today 2026-07-01 --currency USD` | Stats, baselines + noise band, 10 templates, contribution/PVM/ratemix (+Simpson guard)/diff, impact scenarios, ranking, fact book with SQL provenance; goldens −17.9%, 107.6%, 1.2→3.4 exact |
 | M6 Retrieval | TODO | no | | | |
 | M7 Agent | TODO | no | | | |
 | M8 Web lane | TODO | no | | | |
