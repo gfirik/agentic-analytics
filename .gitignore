@@ -13,3 +13,6 @@ evals/results/*.json
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/
+
+# Generated eval datasets: files are rebuilt from the seeded generator; answer keys are versioned
+evals/datasets/generated/*/files/
