@@ -53,4 +53,9 @@ export const MIGRATIONS: readonly Migration[] = [
       `CREATE TABLE events (seq BIGINT PRIMARY KEY, job_id VARCHAR NOT NULL, occurred_at TIMESTAMP NOT NULL, type VARCHAR NOT NULL, payload JSON)`,
     ],
   },
+  {
+    version: 2,
+    name: "metric_defs.params",
+    statements: ["ALTER TABLE metric_defs ADD COLUMN params JSON"],
+  },
 ];

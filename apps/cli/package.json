@@ -15,7 +15,10 @@
     "agentic-analytics": "./bin/aa.js"
   },
   "dependencies": {
+    "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/metrics": "workspace:*",
     "@agentic-analytics/models": "workspace:*",
+    "@agentic-analytics/profile": "workspace:*",
     "@agentic-analytics/schema": "workspace:*",
     "@agentic-analytics/store": "workspace:*",
     "citty": "^0.2.2",
