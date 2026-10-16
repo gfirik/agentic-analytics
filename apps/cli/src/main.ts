@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
-import { createModelClient, resolveModelConfig } from "@agentic-analytics/models";
+import { createModelClient, type ModelClient, resolveModelConfig } from "@agentic-analytics/models";
 import { duckdbVersion } from "@agentic-analytics/store";
 import { defineCommand, runMain } from "citty";
 import { parse } from "yaml";
@@ -77,7 +77,7 @@ const metrics = defineCommand({
   async run({ args }) {
     const paths = (args._ as string[]).flatMap(collect);
     if (!paths.length) throw new Error("give one or more files or folders: aa metrics <paths…>");
-    let model;
+    let model: ModelClient | undefined;
     try {
       model = createModelClient(resolveModelConfig(process.env, configFile()), { env: process.env });
     } catch {

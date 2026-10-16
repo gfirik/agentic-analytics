@@ -9,6 +9,7 @@ import {
   loadCatalog,
   metricsYaml,
   parseMetricsYaml,
+  type Rejected,
   type ReviewIO,
   reviewMetrics,
   runMetric,
@@ -17,6 +18,7 @@ import {
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
 import { profileJob } from "@agentic-analytics/profile";
+import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 
 export interface MetricsOptions {
@@ -50,9 +52,9 @@ export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDe
     const catalog = await loadCatalog(ws);
     const validateOptions = options.currency ? { defaultCurrency: options.currency } : {};
 
-    let drafts;
+    let drafts: MetricDef[];
     let source: MetricsOutcome["source"];
-    let rejected;
+    let rejected: Rejected[];
     if (options.metricsFile !== undefined) {
       const file = parseMetricsYaml(options.metricsFile);
       const v = validateMetrics(file.metrics, catalog, { ...validateOptions, keepStatus: true });
