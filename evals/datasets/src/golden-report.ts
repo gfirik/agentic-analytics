@@ -158,12 +158,26 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
       id: "refund_cost",
       label: "Refund cost",
       type: "derived",
-      expression: "refund_rate / 100 * revenue",
+      expression: "refund_rate * revenue", // refund_rate is the raw fraction column (0.034), as in the sql
       unit: "currency",
       currency: CURRENCY,
       status: "assumed",
       plain: "Refund cost = refund rate × revenue for the month, in USD (derived from two assumed/confirmed metrics)",
       sql: "SELECT sum(refund_rate * revenue) AS value FROM t_monthly WHERE month = $month",
+    },
+    {
+      id: "packaging_cost",
+      label: "Packaging cost",
+      type: "sum",
+      table: "t_costs",
+      expression: "packaging",
+      time_column: "month",
+      unit: "currency",
+      currency: CURRENCY,
+      dimensions: [],
+      status: "assumed",
+      plain: "Packaging cost = the monthly Packaging column of the cost table, in USD",
+      sql: "SELECT sum(packaging) AS value FROM t_costs WHERE month = $month",
     },
   ];
 
@@ -306,6 +320,7 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
   const others = COSTS.map((c, i) => ({ month: c.month, row: i + 2 })).filter((c) => c.month !== "2026-02");
   const packFeb = add({
     label: "packaging_cost_2026-02",
+    metric_id: "packaging_cost",
     value: COSTS.find((c) => c.month === "2026-02")?.packaging ?? Number.NaN,
     unit: "currency",
     currency: CURRENCY,
@@ -314,6 +329,7 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
   });
   const packMedian = add({
     label: "packaging_cost_median_excluding_2026-02",
+    metric_id: "packaging_cost",
     value: median(COSTS.filter((c) => c.month !== "2026-02").map((c) => c.packaging)),
     unit: "currency",
     currency: CURRENCY,
@@ -657,7 +673,11 @@ function metricDef(
 
 function countCitations(r: Report): number {
   const claims = [...r.summary.bullets, ...r.findings.flatMap((f) => f.claims), ...r.recommendations.flatMap((x) => x.rationale)];
-  return claims.reduce((n, c) => n + c.citations.length, 0) + r.facts.reduce((n, f) => n + f.citations.length, 0);
+  return (
+    claims.reduce((n, c) => n + c.citations.length, 0) +
+    r.facts.reduce((n, f) => n + f.citations.length, 0) +
+    r.data_quality.reduce((n, q) => n + q.citations.length, 0)
+  );
 }
 
 function median(xs: readonly number[]): number {

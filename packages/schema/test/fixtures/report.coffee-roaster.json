@@ -181,12 +181,26 @@
       "id": "refund_cost",
       "label": "Refund cost",
       "type": "derived",
-      "expression": "refund_rate / 100 * revenue",
+      "expression": "refund_rate * revenue",
       "unit": "currency",
       "currency": "USD",
       "status": "assumed",
       "plain": "Refund cost = refund rate × revenue for the month, in USD (derived from two assumed/confirmed metrics)",
       "sql": "SELECT sum(refund_rate * revenue) AS value FROM t_monthly WHERE month = $month"
+    },
+    {
+      "id": "packaging_cost",
+      "label": "Packaging cost",
+      "type": "sum",
+      "table": "t_costs",
+      "expression": "packaging",
+      "time_column": "month",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": [],
+      "status": "assumed",
+      "plain": "Packaging cost = the monthly Packaging column of the cost table, in USD",
+      "sql": "SELECT sum(packaging) AS value FROM t_costs WHERE month = $month"
     }
   ],
   "assumptions": [
@@ -1331,6 +1345,7 @@
     {
       "id": "N33",
       "label": "packaging_cost_2026-02",
+      "metric_id": "packaging_cost",
       "value": 1240000,
       "unit": "currency",
       "currency": "USD",
@@ -1357,6 +1372,7 @@
     {
       "id": "N34",
       "label": "packaging_cost_median_excluding_2026-02",
+      "metric_id": "packaging_cost",
       "value": 1260,
       "unit": "currency",
       "currency": "USD",
@@ -1408,10 +1424,10 @@
   "verification": {
     "numbers_checked": 35,
     "numbers_mismatched": 0,
-    "rederived_metrics": 5,
+    "rederived_metrics": 6,
     "rederivation_mismatches": 0,
     "definition_violations": 0,
-    "citations_checked": 31,
+    "citations_checked": 33,
     "citations_unsupported": 0,
     "claims_dropped": [
       {
