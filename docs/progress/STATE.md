@@ -21,7 +21,7 @@ Human gate values:
 | M7 Agent | DONE | no | [#9](https://github.com/gfirik/agentic-analytics/pull/9) | `bun run --filter @agentic-analytics/core job:coffee -- --dir data/jobs/coffee-demo` (scripted FakeModel); `bun run aa run <paths> --dir <job>` / `--resume <job>` | Checkpointed pipeline + resume, event bus, quarantined extractor, fixed tools with budgets, EXPLAIN/DECIDE with code-written observed claims and code-computed impact, placeholders-only draft; real-model run DEFERRED |
 | M8 Web lane | DONE | no | [#10](https://github.com/gfirik/agentic-analytics/pull/10) | `SEARXNG_ENGINES=yahoo bun run --filter @agentic-analytics/web web:search -- "<query>" --private "<names>"`; `bun run aa run <paths> --web` | Query sanitizer (normalised matching), connect-time SSRF blocking, safe fetcher, readable text, SearXNG provider, search_web + compare_benchmark (external_quote facts → benchmark_gap.v1), external sources in the draft; real SearXNG verified; real-LLM web EXPLAIN DEFERRED |
 | M9 Verifier | DONE | no | [#11](https://github.com/gfirik/agentic-analytics/pull/11) | `bunx vitest run test/verify.test.ts test/injection.test.ts` (in packages/core); `bun run aa run <paths> --dir <job>` writes `report.json` after VERIFY | V1–V8 with drop/rewrite/cascade policy, V2 registry + V3 re-derivation (diagnostics.json on mismatch), table/document/web injection screen + quarantine, 23-fixture injection suite at 100%; real-model judge DEFERRED |
-| M10 Doors | TODO | no | | | |
+| M10 Doors | IN_PROGRESS | no | | | |
 | M11 Evals at scale | TODO | notify | | | |
 | M12 Docs site & launch | TODO | yes | | | |
 
