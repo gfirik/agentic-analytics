@@ -5,7 +5,7 @@ import {
   dateCoverage,
   duplicateRows,
   madOutliers,
-  missingMonths,
+  missingPeriods,
   numericCenter,
   tableCounts,
   topValues,
@@ -103,7 +103,7 @@ export async function profileTable(ws: Workspace, t: NormalizedTable, periodColu
     if (cov?.first && cov.last) {
       // The data's own grain: one date per month on the 1st → month; dates all on one weekday → week; else day.
       const grain = cov.days === cov.months && cov.not_first_of_month === 0 ? "month" : cov.days > 1 && cov.weekdays === 1 ? "week" : "day";
-      const missing = (await ws.all<{ p: string }>(missingMonths(name, periodColumn, cov.first, cov.last))).map((r) => r.p);
+      const missing = (await ws.all<{ p: string }>(missingPeriods(name, periodColumn, cov.first, cov.last, grain))).map((r) => r.p);
       coverage = { date_column: periodColumn, date_first: cov.first, date_last: cov.last, grain, missing_periods: missing };
     }
   }

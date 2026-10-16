@@ -2,7 +2,7 @@
 // columns and files. Exact match after normalization, else Jaro–Winkler ≥ 0.92 (DuckDB) plus token overlap.
 import { type NormalizedTable, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { transliterate } from "./names.ts";
-import { distinctValues, similarPairs } from "./profile.sql.ts";
+import { distinctValues, similarity as similarityOf, similarPairs } from "./profile.sql.ts";
 
 export type EntityKind = "customer" | "supplier" | "product";
 
@@ -64,11 +64,36 @@ export function normalizeEntity(raw: string): string {
     .trim();
 }
 
-function tokenOverlap(a: string, b: string): number {
-  const A = new Set(a.split(" "));
-  const B = new Set(b.split(" "));
-  const inter = [...A].filter((x) => B.has(x)).length;
-  return inter / new Set([...A, ...B]).size;
+/** One edit (insert, delete or substitute) apart: "bodrum" ~ "bodrun". */
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+/** Share of tokens the two names have in common; tokens of 4+ letters may differ by one typo. */
+export function tokenOverlap(a: string, b: string): number {
+  const A = [...new Set(a.split(" "))];
+  const B = [...new Set(b.split(" "))];
+  const same = (x: string, y: string) => x === y || (x.length >= 4 && y.length >= 4 && !/\d/.test(x + y) && oneEditApart(x, y));
+  const shared = A.filter((x) => B.some((y) => same(x, y))).length;
+  return shared / (A.length + B.length - shared);
 }
 
 /** Tokens with digits (sizes, models, codes: "1kg", "250g", "x10") must match exactly: they name different things. */
@@ -126,10 +151,8 @@ export async function matchEntities(ws: Workspace, tables: readonly NormalizedTa
       parent.set(x, root);
       return root;
     };
-    const similarity = new Map<string, number>();
     for (const pair of await ws.all<{ a: string; b: string; s: number }>(similarPairs(names, MATCH_THRESHOLD))) {
       if (tokenOverlap(pair.a, pair.b) < 0.5 || !sameNumbers(pair.a, pair.b)) continue;
-      similarity.set(`${pair.a}\u0000${pair.b}`, pair.s);
       parent.set(find(pair.a), find(pair.b));
     }
     const groups = new Map<string, Raw[]>();
@@ -143,10 +166,17 @@ export async function matchEntities(ws: Workspace, tables: readonly NormalizedTa
         [...totals.entries()].sort((a, b) => b[1] - a[1] || b[0].length - a[0].length || a[0].localeCompare(b[0]))[0]?.[0] ?? "";
       const canonicalNorm = normalizeEntity(canonical);
       const id = `E${entities.length + 1}`;
-      const links = members.map((m): EntityLink => {
-        const key = [m.normalized, canonicalNorm].sort().join("\u0000");
-        const confidence = m.raw === canonical ? 1 : m.normalized === canonicalNorm ? 0.99 : (similarity.get(key) ?? MATCH_THRESHOLD);
-        return {
+      // Confidence: 1 for the canonical spelling, 0.99 for the same normalized name, otherwise the Jaro–Winkler
+      // similarity to the canonical name, computed directly (not inherited through other members).
+      const links: EntityLink[] = [];
+      for (const m of members) {
+        const confidence =
+          m.raw === canonical
+            ? 1
+            : m.normalized === canonicalNorm
+              ? 0.99
+              : ((await ws.one<{ s: number }>(similarityOf(m.normalized, canonicalNorm)))?.s ?? 0);
+        links.push({
           entity_id: id,
           source_id: m.source_id,
           column: m.column,
@@ -154,8 +184,8 @@ export async function matchEntities(ws: Workspace, tables: readonly NormalizedTa
           normalized: m.normalized,
           confidence,
           row_count: m.n,
-        };
-      });
+        });
+      }
       entities.push({ id, kind, canonical_name: canonical, links });
     }
   }

@@ -76,12 +76,14 @@ describe("column profiling (hand-computed)", () => {
     };
     const ws = await loaded(t);
     const p = await profileTable(ws, t, "day");
-    // one repeated row; months Jan, Mar, Apr present → Feb missing; days ≠ month starts → daily grain
+    // one repeated row; dates are not month starts → daily grain. Jan 5 … Apr 1 inclusive is
+    // 27 + 28 + 31 + 1 = 87 days; 3 distinct days are present, so 84 are missing, starting Jan 6.
+    expect(p.missing_periods).toHaveLength(84);
+    expect(p.missing_periods.slice(0, 2)).toEqual(["2026-01-06", "2026-01-07"]);
     expect(p).toMatchObject({
       duplicate_rows: 1,
       date_first: "2026-01-05",
       date_last: "2026-04-01",
-      missing_periods: ["2026-02"],
       grain: "day",
     });
   });

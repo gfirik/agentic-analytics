@@ -1,7 +1,7 @@
 // Implausibility rules (ingestion spec §5): each finding becomes a quality issue with cell provenance.
 import type { NormalizedTable, Workspace } from "@agentic-analytics/store";
 import { tableName } from "@agentic-analytics/store";
-import { aboveOneRows, farFromMedian, futureDateRows, negativeRows, powerOfTenJumps } from "./profile.sql.ts";
+import { aboveHundredRows, aboveOneRows, farFromMedian, futureDateRows, negativeRows, powerOfTenJumps } from "./profile.sql.ts";
 import type { TableProfile } from "./stats.ts";
 
 export interface RuleIssue {
@@ -16,6 +16,7 @@ export interface RuleIssue {
 }
 
 const COUNT_NAME = /qty|quantity|count|units|pcs|pieces|orders|кол|шт|количество|soni|dona/i;
+const RATE_NAME = /rate|ratio|share|percent|pct|%|доля|ставка|процент|ulush|foiz/i;
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
 const FACTOR = { 1: "10", 2: "100", 3: "1,000" } as const;
 
@@ -64,8 +65,10 @@ export async function runRules(ws: Workspace, t: NormalizedTable, profile: Table
         });
       }
     }
-    if (c.type === "percent") {
-      for (const r of await ws.all<{ _row: number }>(aboveOneRows(name, c.name))) {
+    // Percent columns hold fractions (above 1 = above 100%); rate-named plain numbers hold points (above 100).
+    const rateNamed = (c.type === "decimal" || c.type === "integer") && RATE_NAME.test(c.label);
+    if (c.type === "percent" || rateNamed) {
+      for (const r of await ws.all<{ _row: number }>(c.type === "percent" ? aboveOneRows(name, c.name) : aboveHundredRows(name, c.name))) {
         issues.push({
           ...base,
           kind: "rate_above_100",

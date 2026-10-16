@@ -28,7 +28,7 @@ export interface NormalizeResult {
 
 const MIN_SHARE = 0.9;
 const DATE_HEADER = /date|month|period|day|time|дата|месяц|период|день|sana|oy\b|kun/i;
-const MONEY_HEADER = /amount|revenue|sales|price|cost|sum\b|total|turnover|выручка|сумма|цена|стоимость|оборот|tushum|narx|summa/i;
+const MONEY_HEADER = /amount|revenue|sales|price|cost|sum\b|turnover|выручка|сумма|цена|стоимость|оборот|tushum|narx|summa/i;
 const ID_HEADER = /(^|[\s_/(])(id|code|sku|№|no\.?|number|номер|код|артикул|raqam)($|[\s_/)])/i;
 const NOTE_HEADER = /note|comment|description|remark|memo|details|примечание|комментарий|описание|izoh/i;
 const TRUE_WORDS = new Set(["true", "yes", "y", "да", "ha", "1"]);
@@ -117,7 +117,7 @@ export function inferColumn(label: string, cells: readonly (Cell | undefined)[])
           {
             kind: "mixed_currency",
             severity: "high",
-            message: `column mixes currencies (${[...currencies].sort().join(", ")}); they are kept separate and never converted`,
+            message: `column mixes currencies (${[...currencies].sort().join(", ")}); each row's currency is kept in a companion _currency column and amounts are never converted or summed across currencies`,
             details: { currencies: [...currencies].sort() },
           },
         ],
@@ -262,6 +262,29 @@ export function normalizeTable(t: TableRegion, grain: Grain = "month"): Normaliz
     const p = periodCol ? values[periodCol.i] : null;
     return { row: r.row, is_total: r.is_total, period: typeof p === "string" ? periodOf(p, grain) : null, values };
   });
+
+  // Mixed-currency columns get a companion column with each row's currency (spec §6: kept separate, flagged,
+  // never converted), so later SQL can group or filter by currency instead of adding USD to UZS.
+  const mixed = inferred.map((inf, i) => (inf.issues.some((x) => x.kind === "mixed_currency") ? i : -1)).filter((i) => i >= 0);
+  const taken = new Set(columns.map((c) => c.name));
+  for (const i of mixed) {
+    const col = columns[i];
+    if (!col) continue;
+    let name = `${col.name}_currency`;
+    for (let k = 2; taken.has(name); k++) name = `${col.name}_currency_${k}`;
+    taken.add(name);
+    columns.push({ name, label: `${col.label} (currency)`, letter: col.letter, type: "category" });
+    rows.forEach((r, j) => {
+      const cell = t.rows[j]?.cells[i];
+      const code =
+        cell?.t === "s"
+          ? parseNumber(String(cell.v), inferred[i]?.decimal ?? ".")?.currency
+          : typeof cell?.z === "string"
+            ? detectCurrency(cell.z)
+            : undefined;
+      (r.values as NormalizedValue[]).push(code ?? null);
+    });
+  }
   for (const [i, bad] of unparseable) {
     const col = columns[i];
     if (!col) continue;

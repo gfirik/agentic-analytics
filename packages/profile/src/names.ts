@@ -67,11 +67,12 @@ export function snakeCase(label: string): string {
 
 /** snake_case names made unique within a table, never colliding with the reserved `_row`/`_is_total`/`_period`. */
 export function columnNames(labels: readonly string[]): string[] {
-  const seen = new Map<string, number>();
+  const taken = new Set<string>();
   return labels.map((l) => {
     const base = snakeCase(l);
-    const n = (seen.get(base) ?? 0) + 1;
-    seen.set(base, n);
-    return n === 1 ? base : `${base}_${n}`;
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
+    taken.add(name);
+    return name;
   });
 }

@@ -18,6 +18,7 @@ export {
   matchEntities,
   normalizeEntity,
   sameNumbers,
+  tokenOverlap,
 } from "./entities.ts";
 export { inRange, type ProfileOptions, type ProfileSummary, profileJob } from "./job.ts";
 export { columnNames, snakeCase, transliterate } from "./names.ts";

@@ -37,11 +37,30 @@ export const dateCoverage = (table: string, column: string): Sql =>
       count(DISTINCT dayofweek(${ident(column)})) AS weekdays
       FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL`;
 
-/** Months between the first and last date with no rows at all. */
-export const missingMonths = (table: string, column: string, first: string, last: string): Sql =>
-  sql`WITH present AS (SELECT DISTINCT strftime(${ident(column)}, '%Y-%m') AS p FROM ${ident(table)} WHERE ${ident(column)} IS NOT NULL),
-      expected AS (SELECT strftime(m, '%Y-%m') AS p FROM generate_series(date_trunc('month', ${first}::DATE), date_trunc('month', ${last}::DATE), INTERVAL 1 MONTH) AS g(m))
-      SELECT p FROM expected WHERE p NOT IN (SELECT p FROM present) ORDER BY p`;
+const STEP = { day: "1 DAY", week: "1 WEEK", month: "1 MONTH" } as const;
+const FORMAT = { day: "%Y-%m-%d", week: "%Y-%m-%d", month: "%Y-%m" } as const;
+
+/**
+ * Periods at the data's grain (spec §5) between the first and last date with no detail rows at all, capped.
+ * Weeks are ISO weeks named by their Monday. Grain names come from a fixed set, never from input.
+ */
+export const missingPeriods = (
+  table: string,
+  column: string,
+  first: string,
+  last: string,
+  grain: "day" | "week" | "month",
+  limit = 500,
+): Sql => {
+  const unit = { text: `'${grain}'`, params: [] };
+  const step = { text: `INTERVAL ${STEP[grain]}`, params: [] };
+  const format = { text: `'${FORMAT[grain]}'`, params: [] };
+  return sql`WITH present AS (SELECT DISTINCT strftime(date_trunc(${fragment(unit)}, ${ident(column)}), ${fragment(format)}) AS p FROM ${ident(table)}
+      WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL),
+    expected AS (SELECT strftime(g, ${fragment(format)}) AS p
+      FROM generate_series(date_trunc(${fragment(unit)}, ${first}::DATE), date_trunc(${fragment(unit)}, ${last}::DATE), ${fragment(step)}) AS s(g))
+    SELECT p FROM expected WHERE p NOT IN (SELECT p FROM present) ORDER BY p LIMIT ${limit}`;
+};
 
 /** Implausibility: values within ±0.15 of a power of ten (10, 100, 1000) times the column median. */
 export const powerOfTenJumps = (table: string, column: string, median: number): Sql =>
@@ -64,6 +83,12 @@ export const aboveOneRows = (table: string, column: string): Sql =>
 
 export const futureDateRows = (table: string, column: string, today: string): Sql =>
   sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)}::DATE > ${today}::DATE ORDER BY _row`;
+
+export const similarity = (a: string, b: string): Sql => sql`SELECT jaro_winkler_similarity(${a}, ${b}) AS s`;
+
+/** Rate-named plain-number columns hold percentage points, so above 100 is implausible. */
+export const aboveHundredRows = (table: string, column: string): Sql =>
+  sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} > 100 ORDER BY _row`;
 
 export const distinctValues = (table: string, column: string): Sql =>
   sql`SELECT ${ident(column)}::VARCHAR AS raw, count(*) AS n FROM ${ident(table)}
