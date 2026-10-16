@@ -12,7 +12,8 @@ Every document, email, spreadsheet cell and web page is **untrusted text**. A li
 - **Numbers don't come from text.** Facts come from SQL; a document can change what is *explained*, never a number.
 - **No free code execution.** The planner can only call fixed tools. There is no eval, no generated code, no shell.
 - **Outbound privacy.** Web queries are sanitized of your names and numbers; the fetcher blocks private and metadata addresses.
-- **The doors.** The API listens on localhost and refuses other `Host`/`Origin` values (a DNS-rebinding guard); `API_TOKEN` adds bearer auth; uploads keep base names only.
+- **The doors.** The API listens on localhost and refuses other `Host`/`Origin` values (a DNS-rebinding guard); `API_TOKEN` adds bearer auth, and `aa serve` refuses a non-loopback address without it. Without the token, health shows only that the engine is up. MCP over HTTP reads local paths only inside `AA_MCP_ROOTS`. Unexpected errors return a generic message; uploads keep base names only. The optional Docker services (SearXNG, docling, Ollama) are published on 127.0.0.1 only.
+- **Keys stay out of logs.** Provider errors are masked before they reach a log, a job status or a chat: the configured key values, whatever their format, and key-like prefixes (`gsk_`, `sk-`, `AIza`, bearer tokens).
 
 An **injection suite** of 23 fixtures (cells in three languages, CSV formulas, PDF including white-on-white text, Word with zero-width characters, emails, Markdown comments, web pages with hidden text) runs in CI: every fixture must leave the facts unchanged, never reach any model prompt, be flagged, and leak nothing in a search query.
 

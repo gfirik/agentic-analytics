@@ -19,7 +19,7 @@ import {
   resolveModelConfig,
 } from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
-import { startServer } from "@agentic-analytics/server";
+import { ServeError, startServer } from "@agentic-analytics/server";
 import { duckdbVersion } from "@agentic-analytics/store";
 import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
@@ -289,7 +289,16 @@ const serveCmd = defineCommand({
       }),
       viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
       version: ENGINE_VERSION,
+    }).catch((err: unknown) => {
+      // A refused network bind is a configuration message, not a crash.
+      if (err instanceof ServeError) {
+        process.stderr.write(`${err.message}\n`);
+        process.exitCode = 1;
+        return undefined;
+      }
+      throw err;
     });
+    if (!s) return;
     print(`agentic-analytics API on ${s.url} (viewer at /, OpenAPI at /openapi.json, MCP at /mcp)`);
   },
 });

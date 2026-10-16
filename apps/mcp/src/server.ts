@@ -26,6 +26,17 @@ export class PathNotAllowedError extends Error {
   readonly code = "PATH_NOT_ALLOWED";
 }
 
+/** The configured roots that exist, by real path; a missing root is skipped (it allows nothing) rather than failing. */
+function realRoots(roots: readonly string[]): string[] {
+  return roots.flatMap((r) => {
+    try {
+      return [realpathSync(resolve(r))];
+    } catch {
+      return [];
+    }
+  });
+}
+
 /** The real path of `p` when it lies inside one of `roots` (after resolving symlinks), else a PathNotAllowedError. */
 export function allowedPath(p: string, roots: "any" | readonly string[]): string {
   if (roots === "any") return resolve(p);
@@ -37,10 +48,7 @@ export function allowedPath(p: string, roots: "any" | readonly string[]): string
   } catch {
     throw new PathNotAllowedError("path not found or not allowed");
   }
-  const inside = roots.some((r) => {
-    const root = realpathSync(resolve(r));
-    return real === root || real.startsWith(root.endsWith(sep) ? root : `${root}${sep}`);
-  });
+  const inside = realRoots(roots).some((root) => real === root || real.startsWith(root.endsWith(sep) ? root : `${root}${sep}`));
   if (!inside) throw new PathNotAllowedError("path not found or not allowed");
   return real;
 }

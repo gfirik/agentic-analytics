@@ -29,8 +29,8 @@ Errors are `{ error: { code, message } }`: 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 4
 
 ## Public API
 
-- `createApp(manager, options)`: the Hono app (`token`, `allowedHosts`, `health`, `mcp`, `viewerDir`, `maxUpload`, `today`, `onError`); `startServer(manager, { port, hostname, allowNoAuth, ... })`.
-- `startServer(manager, options & { port, hostname })`: serves it on Node.
+- `createApp(manager, options)`: the Hono app (`token`, `allowedHosts`, `health`, `mcp`, `viewerDir`, `maxUpload`, `today`, `onError`).
+- `startServer(manager, options & { port, hostname, allowNoAuth })`: serves it on Node; rejects with `ServeError` (`NO_AUTH_ON_NETWORK`) for a non-loopback `hostname` without a token unless `allowNoAuth`. `isLoopback(hostname)` is the check.
 
 ## Example
 

@@ -96,6 +96,11 @@ export function createBot(token: string, api: ApiClient, o: BotOptions = {}): Bo
       if (ctx.chat) await ctx.reply(`This bot is private. Its owner can allow chat ${ctx.chat.id} in TELEGRAM_ALLOWED_CHATS.`);
     });
   }
+  // A failing update (a file Telegram won't serve, a network error) must not stop polling for everyone else.
+  bot.catch((err) => {
+    o.onError?.(err.error);
+    void err.ctx.reply("Something went wrong (details are in the bot's log).").catch(() => undefined);
+  });
   bot.command(["start", "help"], (ctx) => ctx.reply(HELP));
   bot.command("analyze", (ctx) => run(ctx, ctx.match.trim() || undefined));
   bot.on("message:document", async (ctx) => {
