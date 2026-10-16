@@ -31,6 +31,7 @@
     "readme:assets": "tsx scripts/readme-assets/assets.ts --write",
     "readme:check": "tsx scripts/readme-assets/assets.ts --check",
     "readme:check:browser": "playwright test -c scripts/readme-assets/playwright.config.ts",
+    "readme:pipeline": "tsx apps/docs/scripts/pipeline-data.ts --write && node --import tsx scripts/readme-assets/pipeline-gif.ts",
     "prompts:check": "tsx scripts/prompts-gen.ts --check",
     "prompts:write": "tsx scripts/prompts-gen.ts --write"
   },

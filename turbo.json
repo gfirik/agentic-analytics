@@ -10,5 +10,5 @@
       "outputs": ["dist/**"]
     }
   },
-  "globalEnv": ["PW_CHANNEL"]
+  "globalEnv": ["PW_CHANNEL", "AA_FRAMES_DIR"]
 }

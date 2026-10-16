@@ -42,6 +42,7 @@ docker compose --profile docling up -d   # docling-serve on :5001
 | `bun run eval:smoke` | end-to-end smoke suite with FakeModel |
 | `bun run eval:full --model <profile>` | full eval with a real model (manual) |
 | `bun run docs:dev` | docs site locally (from M12) |
+| `bun run readme:pipeline` | regenerate the README pipeline GIFs: rerun the engine into `docs/assets/readme/pipeline.json`, then record light/dark GIFs and PNGs from the shared scene. Needs Chrome (`PW_CHANNEL=chrome`, or `bunx playwright install chromium`) and `ffmpeg` on PATH; the frame PNGs (a few hundred MB) go to `AA_FRAMES_DIR` (default: the system temp dir; set it outside a small `/tmp`). Then `bun run readme:assets` and `bun run readme:check` |
 
 ## 3. Git workflow
 
