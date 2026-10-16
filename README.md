@@ -60,6 +60,27 @@ Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/qui
 
 ## How it works
 
+<!-- diagram:pipeline-gif:start -->
+<picture>
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/readme/pipeline-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/readme/pipeline-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/pipeline-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/pipeline-light.gif">
+  <img alt="Animated pipeline on examples/coffee-roaster (a real engine run, scripted planner, no LLM; its stages follow the run's 31-event log): email-0412.eml, ops-notes.docx, price-list.pdf, sales-2026.xlsx flow in; profiling finds 3 tables and 9 document sections; the Revenue metric is defined in plain words; DuckDB SQL computes Revenue $44,100 in 2026-03 and $36,200 in 2026-04, −17.9% (fact N30); the driver is wholesale (−$8,500, 108% of the drop); email-0412.eml from Purchasing, Hotel Group is cited: “After the new price list we are pausing our standing order while we compare suppliers.”; a web benchmark is cited and labelled External; the verifier runs V1–V8 and recomputes 122 numbers with 0 mismatches; the report's top-ranked action: Offer wholesale accounts a volume-tier discount to win back paused standing orders (+$3,995 to +$7,191, next quarter)." src="docs/assets/readme/pipeline-light.png" width="100%">
+</picture>
+
+<sub>One real engine run on `examples/coffee-roaster` with the scripted planner (no LLM) and an offline web fixture: every number on screen comes from that run: facts are shown with their ids, counts come from the report and the verifier's check table, and the stages follow its event log. Recorded by `scripts/readme-assets/pipeline-gif.ts` from the same animation as the docs site.</sub>
+<!-- diagram:pipeline-gif:end -->
+
+1. **Ingest and profile.** Tables are detected inside messy spreadsheets: merged headers, several tables on one sheet. Documents are parsed into sections. Data-quality problems become findings of their own.
+2. **Metric layer.** Definitions are drafted (what "revenue" means, the grain, the currency, the filters), shown in plain words, and confirmed or kept as flagged assumptions.
+3. **Analyze.** SQL insight templates find the changes. Decompositions (contribution, price–volume–mix, rate vs mix) split each change into drivers.
+4. **Explain.** Drivers are matched to events quoted from your documents and to labelled outside benchmarks. Each "why" is graded: observed, correlated or document-supported.
+5. **Decide.** Recommendations cite verified findings and carry an impact range computed in code, a confidence level and a dated check.
+6. **Verify.** Every number is recomputed, headline metrics are re-derived another way, and every citation is checked. Anything that fails is dropped or downgraded before the report ships.
+
+<details><summary>The packages</summary>
+
 <!-- diagram:architecture:start -->
 ```mermaid
 flowchart TB
@@ -96,12 +117,7 @@ flowchart TB
 ```
 <!-- diagram:architecture:end -->
 
-1. **Ingest and profile.** Tables are detected inside messy spreadsheets: merged headers, several tables on one sheet. Documents are parsed into sections. Data-quality problems become findings of their own.
-2. **Metric layer.** Definitions are drafted (what "revenue" means, the grain, the currency, the filters), shown in plain words, and confirmed or kept as flagged assumptions.
-3. **Analyze.** SQL insight templates find the changes. Decompositions (contribution, price–volume–mix, rate vs mix) split each change into drivers.
-4. **Explain.** Drivers are matched to events quoted from your documents and to labelled outside benchmarks. Each "why" is graded: observed, correlated or document-supported.
-5. **Decide.** Recommendations cite verified findings and carry an impact range computed in code, a confidence level and a dated check.
-6. **Verify.** Every number is recomputed, headline metrics are re-derived another way, and every citation is checked. Anything that fails is dropped or downgraded before the report ships.
+</details>
 
 <details><summary>The pipeline, stage by stage</summary>
 

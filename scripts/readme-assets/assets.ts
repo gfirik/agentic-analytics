@@ -1,10 +1,12 @@
 // README visuals (docs/DOCS-SITE.md §3): every asset is generated here, so none can drift from the product.
 //   bun run readme:assets   → write the hero SVGs and the generated blocks of README.md and docs/ARCHITECTURE.md
-//   bun run readme:check    → fail on drift, on hero rule violations, and on demo GIF limits (inside `bun run check`)
+//   bun run readme:check    → fail on drift, on hero rule violations, and on the demo and pipeline GIF limits
+//                             (inside `bun run check`)
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 import { DARK, heroSvg, LIGHT } from "./hero.ts";
+import { pipelineInputsHash, pipelinePicture, pipelineProblems, readPipelineData } from "./pipeline.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 export const DOCS_URL = "https://gfirik.github.io/agentic-analytics/";
@@ -133,6 +135,7 @@ export function expected(): Map<string, string> {
   out.set("docs/assets/readme/hero-light.svg", heroSvg(LIGHT, "light"));
   out.set("docs/assets/readme/hero-dark.svg", heroSvg(DARK, "dark"));
   let readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  readme = inject(readme, "diagram:pipeline-gif", pipelinePicture(readPipelineData()));
   readme = inject(readme, "diagram:architecture", mermaid("architecture.mmd"));
   readme = inject(readme, "diagram:pipeline", mermaid("pipeline.mmd"));
   readme = inject(readme, "table:problems", problemsTable());
@@ -216,6 +219,19 @@ function check(): string[] {
     const s = gifSeconds(readFileSync(gif));
     if (s > 30) problems.push(`demo.gif lasts ${s.toFixed(1)} s (at most 30)`);
   }
+  const asset = (f: string) => {
+    const path = join(ROOT, "docs/assets/readme", f);
+    return existsSync(path) ? new Uint8Array(readFileSync(path)) : undefined;
+  };
+  const manifest = asset("pipeline-gif.json");
+  for (const p of pipelineProblems({
+    manifest: manifest ? (JSON.parse(Buffer.from(manifest).toString("utf8")) as { inputs: string }) : undefined,
+    inputs: pipelineInputsHash(),
+    gifs: { "pipeline-light.gif": asset("pipeline-light.gif"), "pipeline-dark.gif": asset("pipeline-dark.gif") },
+    pngs: { "pipeline-light.png": asset("pipeline-light.png"), "pipeline-dark.png": asset("pipeline-dark.png") },
+    seconds: gifSeconds,
+  }))
+    problems.push(p);
   for (const p of tapeProblems(readFileSync(join(ROOT, "scripts/readme-assets/demo.tape"), "utf8"))) problems.push(`demo.tape: ${p}`);
   return problems;
 }
