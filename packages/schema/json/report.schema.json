@@ -1,0 +1,1287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "agentic-analytics.report/v1"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "engine": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "planner",
+                  "extractor",
+                  "judge",
+                  "embedder",
+                  "reranker"
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "provider",
+              "model"
+            ]
+          }
+        }
+      },
+      "required": [
+        "version",
+        "models"
+      ]
+    },
+    "period": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+        },
+        "grain": {
+          "type": "string",
+          "enum": [
+            "day",
+            "week",
+            "month",
+            "quarter",
+            "year"
+          ]
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "grain"
+      ]
+    },
+    "objective": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "user",
+            "default"
+          ]
+        }
+      },
+      "required": [
+        "text",
+        "source"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "table",
+              "document",
+              "email",
+              "web"
+            ]
+          },
+          "external": {
+            "type": "boolean"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "sheet": {
+                    "type": "string"
+                  },
+                  "range": {
+                    "type": "string",
+                    "pattern": "^[A-Z]+\\d+(:[A-Z]+\\d+)?$"
+                  },
+                  "table_id": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "range",
+                  "table_id"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "page": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "section": {
+                    "type": "string"
+                  },
+                  "char_start": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "char_end": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "char_start",
+                  "char_end"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "fetched_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "url",
+                  "title",
+                  "fetched_at"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "file",
+          "sha256",
+          "kind",
+          "external",
+          "locator"
+        ]
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "sum",
+              "count",
+              "count_distinct",
+              "avg",
+              "ratio",
+              "derived"
+            ]
+          },
+          "table": {
+            "type": "string"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "numerator": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "expression": {
+                    "type": "string"
+                  },
+                  "filters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "table",
+                  "expression"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
+                },
+                "required": [
+                  "metric"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "denominator": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "expression": {
+                    "type": "string"
+                  },
+                  "filters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "table",
+                  "expression"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
+                },
+                "required": [
+                  "metric"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "time_column": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "currency",
+              "percent",
+              "count",
+              "ratio",
+              "days",
+              "other"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "assumed"
+            ]
+          },
+          "plain": {
+            "type": "string"
+          },
+          "sql": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "type",
+          "unit",
+          "status",
+          "plain",
+          "sql"
+        ]
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string"
+          },
+          "affects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "affects"
+        ]
+      }
+    },
+    "data_quality": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]+\\d+$"
+                  }
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "source_id"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "description",
+          "citations"
+        ]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string"
+        },
+        "bullets": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "facts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "cells": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Z]+\\d+$"
+                      }
+                    },
+                    "quote": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "required": [
+                    "source_id"
+                  ]
+                }
+              },
+              "causal_grade": {
+                "type": "string",
+                "enum": [
+                  "observed",
+                  "correlated",
+                  "document_supported",
+                  "intervention_supported"
+                ]
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "text",
+              "facts",
+              "citations",
+              "verified"
+            ]
+          }
+        }
+      },
+      "required": [
+        "headline",
+        "bullets"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^F\\d+$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "regression",
+              "improvement",
+              "anomaly",
+              "trend_break",
+              "concentration_risk",
+              "data_quality",
+              "benchmark_gap"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "claims": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "facts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "citations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "source_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "rows": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "cells": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Z]+\\d+$"
+                        }
+                      },
+                      "quote": {
+                        "type": "string",
+                        "maxLength": 300
+                      }
+                    },
+                    "required": [
+                      "source_id"
+                    ]
+                  }
+                },
+                "causal_grade": {
+                  "type": "string",
+                  "enum": [
+                    "observed",
+                    "correlated",
+                    "document_supported",
+                    "intervention_supported"
+                  ]
+                },
+                "verified": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "text",
+                "facts",
+                "citations",
+                "verified"
+              ]
+            }
+          },
+          "drivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "fact": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "share_of_change": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "label",
+                "fact",
+                "share_of_change"
+              ]
+            }
+          },
+          "method": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "confidence_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "severity",
+          "title",
+          "claims",
+          "method",
+          "confidence",
+          "confidence_reasons",
+          "assumptions"
+        ]
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^R\\d+$"
+          },
+          "action": {
+            "type": "string"
+          },
+          "because": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "rationale": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "facts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "citations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "source_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "rows": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "cells": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Z]+\\d+$"
+                        }
+                      },
+                      "quote": {
+                        "type": "string",
+                        "maxLength": 300
+                      }
+                    },
+                    "required": [
+                      "source_id"
+                    ]
+                  }
+                },
+                "causal_grade": {
+                  "type": "string",
+                  "enum": [
+                    "observed",
+                    "correlated",
+                    "document_supported",
+                    "intervention_supported"
+                  ]
+                },
+                "verified": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "text",
+                "facts",
+                "citations",
+                "verified"
+              ]
+            }
+          },
+          "impact": {
+            "type": "object",
+            "properties": {
+              "metric_id": {
+                "type": "string"
+              },
+              "low": {
+                "type": "string",
+                "minLength": 1
+              },
+              "high": {
+                "type": "string",
+                "minLength": 1
+              },
+              "horizon": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string"
+              },
+              "inputs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "metric_id",
+              "low",
+              "high",
+              "horizon",
+              "method",
+              "inputs"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "effort": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "risk": {
+            "type": "string"
+          },
+          "check": {
+            "type": "object",
+            "properties": {
+              "metric_id": {
+                "type": "string"
+              },
+              "comparator": {
+                "type": "string",
+                "enum": [
+                  ">=",
+                  "<=",
+                  "between"
+                ]
+              },
+              "threshold": {
+                "type": "string",
+                "minLength": 1
+              },
+              "by": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              }
+            },
+            "required": [
+              "metric_id",
+              "comparator",
+              "threshold",
+              "by"
+            ]
+          },
+          "not_advised": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "because",
+          "rationale",
+          "impact",
+          "confidence",
+          "effort",
+          "risk",
+          "check"
+        ]
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "type": "string"
+          },
+          "why_it_matters": {
+            "type": "string"
+          },
+          "would_change": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "why_it_matters",
+          "would_change"
+        ]
+      }
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^N\\d+$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "currency",
+              "percent",
+              "count",
+              "ratio",
+              "days",
+              "other"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "metric_id": {
+            "type": "string"
+          },
+          "computation": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "sql",
+                  "function"
+                ]
+              },
+              "sql": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "fn": {
+                "type": "string"
+              },
+              "inputs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]+\\d+$"
+                  }
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "source_id"
+              ]
+            }
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "value",
+          "unit",
+          "computation",
+          "citations",
+          "verified"
+        ]
+      }
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "numbers_checked": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "numbers_mismatched": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rederived_metrics": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rederivation_mismatches": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "definition_violations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "citations_checked": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "citations_unsupported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "claims_dropped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "claim",
+              "reason"
+            ]
+          }
+        },
+        "claims_downgraded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim": {
+                "type": "string"
+              },
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "claim",
+              "from",
+              "to",
+              "reason"
+            ]
+          }
+        }
+      },
+      "required": [
+        "numbers_checked",
+        "numbers_mismatched",
+        "rederived_metrics",
+        "rederivation_mismatches",
+        "definition_violations",
+        "citations_checked",
+        "citations_unsupported",
+        "claims_dropped",
+        "claims_downgraded"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "source_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "const": "table"
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "letter": {
+                      "type": "string",
+                      "pattern": "^[A-Z]+$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "letter",
+                    "name"
+                  ]
+                }
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "row": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "cells": {
+                      "type": "array",
+                      "items": {
+                        "type": [
+                          "string",
+                          "number",
+                          "null"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "row",
+                    "cells"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "source_id",
+              "kind",
+              "columns",
+              "rows"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "page": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "section": {
+                "type": "string"
+              },
+              "char_start": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source_id",
+              "kind",
+              "char_start",
+              "text"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "job_id",
+    "generated_at",
+    "engine",
+    "period",
+    "objective",
+    "sources",
+    "metrics",
+    "assumptions",
+    "data_quality",
+    "summary",
+    "findings",
+    "recommendations",
+    "open_questions",
+    "facts",
+    "verification"
+  ]
+}

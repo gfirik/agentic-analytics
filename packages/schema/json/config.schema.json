@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "models": {
+      "type": "object",
+      "properties": {
+        "planner": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "ollama",
+                "openai-compatible",
+                "transformers"
+              ]
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ]
+        },
+        "extractor": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "ollama",
+                "openai-compatible",
+                "transformers"
+              ]
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ]
+        },
+        "judge": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "ollama",
+                "openai-compatible",
+                "transformers"
+              ]
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ]
+        },
+        "embedder": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "ollama",
+                "openai-compatible",
+                "transformers"
+              ]
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ]
+        },
+        "reranker": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "ollama",
+                "openai-compatible",
+                "transformers"
+              ]
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "provider",
+            "model"
+          ]
+        }
+      },
+      "required": [
+        "planner",
+        "extractor",
+        "judge",
+        "embedder"
+      ]
+    },
+    "providers": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "ollama": {
+          "type": "object",
+          "properties": {
+            "base_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "base_url"
+          ]
+        },
+        "openai-compatible": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "base_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "api_key_env": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]*$"
+              }
+            },
+            "required": [
+              "base_url"
+            ]
+          }
+        }
+      }
+    },
+    "timeouts": {
+      "default": {
+        "model_ms": 120000
+      },
+      "type": "object",
+      "properties": {
+        "model_ms": {
+          "default": 120000,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "web": {
+      "default": {
+        "enabled": false,
+        "provider": "searxng"
+      },
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "provider": {
+          "default": "searxng",
+          "type": "string",
+          "const": "searxng"
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "docling": {
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "base_url"
+      ]
+    },
+    "data_dir": {
+      "default": "./data",
+      "type": "string"
+    }
+  },
+  "required": [
+    "models"
+  ]
+}
