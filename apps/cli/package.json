@@ -15,8 +15,12 @@
     "agentic-analytics": "./bin/aa.js"
   },
   "dependencies": {
+    "@agentic-analytics/models": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
     "@agentic-analytics/store": "workspace:*",
     "citty": "^0.2.2",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   }
 }
