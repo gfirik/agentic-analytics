@@ -1,0 +1,206 @@
+{
+  "run": {
+    "example": "examples/coffee-roaster",
+    "model": "scripted planner (coffeePlanner), no LLM",
+    "web": "offline web fixture (coffeeWeb)",
+    "events": 31
+  },
+  "stages": [
+    "INGEST",
+    "PROFILE",
+    "METRICS_DRAFT",
+    "MEASURE",
+    "DETECT",
+    "DECOMPOSE",
+    "INDEX_DOCS",
+    "WEB_CONTEXT",
+    "EXPLAIN",
+    "DECIDE",
+    "VERIFY",
+    "RENDER"
+  ],
+  "files": [
+    {
+      "name": "email-0412.eml",
+      "kind": "email"
+    },
+    {
+      "name": "ops-notes.docx",
+      "kind": "document"
+    },
+    {
+      "name": "price-list.pdf",
+      "kind": "document"
+    },
+    {
+      "name": "sales-2026.xlsx",
+      "kind": "table"
+    }
+  ],
+  "profile": {
+    "tables": 3,
+    "sections": 9,
+    "issues": 3
+  },
+  "metric": {
+    "id": "revenue",
+    "label": "Revenue",
+    "formula": "sum of amount",
+    "grain": "month",
+    "currency": "USD",
+    "status": "assumed"
+  },
+  "change": {
+    "metric": "Revenue",
+    "fromPeriod": "2026-03",
+    "from": {
+      "id": "N12",
+      "value": 44100.000000000065,
+      "label": "revenue_2026-03",
+      "text": "$44,100"
+    },
+    "to": {
+      "id": "N11",
+      "value": 36200.00000000003,
+      "label": "revenue_2026-04",
+      "text": "$36,200"
+    },
+    "delta": {
+      "id": "N29",
+      "value": -7900.000000000036,
+      "label": "I5 trend_break.v1 revenue 2026-04:change",
+      "text": "−$7,900"
+    },
+    "pct": {
+      "id": "N30",
+      "value": -17.91383219954654,
+      "label": "I5 trend_break.v1 revenue 2026-04:change_pct",
+      "text": "−17.9%"
+    },
+    "period": "2026-04"
+  },
+  "driver": {
+    "dimension": "channel",
+    "member": "wholesale",
+    "delta": {
+      "id": "N141",
+      "value": -8499.999999999998,
+      "label": "contribution.v1 revenue 2026-04 by channel:delta:wholesale",
+      "text": "−$8,500"
+    },
+    "share": {
+      "id": "N144",
+      "value": 107.59493670886076,
+      "label": "contribution.v1 revenue 2026-04 by channel:share:wholesale",
+      "text": "108%"
+    }
+  },
+  "docs": [
+    {
+      "source_id": "D1",
+      "file": "email-0412.eml",
+      "kind": "email",
+      "at": "Standing order",
+      "quote": "After the new price list we are pausing our standing order while we compare suppliers.",
+      "grade": "document_supported"
+    },
+    {
+      "source_id": "D7",
+      "file": "price-list.pdf",
+      "kind": "document",
+      "at": "p.2",
+      "quote": "Wholesale prices increase 12% from 15 March 2026.",
+      "grade": "correlated"
+    }
+  ],
+  "web": {
+    "source_id": "W1",
+    "url": "https://coffee-benchmarks.example/refunds",
+    "quote": "Specialty coffee roasters typically see refunds of 1–2% of sales.",
+    "gap": {
+      "id": "N261",
+      "value": 1.3999999999999981,
+      "label": "benchmark N64 vs W1:gap",
+      "text": "1.4 pp"
+    }
+  },
+  "checks": [
+    {
+      "check": "V1",
+      "name": "placeholders",
+      "run": 19,
+      "failed": 0
+    },
+    {
+      "check": "V2",
+      "name": "recompute",
+      "run": 122,
+      "failed": 0
+    },
+    {
+      "check": "V3",
+      "name": "re-derive",
+      "run": 3,
+      "failed": 0
+    },
+    {
+      "check": "V4",
+      "name": "definitions",
+      "run": 18,
+      "failed": 0
+    },
+    {
+      "check": "V5",
+      "name": "citations",
+      "run": 85,
+      "failed": 0
+    },
+    {
+      "check": "V6",
+      "name": "causal",
+      "run": 18,
+      "failed": 2
+    },
+    {
+      "check": "V7",
+      "name": "grounding",
+      "run": 2,
+      "failed": 0
+    },
+    {
+      "check": "V8",
+      "name": "external",
+      "run": 18,
+      "failed": 0
+    }
+  ],
+  "verification": {
+    "numbers_checked": 122,
+    "numbers_mismatched": 0,
+    "citations_checked": 6,
+    "claims_dropped": 2,
+    "claims_downgraded": 2
+  },
+  "headline": "Revenue fell after March, driven by wholesale (a change of −$7,900).",
+  "action": {
+    "id": "R1",
+    "rank": 1,
+    "of": 2,
+    "text": "Offer wholesale accounts a volume-tier discount to win back paused standing orders",
+    "low": {
+      "id": "N311",
+      "value": 3994.999999999999,
+      "label": "scenario impact.v1:recover_share:impact_low",
+      "text": "$3,995"
+    },
+    "high": {
+      "id": "N312",
+      "value": 7190.999999999998,
+      "label": "scenario impact.v1:recover_share:impact_high",
+      "text": "$7,191"
+    },
+    "horizon": "next quarter",
+    "confidence": "medium",
+    "check": "revenue >= $44,100 by 2026-09-30"
+  }
+}

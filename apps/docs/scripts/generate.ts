@@ -27,7 +27,8 @@ const write = (rel: string, text: string) => {
   writeFileSync(join(CONTENT, rel), text);
 };
 
-// 1. A real run on the example, for the Pipeline, CitationDemo, Decomposition and VerifierDiff islands.
+// 1. A real run on the example, for the CitationDemo, Decomposition and VerifierDiff islands. (The Pipeline island
+//    plays the README GIF's checked-in data instead: scripts/pipeline-data.ts.)
 const dir = mkdtempSync(join(tmpdir(), "aa-docs-"));
 try {
   const events: JobEvent[] = [];

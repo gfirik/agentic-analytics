@@ -13,11 +13,13 @@ The docs site: Astro Starlight, deployed to GitHub Pages at https://gfirik.githu
 - It renders the HTTP API reference from the server's own OpenAPI spec, and the report schema from its JSON Schema.
 - It copies the eval results, decisions, roadmap and changelog.
 
-Everything it writes is gitignored. Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the README embeds.
+Everything it writes is gitignored. The `Pipeline` island's data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
+
+Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the README embeds.
 
 ## Islands (React, `client:visible`)
 
-- `Pipeline`: replays the run's events.
+- `Pipeline`: the animated pipeline, the same scene the README GIF is recorded from (`src/components/pipeline-scene.ts`), played from `docs/assets/readme/pipeline.json`.
 - `CitationDemo`: click a citation to see the cited rows or passage.
 - `Decomposition`: the contribution waterfall.
 - `RagStepper`: BM25 → vectors → RRF → rerank → extract.
