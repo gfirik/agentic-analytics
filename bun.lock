@@ -118,6 +118,7 @@
         "@agentic-analytics/metrics": "workspace:*",
         "@agentic-analytics/models": "workspace:*",
         "@agentic-analytics/profile": "workspace:*",
+        "@agentic-analytics/report": "workspace:*",
         "@agentic-analytics/retrieval": "workspace:*",
         "@agentic-analytics/schema": "workspace:*",
         "@agentic-analytics/store": "workspace:*",

@@ -4,6 +4,7 @@ export {
   type CheckRow,
   checkFactRows,
   isCausal,
+  parseMeasured,
   persistChecks,
   rewriteCorrelational,
   type VerifyContext,

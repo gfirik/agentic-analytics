@@ -26,9 +26,10 @@ import {
 } from "@agentic-analytics/agent";
 import { analyzeJob, loadAnalysis, readFacts, type StoredInsight } from "@agentic-analytics/analysis";
 import { type IngestResult, type InputFile, ingest } from "@agentic-analytics/ingest";
-import { draftMetrics, type Grain, loadCatalog, saveMetricDefs } from "@agentic-analytics/metrics";
+import { draftMetrics, type Grain, loadCatalog, parseMetricsYaml, saveMetricDefs, validateMetrics } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
 import { type ProfileSummary, periodOf, profileJob } from "@agentic-analytics/profile";
+import { renderReportHtml } from "@agentic-analytics/report";
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
@@ -36,11 +37,11 @@ import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/ver
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
 import { type Logger, silentLogger } from "./log.ts";
-import { type RunResult, runPipeline, type StageDef } from "./pipeline.ts";
+import { type RunResult, runPipeline, type StageContext, type StageDef, StagePause } from "./pipeline.ts";
 
 export class JobError extends Error {
   constructor(
-    readonly code: "NO_INPUT" | "INVALID_DRAFT" | "BAD_OPTIONS",
+    readonly code: "NO_INPUT" | "INVALID_DRAFT" | "BAD_OPTIONS" | "AWAITING_CONFIRMATION" | "BAD_METRICS",
     message: string,
     readonly details?: unknown,
   ) {
@@ -58,6 +59,11 @@ export interface JobOptions {
   readonly smallModel?: boolean;
   /** The web lane (off by default; built in M8). */
   readonly web?: boolean;
+  /**
+   * Keep drafted metrics as assumptions and go on (default true). When false the job pauses at AWAIT_CONFIRM until
+   * `confirmJobMetrics` stores the confirmed definitions (metric-layer §3, interfaces §1).
+   */
+  readonly autoConfirm?: boolean;
   /** Tool calls per job and per finding (default 25 and 8; halved in small-model mode). */
   readonly budget?: { readonly total?: number; readonly perFinding?: number };
 }
@@ -90,6 +96,8 @@ export interface JobOutcome {
   readonly draftPath: string;
   /** The verified report (report.json). */
   readonly reportPath: string;
+  /** The rendered report (report.html). */
+  readonly htmlPath: string;
   readonly report: Report;
   /** The unverified draft (report.draft.json), as EXPLAIN/DECIDE wrote it. */
   readonly draft: Report;
@@ -131,6 +139,49 @@ interface MetricsOutput {
   readonly range: { from: string; to: string; grain: Grain };
   readonly periodEnd: string;
   readonly source: string;
+}
+
+/** The definitions later stages use: the confirmed ones when the job paused for review, else the drafted ones. */
+async function metricsOf(ctx: StageContext): Promise<MetricsOutput> {
+  const drafted = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+  const confirmed = await ctx.output<{ defs: MetricDef[] } | null>("AWAIT_CONFIRM");
+  return confirmed?.defs ? { ...drafted, defs: confirmed.defs } : drafted;
+}
+
+/**
+ * Stores reviewed metric definitions (YAML, the same file format as `aa metrics --save`) for a job paused at
+ * AWAIT_CONFIRM. Each definition is validated against the job's catalog; one that fails is refused with its reasons,
+ * so a confirmation can never put an invalid definition into a report. Definitions sent are `confirmed`.
+ */
+export async function confirmJobMetrics(dir: string, yaml: string): Promise<{ confirmed: number }> {
+  const ws = await Workspace.open(join(dir, DB));
+  try {
+    const st = await ws.one<{ status: string }>(sql`SELECT status FROM job_stages WHERE stage = 'AWAIT_CONFIRM'`);
+    if (st?.status !== "running") throw new JobError("BAD_METRICS", "the job is not waiting for metric confirmation");
+    let file: ReturnType<typeof parseMetricsYaml>;
+    try {
+      file = parseMetricsYaml(yaml);
+    } catch (err) {
+      throw new JobError("BAD_METRICS", `the metrics YAML does not parse: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    const options = (await meta<JobOptions>(ws, "options")) as JobOptions;
+    const v = validateMetrics(
+      file.metrics.map((m) => ({ ...m, status: "confirmed" })),
+      await loadCatalog(ws),
+      { ...(options.currency ? { defaultCurrency: options.currency } : {}), keepStatus: true },
+    );
+    if (v.rejected.length)
+      throw new JobError(
+        "BAD_METRICS",
+        `rejected: ${v.rejected.map((r) => `${r.id ?? "(no id)"}: ${r.reasons.join("; ")}`).join(" | ")}`,
+        v.rejected,
+      );
+    if (!v.accepted.length) throw new JobError("BAD_METRICS", "no metric definitions given");
+    await setMeta(ws, "confirmed_metrics", v.accepted);
+    return { confirmed: v.accepted.length };
+  } finally {
+    ws.close();
+  }
 }
 
 interface MeasureOutput {
@@ -237,7 +288,21 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           return { defs, range, periodEnd: bounds.at(-1) ?? opts.today, source: draft.source } satisfies MetricsOutput;
         },
       },
-      { stage: "AWAIT_CONFIRM", skip: () => "metrics kept as assumptions (non-interactive run)", run: async () => null },
+      {
+        stage: "AWAIT_CONFIRM",
+        skip: () => (opts.autoConfirm === false ? undefined : "metrics kept as assumptions (auto-confirm)"),
+        run: async (ctx) => {
+          const confirmed = await meta<MetricDef[]>(ws, "confirmed_metrics");
+          if (!confirmed) {
+            await ctx.bus.emit({ type: "awaiting_confirmation", stage: "AWAIT_CONFIRM" });
+            throw new StagePause("AWAIT_CONFIRM", "waiting for the metric definitions to be confirmed");
+          }
+          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          await ws.run(sql`DELETE FROM metric_defs`);
+          await saveMetricDefs(ws, confirmed, await loadCatalog(ws), m.range);
+          return { defs: confirmed };
+        },
+      },
       {
         stage: "MEASURE",
         reset: async (w) => {
@@ -245,7 +310,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           await w.run(sql`DELETE FROM decompositions`);
         },
         run: async (ctx) => {
-          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          const m = await metricsOf(ctx);
           // analyzeJob measures, detects and decomposes in one deterministic pass and stores the results; the
           // DETECT and DECOMPOSE stages below checkpoint and report what it stored.
           const r = await analyzeJob(ws, m.defs, await loadCatalog(ws), m.range);
@@ -282,6 +347,8 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               code: "QUARANTINED",
               message: `${screened.quarantined.length} source(s) quarantined for text addressed to a model`,
             });
+          // The first run of an in-process embedder downloads and loads its model, which can take minutes.
+          await ctx.progress(0, "loading the embedding model (the first run downloads it)");
           return { ...(await indexDocuments(ws, deps.embedder)), quarantined: screened.quarantined };
         },
       },
@@ -310,7 +377,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           await w.run(sql`DELETE FROM quarantine WHERE detected_by = 'extractor' OR source_id LIKE 'W%'`);
         },
         run: async (ctx) => {
-          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          const m = await metricsOf(ctx);
           const measured = (await ctx.output<MeasureOutput>("MEASURE")) as MeasureOutput;
           const analysis = await loadAnalysis(ws);
           const catalog = await loadCatalog(ws);
@@ -383,7 +450,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       {
         stage: "DECIDE",
         run: async (ctx) => {
-          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          const m = await metricsOf(ctx);
           const measured = (await ctx.output<MeasureOutput>("MEASURE")) as MeasureOutput;
           const ex = (await ctx.output<ExplainOutputStored>("EXPLAIN")) as ExplainOutputStored;
           const analysis = await loadAnalysis(ws);
@@ -447,7 +514,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       {
         stage: "VERIFY",
         run: async (ctx) => {
-          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          const m = await metricsOf(ctx);
           const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
           // Outputs of an earlier attempt must not outlive this one.
           rmSync(join(dir, "report.json"), { force: true });
@@ -488,15 +555,31 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           }
         },
       },
-      { stage: "RENDER", skip: () => "the final renderer is built in M10", run: async () => null },
+      {
+        stage: "RENDER",
+        run: async () => {
+          const report = JSON.parse(readFileSync(join(dir, "report.json"), "utf8")) as Report;
+          const html = renderReportHtml(report);
+          writeFileSync(join(dir, "report.html"), html);
+          return { bytes: html.length };
+        },
+      },
     ];
 
-    const run = await runPipeline(ws, bus, log, stages);
+    let run: RunResult;
+    try {
+      run = await runPipeline(ws, bus, log, stages);
+    } catch (err) {
+      if (err instanceof StagePause)
+        throw new JobError("AWAITING_CONFIRMATION", `job ${id} is waiting for its metric definitions to be confirmed`, { jobId: id });
+      throw err;
+    }
     const reportPath = join(dir, "report.json");
+    const htmlPath = join(dir, "report.html");
     await bus.emit({ type: "done", report_path: reportPath });
     const report = JSON.parse(readFileSync(reportPath, "utf8")) as Report;
     const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
-    return { jobId: id, draftPath: join(dir, "report.draft.json"), reportPath, report, draft, run };
+    return { jobId: id, draftPath: join(dir, "report.draft.json"), reportPath, htmlPath, report, draft, run };
   } finally {
     ws.close();
   }

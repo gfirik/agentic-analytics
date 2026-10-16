@@ -19,6 +19,20 @@ export class PipelineError extends Error {
   }
 }
 
+/**
+ * Thrown by a stage that must wait for a person (AWAIT_CONFIRM). It is not a failure: no `failed` event is emitted
+ * and the stage stays `running`, so the next run of the job resets it and asks again (or goes on, once answered).
+ */
+export class StagePause extends Error {
+  constructor(
+    readonly stage: Stage,
+    message: string,
+  ) {
+    super(message);
+    this.name = "StagePause";
+  }
+}
+
 export interface StageContext {
   readonly ws: Workspace;
   readonly bus: EventBus;
@@ -120,6 +134,10 @@ export async function runPipeline(ws: Workspace, bus: EventBus, log: Logger, sta
       await bus.emit({ type: "stage_completed", stage: def.stage, duration_ms: Date.now() - t0 });
       result.ran.push(def.stage);
     } catch (err) {
+      if (err instanceof StagePause) {
+        ctx.log.info("stage paused", { reason: err.message });
+        throw err;
+      }
       const message = err instanceof Error ? err.message : String(err);
       const code = err instanceof Error && "code" in err && typeof err.code === "string" ? err.code : "STAGE_FAILED";
       await ws.run(sql`UPDATE job_stages SET status = 'failed' WHERE stage = ${def.stage}`);

@@ -317,6 +317,25 @@ function judge(r: FakeRequest): unknown {
   return { supported: shared.length >= 2 };
 }
 
+/**
+ * Follow-up answers: the first claim of the first finding, restated, plus one claim that misnames its metric
+ * ("Orders" for a revenue fact), which the verifier must drop (V4).
+ */
+function answer(r: FakeRequest): unknown {
+  const report = json<{ claims: { ref: string; text: string }[] }>(between(r.system, "<report>", "</report>"), { claims: [] });
+  if (/next year|forecast/i.test(between(r.system, "<question>", "</question>")))
+    return { claims: [], not_covered: "The report has no forecast." };
+  const first = report.claims.find((c) => c.ref === "F1#0");
+  if (!first) return { claims: [] };
+  const ids = [...first.text.matchAll(/\{\{(N\d+)\}\}/g)].map((m) => m[1] as string);
+  return {
+    claims: [
+      { text: first.text, facts: ids, from: ["F1#0"] },
+      ...(ids[0] ? [{ text: `Orders changed by {{${ids[0]}}}.`, facts: [ids[0]], from: ["F1#0"] }] : []),
+    ],
+  };
+}
+
 /** The scripted model for a full coffee-roaster job (normal or small-model mode). */
 export function coffeePlanner(options: { small?: boolean; web?: boolean } = {}): FakeModel {
   const small = options.small === true;
@@ -327,6 +346,7 @@ export function coffeePlanner(options: { small?: boolean; web?: boolean } = {}):
     { role: "planner", match: /Write the explanation|Fill the form/, repeat: true, object: (r: FakeRequest) => explanation(r, small) },
     { role: "planner", match: "Propose the candidate actions", repeat: true, object: candidates },
     { role: "planner", match: "Write the headline", repeat: true, object: headline },
+    { role: "planner", match: "Answer the question", repeat: true, object: answer },
     { role: "judge", repeat: true, object: judge },
   ]);
 }
