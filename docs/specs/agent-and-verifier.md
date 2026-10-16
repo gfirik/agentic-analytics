@@ -34,6 +34,7 @@ The planner has fixed tools only; there is no code execution.
 | `decompose(fact_id, method)` | Runs a decomposer on a material change |
 | `search_documents(query, filters?)` | Retrieval lane, returning extracts (not raw text) |
 | `search_web(query)` | Web lane, only when enabled, returning external extracts |
+| `compare_benchmark(fact_id, extract_id)` | Web lane: reads the number range quoted in an external extract (e.g. "1–2%") into `external_quote` facts and runs `benchmark_gap.v1` against a fact of the same unit |
 | `propose_scenario(type, params, because[])` | Computes an impact range in code (analysis-library §5) |
 | `ask_user(question)` | Adds an open question (non-blocking in v0.1) |
 
@@ -48,7 +49,8 @@ Investigation budget: at most 25 tool calls and 8 per finding, both configurable
   - emails, phones, and anything flagged private.
   Only industry, product category, region, period and public terms remain, e.g. "specialty coffee wholesale price increase 2026 Central Asia".
 - **Processing.** Fetched pages go to the extractor, and the extracts are stored with `external = true`.
-- **External facts.** Numbers from the web become facts with `computation.kind = "function"`, `fn = "external_quote"`. They can only feed `benchmark_gap.v1` and must be rendered with the External badge.
+- **External facts.** Numbers from the web become facts with `computation.kind = "function"`, `fn = "external_quote"`. They can only feed `benchmark_gap.v1` and must be rendered with the External badge. Code reads the range from the quote as written (`parseQuotedRange`: the first "a–b" range or single percentage, never a year), each side becomes a fact citing the web source and quote, and the gap is computed by `benchmark_gap.v1`. A range in percent compares only with a percent fact.
+- **Sources.** Each fetched page is stored as an external source (`W1`, …; `sources.kind = 'web'`) with its URL, title and fetch time, and its extracts carry `external: true`. In the report it is a `web` source with `external: true`; claims citing it are labelled External by the renderer (V8 checks it). The queries actually sent are kept in the EXPLAIN stage output as the audit trail of what left the machine.
 
 ## 5. EXPLAIN
 

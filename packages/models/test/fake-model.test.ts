@@ -133,3 +133,26 @@ describe("function-valued script entries", () => {
     expect(t.steps.map((s) => s.text)).toEqual(["saw go now"]);
   });
 });
+
+describe("function steps", () => {
+  it("a step can use what an earlier tool call returned", async () => {
+    const { z } = await import("zod");
+    const tools = {
+      make: { description: "", inputSchema: z.object({}), execute: async () => ({ id: "E7" }) },
+      use: { description: "", inputSchema: z.object({ id: z.string() }), execute: async (i: { id: string }) => ({ used: i.id }) },
+    };
+    const m = new FakeModel([
+      {
+        role: "planner",
+        steps: [
+          { toolCalls: [{ toolName: "make", input: {} }] },
+          (done) => ({
+            toolCalls: [{ toolName: "use", input: { id: (done[0]?.toolCalls[0]?.output as { id?: string } | undefined)?.id ?? "" } }],
+          }),
+        ],
+      },
+    ]);
+    const r = await m.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 5 });
+    expect(r.steps[1]?.toolCalls[0]?.output).toEqual({ used: "E7" });
+  });
+});

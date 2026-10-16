@@ -24,6 +24,9 @@ export interface FakeStep {
   readonly toolCalls?: readonly FakeToolCall[];
 }
 
+/** A scripted step, or a function of the steps already taken (to use ids an earlier tool call returned). */
+export type FakeScriptStep = FakeStep | ((done: readonly Step[]) => FakeStep);
+
 export interface FakeScriptEntry {
   readonly role?: Role;
   /** Matches when the prompt (or the last user message) contains this text or matches this RegExp. */
@@ -36,7 +39,7 @@ export interface FakeScriptEntry {
    */
   readonly object?: unknown | ((call: FakeRequest) => unknown);
   /** For generateWithTools: the steps the "model" takes (or a function building them); tool calls run against the real tools. */
-  readonly steps?: readonly FakeStep[] | ((call: FakeRequest) => readonly FakeStep[]);
+  readonly steps?: readonly FakeScriptStep[] | ((call: FakeRequest) => readonly FakeScriptStep[]);
   /** Keep the entry after use (default: each entry answers once, in order). */
   readonly repeat?: boolean;
 }
@@ -104,7 +107,8 @@ export class FakeModel implements ModelClient {
     const steps: Step[] = [];
     const scripted =
       typeof entry.steps === "function" ? entry.steps({ role: args.role, system: args.system, prompt }) : (entry.steps ?? []);
-    for (const s of scripted.slice(0, args.maxSteps)) {
+    for (const scriptedStep of scripted.slice(0, args.maxSteps)) {
+      const s = typeof scriptedStep === "function" ? scriptedStep(steps) : scriptedStep;
       const toolCalls: ToolCallRecord[] = [];
       for (const call of s.toolCalls ?? []) {
         const t = args.tools[call.toolName];

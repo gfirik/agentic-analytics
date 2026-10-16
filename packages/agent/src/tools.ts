@@ -3,7 +3,9 @@
 // values; document text comes back only as extracts from the quarantined extractor. A shared budget caps the
 // calls (25 per job, 8 per finding; halved in small-model mode); a call over budget returns an error instead.
 import {
+  benchmarkFacts,
   drillDown,
+  parseQuotedRange,
   readFacts,
   type ScenarioRequest,
   type StoredDecomposition,
@@ -18,6 +20,7 @@ import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
 import { type Extract, extractFromHits } from "./extractor.ts";
 import { type SheetFact, sheetFact } from "./factsheet.ts";
+import { searchAndStore, type WebLane } from "./web.ts";
 
 export class Budget {
   private usedTotal = 0;
@@ -58,9 +61,17 @@ export interface ToolContext {
   readonly model: ModelClient;
   readonly embedder: Embedder;
   readonly reranker?: Reranker;
-  readonly web: boolean;
+  /** The web lane, when the job has `--web` and a search provider (agent-and-verifier §4). */
+  readonly webLane?: WebLane;
   /** Collected across tools: extracts found, quarantined sources, open questions asked. */
-  readonly found: { extracts: Extract[]; quarantined: string[]; questions: OpenQuestionDraft[]; scenarios: Record<string, unknown>[] };
+  readonly found: {
+    extracts: Extract[];
+    quarantined: string[];
+    questions: OpenQuestionDraft[];
+    scenarios: Record<string, unknown>[];
+    /** Queries actually sent to the search provider (after sanitizing). */
+    webQueries?: string[];
+  };
 }
 
 type ToolResult = Record<string, unknown>;
@@ -201,11 +212,51 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
   );
 
   const search_web = tool(
-    "Search the web for public context (industry benchmarks). Off unless web is enabled.",
-    z.object({ query: z.string() }),
+    "Search the web for public context such as industry benchmarks. The query is sanitized first (no names, no numbers from the data). Returns external extracts, labelled external.",
+    z.object({ query: z.string().min(3).max(200) }),
     budget,
-    async () =>
-      ctx.web ? { error: "the web lane is not built yet (M8)" } : { error: "web search is off for this job (enable it with --web)" },
+    async ({ query }) => {
+      if (!ctx.webLane) return { error: "web search is off for this job (enable it with --web)" };
+      const { result, hits } = await searchAndStore(ctx.ws, ctx.webLane, query);
+      if (!ctx.found.webQueries) ctx.found.webQueries = [];
+      ctx.found.webQueries.push(result.query);
+      const x = await extractFromHits(ctx.ws, ctx.model, hits, `Find industry benchmarks and statements relevant to: ${result.query}`, {
+        external: true,
+      });
+      ctx.found.extracts.push(...x.extracts);
+      for (const q of x.quarantined) if (!ctx.found.quarantined.includes(q)) ctx.found.quarantined.push(q);
+      return {
+        query_sent: result.query,
+        external: true,
+        extracts: x.extracts.map((e) => ({ id: e.id, kind: e.kind, url: e.file, text: e.text, quote: e.quote, external: true })),
+        ...(result.skipped.length ? { skipped: result.skipped.map((s) => s.code) } : {}),
+      };
+    },
+  );
+
+  const compare_benchmark = tool(
+    "Compare a fact with a range quoted in an external extract (e.g. an industry rate). The engine reads the range from the quote and computes the gap; the range facts are labelled external.",
+    z.object({ fact_id: z.string(), extract_id: z.string() }),
+    budget,
+    async ({ fact_id, extract_id }) => {
+      const e = ctx.found.extracts.find((x) => x.id === extract_id);
+      if (!e?.external) return { error: `${extract_id} is not an external extract from search_web` };
+      const range = parseQuotedRange(e.quote);
+      if (!range) return { error: `no number range in the quote of ${extract_id}` };
+      const r = await benchmarkFacts(ctx.ws, ctx.defs, ctx.catalog, ctx.range.grain, fact_id, {
+        range,
+        source_id: e.citation.source_id,
+        quote: e.quote,
+        label: e.topic ?? e.text.slice(0, 60),
+      });
+      const byId = new Map(r.newFacts.map((f) => [f.id, f]));
+      return {
+        external: true,
+        low: sheetFact(byId.get(r.low) as Fact),
+        high: sheetFact(byId.get(r.high) as Fact),
+        gap: sheetFact(byId.get(r.gap) as Fact),
+      };
+    },
   );
 
   const propose_scenario = tool(
@@ -237,5 +288,14 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
     },
   );
 
-  return { get_facts, drill_down, decompose, search_documents, search_web, propose_scenario, ask_user } as unknown as ToolSet;
+  return {
+    get_facts,
+    drill_down,
+    decompose,
+    search_documents,
+    search_web,
+    compare_benchmark,
+    propose_scenario,
+    ask_user,
+  } as unknown as ToolSet;
 }

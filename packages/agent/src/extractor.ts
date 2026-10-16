@@ -37,6 +37,8 @@ export interface Extract {
   /** The extractor's paraphrase: untrusted, shown to the planner as data only. */
   readonly text: string;
   readonly quote: string;
+  /** From a web page (security §4): labelled External wherever it is used, never mixed with the user's data. */
+  readonly external?: true;
   readonly citation: Citation & { readonly char_start: number; readonly char_end: number; readonly page?: number };
 }
 
@@ -69,7 +71,13 @@ async function nextExtract(ws: Workspace): Promise<number> {
 }
 
 /** Extracts for each hit; one extractor call per hit, so one excerpt can never steer the reading of another. */
-export async function extractFromHits(ws: Workspace, model: ModelClient, hits: readonly SearchHit[], task: string): Promise<ExtractResult> {
+export async function extractFromHits(
+  ws: Workspace,
+  model: ModelClient,
+  hits: readonly SearchHit[],
+  task: string,
+  options: { readonly external?: boolean } = {},
+): Promise<ExtractResult> {
   const kept: { e: Extract; source: string }[] = [];
   // Quarantine is per source (security §3): one injected chunk excludes every extract of its document, in this
   // call and in earlier or later ones.
@@ -104,6 +112,7 @@ export async function extractFromHits(ws: Workspace, model: ModelClient, hits: r
         ...("topic" in item && item.topic ? { topic: item.topic } : {}),
         text: item.text,
         quote: q.quote,
+        ...(options.external ? { external: true as const } : {}),
         citation: {
           source_id: q.source_id,
           quote: q.quote,

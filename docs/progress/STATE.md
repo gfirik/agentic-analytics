@@ -19,7 +19,7 @@ Human gate values:
 | M5 Analysis library | DONE | no | [#7](https://github.com/gfirik/agentic-analytics/pull/7) | `bun run analyze evals/datasets/coffee-roaster-v1/files --today 2026-07-01 --currency USD` | Stats, baselines + noise band, 10 templates, contribution/PVM/ratemix (+Simpson guard)/diff, impact scenarios, ranking, fact book with SQL provenance; goldens −17.9%, 107.6%, 1.2→3.4 exact |
 | M6 Retrieval | DONE | no | [#8](https://github.com/gfirik/agentic-analytics/pull/8) | `bun run --filter @agentic-analytics/retrieval eval:retrieval` | Chunking, BM25 (DuckDB fts) + exact vector search, RRF, optional ONNX rerank with degraded flag, exact quotes; recall@8 1.0 on coffee-roaster and printing-shop (hash and e5-small); bge-m3 + reranker eval DEFERRED |
 | M7 Agent | DONE | no | [#9](https://github.com/gfirik/agentic-analytics/pull/9) | `bun run --filter @agentic-analytics/core job:coffee -- --dir data/jobs/coffee-demo` (scripted FakeModel); `bun run aa run <paths> --dir <job>` / `--resume <job>` | Checkpointed pipeline + resume, event bus, quarantined extractor, fixed tools with budgets, EXPLAIN/DECIDE with code-written observed claims and code-computed impact, placeholders-only draft; real-model run DEFERRED |
-| M8 Web lane | TODO | no | | | |
+| M8 Web lane | IN_PROGRESS | no | | | |
 | M9 Verifier | TODO | no | | | |
 | M10 Doors | TODO | no | | | |
 | M11 Evals at scale | TODO | notify | | | |
@@ -158,6 +158,13 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M7] Without interactive review (M10), METRICS_DRAFT keeps every accepted draft as an assumption and AWAIT_CONFIRM is skipped; the report lists them under assumptions — metric-layer §3
 - [M7] The agent package doesn't import core (core imports agent); it takes a structural logger by injection — AGENTS.md §4
 
+- [M8] The fetcher checks every DNS answer inside the socket's own lookup (node:http(s) `lookup`), so the checked address is the connected one; any private answer refuses the host. Literal private hosts in any spelling and local names are refused before lookup; only ports 80/443 — security §4
+- [M8] Private terms = entities and their raw spellings + all values of columns whose name/label names people or organisations (EN/RU/UZ) + file names + emails found in documents; the sanitizer also removes every number except years, phones, emails and URLs, and a query with fewer than two words left is not sent — agent-and-verifier §4
+- [M8] Readable text drops hidden elements (`hidden`, `aria-hidden`, `display:none`, `visibility:hidden`, zero font size/opacity) besides scripts/nav/forms: hidden text is where page injections live — security §3–§4
+- [M8] Fetched pages are stored as external sources `W…` (`sources.kind = 'web'`, readable text + URL/title/fetch time); each page's first three ~300-token excerpts go to the quarantined extractor; extracts are marked `external` — agent-and-verifier §4
+- [M8] External numbers enter only through `compare_benchmark`: code reads the quoted range (`parseQuotedRange`, never a year) into two `external_quote` facts citing the quote and runs `benchmark_gap.v1` against a fact of the same unit (spec §3 tool table updated) — agent-and-verifier §3–§4
+- [M8] SearXNG's JSON API is off by default, so the compose service mounts `docker/searxng/settings.yml` enabling it (limiter off, local secret) — ENGINEERING
+
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
@@ -190,3 +197,5 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M7] Severity comes from the ranking score alone (≥ 0.03 high, ≥ 0.005 medium); a rate metric's business cost (refunds × revenue) isn't converted to money for ranking — M11 evals
 - [M7] `drill_down` takes one dimension and no filters; `search_web` answers "off"/"not built" — M8
 - [M7] Interactive metric confirmation (AWAIT_CONFIRM pause/resume through the API or CLI) is not built; jobs run with assumed metrics — M10
+- [M8] Private-term recall depends on column labels; a name in an unlabeled free-text column is only caught if it is also an entity. The sanitizer's number stripping and the fetcher's query-string check limit the damage — M11 evals (injection/privacy suite)
+- [M8] The renderer's External badge (and V8) arrive in M9/M10; the draft marks web sources `external: true` and their facts `fn: external_quote` — M9/M10

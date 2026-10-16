@@ -27,3 +27,4 @@ export { buildFactSheet, type FactSheet, type SheetFact, sheetFact } from "./fac
 export { data, PromptError, type PromptName, promptVersion, renderPrompt } from "./prompts.ts";
 export { writeHeadline } from "./summary.ts";
 export { Budget, buildTools, type OpenQuestionDraft, type ToolContext } from "./tools.ts";
+export { privateTerms, searchAndStore, type WebLane } from "./web.ts";

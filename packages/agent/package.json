@@ -17,6 +17,7 @@
     "@agentic-analytics/retrieval": "workspace:*",
     "@agentic-analytics/schema": "workspace:*",
     "@agentic-analytics/store": "workspace:*",
+    "@agentic-analytics/web": "workspace:*",
     "zod": "^4.6.7"
   },
   "devDependencies": {

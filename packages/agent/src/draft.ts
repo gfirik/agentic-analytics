@@ -44,44 +44,66 @@ export interface DraftInput {
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 
+async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function reportSources(ws: Workspace): Promise<Source[]> {
   const rows = await ws.all<{
     id: string;
     kind: string;
-    file: string;
-    sha256: string;
+    file: string | null;
+    sha256: string | null;
     sheet: string | null;
     range_a1: string | null;
     page: number | null;
     section: string[] | null;
     char_start: number | null;
     char_end: number | null;
-  }>(sql`SELECT s.id, s.kind, f.name AS file, f.sha256, s.sheet, s.range_a1, s.page, s.section, s.char_start, s.char_end
-      FROM sources s JOIN files f ON f.id = s.file_id ORDER BY s.id`);
-  return rows.map((r) =>
-    r.kind === "table"
-      ? {
-          id: r.id,
-          file: r.file,
-          sha256: r.sha256,
-          kind: "table" as const,
-          external: false,
-          locator: { ...(r.sheet ? { sheet: r.sheet } : {}), range: r.range_a1 ?? "A1", table_id: r.id },
-        }
-      : {
-          id: r.id,
-          file: r.file,
-          sha256: r.sha256,
-          kind: r.kind === "email" ? ("email" as const) : ("document" as const),
-          external: false,
-          locator: {
-            ...(r.page ? { page: r.page } : {}),
-            ...(r.section?.length ? { section: r.section.join(" › ") } : {}),
-            char_start: r.char_start ?? 0,
-            char_end: r.char_end ?? 0,
-          },
+    text: string | null;
+    meta: string | null;
+  }>(sql`SELECT s.id, s.kind, f.name AS file, f.sha256, s.sheet, s.range_a1, s.page, s.section, s.char_start, s.char_end, s.text,
+        s.meta::VARCHAR AS meta
+      FROM sources s LEFT JOIN files f ON f.id = s.file_id ORDER BY s.id`);
+  const out: Source[] = [];
+  for (const r of rows) {
+    if (r.kind === "web") {
+      // External (security §4): the page as fetched, identified by its URL and the hash of the text we kept.
+      const m = JSON.parse(r.meta ?? "{}") as { url?: string; title?: string; fetched_at?: string };
+      out.push({
+        id: r.id,
+        file: m.url ?? "",
+        sha256: await sha256(r.text ?? ""),
+        kind: "web",
+        external: true,
+        locator: { url: m.url ?? "", title: m.title ?? "", fetched_at: m.fetched_at ?? "" },
+      });
+    } else if (r.kind === "table")
+      out.push({
+        id: r.id,
+        file: r.file ?? "",
+        sha256: r.sha256 ?? "",
+        kind: "table",
+        external: false,
+        locator: { ...(r.sheet ? { sheet: r.sheet } : {}), range: r.range_a1 ?? "A1", table_id: r.id },
+      });
+    else
+      out.push({
+        id: r.id,
+        file: r.file ?? "",
+        sha256: r.sha256 ?? "",
+        kind: r.kind === "email" ? "email" : "document",
+        external: false,
+        locator: {
+          ...(r.page ? { page: r.page } : {}),
+          ...(r.section?.length ? { section: r.section.join(" › ") } : {}),
+          char_start: r.char_start ?? 0,
+          char_end: r.char_end ?? 0,
         },
-  );
+      });
+  }
+  return out;
 }
 
 /** Report wording for a quality issue: plain words by kind, the file in quotes (file names carry digits). */

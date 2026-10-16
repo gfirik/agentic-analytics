@@ -1,0 +1,13 @@
+# SearXNG settings for the agentic-analytics web lane (docker compose --profile web up -d searxng).
+# The engine queries the JSON API, which SearXNG disables by default.
+use_default_settings: true
+server:
+  # Local use only; change for any shared deployment.
+  secret_key: "agentic-analytics-local-only"
+  limiter: false
+  image_proxy: false
+search:
+  safe_search: 1
+  formats:
+    - html
+    - json

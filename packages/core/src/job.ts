@@ -15,6 +15,7 @@ import {
   type ExplainResult,
   explainFindings,
   type OpenQuestionDraft,
+  privateTerms,
   readExtracts,
   type ToolContext,
   writeHeadline,
@@ -27,6 +28,7 @@ import { type ProfileSummary, periodOf, profileJob } from "@agentic-analytics/pr
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
+import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
 import { type Logger, silentLogger } from "./log.ts";
 import { type RunResult, runPipeline, type StageDef } from "./pipeline.ts";
@@ -62,6 +64,8 @@ export interface JobDeps {
   readonly log?: Logger;
   readonly engine?: Report["engine"];
   readonly now?: () => Date;
+  /** The web lane's search provider (and optionally the page fetcher); used only when the job has `web: true`. */
+  readonly web?: { readonly provider: SearchProvider; readonly fetchPage?: (url: string) => Promise<FetchedPage> };
   /** Called with every job event as it is emitted (live views, SSE). */
   readonly onEvent?: (e: JobEvent) => void;
 }
@@ -128,6 +132,8 @@ interface MeasureOutput {
 interface ExplainOutputStored extends ExplainResult {
   readonly questions: OpenQuestionDraft[];
   readonly quarantined: string[];
+  /** Queries sent to the search provider, as sent (sanitized): the audit trail of what left the machine. */
+  readonly webQueries: string[];
   readonly toolCalls: number;
 }
 
@@ -247,13 +253,25 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       },
       {
         stage: "WEB_CONTEXT",
-        skip: () => (opts.web ? "the web lane is built in M8" : "web lane off (enable with --web)"),
-        run: async () => null,
+        skip: () =>
+          !opts.web ? "web lane off (enable with --web)" : !deps.web ? "web lane on, but no search provider is configured" : undefined,
+        run: async (ctx) => {
+          // What must never leave the machine; the planner's web searches are sanitized against it in EXPLAIN.
+          const terms = await privateTerms(ws);
+          ctx.log.info("web lane ready", {
+            provider: deps.web?.provider.id,
+            private_names: terms.names.length,
+            private_values: terms.values?.length ?? 0,
+          });
+          return { provider: deps.web?.provider.id, private_names: terms.names.length, private_values: terms.values?.length ?? 0 };
+        },
       },
       {
         stage: "EXPLAIN",
         reset: async (w) => {
           await w.run(sql`DELETE FROM extracts`);
+          await w.run(sql`DELETE FROM web_results`);
+          await w.run(sql`DELETE FROM sources WHERE kind = 'web'`);
         },
         run: async (ctx) => {
           const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
@@ -291,7 +309,15 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             model: deps.model,
             embedder: deps.embedder,
             ...(deps.reranker ? { reranker: deps.reranker } : {}),
-            web: opts.web === true,
+            ...(opts.web && deps.web
+              ? {
+                  webLane: {
+                    provider: deps.web.provider,
+                    ...(deps.web.fetchPage ? { fetchPage: deps.web.fetchPage } : {}),
+                    terms: await privateTerms(ws),
+                  },
+                }
+              : {}),
             found: { extracts: [], quarantined: [], questions: [], scenarios: [] },
           };
           const tools = buildTools(toolCtx, budget);
@@ -305,6 +331,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             ...r,
             questions: toolCtx.found.questions,
             quarantined: toolCtx.found.quarantined,
+            webQueries: toolCtx.found.webQueries ?? [],
             toolCalls: budget.used,
           } satisfies ExplainOutputStored;
         },
