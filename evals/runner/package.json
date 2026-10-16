@@ -13,6 +13,7 @@
   "dependencies": {
     "@agentic-analytics/core": "workspace:*",
     "@agentic-analytics/eval-generator": "workspace:*",
+    "@agentic-analytics/eval-real": "workspace:*",
     "@agentic-analytics/models": "workspace:*",
     "@agentic-analytics/retrieval": "workspace:*",
     "@agentic-analytics/schema": "workspace:*"

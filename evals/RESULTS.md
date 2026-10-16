@@ -150,3 +150,42 @@ Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, 
 | saas-v2 | yes | 0/2 | none | 1/1 | 3 | 454.1 s |
 
 </details>
+
+## Real public data
+
+Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.
+
+### baseline · real public data · 2026-10-16
+
+Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.
+
+#### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
+
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 14.9 s · 4/5 checks pass.
+
+| Check | Pass | What the report shows |
+|---|---|---|
+| C1: The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | yes | report with 5 findings, 1 data-quality item |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 180 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C3: The December peak: December is the top month of 2023, 2024 and 2025 (G1) | yes | 2023 peak 2023-12; 2024 peak 2024-12; 2025 peak 2025-12; 3/3 values equal SQL |
+| C4: The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | **no** | 5 of 5 findings: F1 2025-12→2026-01 (contribution.v1), F2 2024-12→2025-01 (contribution.v1), F3 2023-12→2024-01 (contribution.v1), F4 2022-12→2023-01 (contribution.v1), F5 2021-12→2022-01 (contribution.v1) |
+| C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value cites rows 2, 3, 4… |
+
+Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_spend 2025-12 → 2026-01 (contribution.v1); anomaly: card_spend 2024-12 → 2025-01 (contribution.v1); anomaly: card_spend 2023-12 → 2024-01 (contribution.v1); anomaly: card_spend 2022-12 → 2023-01 (contribution.v1); anomaly: card_spend 2021-12 → 2022-01 (contribution.v1).
+
+#### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
+
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 32.4 s · 7/7 checks pass.
+
+| Check | Pass | What the report shows |
+|---|---|---|
+| C1: The job completes on a real 105,797-line file | yes | report with 2 findings, 3 data-quality items |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 28 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id cites rows 58, 117, 118… |
+| C4: Negative quantities (G1: 2,431 lines) | yes | Q10 negative_quantity cites rows 58, 117, 118… |
+| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q2433 missing_id cites rows 156, 157, 158… |
+| C6: The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | yes | 2010 peak 2010-11; 2011 peak 2011-11; 3/3 values equal SQL |
+| C7: No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | yes | no finding at 2011-12 |
+
+Metrics: revenue, orders. Data-quality kinds: prefixed_id, negative_quantity, missing_id. Findings: improvement: revenue 2011-11 (trend.v1); anomaly: orders 2010-11 → 2010-12 (anomaly.v1).
+

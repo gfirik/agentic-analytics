@@ -6,7 +6,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand } from "@agentic-analytics/eval-runner";
+import { evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
@@ -292,9 +292,12 @@ const jobs = defineCommand({
 });
 
 const evalCmd = defineCommand({
-  meta: { name: "eval", description: "Run the eval suite on the generated datasets and update evals/RESULTS.md" },
+  meta: { name: "eval", description: "Run the eval suite on the generated datasets (or the real public ones) and update evals/RESULTS.md" },
   args: {
-    suite: { type: "string", description: "smoke (3 datasets) or full (30 datasets); default smoke" },
+    suite: {
+      type: "string",
+      description: "smoke (3 datasets), full (30 datasets) or real (public datasets; run `bun run eval:real:fetch` first); default smoke",
+    },
     model: {
       type: "string",
       description: "baseline (scripted heuristic, no LLM), configured (the .env/config models), or a model like ollama:qwen3.5:9b",
@@ -304,27 +307,41 @@ const evalCmd = defineCommand({
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
   },
   async run({ args }) {
-    const suite = args.suite === "full" ? "full" : "smoke";
     const model = args.model ?? "baseline";
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+    const resultsDir = fileURLToPath(new URL("../../../evals/results", import.meta.url));
+    const deps = {
+      embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
+      print,
+      modelFor: (name: string) => {
+        // One model for every role, unless "configured" keeps the per-role settings.
+        const env = name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
+        return createModelClient(resolveModelConfig(env, configFile()), { env: process.env });
+      },
+    };
+    if (args.suite === "real") {
+      const r = await realEvalCommand(
+        {
+          model,
+          resultsDir,
+          dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
+          answersDir: fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
+          ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+        },
+        deps,
+      );
+      process.exitCode = r.datasets.every((d) => d.checks.every((c) => c.pass)) ? 0 : 1;
+      return;
+    }
     const r = await evalCommand(
       {
-        suite,
+        suite: args.suite === "full" ? "full" : "smoke",
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
-        resultsDir: fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+        resultsDir,
       },
-      {
-        embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
-        print,
-        modelFor: (name) => {
-          // One model for every role, unless "configured" keeps the per-role settings.
-          const env =
-            name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
-          return createModelClient(resolveModelConfig(env, configFile()), { env: process.env });
-        },
-      },
+      deps,
     );
     process.exitCode = r.bars.every((b) => b.pass !== false) ? 0 : 1;
   },

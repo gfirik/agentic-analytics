@@ -5,11 +5,12 @@ import { join } from "node:path";
 import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
+import { missingRealData, type RealSuiteResult, realResultsMarkdown, runRealSuite } from "./real.ts";
 import { resultsMarkdown, runSuite, type Suite, type SuiteResult } from "./run.ts";
 
 export class EvalRunError extends Error {
   constructor(
-    readonly code: "NO_MODEL" | "USAGE",
+    readonly code: "NO_MODEL" | "USAGE" | "NO_DATA",
     message: string,
   ) {
     super(message);
@@ -70,17 +71,69 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
   return r;
 }
 
-/** RESULTS.md: the latest result per model and suite, full suites first. */
+export interface RealEvalArgs {
+  /** "baseline" (the scripted heuristic, no LLM) or a model name used for every role. */
+  readonly model: string;
+  readonly resultsDir: string;
+  /** evals/real/data (fetched files) and evals/real/answers. */
+  readonly dataDir: string;
+  readonly answersDir: string;
+  readonly keepReports?: string;
+}
+
+const REAL_BASELINE_NOTE =
+  "Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.";
+
+/**
+ * `aa eval --suite real`: the real-data tier. Needs `bun run eval:real:fetch` first; with any file missing it
+ * stops (NO_DATA) instead of publishing a partial run. Writes `<date>-<model>-real.json` and RESULTS.md.
+ */
+export async function realEvalCommand(a: RealEvalArgs, d: EvalDeps): Promise<RealSuiteResult> {
+  const baseline = a.model === "baseline";
+  if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
+  const missing = missingRealData(a.answersDir, a.dataDir);
+  if (missing.length)
+    throw new EvalRunError("NO_DATA", `real-data files missing for ${missing.join(", ")}; run \`bun run eval:real:fetch\` first`);
+  const r = await runRealSuite({
+    model: baseline ? () => baselineModel() : () => (d.modelFor as (n: string) => ModelClient)(a.model),
+    modelName: a.model,
+    ...(baseline ? { note: REAL_BASELINE_NOTE } : {}),
+    embedder: d.embedder,
+    dataDir: a.dataDir,
+    answersDir: a.answersDir,
+    ...(a.keepReports ? { keepReports: a.keepReports } : {}),
+    ...(d.now ? { now: d.now } : {}),
+    onDataset: (s, i, n) =>
+      d.print(
+        `[${i + 1}/${n}] ${s.dataset}: ${s.completed ? `${s.checks.filter((c) => c.pass).length}/${s.checks.length} checks pass` : `failed (${s.error})`} · ${s.seconds.toFixed(1)} s`,
+      ),
+  });
+  mkdirSync(a.resultsDir, { recursive: true });
+  const slug = `${r.date}-${a.model.replace(/[^\w.-]+/g, "_")}-real`;
+  writeFileSync(join(a.resultsDir, `${slug}.json`), `${JSON.stringify(r, null, 2)}\n`);
+  writeFileSync(join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
+  d.print("");
+  for (const s of r.datasets)
+    for (const c of s.checks) d.print(`${s.dataset} ${c.id} ${c.pass ? "pass" : "FAIL"}: ${c.about} — ${c.detail}`);
+  d.print(`results: ${join(a.resultsDir, `${slug}.json`)}`);
+  return r;
+}
+
+/** RESULTS.md: the latest result per model and suite, full suites first, then the real-data tier. */
 export function resultsPage(dir: string): string {
-  const all = existsSync(dir)
+  const files = existsSync(dir)
     ? readdirSync(dir)
         .filter((f) => f.endsWith(".json"))
         .sort()
-        .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as SuiteResult)
+        .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as SuiteResult | RealSuiteResult)
     : [];
+  const all = files.filter((r): r is SuiteResult => r.suite !== "real");
+  const latestReal = new Map<string, RealSuiteResult>();
+  for (const r of files) if (r.suite === "real") latestReal.set(r.model, r);
   const latest = new Map<string, SuiteResult>();
   for (const r of all) latest.set(`${r.suite} ${r.model}`, r);
   const ordered = [...latest.values()].sort((x, y) => (x.suite === y.suite ? x.model.localeCompare(y.model) : x.suite === "full" ? -1 : 1));
+  const real = [...latestReal.values()].sort((x, y) => x.model.localeCompare(y.model));
   return [
     "# Eval results",
     "",
@@ -89,5 +142,10 @@ export function resultsPage(dir: string): string {
     "Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variants) with planted events, distractors and data-quality issues. Retrieval recall@8 and the injection suite run separately (`bun run --filter @agentic-analytics/retrieval eval:retrieval`, `bunx vitest run packages/core/test/injection.test.ts`).",
     "",
     ...(ordered.length ? ordered.map(resultsMarkdown) : ["No results yet."]),
+    "## Real public data",
+    "",
+    "Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.",
+    "",
+    ...(real.length ? real.map(realResultsMarkdown) : ["No real-data runs yet.", ""]),
   ].join("\n");
 }
