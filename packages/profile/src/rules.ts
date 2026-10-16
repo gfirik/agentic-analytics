@@ -1,19 +1,35 @@
 // Implausibility rules (ingestion spec §5): each finding becomes a quality issue with cell provenance.
 import type { NormalizedTable, Workspace } from "@agentic-analytics/store";
 import { tableName } from "@agentic-analytics/store";
-import { aboveHundredRows, aboveOneRows, farFromMedian, futureDateRows, negativeRows, powerOfTenJumps } from "./profile.sql.ts";
+import { ID_HEADER } from "./normalize.ts";
+import {
+  aboveHundredRows,
+  aboveOneRows,
+  farFromMedian,
+  futureDateRows,
+  idPrefixes,
+  negativeRows,
+  nullRows,
+  powerOfTenJumps,
+} from "./profile.sql.ts";
 import type { TableProfile } from "./stats.ts";
 
 export interface RuleIssue {
-  readonly kind: "unit_error" | "negative_quantity" | "rate_above_100" | "future_date";
+  readonly kind: "unit_error" | "negative_quantity" | "rate_above_100" | "future_date" | "missing_id" | "missing_value" | "prefixed_id";
   readonly severity: "high" | "medium" | "low";
   readonly message: string;
   readonly table_id: string;
   readonly column: string;
   readonly letter: string;
+  /** The first row the issue is about. */
   readonly row: number;
+  /** Column-level issues: the first rows (up to 20); the full count is in `details`. */
+  readonly rows?: readonly number[];
   readonly details: Record<string, unknown>;
 }
+
+/** Column-level issues list at most this many rows; `details` carries the full count. */
+const MAX_ROWS = 20;
 
 const COUNT_NAME = /qty|quantity|count|units|pcs|pieces|orders|кол|шт|количество|soni|dona/i;
 const RATE_NAME = /\b(rate|ratio|share|percent|pct)\b|%|доля|ставка|процент|ulush|foiz/i;
@@ -88,6 +104,55 @@ export async function runRules(ws: Workspace, t: NormalizedTable, profile: Table
           message: `"${c.label}" is after ${today} at row ${r._row}`,
           row: r._row,
           details: { today },
+        });
+      }
+    }
+    // An identifier column (customer, invoice, order) that is empty in some rows: those rows can't be linked to
+    // anyone, so per-customer analysis silently drops them. Mostly-empty columns are optional fields, not gaps.
+    const nonNull = p?.non_null ?? 0;
+    const missing = profile.detail_rows - nonNull;
+    if (ID_HEADER.test(c.label) && missing > 0 && nonNull >= missing) {
+      const rows = (await ws.all<{ _row: number }>(nullRows(name, c.name))).map((r) => r._row);
+      issues.push({
+        ...base,
+        kind: "missing_id",
+        severity: "medium",
+        message: `"${c.label}" is empty in ${missing} of ${profile.detail_rows} rows`,
+        row: rows[0] ?? 0,
+        rows: rows.slice(0, MAX_ROWS),
+        details: { missing, rows_total: profile.detail_rows },
+      });
+    }
+    // A number column (an amount, a value) that is empty in some rows: sums skip those rows, so totals for the
+    // periods they fall in are understated or missing (e.g. values suppressed for confidentiality).
+    if ((AMOUNT_TYPES.has(c.type) || c.type === "percent") && !ID_HEADER.test(c.label) && missing > 0 && nonNull >= missing) {
+      const rows = (await ws.all<{ _row: number }>(nullRows(name, c.name))).map((r) => r._row);
+      issues.push({
+        ...base,
+        kind: "missing_value",
+        severity: "low",
+        message: `"${c.label}" is empty in ${missing} of ${profile.detail_rows} rows`,
+        row: rows[0] ?? 0,
+        rows: rows.slice(0, MAX_ROWS),
+        details: { missing, rows_total: profile.detail_rows },
+      });
+    }
+    // Document numbers where most are plain digits and some carry a letter prefix ("C489434" among "489434"): the
+    // prefix marks a different kind of document, often a cancellation or credit note, that sums and counts mix in.
+    if (c.type === "id") {
+      const shapes = await ws.all<{ prefix: string; n: number; rows: number[] }>(idPrefixes(name, c.name));
+      const plain = Number(shapes.find((s) => s.prefix === "")?.n ?? 0);
+      for (const s of shapes) {
+        if (s.prefix === "" || plain < nonNull / 2 || Number(s.n) >= plain) continue;
+        const rows = [...s.rows].map(Number);
+        issues.push({
+          ...base,
+          kind: "prefixed_id",
+          severity: "medium",
+          message: `${s.n} values of "${c.label}" start with "${s.prefix}" while ${plain} are plain numbers; prefixed document numbers often mark cancellations or credit notes`,
+          row: rows[0] ?? 0,
+          rows,
+          details: { prefix: s.prefix, count: Number(s.n), plain },
         });
       }
     }

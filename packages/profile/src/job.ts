@@ -96,7 +96,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
         source_id: n.table.id,
         ...(n.table.sheet !== undefined ? { sheet: n.table.sheet } : {}),
         cell: `${r.letter}${r.row}`,
-        rows: [r.row],
+        rows: r.rows ? [...r.rows] : [r.row],
         column_name: r.column,
         details: r.details,
       });

@@ -69,20 +69,28 @@ Each document is split into sections with page numbers and character offsets. Th
 
 - row count;
 - duplicate rows (exact, and on the inferred key);
-- date coverage, meaning first and last date and missing periods at the inferred grain.
+- date coverage, meaning first and last date and missing periods at the inferred grain;
+- an incomplete last month: at month grain, when day- or week-level data stops before 75% of its last month (an export taken on the 9th), that month is left out of the analysis range and the report carries an assumption saying so. A part-month compared with whole months would read as a collapse. Monthly data (one date per month) is never partial.
 
-**Implausibility rules** (each becomes a `QualityIssue`):
+**Implausibility rules** (each becomes a `QualityIssue`; the report shows one item per kind, column and table, citing its first rows):
 
 - negative quantities where the column name suggests a count;
 - percentages above 100% where the name suggests a rate;
 - future dates;
 - sudden ×10 or ×1000 jumps, which suggest a unit or decimal error;
-- mixed currencies in one column.
+- mixed currencies in one column;
+- missing identifiers: an id-named column (customer ID, order number) that is empty in some rows but filled in at least half (`missing_id`), since those rows can't be linked to anyone;
+- missing values: a number column that is empty in some rows but filled in at least half (`missing_value`), since sums leave those rows out;
+- prefixed document numbers: an id column where most values are plain numbers and some carry a letter prefix (`C489434` among `489434`; `prefixed_id`). The prefix usually marks a cancellation or credit note.
+
+These last three and the incomplete month were added after running the engine on real public data (evals/real).
 
 ## 6. Normalization
 
 - **Dates:**
   - Formats: ISO, `dd.mm.yyyy`, `dd/mm/yyyy`, `mm/dd/yyyy`, Excel serial numbers, and month names in EN/RU/UZ.
+  - `year.month` numbers in a date-named column (`Period`: `2002.10` is October 2002), as Stats NZ and Infoshare publish them. The month is read from the number's two decimals, so `2002.1` (how `2002.10` parses) is October.
+- **Identifiers:** a column of whole numbers mixed with the same numbers behind a short letter prefix (`489434`, `C489434`) is an `id` column. Read as numbers, every prefixed cell would be emptied as unparseable.
   - Ambiguous dd/mm vs mm/dd is resolved per column by a majority test (any value above 12 in either position). If it is still ambiguous, raise an `Assumption`.
 - **Numbers:** thousands and decimal separators in several locales (`1 234,56`, `1,234.56`, `1.234,56`), and parentheses for negatives.
 - **Currency:** detected from symbols and codes (`$`, `€`, `£`, `сум`, `UZS`, `so'm`, `₽`, and others). v0.1 does not convert currencies. Mixed currencies stay separate and are flagged. Conversion with a user-provided dated FX table is P1.

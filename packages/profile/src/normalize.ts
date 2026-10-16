@@ -29,7 +29,7 @@ export interface NormalizeResult {
 const MIN_SHARE = 0.9;
 const DATE_HEADER = /date|month|period|day|time|дата|месяц|период|день|sana|oy\b|kun/i;
 const MONEY_HEADER = /amount|revenue|sales|price|cost|sum\b|turnover|выручка|сумма|цена|стоимость|оборот|tushum|narx|summa/i;
-const ID_HEADER = /(^|[\s_/(])(id|code|sku|№|no\.?|number|номер|код|артикул|raqam)($|[\s_/)])/i;
+export const ID_HEADER = /(^|[\s_/(])(id|code|sku|№|no\.?|number|номер|код|артикул|raqam)($|[\s_/)])/i;
 const NOTE_HEADER = /note|comment|description|remark|memo|details|примечание|комментарий|описание|izoh/i;
 const TRUE_WORDS = new Set(["true", "yes", "y", "да", "ha", "1"]);
 const FALSE_WORDS = new Set(["false", "no", "n", "нет", "yo'q", "yoq", "0"]);
@@ -41,7 +41,26 @@ interface Inferred {
   readonly currency?: string;
   readonly decimal: DecimalSeparator;
   readonly dates?: DateOrderDecision;
+  /** Numbers that encode a month as `year.month` (2002.10 is October 2002), as Stats NZ and Infoshare exports do. */
+  readonly yearMonth?: boolean;
   readonly issues: Omit<ColumnIssue, "column" | "letter" | "rows">[];
+}
+
+/** A document number behind a short letter prefix: "C489434", "CN-1021". */
+const PREFIXED_ID = /^[A-Za-z]{1,3}-?\d+$/;
+
+/**
+ * `year.month` as a number → the month's first day ("2002-10-01"), or undefined. The month is the two decimals:
+ * 2002.1 is how "2002.10" reads once parsed as a number, so it is October; 2002.01 is January; 2002.13 and 2002.55
+ * are not months, and years outside 1900–2100 are not periods.
+ */
+export function yearMonthOf(v: number): string | undefined {
+  if (!Number.isFinite(v)) return undefined;
+  const y = Math.floor(v);
+  const hundredths = (v - y) * 100;
+  const m = Math.round(hundredths);
+  if (y < 1900 || y > 2100 || m < 1 || m > 12 || Math.abs(hundredths - m) > 1e-6) return undefined;
+  return `${y}-${String(m).padStart(2, "0")}-01`;
 }
 
 /** Decides a column's type from its detail (non-total) cells. */
@@ -101,6 +120,15 @@ export function inferColumn(label: string, cells: readonly (Cell | undefined)[])
     // Excel serials in a date-named column.
     if (DATE_HEADER.test(label) && values.every((v) => Number.isInteger(v) && serialToDate(v)))
       return { type: "date", decimal, issues: [] };
+    // `year.month` periods in a date-named column.
+    if (DATE_HEADER.test(label) && values.every((v) => yearMonthOf(v) !== undefined))
+      return { type: "date", decimal, yearMonth: true, issues: [] };
+    // Whole numbers mixed with letter-prefixed numbers ("489434", "C489434") are identifiers: document numbers whose
+    // prefix marks a kind of document (a cancellation, a credit note). Read as numbers, every prefixed cell would be
+    // emptied as unparseable.
+    const others = filled.flatMap((c, i) => (parsed[i] === undefined ? [String(c.v).trim()] : []));
+    if (others.length && values.every((v) => Number.isInteger(v) && v >= 0) && others.every((v) => PREFIXED_ID.test(v)))
+      return { type: "id", decimal, issues: [] };
     const formatPercent = filled.some((c) => typeof c.z === "string" && c.z.includes("%"));
     if (formatPercent || numeric.some((p) => p.percent)) return { type: "percent", decimal, issues: [] };
     const currencies = new Set<string>();
@@ -148,8 +176,9 @@ export function normalizeCell(cell: Cell | undefined, inferred: Inferred): Norma
   switch (inferred.type) {
     case "date":
     case "datetime": {
-      const iso =
-        cell.t === "d"
+      const iso = inferred.yearMonth
+        ? yearMonthOf(cell.t === "n" ? (raw as number) : (parseNumber(String(raw), inferred.decimal)?.value ?? Number.NaN))
+        : cell.t === "d"
           ? String(raw).replace("T", " ")
           : cell.t === "n"
             ? serialToDate(raw as number)?.iso
