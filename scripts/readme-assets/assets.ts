@@ -112,11 +112,33 @@ export function heroProblems(svg: string): string[] {
   return problems;
 }
 
-/** Total GIF duration in seconds: the sum of the Graphic Control Extension delays (1/100 s each). */
-export function gifSeconds(bytes: Uint8Array): number {
+/**
+ * Total GIF duration in seconds: the sum of the Graphic Control Extension delays (1/100 s each), read by walking the
+ * block structure (a byte scan would also match the marker inside compressed image data).
+ */
+export function gifSeconds(b: Uint8Array): number {
+  const at = (i: number) => b[i] ?? 0;
+  const skipSubBlocks = (i: number) => {
+    let p = i;
+    while (p < b.length && at(p) !== 0) p += at(p) + 1;
+    return p + 1;
+  };
+  let p = 13; // header (6) + logical screen descriptor (7)
+  if (at(10) & 0x80) p += 3 * 2 ** ((at(10) & 0x07) + 1); // global color table
   let cs = 0;
-  for (let i = 0; i + 5 < bytes.length; i++)
-    if (bytes[i] === 0x21 && bytes[i + 1] === 0xf9 && bytes[i + 2] === 0x04) cs += (bytes[i + 4] ?? 0) | ((bytes[i + 5] ?? 0) << 8);
+  while (p < b.length) {
+    const block = at(p);
+    if (block === 0x3b) break; // trailer
+    if (block === 0x21) {
+      if (at(p + 1) === 0xf9 && at(p + 2) === 4) cs += at(p + 4) | (at(p + 5) << 8);
+      p = skipSubBlocks(p + 2);
+    } else if (block === 0x2c) {
+      const flags = at(p + 9);
+      p += 10;
+      if (flags & 0x80) p += 3 * 2 ** ((flags & 0x07) + 1); // local color table
+      p = skipSubBlocks(p + 1); // LZW minimum code size, then the image data
+    } else break;
+  }
   return cs / 100;
 }
 
