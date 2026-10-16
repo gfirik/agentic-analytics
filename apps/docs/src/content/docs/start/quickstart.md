@@ -7,6 +7,16 @@ sidebar:
 
 ## 1. Install
 
+**Standalone binary (no Node or Bun):** download `aa-<os>-<arch>` (`aa-windows-x64.exe` on Windows) and `SHA256SUMS` from a release and check it:
+
+- Linux: `sha256sum -c SHA256SUMS --ignore-missing`, then `chmod +x aa-linux-x64 && ./aa-linux-x64 doctor`.
+- macOS: `shasum -a 256 -c SHA256SUMS --ignore-missing`, then `chmod +x aa-macos-arm64`. The binary isn't signed: after a browser download, clear the quarantine flag with `xattr -d com.apple.quarantine aa-macos-arm64`.
+- Windows: `Get-FileHash aa-windows-x64.exe -Algorithm SHA256` and compare with its line in `SHA256SUMS`.
+
+It bundles the engine and DuckDB. Two differences from the Node CLI: documents are indexed with the offline hash embedder (lexical, no 1 GB model download), and `aa serve` has no viewer at `/` (the API, MCP and `report.html` work). For semantic document search, use Docker or the Node CLI below.
+
+**From source:**
+
 You need **Node 22** and **[Bun](https://bun.sh)** (the package manager).
 
 ```bash

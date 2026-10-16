@@ -15,7 +15,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "biome check . && turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json && vitest run && bun run schema:drift && bun run readme:check",
+    "check": "biome check . && turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json && vitest run && bun run schema:drift && bun run prompts:check && bun run readme:check",
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json",
@@ -31,7 +31,9 @@
     "readme:assets": "tsx scripts/readme-assets/assets.ts --write",
     "readme:check": "tsx scripts/readme-assets/assets.ts --check",
     "readme:check:browser": "playwright test -c scripts/readme-assets/playwright.config.ts",
-    "readme:pipeline": "tsx apps/docs/scripts/pipeline-data.ts --write && node --import tsx scripts/readme-assets/pipeline-gif.ts"
+    "readme:pipeline": "tsx apps/docs/scripts/pipeline-data.ts --write && node --import tsx scripts/readme-assets/pipeline-gif.ts",
+    "prompts:check": "tsx scripts/prompts-gen.ts --check",
+    "prompts:write": "tsx scripts/prompts-gen.ts --write"
   },
   "devDependencies": {
     "@agentic-analytics/eval-datasets": "workspace:*",
