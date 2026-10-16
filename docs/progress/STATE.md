@@ -14,7 +14,7 @@ Human gate values:
 | M0 Foundation | DONE | no | [#1](https://github.com/gfirik/agentic-analytics/pull/1) | `bun install && bun run check`; `bun run aa doctor` | Bun workspaces + Turborepo, CI, doctor, drift check |
 | M1 Contracts & golden fixtures | DONE | notify | [#2](https://github.com/gfirik/agentic-analytics/pull/2) | `bun run --filter @agentic-analytics/report render:fixture`; `bun run --filter @agentic-analytics/schema validate:fixture` | Report v1 + integrity, coffee-roaster-v1 dataset, FakeModel + free providers, offline HTML report; real model call DEFERRED |
 | M2 Ingestion | DONE | no | [#4](https://github.com/gfirik/agentic-analytics/pull/4) | `bun run ingest fixtures/xlsx fixtures/csv fixtures/docs` | Intake, 16 xlsx + 2 csv fixtures matching hand-written expectations, PDF/DOCX/EML/MD/TXT sections; Docling real run DEFERRED |
-| M3 Workspace & profiling | IN_PROGRESS | no | | `bun run profile evals/datasets/coffee-roaster-v1/files --today 2026-07-01` | DuckDB workspace + migrations; normalization, profiling, rules, entities; typo, date ambiguity and Hotel Group link found |
+| M3 Workspace & profiling | IN_PROGRESS | no | [#5](https://github.com/gfirik/agentic-analytics/pull/5) | `bun run profile evals/datasets/coffee-roaster-v1/files --today 2026-07-01` | DuckDB workspace + migrations; normalization, profiling, rules, entities; typo, date ambiguity and Hotel Group link found |
 | M4 Metric layer | TODO | no | | | |
 | M5 Analysis library | TODO | no | | | |
 | M6 Retrieval | TODO | no | | | |
