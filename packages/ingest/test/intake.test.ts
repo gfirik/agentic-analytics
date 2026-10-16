@@ -111,6 +111,24 @@ describe("intake", () => {
     expect(aborted).toBe(true);
   });
 
+  it("a parser that ignores the abort and resolves late still leaks nothing", async () => {
+    const stubborn = { convertPdf: () => new Promise<string[]>((resolve) => setTimeout(() => resolve(["too late"]), 80)) };
+    const res = await ingest(
+      [
+        { name: "scan.pdf", bytes: fx("docs/scanned.pdf") },
+        { name: "ok.tsv", bytes: fx("csv/02-tabs.tsv") },
+      ],
+      {
+        docling: stubborn,
+        limits: { timeoutMs: 20 },
+      },
+    );
+    await new Promise((r) => setTimeout(r, 200));
+    expect(res.files.map((f) => f.status)).toEqual(["failed", "ingested"]);
+    expect(res.documents).toEqual([]);
+    expect(res.tables.map((t) => [t.id, t.file_id])).toEqual([["T1", "F2"]]);
+  });
+
   it("issue messages are one bounded line", async () => {
     const res = await ingest([{ name: "bad.docx", bytes: fx("docs/corrupted.docx") }]);
     const message = res.issues[0]?.message ?? "";

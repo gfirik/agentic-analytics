@@ -242,16 +242,15 @@ function analyze(view: View, b: Box, options: DetectOptions): Layout | undefined
   return { box: b, topNotes, headerRows, dataRows, bottomNotes, cols: columns };
 }
 
+/** Any single-cell row above the header (title, date, note) is kept in `notes`, never dropped silently. */
+function isNoteRow(view: View, r: number, b: Box): boolean {
+  return cols(b.c0, b.c1).filter((c) => view.occupied(r, c)).length === 1;
+}
+
 /**
  * Spec §3.2: ≥ 2 columns, ≥ 3 data rows, and type consistency below the header — at least two columns whose
  * filled cells share one type (≥ 80%, total rows excluded). Free-form text blocks and scattered notes fail this.
  */
-function isNoteRow(view: View, r: number, b: Box): boolean {
-  const filled = cols(b.c0, b.c1).filter((c) => view.occupied(r, c));
-  // Any single-cell row above the header (title, date, note) is kept in `notes`, never dropped silently.
-  return filled.length === 1;
-}
-
 function qualifies(view: View, l: Layout): boolean {
   if (l.dataRows.length < MIN_DATA_ROWS) return false;
   const detail = l.dataRows.filter((r) => !isKeywordTotal(view, r, l.cols));
