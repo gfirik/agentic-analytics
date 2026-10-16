@@ -1,0 +1,19 @@
+{
+  "tables": [
+    {
+      "sheet": "Stores",
+      "range": "A1:E5",
+      "hidden_sheet": false,
+      "header_rows": [1, 2],
+      "columns": ["Store", "Sales / Revenue", "Sales / Orders", "Costs / Rent", "Costs / Staff"],
+      "transposed": false,
+      "notes": [],
+      "rows": [
+        [3, ["Center", 500, 40, 100, 200], false],
+        [4, ["Mall", 700, 55, 150, 210], false],
+        [5, ["Airport", 300, 20, 90, 120], false]
+      ]
+    }
+  ],
+  "issues": []
+}

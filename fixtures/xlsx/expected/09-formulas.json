@@ -1,0 +1,26 @@
+{
+  "tables": [
+    {
+      "sheet": "Order",
+      "range": "A1:D5",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Item", "Qty", "Price", "Line total"],
+      "transposed": false,
+      "notes": [],
+      "rows": [
+        [2, ["Beans", 2, 10, 20], false],
+        [3, ["Cups", 3, 4, 12], false],
+        [4, ["Lids", 5, 1, null], false],
+        [5, ["Total", null, null, 37], true]
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "missing_cached_value",
+      "sheet": "Order",
+      "cell": "D4"
+    }
+  ]
+}

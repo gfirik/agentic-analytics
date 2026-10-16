@@ -8,7 +8,8 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "evals/*"
+    "evals/*",
+    "fixtures"
   ],
   "engines": {
     "node": ">=22"
@@ -22,7 +23,8 @@
     "test:watch": "vitest",
     "schema:drift": "tsx scripts/schema-drift.ts",
     "schema:write": "tsx scripts/schema-drift.ts --write",
-    "aa": "node apps/cli/bin/aa.js"
+    "aa": "node apps/cli/bin/aa.js",
+    "ingest": "tsx packages/ingest/scripts/demo.ts"
   },
   "devDependencies": {
     "@agentic-analytics/schema": "workspace:*",

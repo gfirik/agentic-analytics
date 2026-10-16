@@ -1,0 +1,21 @@
+{
+  "tables": [
+    {
+      "sheet": "Menu",
+      "range": "A1:C6",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Category", "Product", "Units"],
+      "transposed": false,
+      "notes": [],
+      "rows": [
+        [2, ["Coffee", "Espresso", 10], false],
+        [3, ["Coffee", "Latte", 12], false],
+        [4, ["Coffee", "Mocha", 7], false],
+        [5, ["Tea", "Green", 4], false],
+        [6, ["Tea", "Black", 6], false]
+      ]
+    }
+  ],
+  "issues": []
+}

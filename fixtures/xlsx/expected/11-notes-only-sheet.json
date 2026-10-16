@@ -1,0 +1,15 @@
+{
+  "tables": [
+    {
+      "sheet": "Data",
+      "range": "A1:C4",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Week", "Visitors", "Sales"],
+      "transposed": false,
+      "notes": [],
+      "rows": [[2, [1, 120, 30], false], [3, [2, 140, 35], false], [4, [3, 135, 33], false]]
+    }
+  ],
+  "issues": []
+}

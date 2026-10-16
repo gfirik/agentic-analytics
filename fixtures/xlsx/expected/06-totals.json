@@ -1,0 +1,23 @@
+{
+  "tables": [
+    {
+      "sheet": "Costs",
+      "range": "A1:C8",
+      "hidden_sheet": false,
+      "header_rows": [1],
+      "columns": ["Category", "Item", "Amount"],
+      "transposed": false,
+      "notes": [],
+      "rows": [
+        [2, ["Coffee", "Espresso", 100], false],
+        [3, ["Coffee", "Filter", 50], false],
+        [4, ["Subtotal coffee", null, 150], true],
+        [5, ["Tea", "Green", 30], false],
+        [6, ["Tea", "Black", 20], false],
+        [7, [null, null, 50], true],
+        [8, ["Total", null, 200], true]
+      ]
+    }
+  ],
+  "issues": []
+}
