@@ -56,10 +56,10 @@ mkdirSync(dirname(out), { recursive: true });
 const others = ["linux-x64", "linux-arm64", "linux-x64-musl", "linux-arm64-musl", "darwin-x64", "darwin-arm64", "win32-x64", "win32-arm64"]
   .filter((b) => b !== binding)
   .flatMap((b) => ["--external", `@duckdb/node-bindings-${b}/duckdb.node`]);
-const r = spawnSync("bun", ["build", "--compile", "--minify", join(stage, "entry.ts"), ...others, "--outfile", out], {
+// This script runs on Bun, so its own executable is the bundler; no shell, so paths with spaces stay one argument.
+const r = spawnSync(process.execPath, ["build", "--compile", "--minify", join(stage, "entry.ts"), ...others, "--outfile", out], {
   cwd: root,
   stdio: "inherit",
-  shell: process.platform === "win32",
 });
 if (r.status !== 0) process.exit(r.status ?? 1);
 

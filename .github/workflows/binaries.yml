@@ -50,6 +50,10 @@ jobs:
           "$bin" eval --suite smoke --model baseline --results-dir "$RUNNER_TEMP/results" | tee eval.txt || true
           grep -E "^Jobs completed: 100.0%" eval.txt
           grep -E "^Number mismatches: 0 " eval.txt
+          # Without --results-dir the binary writes to ./eval-results (it has no source checkout next to it).
+          "$bin" eval --suite smoke --model baseline > default.txt || true
+          grep -E "^Jobs completed: 100.0%" default.txt
+          ls eval-results/*.json
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}

@@ -21,6 +21,7 @@ import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { formatEvent, runCommand } from "./run.ts";
+import { embedderChoice, isStandalone, resultsDir, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -56,20 +57,14 @@ const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
 
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
-/**
- * The standalone binary (scripts/build-binary.ts) can't load the in-process ONNX embedder (Transformers.js needs the
- * sharp and onnxruntime native libraries next to it), so by default it uses the offline hash embedder and says so.
- * An explicit --embedder still wins; Docker and the Node CLI keep the ONNX default.
- */
+/** The embedder for a run: see embedderChoice (standalone.ts) for the binary's default. */
 function pickEmbedder(arg: string | undefined, configured: string, cacheDir: string) {
-  if (arg === "hash") return hashEmbedder();
-  if (!arg && process.env.AA_STANDALONE === "1") {
-    process.stderr.write(
-      "Standalone binary: documents are indexed with the offline hash embedder (lexical). For semantic retrieval use the Docker image or the Node CLI.\n",
-    );
+  const choice = embedderChoice(arg, process.env);
+  if (choice.kind === "hash") {
+    if (choice.notice) process.stderr.write(`${choice.notice}\n`);
     return hashEmbedder();
   }
-  return transformersEmbedder({ model: arg ?? configured, cacheDir });
+  return transformersEmbedder({ model: choice.model ?? configured, cacheDir });
 }
 
 function runtime(embedderArg?: string) {
@@ -230,7 +225,7 @@ const serveCmd = defineCommand({
       if (cached && Date.now() - cached.at < 60_000) return cached.value;
       const file = configFile();
       const results = await runDoctor({
-        nodeVersion: process.version,
+        nodeVersion: runtimeVersion(process.env, process.versions, process.version),
         duckdbVersion,
         fetch: globalThis.fetch,
         env: process.env,
@@ -255,10 +250,13 @@ const serveCmd = defineCommand({
       ],
       health,
       mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
-      viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
+      // The binary carries no viewer build: the API, MCP and report.html still work.
+      ...(isStandalone(process.env) ? {} : { viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)) }),
       version: ENGINE_VERSION,
     });
-    print(`agentic-analytics API on ${s.url} (viewer at /, OpenAPI at /openapi.json, MCP at /mcp)`);
+    print(
+      `agentic-analytics API on ${s.url} (${isStandalone(process.env) ? "no viewer in the standalone binary" : "viewer at /"}, OpenAPI at /openapi.json, MCP at /mcp)`,
+    );
   },
 });
 
@@ -329,7 +327,12 @@ const evalCmd = defineCommand({
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
-        resultsDir: args["results-dir"] ?? fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+        resultsDir: resultsDir(
+          args["results-dir"],
+          process.env,
+          process.cwd(),
+          fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+        ),
       },
       {
         embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),

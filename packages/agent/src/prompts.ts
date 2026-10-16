@@ -14,7 +14,7 @@ export function data(value: unknown): string {
 
 export class PromptError extends Error {
   constructor(
-    readonly code: "MISSING_VARIABLE" | "UNKNOWN_VARIABLE" | "BAD_HEADER",
+    readonly code: "MISSING_VARIABLE" | "UNKNOWN_VARIABLE" | "BAD_HEADER" | "MISSING_PROMPT",
     message: string,
   ) {
     super(message);
@@ -36,7 +36,7 @@ function load(name: PromptName): Template {
   const known = cache.get(name);
   if (known) return known;
   const raw = PROMPTS[name];
-  if (raw === undefined) throw new PromptError("BAD_HEADER", `prompts/${name}.md is missing (run \`bun run prompts:write\`)`);
+  if (raw === undefined) throw new PromptError("MISSING_PROMPT", `prompts/${name}.md is missing (run \`bun run prompts:write\`)`);
   const m = HEADER.exec(raw);
   if (!m || m[1] !== name) throw new PromptError("BAD_HEADER", `prompts/${name}.md must start with its prompt header`);
   const t: Template = {
