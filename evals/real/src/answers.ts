@@ -11,8 +11,18 @@ const Check = z.discriminatedUnion("kind", [
   z.object({ id: z.string(), kind: z.literal("completes"), about: z.string() }),
   /** The verifier found no number mismatch, re-derivation mismatch or definition violation. */
   z.object({ id: z.string(), kind: z.literal("verified"), about: z.string() }),
-  /** A data-quality item of this kind about this column (the report names the column in its description). */
-  z.object({ id: z.string(), kind: z.literal("quality_issue"), about: z.string(), issue: z.string(), column: z.string() }),
+  /**
+   * A data-quality item of this kind about this column (the report names the column in its description); with
+   * `count`, the item's row count (the fact behind its placeholder) equals the SQL result.
+   */
+  z.object({
+    id: z.string(),
+    kind: z.literal("quality_issue"),
+    about: z.string(),
+    issue: z.string(),
+    column: z.string(),
+    count: z.number().int().nonnegative().optional(),
+  }),
   /**
    * In each listed year, the month with the highest value of the metric (read from the report's `<metric>_YYYY-MM`
    * facts) is one of `months`; and the facts for `values` equal the independent SQL results within `tolerance`.

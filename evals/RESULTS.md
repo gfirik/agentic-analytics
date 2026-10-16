@@ -166,24 +166,24 @@ This work is based on Stats NZ's data (Electronic card transactions: September 2
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | yes | report with 5 findings, 1 data-quality item |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 180 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 181 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
 | C3: The December peak: December is the top month of 2023, 2024 and 2025 (G1) | yes | 2023 peak 2023-12; 2024 peak 2024-12; 2025 peak 2025-12; 3/3 values equal SQL |
 | C4: The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | **no** | 5 of 5 findings: F1 2025-12→2026-01 (contribution.v1), F2 2024-12→2025-01 (contribution.v1), F3 2023-12→2024-01 (contribution.v1), F4 2022-12→2023-01 (contribution.v1), F5 2021-12→2022-01 (contribution.v1) |
-| C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value cites rows 2, 3, 4… |
+| C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value: 264 rows (N733), SQL 264; cites rows 2, 3, 4… |
 
 Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_spend 2025-12 → 2026-01 (contribution.v1); anomaly: card_spend 2024-12 → 2025-01 (contribution.v1); anomaly: card_spend 2023-12 → 2024-01 (contribution.v1); anomaly: card_spend 2022-12 → 2023-01 (contribution.v1); anomaly: card_spend 2021-12 → 2022-01 (contribution.v1).
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 11.9 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.0 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on a real 105,797-line file | yes | report with 2 findings, 3 data-quality items |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 28 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
-| C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id cites rows 58, 117, 118… |
-| C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity cites rows 58, 117, 118… |
-| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id cites rows 156, 157, 158… |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 31 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id: 2089 rows (N120), SQL 2089; cites rows 58, 117, 118… |
+| C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity: 2431 rows (N121), SQL 2431; cites rows 58, 117, 118… |
+| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id: 21051 rows (N122), SQL 21051; cites rows 156, 157, 158… |
 | C6: The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | yes | 2010 peak 2010-11; 2011 peak 2011-11; 3/3 values equal SQL |
 | C7: No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | yes | no finding at 2011-12 |
 

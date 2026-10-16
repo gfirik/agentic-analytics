@@ -74,3 +74,4 @@ checks:
     about: "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)"
     issue: missing_value
     column: data_value
+    count: 264

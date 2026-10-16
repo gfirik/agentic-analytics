@@ -50,9 +50,14 @@ export async function fetchDataset(d: RealDataset, deps: FetchDeps): Promise<Fet
     deps.print(`${d.id}: ${d.derived.file} present and verified`);
     return { id: d.id, file: d.derived.file, sha256: d.derived.sha256, cached: true };
   }
+  // A repaired cache is never silent: say which file failed its checksum and what was done about it.
   const archiveName = `${d.id}.zip`;
   let archive = deps.read(archiveName);
-  if (!archive || sha256(archive) !== d.download.sha256) {
+  if (archive && sha256(archive) === d.download.sha256) {
+    if (cachedDerived) deps.print(`${d.id}: checksum mismatch on ${d.derived.file}: rebuilding it from the cached ${archiveName}`);
+  } else {
+    const bad = [cachedDerived ? d.derived.file : "", archive ? archiveName : ""].filter(Boolean);
+    if (bad.length) deps.print(`${d.id}: checksum mismatch on ${bad.join(" and ")}: re-downloading`);
     deps.print(`${d.id}: downloading ${d.download.url}`);
     const res = await deps.fetch(d.download.url);
     if (!res.ok) throw new RealDataError("DOWNLOAD_FAILED", `${d.id}: HTTP ${res.status} from ${d.download.url}`);

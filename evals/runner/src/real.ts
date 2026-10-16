@@ -9,7 +9,7 @@ import { confirmJobMetrics, type JobOptions, runJob } from "@agentic-analytics/c
 import { parseRealAnswers, REAL_DATASETS, type RealAnswers, type RealCheck } from "@agentic-analytics/eval-real";
 import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
-import type { Report } from "@agentic-analytics/schema";
+import { placeholders, type Report } from "@agentic-analytics/schema";
 import { EvalRunError } from "./errors.ts";
 import { canonicalMetrics, subjectOf } from "./score.ts";
 
@@ -100,12 +100,15 @@ export function scoreCheck(c: RealCheck, report: Report | undefined, error?: str
     case "quality_issue": {
       const hit = report.data_quality.find((q) => q.kind === c.issue && q.description.includes(`column “${c.column}”`));
       const kinds = [...new Set(report.data_quality.map((q) => q.kind))].join(", ") || "none";
-      return out(
-        hit !== undefined,
-        hit
-          ? `${hit.id} ${hit.kind} cites rows ${(hit.citations[0]?.rows ?? []).slice(0, 3).join(", ")}…`
-          : `not reported (kinds reported: ${kinds})`,
-      );
+      if (!hit) return out(false, `not reported (kinds reported: ${kinds})`);
+      const rows = `cites rows ${(hit.citations[0]?.rows ?? []).slice(0, 3).join(", ")}…`;
+      if (c.count === undefined) return out(true, `${hit.id} ${hit.kind} ${rows}`);
+      // The count is the fact behind the item's placeholder, never a number parsed from prose.
+      const counted = placeholders(hit.description)
+        .map((id) => report.facts.find((f) => f.id === id))
+        .find((f) => f?.unit === "count");
+      if (!counted) return out(false, `${hit.id} ${hit.kind} states no count (SQL: ${c.count})`);
+      return out(counted.value === c.count, `${hit.id} ${hit.kind}: ${counted.value} rows (${counted.id}), SQL ${c.count}; ${rows}`);
     }
     case "seasonal_peak": {
       // The metric by id, or the report metric whose definition means it (a model may call revenue `total_sales`).

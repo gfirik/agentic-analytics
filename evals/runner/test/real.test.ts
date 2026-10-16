@@ -38,6 +38,7 @@ const REPORT = {
     fact("N2", "revenue_2025-11", 100),
     fact("N3", "revenue_2025-12", 80),
     fact("N4", "revenue_2026-01", 50),
+    { ...fact("N5", "rows with negative quantity in quantity", 2), unit: "count" as const },
   ],
   findings: [
     {
@@ -57,7 +58,7 @@ const REPORT = {
       id: "Q1",
       kind: "negative_quantity",
       severity: "medium",
-      description: "Some quantities are negative (column “quantity” in “lines.csv”).",
+      description: "Some quantities are negative (column “quantity” in “lines.csv”; {{N5}} rows).",
       citations: [{ source_id: "T1", rows: [5, 11] }],
     },
   ],
@@ -93,6 +94,9 @@ describe("scoreCheck", () => {
     expect(pass({ ...base, kind: "quality_issue", issue: "negative_quantity", column: "quantity" })).toBe(true);
     expect(pass({ ...base, kind: "quality_issue", issue: "negative_quantity", column: "price" })).toBe(false);
     expect(pass({ ...base, kind: "quality_issue", issue: "missing_id", column: "quantity" })).toBe(false);
+    // The count is the fact behind the placeholder (N5 = 2)
+    expect(pass({ ...base, kind: "quality_issue", issue: "negative_quantity", column: "quantity", count: 2 })).toBe(true);
+    expect(pass({ ...base, kind: "quality_issue", issue: "negative_quantity", column: "quantity", count: 3 })).toBe(false);
   });
 
   it("seasonal_peak reads the monthly facts: peak month and values against SQL", () => {
@@ -205,6 +209,18 @@ describe("a job on invoice lines", () => {
         ["Q2", "negative_quantity", [5, 11]],
         ["Q3", "missing_id", [6, 9]],
       ]);
+      // Each item states its row count through a SQL fact: one C-invoice, two negative quantities, two missing IDs.
+      const counts = report.data_quality.map((q) => {
+        const id = /\{\{(N\d+)\}\} rows/.exec(q.description)?.[1];
+        const f = report.facts.find((x) => x.id === id);
+        return [q.kind, f?.value, f?.computation.kind, f?.unit];
+      });
+      expect(counts).toEqual([
+        ["prefixed_id", 1, "sql", "count"],
+        ["negative_quantity", 2, "sql", "count"],
+        ["missing_id", 2, "sql", "count"],
+      ]);
+      expect(report.verification.numbers_mismatched).toBe(0);
       expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders"]);
     } finally {
       rmSync(dir, { recursive: true, force: true });

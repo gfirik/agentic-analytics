@@ -7,7 +7,7 @@ Nothing here is committed data. `bun run eval:real:fetch` downloads each file, c
 ## Run it
 
 ```bash
-bun run eval:real:fetch     # downloads into evals/real/data/ (gitignored); fails loudly on any checksum mismatch
+bun run eval:real:fetch     # downloads into evals/real/data/ (gitignored); a bad download fails loudly, a corrupted local file is rebuilt or re-downloaded and says so
 bun run eval:real           # aa eval --suite real --model baseline: runs the engine, scores, updates evals/RESULTS.md
 bun run eval:real -- --model openai-compatible:groq:openai/gpt-oss-120b   # a real model for every role
 ```
@@ -34,7 +34,7 @@ Why derive at all:
 |---|---|
 | `completes` | a report (no stage failed) |
 | `verified` | no number mismatch, re-derivation mismatch or definition violation in `verification` |
-| `quality_issue` | a `data_quality` item of the given kind that names the given column |
+| `quality_issue` | a `data_quality` item of the given kind that names the given column; with `count`, the row-count fact behind its placeholder equals the SQL result |
 | `seasonal_peak` | in each listed year, the month with the highest `<metric>_YYYY-MM` fact is one of `months`, and the facts for `values` equal the SQL results within `tolerance` |
 | `finding_at` | a finding whose subject (its code-written first claim) is the metric's change at that month, in that direction |
 | `no_finding_at` | no finding about that month |

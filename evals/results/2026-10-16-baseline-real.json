@@ -14,7 +14,7 @@
       "file": "nz-card-spend-by-industry.csv",
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
       "completed": true,
-      "seconds": 5.628,
+      "seconds": 5.612,
       "metrics": [
         "card_spend"
       ],
@@ -41,7 +41,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "180 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
+          "detail": "181 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
         },
         {
           "id": "C3",
@@ -62,7 +62,7 @@
           "kind": "quality_issue",
           "about": "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)",
           "pass": true,
-          "detail": "Q1 missing_value cites rows 2, 3, 4…"
+          "detail": "Q1 missing_value: 264 rows (N733), SQL 264; cites rows 2, 3, 4…"
         }
       ]
     },
@@ -76,7 +76,7 @@
       "file": "online_retail_II.sample10.csv",
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
       "completed": true,
-      "seconds": 11.93,
+      "seconds": 12.037,
       "metrics": [
         "revenue",
         "orders"
@@ -103,28 +103,28 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "28 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
+          "detail": "31 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
         },
         {
           "id": "C3",
           "kind": "quality_issue",
           "about": "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)",
           "pass": true,
-          "detail": "Q1 prefixed_id cites rows 58, 117, 118…"
+          "detail": "Q1 prefixed_id: 2089 rows (N120), SQL 2089; cites rows 58, 117, 118…"
         },
         {
           "id": "C4",
           "kind": "quality_issue",
           "about": "Negative quantities (G1: 2,431 lines)",
           "pass": true,
-          "detail": "Q2 negative_quantity cites rows 58, 117, 118…"
+          "detail": "Q2 negative_quantity: 2431 rows (N121), SQL 2431; cites rows 58, 117, 118…"
         },
         {
           "id": "C5",
           "kind": "quality_issue",
           "about": "Missing customer IDs (G1: 21,051 lines)",
           "pass": true,
-          "detail": "Q3 missing_id cites rows 156, 157, 158…"
+          "detail": "Q3 missing_id: 21051 rows (N122), SQL 21051; cites rows 156, 157, 158…"
         },
         {
           "id": "C6",
@@ -143,5 +143,5 @@
       ]
     }
   ],
-  "seconds": 17.562
+  "seconds": 17.653
 }

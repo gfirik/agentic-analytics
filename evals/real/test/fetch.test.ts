@@ -111,15 +111,30 @@ describe("fetchDataset", () => {
     await expect(fetchDataset(dataset({ entry: "other.csv" }), deps(ARCHIVE).d)).rejects.toMatchObject({ code: "ENTRY_MISSING" });
   });
 
-  it("reuses verified files without downloading, and re-downloads a corrupted cache", async () => {
-    const { d, files, calls } = deps(ARCHIVE);
+  it("reuses verified files without downloading, and says how it repairs a corrupted cache", async () => {
+    const lines: string[] = [];
+    const { d: base, files, calls } = deps(ARCHIVE);
+    const d = { ...base, print: (l: string) => lines.push(l) };
     files.set("toy.csv", DERIVED);
+    files.set("toy.zip", ARCHIVE);
     expect((await fetchDataset(dataset(), d)).cached).toBe(true);
     expect(calls).toEqual([]);
+    // A tampered derived file with a good archive: rebuilt from the archive, no download.
+    files.set("toy.csv", utf8("tampered"));
+    lines.length = 0;
+    expect((await fetchDataset(dataset(), d)).cached).toBe(false);
+    expect(calls).toEqual([]);
+    expect(lines[0]).toBe("toy: checksum mismatch on toy.csv: rebuilding it from the cached toy.zip");
+    // Both tampered: re-downloaded.
     files.set("toy.csv", utf8("tampered"));
     files.set("toy.zip", utf8("tampered"));
+    lines.length = 0;
     expect((await fetchDataset(dataset(), d)).cached).toBe(false);
     expect(calls).toHaveLength(1);
+    expect(lines.slice(0, 2)).toEqual([
+      "toy: checksum mismatch on toy.csv and toy.zip: re-downloading",
+      "toy: downloading https://example.org/toy.zip",
+    ]);
     expect(files.get("toy.csv")).toEqual(DERIVED);
   });
 });

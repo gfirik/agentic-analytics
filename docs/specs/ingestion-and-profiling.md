@@ -72,7 +72,7 @@ Each document is split into sections with page numbers and character offsets. Th
 - date coverage, meaning first and last date and missing periods at the inferred grain;
 - an incomplete last month: at month grain, when day- or week-level data stops before 75% of its last month (an export taken on the 9th), that month is left out of the analysis range and the report carries an assumption saying so. A part-month compared with whole months would read as a collapse. Monthly data (one date per month) is never partial.
 
-**Implausibility rules** (each becomes a `QualityIssue`; the report shows one item per kind, column and table, citing its first rows):
+**Implausibility rules** (each becomes a `QualityIssue`; the report shows one item per kind, column and table, citing its first rows; for negative quantities, missing ids, missing values and prefixed ids the item states its row count through a fact whose SQL counts the rows, re-run by the verifier):
 
 - negative quantities where the column name suggests a count;
 - percentages above 100% where the name suggests a rate;

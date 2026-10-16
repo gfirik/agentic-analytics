@@ -48,16 +48,19 @@ checks:
     about: "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)"
     issue: prefixed_id
     column: invoice
+    count: 2089
   - id: C4
     kind: quality_issue
     about: "Negative quantities (G1: 2,431 lines)"
     issue: negative_quantity
     column: quantity
+    count: 2431
   - id: C5
     kind: quality_issue
     about: "Missing customer IDs (G1: 21,051 lines)"
     issue: missing_id
     column: customer_id
+    count: 21051
   - id: C6
     kind: seasonal_peak
     about: "The Nov–Dec peak: November is the top month of 2010 and 2011 (G2)"
