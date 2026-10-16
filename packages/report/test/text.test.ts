@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Report } from "@agentic-analytics/schema";
+import type { Fact, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { fillPlaceholders, reportSummaryText } from "../src/index.ts";
+import { fillPlaceholders, formatFact, reportSummaryText } from "../src/index.ts";
 
 const report = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "..", "schema", "test", "fixtures", "report.coffee-roaster.json"), "utf8"),
@@ -24,18 +24,16 @@ describe("plain-text report views", () => {
 });
 
 describe("percentage points", () => {
-  const fact = (fn: string, value: number) =>
-    ({
-      id: "N1",
-      label: "x",
-      value,
-      unit: "percent",
-      computation: { kind: "function", fn, inputs: [] },
-      citations: [],
-      verified: true,
-    }) as const;
-  it("a difference of percentages reads as points; a percent change stays a percent", async () => {
-    const { formatFact } = await import("../src/index.ts");
+  const fact = (fn: string, value: number): Fact => ({
+    id: "N1",
+    label: "x",
+    value,
+    unit: "percent",
+    computation: { kind: "function", fn, inputs: [] },
+    citations: [],
+    verified: true,
+  });
+  it("a difference of percentages reads as points; a percent change stays a percent", () => {
     expect(formatFact(fact("delta", 2.2))).toBe("2.2 pp");
     expect(formatFact(fact("benchmark_gap.v1", 1.4))).toBe("1.4 pp");
     expect(formatFact(fact("share_shift", -10))).toBe("−10.0 pp");
