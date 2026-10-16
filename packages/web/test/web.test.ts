@@ -71,6 +71,10 @@ describe("query sanitizer (agent-and-verifier §4): no private value reaches a q
     expect(sanitizeQuery("account ACC99812 coffee prices", shops).query).toBe("account coffee prices");
     expect(sanitizeQuery("Hotel Group's coffee prices", shops).query).toBe("coffee prices");
     expect(sanitizeQuery("call +1 (555) 010-2030 coffee", shops).query).toBe("call coffee");
+    // Fragments of other numbers that look like years go too; real years stay.
+    expect(sanitizeQuery("ratio 0.2025 coffee", shops).query).toBe("ratio coffee");
+    expect(sanitizeQuery("12.1999 coffee", shops).query).toBe("coffee");
+    expect(sanitizeQuery("3,2050 coffee prices 2026", shops).query).toBe("coffee prices 2026");
     for (const digits of ["１２３４５", "١٢٣", "۴۵۶", "7,190.50", "53%"]) {
       const q = sanitizeQuery(`refund rate ${digits} benchmark`, names).query;
       expect(q, digits).toBe("refund rate benchmark");
@@ -97,6 +101,9 @@ describe("query sanitizer (agent-and-verifier §4): no private value reaches a q
       "packaging",
     ];
     const privateBits = [
+      "0.2025",
+      "12.1999",
+      "3,2050",
       ...terms.names,
       ...terms.names.map((n) => n.toUpperCase()),
       "hotel group",
@@ -126,9 +133,11 @@ describe("query sanitizer (agent-and-verifier §4): no private value reaches a q
       // Independent oracle: no private core and no digit run other than a year survives.
       for (const c of ["hotel group", "lena park", "cafe bodrum", "green leaf", "acc 99812", "sales 2026 xlsx"])
         expect(oracle(q), `${words.join(" ")} → ${q}`).not.toContain(` ${c} `);
+      // Only years that were whole numbers in the input survive.
+      const inputYears = new Set(words.join(" ").match(/(?<![\d.,])(?:19|20)\d{2}(?![\d.,]*\d)/g) ?? []);
       expect(
-        (q.match(/\d+/g) ?? []).every((d) => /^(19|20)\d{2}$/.test(d)),
-        q,
+        (q.match(/\d+/g) ?? []).every((d) => inputYears.has(d)),
+        `${words.join(" ")} → ${q}`,
       ).toBe(true);
       expect(q).not.toMatch(/@|https?:|www\./i);
     }

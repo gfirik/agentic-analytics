@@ -132,6 +132,9 @@ const wordRe = (p: string) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(p)}(?![\
 export function sanitizeQuery(query: string, terms: PrivateTerms = { names: [] }): Sanitized {
   const removed: { kind: Sanitized["removed"][number]["kind"]; text: string }[] = [];
   let q = ` ${foldDigits(query)} `;
+  // Years as they stand in the input, before anything is cut: after a cut or normalising, "0.2025" or the tail of
+  // a phone number can look like a year, and only a year that was a whole number on its own may survive.
+  const years = new Set((q.match(NUMBER) ?? []).filter((m) => YEAR.test(m)));
   const cut = (re: RegExp, kind: Sanitized["removed"][number]["kind"], keep?: (m: string) => boolean) => {
     q = q.replace(re, (m) => {
       if (keep?.(m)) return m;
@@ -144,6 +147,7 @@ export function sanitizeQuery(query: string, terms: PrivateTerms = { names: [] }
   cut(EMAIL, "email");
   for (const v of terms.values ?? []) if (v.trim().length >= 2) cut(new RegExp(escapeRe(foldDigits(v.trim())), "giu"), "value");
   cut(PHONE, "phone", (m) => YEAR.test(m.trim()));
+
   // Names and values next, on the normalised text and before numbers go, so a name with digits ("Cafe 24") is
   // removed whole instead of leaking its word part.
   q = ` ${normalizeText(q)} `;
@@ -152,7 +156,7 @@ export function sanitizeQuery(query: string, terms: PrivateTerms = { names: [] }
     if (nv.length >= 3) cut(wordRe(nv), "value");
   }
   for (const p of phrases(terms)) cut(wordRe(p), "name");
-  cut(NUMBER, "number", (m) => YEAR.test(m));
+  cut(NUMBER, "number", (m) => years.has(m));
   // A possessive left behind by a removed name ("Hotel Group's" → "s").
   q = q.replace(/(?<=\s)s(?=\s)/g, " ");
   const clean = q.replace(/\s+/g, " ").trim().slice(0, 200);
