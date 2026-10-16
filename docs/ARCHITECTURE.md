@@ -97,7 +97,7 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | `profile_columns`, `profile_tables` | profiling results |
 | `quality_issues` | data-quality findings with provenance |
 | `entities`, `entity_links` | matched entities across files |
-| `metric_defs` | confirmed or assumed metric definitions (YAML plus compiled SQL) |
+| `metric_defs` | confirmed or assumed metric definitions (YAML, compiled SQL and its params, status) |
 | `facts` | every computed number: id, value, unit, sql, params, input row refs, definition id |
 | `insights` | detected changes and anomalies (templates output), referencing facts |
 | `decompositions` | driver breakdowns, referencing facts |

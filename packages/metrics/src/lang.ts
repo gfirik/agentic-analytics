@@ -374,8 +374,11 @@ export function describeFilter(f: Filter): string {
     case "null":
       return `${f.col} is ${f.negated ? "filled in" : "empty"}`;
     case "and":
-    case "or":
-      return `${describeFilter(f.left)} ${f.k} ${describeFilter(f.right)}`;
+    case "or": {
+      // Bracket a nested filter of the other kind so the wording keeps the grouping.
+      const side = (x: Filter) => ((x.k === "and" || x.k === "or") && x.k !== f.k ? `(${describeFilter(x)})` : describeFilter(x));
+      return `${side(f.left)} ${f.k} ${side(f.right)}`;
+    }
     case "not":
       return `not (${describeFilter(f.arg)})`;
   }

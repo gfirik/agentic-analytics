@@ -12,7 +12,15 @@ const safe = <T>(fn: () => T, fallback: T): T => {
 };
 
 function where(filters: readonly string[] | undefined): string {
-  const parts = (filters ?? []).map((f) => safe(() => describeFilter(parseFilter(f)), f));
+  // Filters are AND-ed; an OR filter among several is bracketed so "(a or b) and c" can't read as "a or (b and c)".
+  const many = (filters ?? []).length > 1;
+  const parts = (filters ?? []).map((f) =>
+    safe(() => {
+      const ast = parseFilter(f);
+      const text = describeFilter(ast);
+      return many && ast.k === "or" ? `(${text})` : text;
+    }, f),
+  );
   return parts.length ? ` where ${parts.join(" and ")}` : "";
 }
 

@@ -63,5 +63,8 @@ describe("metric filters", () => {
     expect(describeFilter(parseFilter("status <> 'refunded'"))).toBe("status is not refunded");
     expect(describeFilter(parseFilter("channel IN ('wholesale') AND note IS NULL"))).toBe("channel is wholesale and note is empty");
     expect(describeFilter(parseFilter("channel NOT IN ('a', 'b')"))).toBe("channel is not one of a, b");
+    expect(describeFilter(parseFilter("(status IS NULL OR status <> 'x') AND channel = 'a'"))).toBe(
+      "(status is empty or status is not x) and channel is a",
+    );
   });
 });

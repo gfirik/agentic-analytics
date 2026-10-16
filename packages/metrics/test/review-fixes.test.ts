@@ -6,6 +6,7 @@ import { loadTable, type NormalizedTable, sql, Workspace } from "@agentic-analyt
 import { afterEach, describe, expect, it } from "vitest";
 import {
   compileMetric,
+  describeMetric,
   draftMetrics,
   fallbackMetrics,
   loadCatalog,
@@ -171,6 +172,9 @@ describe("validation and fallback fixes", () => {
     } as unknown as ProfileSummary;
     const defs = validateMetrics(fallbackMetrics(summary), catalog).accepted;
     expect(defs.map((d) => d.id).sort()).toEqual(["a_revenue", "refund_rate", "revenue"]);
+    expect(describeMetric(defs.find((d) => d.id === "a_revenue") as MetricDef)).toBe(
+      "A revenue = sum of amount where (status is empty or status is not refunded) and channel is a, per month, in USD (assumed)",
+    );
     // revenue = paid 10 + paid 20 + no-status 6 = 36 (refunded 4 and 5 excluded)
     expect(await runMetric(ws, "revenue", defs, catalog, { from: "2026-01", to: "2026-01" })).toEqual([{ period: "2026-01", value: 36 }]);
   });
