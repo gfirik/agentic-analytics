@@ -1,5 +1,7 @@
 // Cross-reference rules for report v1 that a JSON Schema can't express (docs/specs/report-schema.md §3–4):
-// every referenced id exists, every number in text is a `{{N…}}` placeholder, every citation points at a source.
+// every referenced id exists, every number in any human-readable text field is a `{{N…}}` placeholder
+// (report-schema §3), and every citation points at a source. Only `verification.claims_dropped/downgraded`
+// are exempt: they quote rejected model text verbatim, which is the point of listing them.
 import type { Citation, Claim, Report } from "./report.ts";
 
 export interface IntegrityIssue {
@@ -88,6 +90,8 @@ export function checkReportIntegrity(report: Report): IntegrityIssue[] {
       fact(`${p}.drivers[${j}].fact`, d.fact);
       fact(`${p}.drivers[${j}].share_of_change`, d.share_of_change);
     });
+    for (const [j, r] of f.confidence_reasons.entries()) text(`${p}.confidence_reasons[${j}]`, r);
+    for (const [j, d] of (f.drivers ?? []).entries()) text(`${p}.drivers[${j}].label`, d.label);
     f.assumptions.forEach((a, j) => {
       if (!assumptionIds.has(a)) add(`${p}.assumptions[${j}]`, `unknown assumption ${a}`);
     });
@@ -107,20 +111,28 @@ export function checkReportIntegrity(report: Report): IntegrityIssue[] {
     metric(`${p}.check.metric_id`, r.check.metric_id);
     fact(`${p}.check.threshold`, r.check.threshold);
     if (r.not_advised) text(`${p}.not_advised`, r.not_advised);
+    text(`${p}.risk`, r.risk);
+    text(`${p}.impact.horizon`, r.impact.horizon);
   });
 
   const anyId = new Set([...findingIds, ...recIds, ...metricIds]);
   for (const [i, q] of report.open_questions.entries()) {
+    text(`open_questions[${i}].question`, q.question);
+    text(`open_questions[${i}].why_it_matters`, q.why_it_matters);
     for (const [j, ref] of q.would_change.entries()) {
       if (!anyId.has(ref)) add(`open_questions[${i}].would_change[${j}]`, `unknown finding/recommendation ${ref}`);
     }
   }
   for (const [i, a] of report.assumptions.entries()) {
+    text(`assumptions[${i}].text`, a.text);
     for (const [j, ref] of a.affects.entries()) {
       if (!anyId.has(ref)) add(`assumptions[${i}].affects[${j}]`, `unknown finding/recommendation/metric ${ref}`);
     }
   }
-  for (const [i, q] of report.data_quality.entries()) citations(`data_quality[${i}].citations`, q.citations);
+  for (const [i, q] of report.data_quality.entries()) {
+    text(`data_quality[${i}].description`, q.description);
+    citations(`data_quality[${i}].citations`, q.citations);
+  }
   report.evidence?.forEach((e, i) => {
     if (!sourceIds.has(e.source_id)) add(`evidence[${i}].source_id`, `unknown source ${e.source_id}`);
   });

@@ -1,8 +1,10 @@
+import { DatasetError } from "./coffee-roaster.ts";
+
 // Minimal text-only PDF writer (Helvetica, one text line per entry, ASCII only) for hand-built fixtures.
 // Deterministic: no creation dates or random ids.
 
 function escapePdf(s: string): string {
-  if (/[^\x20-\x7e]/.test(s)) throw new Error(`PDF fixture text must be printable ASCII: ${JSON.stringify(s)}`);
+  if (/[^\x20-\x7e]/.test(s)) throw new DatasetError("PDF_NON_ASCII", `PDF fixture text must be printable ASCII: ${JSON.stringify(s)}`);
   return s.replace(/[\\()]/g, (c) => `\\${c}`);
 }
 

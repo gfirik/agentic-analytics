@@ -1,7 +1,7 @@
 // sales-2026.xlsx: sheet "Orders" (transactions) and sheet "Monthly" with two table regions:
 // the owner's monthly summary (A1:F7, the blueprint table) and a cost table (H1:L7) with a planted ×1000 typo.
 import * as XLSX from "xlsx";
-import { COSTS, generateOrders, MONTHS } from "./coffee-roaster.ts";
+import { COSTS, DatasetError, generateOrders, MONTHS } from "./coffee-roaster.ts";
 
 const EPOCH_1900 = Date.UTC(1899, 11, 30);
 
@@ -41,7 +41,7 @@ export function salesWorkbook(): XLSX.WorkBook {
     put(`E${r}`, { t: "n", v: m.retailCents / 100, z: "#,##0" });
     put(`F${r}`, { t: "n", v: m.refundPermille / 1000, z: "0.0%" });
     const c = COSTS[i];
-    if (!c) throw new Error(`missing cost row for ${m.month}`);
+    if (!c) throw new DatasetError("MISSING_COST_ROW", `missing cost row for ${m.month}`);
     put(`H${r}`, { t: "n", v: excelSerial(c.month), z: "mmm yyyy" });
     put(`I${r}`, { t: "n", v: c.beans, z: "#,##0" });
     put(`J${r}`, { t: "n", v: c.packaging, z: "#,##0" });

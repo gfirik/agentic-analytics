@@ -5,6 +5,7 @@
 import type { Config, RoleModel } from "@agentic-analytics/schema";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
+import { z } from "zod";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
 import { generateValidated } from "./retry.ts";
@@ -28,8 +29,15 @@ export interface ProviderDeps {
   readonly embed?: (texts: readonly string[]) => Promise<number[][]>;
 }
 
+/** Whether the role's endpoint enforces a JSON Schema natively. Ollama's /v1 does; other endpoints opt in. */
+export function supportsStructuredOutputs(m: RoleModel, config: Config): boolean {
+  if (m.provider === "ollama") return true;
+  if (m.provider === "openai-compatible") return config.providers["openai-compatible"]?.[m.endpoint ?? ""]?.structured_outputs ?? false;
+  return false;
+}
+
 export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps): LanguageModel {
-  const common = deps.fetch ? { fetch: deps.fetch } : {};
+  const common = { supportsStructuredOutputs: supportsStructuredOutputs(m, config), ...(deps.fetch ? { fetch: deps.fetch } : {}) };
   if (m.provider === "ollama") {
     const base = config.providers.ollama?.base_url;
     if (!base) throw new ModelError("CONFIG", "ollama is used but providers.ollama.base_url is not set");
@@ -66,6 +74,10 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
   return {
     async generateObject<T>(args: GenerateObjectArgs<T>) {
       const lm = model(args.role);
+      // Without native structured outputs the endpoint only gets json_object mode, so the schema goes in the prompt.
+      const system = supportsStructuredOutputs(config.models[args.role], config)
+        ? args.system
+        : `${args.system}\n\nRespond with JSON only. It must match this JSON Schema:\n${JSON.stringify(z.toJSONSchema(args.schema))}`;
       const { object, usage } = await generateValidated(
         args.schema,
         args.prompt,
@@ -74,7 +86,7 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           try {
             const res = await generateText({
               model: lm,
-              system: args.system,
+              system,
               prompt,
               output: Output.object({ schema: args.schema }),
               maxRetries: 0,

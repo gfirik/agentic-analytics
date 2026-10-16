@@ -22,7 +22,7 @@ Report = {
   open_questions: OpenQuestion[],
   facts: Fact[],                 // every number referenced anywhere
   verification: VerificationSummary,
-  evidence?: Evidence[]         // additive (M1): source excerpts the HTML shows offline, see §6
+  evidence?: Evidence[]         // additive (M1): source excerpts the HTML shows offline, see §5a
 }
 ```
 
@@ -127,7 +127,9 @@ Evidence = { source_id: string, kind: "table", columns: { letter: string, name: 
          | { source_id: string, kind: "text", page?: number, section?: string, char_start: number, text: string }
 ```
 
-Integrity rules beyond the JSON Schema (`checkReportIntegrity`): ids are unique; every `{{N…}}` placeholder and every fact-id field points at an existing fact; placeholders in a claim are listed in `claim.facts`; citations, metric ids, assumption ids, `because` and `would_change` ids resolve; model-written text (headline, titles, claims, actions, `not_advised`) has no numerals except placeholders, dates and quoted source text.
+Integrity rules beyond the JSON Schema (`checkReportIntegrity`): ids are unique; every `{{N…}}` placeholder and every fact-id field points at an existing fact; placeholders in a claim are listed in `claim.facts`; citations, metric ids, assumption ids, `because` and `would_change` ids resolve; every human-readable text field (headline, titles, claims, actions, `not_advised`, risks, horizons, confidence reasons, driver labels, data-quality descriptions, open questions, assumptions) has no numerals except placeholders, dates and quoted source text — this is §3's rule applied mechanically. Only `verification.claims_dropped/claims_downgraded` are exempt, because they quote rejected text verbatim.
+
+Prose states a decline as a magnitude: "Revenue fell {{N14}}" where N14 is `abs` of the signed change, never a signed value after "fell".
 
 ## 6. HTML report requirements
 

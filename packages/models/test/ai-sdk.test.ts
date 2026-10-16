@@ -117,4 +117,33 @@ describe("AI SDK model client (stubbed transport)", () => {
     expect(err).toBeInstanceOf(ModelError);
     expect((err as ModelError).code).toBe("PROVIDER");
   });
+
+  it("sends the JSON Schema natively to Ollama (structured outputs)", async () => {
+    const seen: { url: string; auth: string | null; body: Record<string, unknown> }[] = [];
+    const client = createModelClient(resolveModelConfig({}), { env: {}, fetch: stubFetch([{ content: '{"reply":"OK"}' }], seen) });
+    await client.generateObject({ role: "planner", schema: z.object({ reply: z.string() }), system: "s", prompt: "p" });
+    const format = seen[0]?.body.response_format as { type: string; json_schema?: { schema: { properties: Record<string, unknown> } } };
+    expect(format.type).toBe("json_schema");
+    expect(Object.keys(format.json_schema?.schema.properties ?? {})).toEqual(["reply"]);
+  });
+
+  it("puts the schema in the system prompt when an endpoint lacks structured outputs", async () => {
+    const seen: { url: string; auth: string | null; body: Record<string, unknown> }[] = [];
+    const env = { PLANNER_MODEL: "openai-compatible:groq:llama-3.3-70b", GROQ_API_KEY: "k" };
+    const client = createModelClient(resolveModelConfig(env), { env, fetch: stubFetch([{ content: '{"reply":"OK"}' }], seen) });
+    await client.generateObject({ role: "planner", schema: z.object({ reply: z.string() }), system: "health check", prompt: "p" });
+    const messages = seen[0]?.body.messages as { role: string; content: string }[];
+    expect(messages[0]?.role).toBe("system");
+    expect(messages[0]?.content).toContain("It must match this JSON Schema");
+    expect(messages[0]?.content).toContain('"reply"');
+  });
+
+  it("lets a config file opt an endpoint into structured outputs", async () => {
+    const seen: { url: string; auth: string | null; body: Record<string, unknown> }[] = [];
+    const env = { PLANNER_MODEL: "openai-compatible:local:qwen" };
+    const file = { providers: { "openai-compatible": { local: { base_url: "http://localhost:1234/v1", structured_outputs: true } } } };
+    const client = createModelClient(resolveModelConfig(env, file), { env, fetch: stubFetch([{ content: '{"ok":true}' }], seen) });
+    await client.generateObject({ role: "planner", schema: z.object({ ok: z.boolean() }), system: "s", prompt: "p" });
+    expect((seen[0]?.body.response_format as { type: string } | undefined)?.type).toBe("json_schema");
+  });
 });

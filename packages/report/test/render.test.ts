@@ -54,6 +54,34 @@ describe("renderReportHtml", () => {
     for (const shown of ["−17.9%", "108%", "1.2%", "3.4%", "44,100", "36,200", "−8,500", "814"]) expect(html).toContain(shown);
   });
 
+  it('states declines as magnitudes, never "fell −…"', async () => {
+    const doc = await open(html);
+    const headline = doc.querySelector(".headline")?.textContent ?? "";
+    expect(headline).toContain("Revenue fell 17.9% in April");
+    expect(doc.body.textContent).not.toMatch(/fell\s*[−-]/);
+  });
+
+  it("every citation in the report lights up its evidence", async () => {
+    const doc = await open(html);
+    const cites = [...doc.querySelectorAll(".cite")];
+    expect(cites.length).toBeGreaterThanOrEqual(15);
+    for (const cite of cites) {
+      (cite as unknown as HTMLElement).click();
+      const source = cite.getAttribute("data-source");
+      const box = doc.querySelector(`.ev[data-source="${source}"]`);
+      const label = cite.textContent ?? "";
+      expect(box?.hasAttribute("hidden"), label).toBe(false);
+      for (const r of (cite.getAttribute("data-rows") ?? "").split(",").filter(Boolean)) {
+        expect(box?.querySelector(`tr[data-row="${r}"]`)?.classList.contains("hl"), `${label} row ${r}`).toBe(true);
+      }
+      for (const c of (cite.getAttribute("data-cells") ?? "").split(",").filter(Boolean)) {
+        expect(box?.querySelector(`td[data-cell="${c}"]`)?.classList.contains("hl"), `${label} cell ${c}`).toBe(true);
+      }
+      if (cite.getAttribute("data-q")) expect(box?.querySelector("mark.hl"), label).not.toBeNull();
+      (cite as unknown as HTMLElement).click(); // toggle off
+    }
+  });
+
   it("orders sections as the spec requires", () => {
     const order = ["dq", "findings", "recs", "oq", "assumptions", "metrics", "sources", "verification"].map((id) =>
       html.indexOf(`id="${id}"`),
@@ -96,13 +124,13 @@ describe("renderReportHtml", () => {
 
   it("clicking a number explains its computation; Escape closes it", async () => {
     const doc = await open(html);
-    const num = doc.querySelector('.num[data-fact="N4"]') as unknown as HTMLElement;
+    const num = doc.querySelector('.num[data-fact="N3"]') as unknown as HTMLElement;
     num.click();
     const panel = doc.getElementById("aa-fact-panel");
     expect(panel?.hasAttribute("hidden")).toBe(false);
     const text = panel?.textContent ?? "";
-    expect(text).toContain("revenue_change_pct_2026-04_vs_2026-03");
-    expect(text).toContain("function pct_change");
+    expect(text).toContain("revenue_change_2026-04_vs_2026-03");
+    expect(text).toContain("function delta");
     expect(text).toContain("N2 = 36,200");
     const sqlNum = doc.querySelector('.num[data-fact="N1"]') as unknown as HTMLElement;
     sqlNum.click();

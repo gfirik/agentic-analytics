@@ -62,6 +62,14 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M1] `aa doctor` only attempts the model call when the planner's provider answered its probe, so a machine with no model prints `skipped` and exits 0 — specs/interfaces.md §2, AGENTS.md §2.9
 - [M1] HTML uses system font stacks (no web fonts) to stay offline; index keys allowed in the SSR-only report package (static markup, no re-render) — specs/report-schema.md §6
 
+- [M1] New dependencies, all free: `ai` + `@ai-sdk/openai-compatible` (Apache-2.0; the AI SDK is the stack choice in D4, and openai-compatible is its provider for both Ollama /v1 and free hosted endpoints — no paid SDK); `react`/`react-dom` (MIT; the stack's report SSR); `xlsx` 0.20.3 from cdn.sheetjs.com (Apache-2.0; stack, official CDN tarball); `yaml` (ISC; parses metric YAML and agentic-analytics.config.yaml — the spec formats are YAML); `happy-dom` (MIT, dev only; runs the report's inline script to test citation highlighting without a browser); `@types/react*` (MIT, dev) — AGENTS.md §3, §6
+- [M1] Prose states declines as magnitudes via `abs` facts ("Revenue fell {{N14}}" = 17.9%), never a signed value after "fell"; a render test asserts no "fell −" — specs/report-schema.md §5a (added after review)
+- [M1] The free-numeral rule applies to every human-readable text field, including data-quality descriptions, risks, horizons, reasons, open questions and assumptions (only verification's dropped/downgraded quotes are exempt). The ×1000 typo is stated with three facts (Feb value, median of the other months, ratio = 984) — specs/report-schema.md §3, §5a
+- [M1] Added a derived `refund_cost` metric (refund rate × revenue, currency) so the excess-refund fact and R2's impact carry a currency metric instead of the percent `refund_rate` — metric-layer.md §1 (derived type)
+- [M1] Scenario parameters (recover 50–90%, 6% discount, half of the excess) are `scenario_param` facts with no row citations; their justification is the recommendation's `because` findings and rationale citations, as analysis-library §5 requires — analysis-library.md §5
+- [M1] The Monthly sheet keeps a single header row (no merged header) so its rows match the blueprint citations r4–r5; merged and multi-row headers are covered by the M2 `fixtures/xlsx/` set instead — ingestion spec §3, blueprint §02 (plan said merged header; deviation recorded)
+- [M1] Structured outputs: Ollama gets `response_format: json_schema` (supported on its /v1 since 0.5); other OpenAI-compatible endpoints opt in with `structured_outputs: true` in config, and otherwise receive the JSON Schema in the system prompt plus json_object mode — specs/models.md §5
+
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
@@ -70,4 +78,5 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M0] `aa serve` doesn't exist yet, so the engine container runs `aa doctor` and exits — M10
 - [M1] `ModelClient.embed` throws `NOT_AVAILABLE` until the in-process transformers embedder lands — M6 (FakeModel embeds deterministically for tests)
 - [M1] Document char offsets in the golden fixture are relative to the authored page/body/notes text (`pageText`, `EMAIL_BODY`, `opsNotesText`); M2 extractors must produce the same text or the fixture spans need re-basing — M2
+- [M1] Sign-vs-wording consistency ("fell" with a negative value) is caught today only by fixture tests; the verifier should check it for model-written claims — M9
 - [M1] The HTML renderer was checked structurally (happy-dom clicks, offline scan) but not reviewed visually in a real browser — review the rendered `packages/report/out/report.coffee-roaster.html` at the M1 notify gate

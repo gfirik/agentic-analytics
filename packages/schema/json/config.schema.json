@@ -164,6 +164,9 @@
               "api_key_env": {
                 "type": "string",
                 "pattern": "^[A-Z][A-Z0-9_]*$"
+              },
+              "structured_outputs": {
+                "type": "boolean"
               }
             },
             "required": [

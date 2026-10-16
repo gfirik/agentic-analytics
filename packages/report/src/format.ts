@@ -19,7 +19,7 @@ export function formatValue(value: number, unit: Fact["unit"]): string {
     case "days":
       return `${sign(value)}${grouped(value, 0)} days`;
     case "ratio":
-      return `${sign(value)}${grouped(value, 2)}`;
+      return `${sign(value)}${grouped(value, Math.abs(value) >= 100 ? 0 : 2)}`;
     default:
       return `${sign(value)}${grouped(value, Number.isInteger(value) ? 0 : 2)}`;
   }

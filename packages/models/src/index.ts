@@ -1,4 +1,4 @@
-export { createModelClient, languageModel, type ProviderDeps } from "./ai-sdk.ts";
+export { createModelClient, languageModel, type ProviderDeps, supportsStructuredOutputs } from "./ai-sdk.ts";
 export {
   DEFAULT_LOCAL_MODEL,
   describeRoleModel,

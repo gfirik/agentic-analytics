@@ -176,6 +176,17 @@
       "status": "assumed",
       "plain": "Refund rate = the monthly Refund rate column, in percent (assumed, not confirmed)",
       "sql": "SELECT avg(refund_rate * 100) AS value FROM t_monthly WHERE month = $month"
+    },
+    {
+      "id": "refund_cost",
+      "label": "Refund cost",
+      "type": "derived",
+      "expression": "refund_rate / 100 * revenue",
+      "unit": "currency",
+      "currency": "USD",
+      "status": "assumed",
+      "plain": "Refund cost = refund rate × revenue for the month, in USD (derived from two assumed/confirmed metrics)",
+      "sql": "SELECT sum(refund_rate * revenue) AS value FROM t_monthly WHERE month = $month"
     }
   ],
   "assumptions": [
@@ -184,6 +195,7 @@
       "text": "The refund rate is read from the owner's monthly Refund rate column; this definition was not confirmed.",
       "affects": [
         "refund_rate",
+        "refund_cost",
         "F2",
         "R2"
       ]
@@ -202,7 +214,7 @@
       "id": "DQ1",
       "kind": "unit_error",
       "severity": "high",
-      "description": "February packaging cost is about 1,000 times the other months, which looks like a data-entry error. It is excluded from cost analysis until corrected.",
+      "description": "February packaging cost ({{N33}}) is {{N35}} times the median of the other months ({{N34}}), which looks like a data-entry error. It is excluded from cost analysis until corrected.",
       "citations": [
         {
           "source_id": "S6",
@@ -219,7 +231,7 @@
       "id": "DQ2",
       "kind": "date_format_ambiguity",
       "severity": "low",
-      "description": "Order dates are day/month/year text. Days up to 12 are ambiguous; they were read day-first because other rows have days above 12.",
+      "description": "Order dates are day/month/year text. Dates whose day could also be a month are ambiguous; they were read day-first because other rows in the column only fit day-first.",
       "citations": [
         {
           "source_id": "S7",
@@ -231,12 +243,12 @@
     }
   ],
   "summary": {
-    "headline": "Revenue fell {{N4}} in April because wholesale collapsed after the price rise, and refunds have nearly tripled since.",
+    "headline": "Revenue fell {{N14}} in April because wholesale collapsed after the price rise, and refunds have nearly tripled since.",
     "bullets": [
       {
-        "text": "Revenue fell {{N4}} in April, from {{N1}} to {{N2}}, and wholesale accounts for {{N12}} of the drop.",
+        "text": "Revenue fell {{N14}} in April, from {{N1}} to {{N2}}, and wholesale accounts for {{N12}} of the drop.",
         "facts": [
-          "N4",
+          "N14",
           "N1",
           "N2",
           "N12"
@@ -260,11 +272,11 @@
         "verified": true
       },
       {
-        "text": "The refund rate rose from {{N14}} in March to {{N16}} in June, costing about {{N18}} a month above the March level.",
+        "text": "The refund rate rose from {{N17}} in March to {{N19}} in June, costing about {{N21}} a month above the March level.",
         "facts": [
-          "N14",
-          "N16",
-          "N18"
+          "N17",
+          "N19",
+          "N21"
         ],
         "citations": [
           {
@@ -285,9 +297,9 @@
         "verified": true
       },
       {
-        "text": "Retail revenue grew {{N21}} from January to June.",
+        "text": "Retail revenue grew {{N24}} from January to June.",
         "facts": [
-          "N21"
+          "N24"
         ],
         "citations": [
           {
@@ -315,9 +327,9 @@
       "title": "Wholesale drove the April revenue drop",
       "claims": [
         {
-          "text": "Revenue fell {{N4}} in April, from {{N1}} to {{N2}} ({{N3}}).",
+          "text": "Revenue fell {{N14}} in April, from {{N1}} to {{N2}} ({{N3}}).",
           "facts": [
-            "N4",
+            "N14",
             "N1",
             "N2",
             "N3"
@@ -339,10 +351,10 @@
           "verified": true
         },
         {
-          "text": "Wholesale fell {{N7}} ({{N8}}) while retail rose {{N11}}, so wholesale accounts for {{N12}} of the drop.",
+          "text": "Wholesale fell {{N15}} ({{N16}}) while retail rose {{N11}}, so wholesale accounts for {{N12}} of the drop.",
           "facts": [
-            "N7",
-            "N8",
+            "N15",
+            "N16",
             "N11",
             "N12"
           ],
@@ -427,11 +439,11 @@
       "title": "The refund rate nearly tripled from May",
       "claims": [
         {
-          "text": "The refund rate went from {{N14}} in March to {{N15}} in May and {{N16}} in June.",
+          "text": "The refund rate went from {{N17}} in March to {{N18}} in May and {{N19}} in June.",
           "facts": [
-            "N14",
-            "N15",
-            "N16"
+            "N17",
+            "N18",
+            "N19"
           ],
           "citations": [
             {
@@ -464,10 +476,10 @@
           "verified": true
         },
         {
-          "text": "At June revenue of {{N17}}, the excess over the March rate costs about {{N18}} a month.",
+          "text": "At June revenue of {{N20}}, the excess over the March rate costs about {{N21}} a month.",
           "facts": [
-            "N17",
-            "N18"
+            "N20",
+            "N21"
           ],
           "citations": [
             {
@@ -505,11 +517,11 @@
       "title": "Retail kept growing",
       "claims": [
         {
-          "text": "Retail revenue rose from {{N19}} in January to {{N20}} in June ({{N21}}).",
+          "text": "Retail revenue rose from {{N22}} in January to {{N23}} in June ({{N24}}).",
           "facts": [
-            "N19",
-            "N20",
-            "N21"
+            "N22",
+            "N23",
+            "N24"
           ],
           "citations": [
             {
@@ -539,7 +551,7 @@
   "recommendations": [
     {
       "id": "R1",
-      "action": "Offer the hotel group a {{N24}} volume tier to bring back the standing order",
+      "action": "Offer the hotel group a {{N27}} volume tier to bring back the standing order",
       "because": [
         "F1"
       ],
@@ -577,15 +589,15 @@
       ],
       "impact": {
         "metric_id": "wholesale_revenue",
-        "low": "N25",
-        "high": "N26",
+        "low": "N28",
+        "high": "N29",
         "horizon": "per month, once the order resumes",
         "method": "impact.v1:recover_share",
         "inputs": [
           "N7",
-          "N22",
-          "N23",
-          "N24"
+          "N25",
+          "N26",
+          "N27"
         ]
       },
       "confidence": "medium",
@@ -594,7 +606,7 @@
       "check": {
         "metric_id": "wholesale_revenue",
         "comparator": ">=",
-        "threshold": "N27",
+        "threshold": "N30",
         "by": "2026-07-31"
       },
       "not_advised": "Across-the-board price cuts: retail is growing and doesn't need them."
@@ -607,9 +619,9 @@
       ],
       "rationale": [
         {
-          "text": "Refunds rose in the first full month after the packaging switch, costing about {{N18}} a month.",
+          "text": "Refunds rose in the first full month after the packaging switch, costing about {{N21}} a month.",
           "facts": [
-            "N18"
+            "N21"
           ],
           "citations": [
             {
@@ -622,14 +634,14 @@
         }
       ],
       "impact": {
-        "metric_id": "refund_rate",
-        "low": "N29",
-        "high": "N18",
+        "metric_id": "refund_cost",
+        "low": "N32",
+        "high": "N21",
         "horizon": "per month",
         "method": "impact.v1:remove_excess_rate",
         "inputs": [
-          "N18",
-          "N28"
+          "N21",
+          "N31"
         ]
       },
       "confidence": "low",
@@ -638,7 +650,7 @@
       "check": {
         "metric_id": "refund_rate",
         "comparator": "<=",
-        "threshold": "N14",
+        "threshold": "N17",
         "by": "2026-08-31"
       }
     }
@@ -948,6 +960,55 @@
     },
     {
       "id": "N14",
+      "label": "revenue_decline_pct_2026-04_vs_2026-03",
+      "value": 17.913832199546487,
+      "unit": "percent",
+      "computation": {
+        "kind": "function",
+        "fn": "abs",
+        "inputs": [
+          "N4"
+        ]
+      },
+      "citations": [],
+      "metric_id": "revenue",
+      "verified": true
+    },
+    {
+      "id": "N15",
+      "label": "wholesale_revenue_decline_2026-04_vs_2026-03",
+      "value": 8500,
+      "unit": "currency",
+      "currency": "USD",
+      "computation": {
+        "kind": "function",
+        "fn": "abs",
+        "inputs": [
+          "N7"
+        ]
+      },
+      "citations": [],
+      "metric_id": "wholesale_revenue",
+      "verified": true
+    },
+    {
+      "id": "N16",
+      "label": "wholesale_revenue_decline_pct_2026-04_vs_2026-03",
+      "value": 53.459119496855344,
+      "unit": "percent",
+      "computation": {
+        "kind": "function",
+        "fn": "abs",
+        "inputs": [
+          "N8"
+        ]
+      },
+      "citations": [],
+      "metric_id": "wholesale_revenue",
+      "verified": true
+    },
+    {
+      "id": "N17",
       "label": "refund_rate_2026-03",
       "value": 1.2,
       "unit": "percent",
@@ -973,7 +1034,7 @@
       "verified": true
     },
     {
-      "id": "N15",
+      "id": "N18",
       "label": "refund_rate_2026-05",
       "value": 2.9,
       "unit": "percent",
@@ -999,7 +1060,7 @@
       "verified": true
     },
     {
-      "id": "N16",
+      "id": "N19",
       "label": "refund_rate_2026-06",
       "value": 3.4,
       "unit": "percent",
@@ -1025,7 +1086,7 @@
       "verified": true
     },
     {
-      "id": "N17",
+      "id": "N20",
       "label": "revenue_2026-06",
       "value": 37000,
       "unit": "currency",
@@ -1052,7 +1113,7 @@
       "verified": true
     },
     {
-      "id": "N18",
+      "id": "N21",
       "label": "excess_refund_cost_per_month_2026-06",
       "value": 814,
       "unit": "currency",
@@ -1061,17 +1122,17 @@
         "kind": "function",
         "fn": "impact.v1:remove_excess_rate",
         "inputs": [
-          "N16",
-          "N14",
-          "N17"
+          "N19",
+          "N17",
+          "N20"
         ]
       },
       "citations": [],
-      "metric_id": "refund_rate",
+      "metric_id": "refund_cost",
       "verified": true
     },
     {
-      "id": "N19",
+      "id": "N22",
       "label": "retail_revenue_2026-01",
       "value": 26400,
       "unit": "currency",
@@ -1098,7 +1159,7 @@
       "verified": true
     },
     {
-      "id": "N20",
+      "id": "N23",
       "label": "retail_revenue_2026-06",
       "value": 29700,
       "unit": "currency",
@@ -1125,7 +1186,7 @@
       "verified": true
     },
     {
-      "id": "N21",
+      "id": "N24",
       "label": "retail_revenue_change_pct_2026-06_vs_2026-01",
       "value": 12.5,
       "unit": "percent",
@@ -1133,8 +1194,8 @@
         "kind": "function",
         "fn": "pct_change",
         "inputs": [
-          "N20",
-          "N19"
+          "N23",
+          "N22"
         ]
       },
       "citations": [],
@@ -1142,7 +1203,7 @@
       "verified": true
     },
     {
-      "id": "N22",
+      "id": "N25",
       "label": "scenario_recover_share_low",
       "value": 50,
       "unit": "percent",
@@ -1155,7 +1216,7 @@
       "verified": true
     },
     {
-      "id": "N23",
+      "id": "N26",
       "label": "scenario_recover_share_high",
       "value": 90,
       "unit": "percent",
@@ -1168,7 +1229,7 @@
       "verified": true
     },
     {
-      "id": "N24",
+      "id": "N27",
       "label": "scenario_volume_tier_discount",
       "value": 6,
       "unit": "percent",
@@ -1181,7 +1242,7 @@
       "verified": true
     },
     {
-      "id": "N25",
+      "id": "N28",
       "label": "r1_impact_low_per_month",
       "value": 3995,
       "unit": "currency",
@@ -1191,8 +1252,8 @@
         "fn": "impact.v1:recover_share",
         "inputs": [
           "N7",
-          "N22",
-          "N24"
+          "N25",
+          "N27"
         ]
       },
       "citations": [],
@@ -1200,7 +1261,7 @@
       "verified": true
     },
     {
-      "id": "N26",
+      "id": "N29",
       "label": "r1_impact_high_per_month",
       "value": 7191,
       "unit": "currency",
@@ -1210,8 +1271,8 @@
         "fn": "impact.v1:recover_share",
         "inputs": [
           "N7",
-          "N23",
-          "N24"
+          "N26",
+          "N27"
         ]
       },
       "citations": [],
@@ -1219,7 +1280,7 @@
       "verified": true
     },
     {
-      "id": "N27",
+      "id": "N30",
       "label": "r1_check_wholesale_2026-07",
       "value": 11395,
       "unit": "currency",
@@ -1229,7 +1290,7 @@
         "fn": "check_threshold",
         "inputs": [
           "N6",
-          "N25"
+          "N28"
         ]
       },
       "citations": [],
@@ -1237,7 +1298,7 @@
       "verified": true
     },
     {
-      "id": "N28",
+      "id": "N31",
       "label": "scenario_excess_removed_low",
       "value": 50,
       "unit": "percent",
@@ -1250,7 +1311,7 @@
       "verified": true
     },
     {
-      "id": "N29",
+      "id": "N32",
       "label": "r2_impact_low_per_month",
       "value": 407,
       "unit": "currency",
@@ -1259,22 +1320,98 @@
         "kind": "function",
         "fn": "impact.v1:remove_excess_rate",
         "inputs": [
-          "N18",
-          "N28"
+          "N21",
+          "N31"
         ]
       },
       "citations": [],
-      "metric_id": "refund_rate",
+      "metric_id": "refund_cost",
+      "verified": true
+    },
+    {
+      "id": "N33",
+      "label": "packaging_cost_2026-02",
+      "value": 1240000,
+      "unit": "currency",
+      "currency": "USD",
+      "computation": {
+        "kind": "sql",
+        "sql": "SELECT packaging AS value FROM t_costs WHERE month = $month",
+        "params": {
+          "month": "2026-02"
+        }
+      },
+      "citations": [
+        {
+          "source_id": "S6",
+          "rows": [
+            3
+          ],
+          "cells": [
+            "J3"
+          ]
+        }
+      ],
+      "verified": true
+    },
+    {
+      "id": "N34",
+      "label": "packaging_cost_median_excluding_2026-02",
+      "value": 1260,
+      "unit": "currency",
+      "currency": "USD",
+      "computation": {
+        "kind": "sql",
+        "sql": "SELECT median(packaging) AS value FROM t_costs WHERE month <> $month",
+        "params": {
+          "month": "2026-02"
+        }
+      },
+      "citations": [
+        {
+          "source_id": "S6",
+          "rows": [
+            2,
+            4,
+            5,
+            6,
+            7
+          ],
+          "cells": [
+            "J2",
+            "J4",
+            "J5",
+            "J6",
+            "J7"
+          ]
+        }
+      ],
+      "verified": true
+    },
+    {
+      "id": "N35",
+      "label": "packaging_cost_ratio_2026-02_to_median",
+      "value": 984.1269841269841,
+      "unit": "ratio",
+      "computation": {
+        "kind": "function",
+        "fn": "ratio",
+        "inputs": [
+          "N33",
+          "N34"
+        ]
+      },
+      "citations": [],
       "verified": true
     }
   ],
   "verification": {
-    "numbers_checked": 29,
+    "numbers_checked": 35,
     "numbers_mismatched": 0,
-    "rederived_metrics": 4,
+    "rederived_metrics": 5,
     "rederivation_mismatches": 0,
     "definition_violations": 0,
-    "citations_checked": 29,
+    "citations_checked": 31,
     "citations_unsupported": 0,
     "claims_dropped": [
       {
@@ -1416,6 +1553,199 @@
       "kind": "text",
       "char_start": 0,
       "text": "Specialty roasters raised wholesale prices 5–8% on average in 2026."
+    },
+    {
+      "source_id": "S6",
+      "kind": "table",
+      "columns": [
+        {
+          "letter": "H",
+          "name": "Month"
+        },
+        {
+          "letter": "I",
+          "name": "Beans"
+        },
+        {
+          "letter": "J",
+          "name": "Packaging"
+        },
+        {
+          "letter": "K",
+          "name": "Rent"
+        },
+        {
+          "letter": "L",
+          "name": "Staff"
+        }
+      ],
+      "rows": [
+        {
+          "row": 2,
+          "cells": [
+            "2026-01",
+            12400,
+            1210,
+            3000,
+            9000
+          ]
+        },
+        {
+          "row": 3,
+          "cells": [
+            "2026-02",
+            12900,
+            1240000,
+            3000,
+            9000
+          ]
+        },
+        {
+          "row": 4,
+          "cells": [
+            "2026-03",
+            13300,
+            1260,
+            3000,
+            9200
+          ]
+        },
+        {
+          "row": 5,
+          "cells": [
+            "2026-04",
+            11900,
+            1180,
+            3000,
+            9200
+          ]
+        },
+        {
+          "row": 6,
+          "cells": [
+            "2026-05",
+            11800,
+            1350,
+            3000,
+            9200
+          ]
+        },
+        {
+          "row": 7,
+          "cells": [
+            "2026-06",
+            12100,
+            1390,
+            3000,
+            9400
+          ]
+        }
+      ]
+    },
+    {
+      "source_id": "S7",
+      "kind": "table",
+      "columns": [
+        {
+          "letter": "A",
+          "name": "Date"
+        },
+        {
+          "letter": "B",
+          "name": "Order ID"
+        },
+        {
+          "letter": "C",
+          "name": "Customer"
+        },
+        {
+          "letter": "D",
+          "name": "Channel"
+        },
+        {
+          "letter": "E",
+          "name": "Product"
+        },
+        {
+          "letter": "F",
+          "name": "Qty"
+        },
+        {
+          "letter": "G",
+          "name": "Amount"
+        },
+        {
+          "letter": "H",
+          "name": "Status"
+        }
+      ],
+      "rows": [
+        {
+          "row": 2,
+          "cells": [
+            "01/01/2026",
+            "CR-00001",
+            "Online store",
+            "retail",
+            "Filter blend 250g",
+            3,
+            25.66,
+            "paid"
+          ]
+        },
+        {
+          "row": 3,
+          "cells": [
+            "01/01/2026",
+            "CR-00002",
+            "Online store",
+            "retail",
+            "Espresso blend 250g",
+            2,
+            30.77,
+            "paid"
+          ]
+        },
+        {
+          "row": 4,
+          "cells": [
+            "01/01/2026",
+            "CR-00003",
+            "Shop counter",
+            "retail",
+            "Drip bags x10",
+            2,
+            19.54,
+            "paid"
+          ]
+        },
+        {
+          "row": 5,
+          "cells": [
+            "01/01/2026",
+            "CR-00004",
+            "Online store",
+            "retail",
+            "Filter blend 250g",
+            1,
+            32.56,
+            "paid"
+          ]
+        },
+        {
+          "row": 6,
+          "cells": [
+            "01/01/2026",
+            "CR-00005",
+            "Shop counter",
+            "retail",
+            "Espresso blend 250g",
+            2,
+            24.96,
+            "paid"
+          ]
+        }
+      ]
     }
   ]
 }

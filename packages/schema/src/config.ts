@@ -23,6 +23,8 @@ export const OpenAICompatibleEndpoint = z.object({
     .string()
     .regex(/^[A-Z][A-Z0-9_]*$/)
     .optional(),
+  /** Send the JSON Schema as `response_format: json_schema`. Off by default: not every free model supports it. */
+  structured_outputs: z.boolean().optional(),
 });
 
 export const Config = z.object({

@@ -28,6 +28,29 @@ describe("report v1 fixture", () => {
     expect(facts.get("refund_rate_2026-03")).toBe(1.2);
     expect(facts.get("refund_rate_2026-06")).toBe(3.4);
   });
+
+  it("has hand-computed values for every derived fact", () => {
+    const facts = new Map(fixture().facts.map((f) => [f.label, f.value]));
+    const expected: Record<string, number> = {
+      "revenue_change_2026-04_vs_2026-03": -7900, // 36,200 − 44,100
+      "wholesale_revenue_change_2026-04_vs_2026-03": -8500, // 7,400 − 15,900
+      "retail_revenue_change_2026-04_vs_2026-03": 600, // 28,800 − 28,200
+      "wholesale_revenue_decline_2026-04_vs_2026-03": 8500, // |−8,500|
+      "excess_refund_cost_per_month_2026-06": 814, // (3.4% − 1.2%) × 37,000 = 0.022 × 37,000
+      "retail_revenue_change_pct_2026-06_vs_2026-01": 12.5, // 29,700 / 26,400 − 1 = 0.125
+      r1_impact_low_per_month: 3995, // 8,500 × 0.5 × (1 − 0.06) = 4,250 × 0.94
+      r1_impact_high_per_month: 7191, // 8,500 × 0.9 × 0.94 = 7,650 × 0.94
+      "r1_check_wholesale_2026-07": 11395, // April wholesale 7,400 + low impact 3,995
+      r2_impact_low_per_month: 407, // 814 × 0.5
+      "packaging_cost_2026-02": 1240000, // the planted ×1000 typo
+      "packaging_cost_median_excluding_2026-02": 1260, // median of 1,180 · 1,210 · 1,260 · 1,350 · 1,390
+    };
+    for (const [label, value] of Object.entries(expected)) expect(facts.get(label), label).toBeCloseTo(value, 9);
+    // 1,240,000 / 1,260 = 984.127…
+    expect(facts.get("packaging_cost_ratio_2026-02_to_median")?.toFixed(3)).toBe("984.127");
+    // −8,500 / 15,900 = −0.534591… → 53.5%
+    expect(facts.get("wholesale_revenue_decline_pct_2026-04_vs_2026-03")?.toFixed(1)).toBe("53.5");
+  });
 });
 
 describe("report v1 rejects broken reports", () => {
@@ -41,6 +64,21 @@ describe("report v1 rejects broken reports", () => {
       if (c) c.text = "Revenue fell 17.9% in April.";
     });
     expect(issues.some((i) => i.includes("free numerals not backed by a fact: 17.9"))).toBe(true);
+  });
+
+  it("free numerals anywhere a reader sees text (descriptions, risks, questions)", () => {
+    const issues = issuesOf((r) => {
+      if (r.data_quality[0]) r.data_quality[0].description = "Packaging is about 1,000 times higher.";
+      if (r.recommendations[0]) r.recommendations[0].risk = "Costs 500 a month.";
+      if (r.open_questions[0]) r.open_questions[0].question = "Did 3 clients leave?";
+    });
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        "data_quality[0].description: free numerals not backed by a fact: 1,000",
+        "recommendations[0].risk: free numerals not backed by a fact: 500",
+        "open_questions[0].question: free numerals not backed by a fact: 3",
+      ]),
+    );
   });
 
   it("placeholder not listed in claim.facts", () => {

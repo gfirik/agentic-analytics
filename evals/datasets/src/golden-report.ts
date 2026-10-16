@@ -4,7 +4,7 @@
 // The real engine produces these through SQL in M4/M5; this builder exists so the fixture is provably exact.
 import { createHash } from "node:crypto";
 import type { Citation, Claim, Evidence, Fact, Report, ReportMetric, Source } from "@agentic-analytics/schema";
-import { MONTHS, type MonthTruth } from "./coffee-roaster.ts";
+import { COSTS, DatasetError, generateOrders, MONTHS, type MonthTruth } from "./coffee-roaster.ts";
 import { EMAIL_BODY, OPS_NOTES, opsNotesText, pageText } from "./documents.ts";
 
 const CURRENCY = "USD";
@@ -22,7 +22,7 @@ const EXCESS_REMOVED_LOW = 0.5;
 
 const month = (m: string): MonthTruth => {
   const found = MONTHS.find((x) => x.month === m);
-  if (!found) throw new Error(`no month ${m}`);
+  if (!found) throw new DatasetError("UNKNOWN_MONTH", `no month ${m}`);
   return found;
 };
 /** Sheet row of a month in Monthly!A1:F7 (header on row 1, January on row 2). */
@@ -38,12 +38,12 @@ export interface GoldenInputs {
 export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
   const hash = (f: string) => {
     const h = fileHashes[f];
-    if (!h) throw new Error(`missing hash for ${f}`);
+    if (!h) throw new DatasetError("MISSING_HASH", `missing hash for ${f}`);
     return h;
   };
   const span = (text: string, quote: string) => {
     const start = text.indexOf(quote);
-    if (start < 0) throw new Error(`quote not in source: ${quote}`);
+    if (start < 0) throw new DatasetError("QUOTE_NOT_FOUND", `quote not in source: ${quote}`);
     return { char_start: start, char_end: start + quote.length };
   };
   const opsSection3 = [OPS_NOTES[2]?.heading ?? "", ...(OPS_NOTES[2]?.paragraphs ?? [])].join("\n");
@@ -154,6 +154,17 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
       plain: "Refund rate = the monthly Refund rate column, in percent (assumed, not confirmed)",
       sql: "SELECT avg(refund_rate * 100) AS value FROM t_monthly WHERE month = $month",
     },
+    {
+      id: "refund_cost",
+      label: "Refund cost",
+      type: "derived",
+      expression: "refund_rate / 100 * revenue",
+      unit: "currency",
+      currency: CURRENCY,
+      status: "assumed",
+      plain: "Refund cost = refund rate × revenue for the month, in USD (derived from two assumed/confirmed metrics)",
+      sql: "SELECT sum(refund_rate * revenue) AS value FROM t_monthly WHERE month = $month",
+    },
   ];
 
   const facts: Fact[] = [];
@@ -220,6 +231,15 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
     revDelta,
   ]);
 
+  // Magnitudes for prose: "fell 17.9%" reads right, "fell −17.9%" would say it rose.
+  const revDrop = fn("revenue_decline_pct_2026-04_vs_2026-03", "abs", Math.abs(v(revPct)), "percent", [revPct], { metric_id: "revenue" });
+  const whDrop = fn("wholesale_revenue_decline_2026-04_vs_2026-03", "abs", Math.abs(v(whDelta)), "currency", [whDelta], {
+    metric_id: "wholesale_revenue",
+  });
+  const whDropPct = fn("wholesale_revenue_decline_pct_2026-04_vs_2026-03", "abs", Math.abs(v(whPct)), "percent", [whPct], {
+    metric_id: "wholesale_revenue",
+  });
+
   // F2: refund rate
   const refMar = measure("refund_rate", "F", "2026-03", month("2026-03").refundPermille / 10, "percent");
   const refMay = measure("refund_rate", "F", "2026-05", month("2026-05").refundPermille / 10, "percent");
@@ -231,7 +251,7 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
     cents(((v(refJun) - v(refMar)) / 100) * v(revJun)),
     "currency",
     [refJun, refMar, revJun],
-    { metric_id: "refund_rate" },
+    { metric_id: "refund_cost" },
   );
 
   // F3: retail trend
@@ -279,8 +299,28 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
     cents(v(excess) * EXCESS_REMOVED_LOW),
     "currency",
     [excess, pExcessLow],
-    { metric_id: "refund_rate" },
+    { metric_id: "refund_cost" },
   );
+
+  // DQ1: the planted ×1000 packaging typo, measured against the other months (ingestion spec §5)
+  const others = COSTS.map((c, i) => ({ month: c.month, row: i + 2 })).filter((c) => c.month !== "2026-02");
+  const packFeb = add({
+    label: "packaging_cost_2026-02",
+    value: COSTS.find((c) => c.month === "2026-02")?.packaging ?? Number.NaN,
+    unit: "currency",
+    currency: CURRENCY,
+    computation: { kind: "sql", sql: "SELECT packaging AS value FROM t_costs WHERE month = $month", params: { month: "2026-02" } },
+    citations: [{ source_id: "S6", rows: [3], cells: ["J3"] }],
+  });
+  const packMedian = add({
+    label: "packaging_cost_median_excluding_2026-02",
+    value: median(COSTS.filter((c) => c.month !== "2026-02").map((c) => c.packaging)),
+    unit: "currency",
+    currency: CURRENCY,
+    computation: { kind: "sql", sql: "SELECT median(packaging) AS value FROM t_costs WHERE month <> $month", params: { month: "2026-02" } },
+    citations: [{ source_id: "S6", rows: others.map((c) => c.row), cells: others.map((c) => `J${c.row}`) }],
+  });
+  const packRatio = fn("packaging_cost_ratio_2026-02_to_median", "ratio", v(packFeb) / v(packMedian), "ratio", [packFeb, packMedian]);
 
   const claim = (text: string, factIds: string[], citations: Citation[], causal_grade?: Claim["causal_grade"]): Claim => ({
     text,
@@ -308,6 +348,26 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
     { source_id: "S3", kind: "text", section: "body", char_start: 0, text: EMAIL_BODY },
     { source_id: "S4", kind: "text", section: "3. Packaging", char_start: opsNotesText().indexOf(opsSection3), text: opsSection3 },
     { source_id: "S5", kind: "text", char_start: 0, text: WEB_QUOTE },
+    {
+      source_id: "S6",
+      kind: "table",
+      columns: ["Month", "Beans", "Packaging", "Rent", "Staff"].map((name, i) => ({ letter: "HIJKL"[i] ?? "H", name })),
+      rows: COSTS.map((c, i) => ({ row: i + 2, cells: [c.month, c.beans, c.packaging, c.rent, c.staff] })),
+    },
+    {
+      source_id: "S7",
+      kind: "table",
+      columns: ["Date", "Order ID", "Customer", "Channel", "Product", "Qty", "Amount", "Status"].map((name, i) => ({
+        letter: "ABCDEFGH"[i] ?? "A",
+        name,
+      })),
+      rows: generateOrders()
+        .slice(0, 5)
+        .map((o, i) => ({
+          row: i + 2,
+          cells: [o.date, o.orderId, o.customer, o.channel, o.product, o.qty, o.amountCents / 100, o.status],
+        })),
+    },
   ];
 
   const report: Report = {
@@ -331,7 +391,7 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
       {
         id: "A1",
         text: "The refund rate is read from the owner's monthly Refund rate column; this definition was not confirmed.",
-        affects: ["refund_rate", "F2", "R2"],
+        affects: ["refund_rate", "refund_cost", "F2", "R2"],
       },
       {
         id: "A2",
@@ -344,8 +404,7 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
         id: "DQ1",
         kind: "unit_error",
         severity: "high",
-        description:
-          "February packaging cost is about 1,000 times the other months, which looks like a data-entry error. It is excluded from cost analysis until corrected.",
+        description: `February packaging cost ({{${packFeb}}}) is {{${packRatio}}} times the median of the other months ({{${packMedian}}}), which looks like a data-entry error. It is excluded from cost analysis until corrected.`,
         citations: [{ source_id: "S6", rows: [3], cells: ["J3"] }],
       },
       {
@@ -353,16 +412,16 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
         kind: "date_format_ambiguity",
         severity: "low",
         description:
-          "Order dates are day/month/year text. Days up to 12 are ambiguous; they were read day-first because other rows have days above 12.",
+          "Order dates are day/month/year text. Dates whose day could also be a month are ambiguous; they were read day-first because other rows in the column only fit day-first.",
         citations: [{ source_id: "S7", cells: ["A2"] }],
       },
     ],
     summary: {
-      headline: `Revenue fell {{${revPct}}} in April because wholesale collapsed after the price rise, and refunds have nearly tripled since.`,
+      headline: `Revenue fell {{${revDrop}}} in April because wholesale collapsed after the price rise, and refunds have nearly tripled since.`,
       bullets: [
         claim(
-          `Revenue fell {{${revPct}}} in April, from {{${revMar}}} to {{${revApr}}}, and wholesale accounts for {{${whShare}}} of the drop.`,
-          [revPct, revMar, revApr, whShare],
+          `Revenue fell {{${revDrop}}} in April, from {{${revMar}}} to {{${revApr}}}, and wholesale accounts for {{${whShare}}} of the drop.`,
+          [revDrop, revMar, revApr, whShare],
           [cite("BD", "2026-03", "2026-04")],
           "observed",
         ),
@@ -383,14 +442,14 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
         title: "Wholesale drove the April revenue drop",
         claims: [
           claim(
-            `Revenue fell {{${revPct}}} in April, from {{${revMar}}} to {{${revApr}}} ({{${revDelta}}}).`,
-            [revPct, revMar, revApr, revDelta],
+            `Revenue fell {{${revDrop}}} in April, from {{${revMar}}} to {{${revApr}}} ({{${revDelta}}}).`,
+            [revDrop, revMar, revApr, revDelta],
             [cite("B", "2026-03", "2026-04")],
             "observed",
           ),
           claim(
-            `Wholesale fell {{${whDelta}}} ({{${whPct}}}) while retail rose {{${rtDelta}}}, so wholesale accounts for {{${whShare}}} of the drop.`,
-            [whDelta, whPct, rtDelta, whShare],
+            `Wholesale fell {{${whDrop}}} ({{${whDropPct}}}) while retail rose {{${rtDelta}}}, so wholesale accounts for {{${whShare}}} of the drop.`,
+            [whDrop, whDropPct, rtDelta, whShare],
             [cite("DE", "2026-03", "2026-04")],
             "observed",
           ),
@@ -518,7 +577,7 @@ export function buildGoldenReport({ fileHashes }: GoldenInputs): Report {
           ),
         ],
         impact: {
-          metric_id: "refund_rate",
+          metric_id: "refund_cost",
           low: r2Low,
           high: excess,
           horizon: "per month",
@@ -599,4 +658,10 @@ function metricDef(
 function countCitations(r: Report): number {
   const claims = [...r.summary.bullets, ...r.findings.flatMap((f) => f.claims), ...r.recommendations.flatMap((x) => x.rationale)];
   return claims.reduce((n, c) => n + c.citations.length, 0) + r.facts.reduce((n, f) => n + f.citations.length, 0);
+}
+
+function median(xs: readonly number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? (s[mid] ?? Number.NaN) : ((s[mid - 1] ?? Number.NaN) + (s[mid] ?? Number.NaN)) / 2;
 }

@@ -2,6 +2,16 @@
 // The monthly table below is the ground truth (typed from the blueprint). Transactions are generated
 // deterministically so that they aggregate *exactly* to it; all money is integer cents.
 
+export class DatasetError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "DatasetError";
+  }
+}
+
 export interface MonthTruth {
   readonly month: string; // YYYY-MM
   readonly revenueCents: number; // excludes refunded orders

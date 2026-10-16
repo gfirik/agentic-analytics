@@ -161,7 +161,9 @@ function FindingView({ f, ctx }: { f: Finding; ctx: Ctx }) {
           <tbody>
             {f.drivers.map((d) => (
               <tr key={d.label}>
-                <td>{d.label}</td>
+                <td>
+                  <Text text={d.label} ctx={ctx} />
+                </td>
                 <td>
                   <Text text={`{{${d.fact}}}`} ctx={ctx} />
                 </td>
@@ -181,14 +183,18 @@ function FindingView({ f, ctx }: { f: Finding; ctx: Ctx }) {
           {f.confidence}
           <ul className="reasons">
             {f.confidence_reasons.map((r) => (
-              <li key={r}>{r}</li>
+              <li key={r}>
+                <Text text={r} ctx={ctx} />
+              </li>
             ))}
           </ul>
         </dd>
         {f.assumptions.length ? (
           <>
             <dt>Assumes</dt>
-            <dd>{f.assumptions.map((a) => ctx.assumptions.get(a) ?? a).join(" ")}</dd>
+            <dd>
+              <Text text={f.assumptions.map((a) => ctx.assumptions.get(a) ?? a).join(" ")} ctx={ctx} />
+            </dd>
           </>
         ) : null}
       </dl>
@@ -224,7 +230,7 @@ function RecommendationView({ r, ctx }: { r: Recommendation; ctx: Ctx }) {
       <div>
         <p>
           Expected impact on {metric(r.impact.metric_id).toLowerCase()}: <Text text={`{{${r.impact.low}}}`} ctx={ctx} /> to{" "}
-          <Text text={`{{${r.impact.high}}}`} ctx={ctx} /> {r.impact.horizon}
+          <Text text={`{{${r.impact.high}}}`} ctx={ctx} /> <Text text={r.impact.horizon} ctx={ctx} />
         </p>
         <div className="range" role="img" aria-label="Scenario estimate range">
           <div className="band" style={{ left: `${left.toFixed(1)}%`, width: `${width.toFixed(1)}%` }} />
@@ -245,7 +251,9 @@ function RecommendationView({ r, ctx }: { r: Recommendation; ctx: Ctx }) {
         <dt>Effort</dt>
         <dd>{r.effort}</dd>
         <dt>Risk</dt>
-        <dd>{r.risk}</dd>
+        <dd>
+          <Text text={r.risk} ctx={ctx} />
+        </dd>
         <dt>Check</dt>
         <dd>
           {metric(r.check.metric_id)} {r.check.comparator === "between" ? "between" : r.check.comparator}{" "}
@@ -381,7 +389,7 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
             {report.data_quality.map((q) => (
               <div key={q.id} className="claim">
                 <p>
-                  <b>{q.severity}</b> · <span className="mono">{q.kind}</span> — {q.description}
+                  <b>{q.severity}</b> · <span className="mono">{q.kind}</span> — <Text text={q.description} ctx={ctx} />
                 </p>
                 <Chips citations={q.citations} ctx={ctx} />
               </div>
@@ -410,10 +418,12 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
               {report.open_questions.map((q) => (
                 <div key={q.id} className="panel">
                   <p>
-                    <b>{q.question}</b>
+                    <b>
+                      <Text text={q.question} ctx={ctx} />
+                    </b>
                   </p>
                   <p className="muted">
-                    {q.why_it_matters} Would change: {q.would_change.join(", ")}.
+                    <Text text={q.why_it_matters} ctx={ctx} /> Would change: {q.would_change.join(", ")}.
                   </p>
                 </div>
               ))}
@@ -427,7 +437,8 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
             <ul>
               {report.assumptions.map((a) => (
                 <li key={a.id}>
-                  <span className="mono">{a.id}</span> {a.text} <span className="muted">Affects {a.affects.join(", ")}.</span>
+                  <span className="mono">{a.id}</span> <Text text={a.text} ctx={ctx} />{" "}
+                  <span className="muted">Affects {a.affects.join(", ")}.</span>
                 </li>
               ))}
             </ul>
