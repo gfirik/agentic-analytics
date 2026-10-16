@@ -8,7 +8,7 @@ Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variant
 
 Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-overlap judge), not a language model. Its rules were written knowing the generator's document templates (e.g. it treats a sentence with "after" and "pausing" as a stated cause), so its cause-grade and action scores are optimistic. It checks the harness end to end; it is not evidence of model quality.
 
-30 datasets · 212 s · 23085 tokens
+30 datasets · 145 s · 23085 tokens
 
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
@@ -28,36 +28,36 @@ Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-o
 
 | Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
 |---|---|---|---|---|---|---|
-| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 5 | 4.4 s |
-| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 5 | 6.2 s |
-| coffee_roaster-v3 | yes | 1/2 | D2 | 1/1 | 5 | 8.7 s |
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 5 | 4.0 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 5 | 5.3 s |
+| coffee_roaster-v3 | yes | 1/2 | D2 | 1/1 | 5 | 8.1 s |
 | printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 2.1 s |
-| printing_shop-v2 | yes | 2/2 | none | 1/1 | 5 | 4.0 s |
-| printing_shop-v3 | yes | 1/2 | D2 | 1/1 | 5 | 5.0 s |
-| clinic-v1 | yes | 1/1 | none | 2/2 | 5 | 2.8 s |
-| clinic-v2 | yes | 2/2 | none | 1/1 | 5 | 4.2 s |
-| clinic-v3 | yes | 1/2 | D2 | 1/1 | 5 | 5.1 s |
-| online_store-v1 | yes | 1/1 | none | 2/2 | 4 | 3.0 s |
-| online_store-v2 | yes | 1/2 | none | 1/1 | 5 | 4.6 s |
-| online_store-v3 | yes | 1/2 | D2 | 1/1 | 5 | 7.9 s |
-| distributor-v1 | yes | 1/1 | none | 2/2 | 5 | 2.5 s |
-| distributor-v2 | yes | 1/2 | none | 1/1 | 5 | 3.4 s |
-| distributor-v3 | yes | 1/2 | D2 | 1/1 | 5 | 5.1 s |
-| restaurant-v1 | yes | 1/1 | none | 2/2 | 5 | 3.7 s |
-| restaurant-v2 | yes | 2/2 | none | 1/1 | 5 | 5.6 s |
-| restaurant-v3 | yes | 1/2 | D2 | 1/1 | 5 | 8.1 s |
-| saas-v1 | yes | 1/1 | none | 2/2 | 5 | 5.8 s |
-| saas-v2 | yes | 1/2 | none | 1/1 | 5 | 9.0 s |
-| saas-v3 | yes | 1/2 | D2 | 1/1 | 5 | 18.5 s |
-| logistics-v1 | yes | 1/1 | none | 2/2 | 5 | 9.9 s |
-| logistics-v2 | yes | 2/2 | none | 1/1 | 5 | 13.6 s |
-| logistics-v3 | yes | 1/2 | D2 | 1/1 | 5 | 21.4 s |
-| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 5 | 10.8 s |
-| construction_supplier-v2 | yes | 2/2 | none | 1/1 | 5 | 9.3 s |
-| construction_supplier-v3 | yes | 1/2 | D2 | 1/1 | 5 | 11.0 s |
-| agency-v1 | yes | 1/1 | none | 2/2 | 5 | 3.5 s |
-| agency-v2 | yes | 1/2 | none | 1/1 | 5 | 5.9 s |
-| agency-v3 | yes | 1/2 | D2 | 1/1 | 5 | 7.0 s |
+| printing_shop-v2 | yes | 2/2 | none | 1/1 | 5 | 4.1 s |
+| printing_shop-v3 | yes | 1/2 | D2 | 1/1 | 5 | 5.3 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 5 | 2.9 s |
+| clinic-v2 | yes | 2/2 | none | 1/1 | 5 | 4.3 s |
+| clinic-v3 | yes | 1/2 | D2 | 1/1 | 5 | 5.2 s |
+| online_store-v1 | yes | 1/1 | none | 2/2 | 4 | 3.2 s |
+| online_store-v2 | yes | 1/2 | none | 1/1 | 5 | 4.7 s |
+| online_store-v3 | yes | 1/2 | D2 | 1/1 | 5 | 8.1 s |
+| distributor-v1 | yes | 1/1 | none | 2/2 | 5 | 2.8 s |
+| distributor-v2 | yes | 1/2 | none | 1/1 | 5 | 4.1 s |
+| distributor-v3 | yes | 1/2 | D2 | 1/1 | 5 | 6.2 s |
+| restaurant-v1 | yes | 1/1 | none | 2/2 | 5 | 4.1 s |
+| restaurant-v2 | yes | 2/2 | none | 1/1 | 5 | 5.1 s |
+| restaurant-v3 | yes | 1/2 | D2 | 1/1 | 5 | 8.6 s |
+| saas-v1 | yes | 1/1 | none | 2/2 | 5 | 4.1 s |
+| saas-v2 | yes | 1/2 | none | 1/1 | 5 | 5.5 s |
+| saas-v3 | yes | 1/2 | D2 | 1/1 | 5 | 8.3 s |
+| logistics-v1 | yes | 1/1 | none | 2/2 | 5 | 4.2 s |
+| logistics-v2 | yes | 2/2 | none | 1/1 | 5 | 4.9 s |
+| logistics-v3 | yes | 1/2 | D2 | 1/1 | 5 | 7.2 s |
+| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 5 | 3.4 s |
+| construction_supplier-v2 | yes | 2/2 | none | 1/1 | 5 | 4.1 s |
+| construction_supplier-v3 | yes | 1/2 | D2 | 1/1 | 5 | 5.7 s |
+| agency-v1 | yes | 1/1 | none | 2/2 | 5 | 2.1 s |
+| agency-v2 | yes | 1/2 | none | 1/1 | 5 | 2.8 s |
+| agency-v3 | yes | 1/2 | D2 | 1/1 | 5 | 4.5 s |
 
 </details>
 

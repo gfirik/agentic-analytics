@@ -32,4 +32,5 @@ Tests never call a network model; the AI SDK path is tested against a stub `fetc
 
 - It drops `reasoning_content` from the messages it sends back. A tool loop otherwise echoes the model's reasoning, and some endpoints refuse that.
 - It retries an HTTP 429 after the wait the endpoint asks for (`Retry-After`, or "try again in 24.7s"), up to 4 times and 90 s per wait.
+- It retries a 413 "output tokens per minute" refusal once, with `max_tokens` at 95% of the stated limit.
 - The model timeout applies to each HTTP request, so rate-limit waits don't count against it. A whole call is bounded at 20× the timeout.

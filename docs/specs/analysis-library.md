@@ -58,7 +58,7 @@ The method used is recorded.
 | `ratio_shift.v1` | Change in a rate metric | Two-proportion z-test when counts are known (p < 0.05); else noise band |
 | `benchmark_gap.v1` | Own figure vs external range | Only with web extracts; always labelled external |
 
-Data-quality findings come from profiling, not from these templates.
+Data-quality findings come from profiling, not from these templates. A change produced by a cell that profiling flagged as a unit error (×10, ×100, ×1000) is withheld from the findings. This applies to every metric that reads the flagged column, directly, through a ratio term or through a derived metric, whenever the insight compares or reports the flagged period. An open question says what was withheld and why, and the data-quality item stays in the report.
 
 ## 4. Decomposition (`Decomposer`)
 
