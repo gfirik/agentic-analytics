@@ -56,7 +56,7 @@
   - Per job: 200 MB.
   - Decompressed size of zip-based Office files: 300 MB.
   - XLSX: 2M cells per sheet.
-- **Sandboxing:** parsing runs in worker threads with timeouts (60s per file by default). Docling runs in its own container with no network.
+- **Sandboxing:** each parse has a timeout (60s per file by default). Docling runs in its own container with no network. Not yet true: parsing in worker threads that can be killed — SheetJS parses synchronously, so the timeout can't stop a pathological xlsx (known gap M13b).
 - **Never executed:** spreadsheet formulas, and macros in `.xlsm` (macros are ignored).
 
 ## 6. Model providers and privacy
@@ -64,6 +64,7 @@
 - **Defaults:** Ollama, local, and **no telemetry** anywhere.
 - **Hosted endpoints.** When a hosted free endpoint is configured, `agentic-analytics doctor` and the first-run CLI print a warning: "Your data will be sent to <provider>; some free tiers use prompts for training. Use local models for real client data."
 - **Logs** never include raw cell values or document text unless `LOG_LEVEL=debug-data` is set explicitly.
+- **Keys** never leave the process in text: provider error messages (and their cause chain) and call records mask the configured key values (≥ 8 characters, any format) and key-like prefixes (`gsk_`, `sk-`, `csk-`, `sk_`, `AIza`, `nvapi-`, `bearer …`) before they reach a log, `status.json`, an SSE event, an API or MCP reply or a chat.
 
 ## 7. Retention
 
