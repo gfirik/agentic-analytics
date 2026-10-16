@@ -6,6 +6,7 @@ import {
   type CallRecord,
   createModelClient,
   durationMs,
+  expandUrl,
   ModelError,
   memoryCache,
   Router,
@@ -181,5 +182,112 @@ describe("cache and the two kinds of call", () => {
     expect(object?.body.tools).toBeUndefined();
     expect(loop?.body.tools).toBeDefined();
     expect(loop?.body.response_format).toBeUndefined();
+  });
+
+  it("a cached tool step pins the call to its route: a 429 on the next step waits instead of re-running tools", async () => {
+    const toolCall = () =>
+      Response.json({
+        id: "c",
+        object: "chat.completion",
+        created: 0,
+        model: "m",
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: null,
+              tool_calls: [{ id: "t1", type: "function", function: { name: "count", arguments: "{}" } }],
+            },
+            finish_reason: "tool_calls",
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      });
+    // Run 1: tool step, then the answer. Run 2: the tool step comes from the cache; the tool's output differs (a
+    // counter), so the next step is live and is rate-limited once (retry-after 1 s) before it succeeds.
+    const t = hosts({
+      "integrate.api.nvidia.com": [toolCall, () => ok("done"), () => limited("1"), () => ok("done")],
+      "api.groq.com": [toolCall, () => ok("done")],
+    });
+    let runs = 0;
+    const tools = { count: { description: "count", inputSchema: z.object({}), execute: async () => ({ n: ++runs }) } };
+    const client = createModelClient(resolveModelConfig(env), { env, fetch: t.f, cache: memoryCache() });
+    const loop = () =>
+      client.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 3 });
+    await loop();
+    await loop();
+    // One tool run per logical step: 2 in all. Yielding to Groq would have restarted the loop and run it a third time.
+    expect(runs).toBe(2);
+    expect(t.seen.map((x) => x.host)).not.toContain("api.groq.com");
+  });
+});
+
+describe("router bounds", () => {
+  it("stops with RATE_LIMITED when a provider keeps answering 429 without retry-after, instead of looping", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+    });
+    let requests = 0;
+    const route = { provider: "openai-compatible" as const, endpoint: "google-ai-studio", model: "gemini" };
+    const err = await router
+      .run([route], async () => {
+        requests++;
+        throw Object.assign(new Error("429"), { statusCode: 429, responseHeaders: {} });
+      })
+      .catch((e: unknown) => e);
+    expect((err as ModelError).code).toBe("RATE_LIMITED");
+    // No retry-after → a 60 s block; the first wait fits the 90 s budget, the second (60 + 60 > 90) doesn't.
+    expect(requests).toBe(2);
+    expect(now).toBeLessThanOrEqual(90_000);
+  });
+
+  it("caps attempts per call even when every wait is short", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+    });
+    let requests = 0;
+    const route = { provider: "openai-compatible" as const, endpoint: "groq", model: "m" };
+    const err = await router
+      .run([route], async () => {
+        requests++;
+        throw Object.assign(new Error("429"), { statusCode: 429, responseHeaders: { "retry-after": "1" } });
+      })
+      .catch((e: unknown) => e);
+    expect((err as ModelError).code).toBe("RATE_LIMITED");
+    // 4 attempts per route, plus the first: at most 5 requests, ~1 s apart.
+    expect(requests).toBeLessThanOrEqual(5);
+  });
+
+  it("caches only complete answers, ignores epoch-looking resets, and fills only *_ACCOUNT_ID in URLs", async () => {
+    const cut = () =>
+      Response.json({
+        id: "c",
+        object: "chat.completion",
+        created: 0,
+        model: "m",
+        choices: [{ index: 0, message: { role: "assistant", content: '{"reply":"O' }, finish_reason: "length" }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      });
+    const t = hosts({ "api.groq.com": [cut, () => Response.json({ error: { message: "upstream" } })] });
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:openai/gpt-oss-20b", GROQ_API_KEY: "g" };
+    const cache = memoryCache();
+    const lm = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, cache });
+    await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch(() => undefined);
+    expect(cache.size).toBe(0);
+    expect(readRateHeaders(new Headers({ "x-ratelimit-reset-requests": "1760000000" }))).toEqual({});
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: ${VAR} placeholders, not JS templates
+    expect(expandUrl("https://x/${CLOUDFLARE_ACCOUNT_ID}/${GROQ_API_KEY}", { CLOUDFLARE_ACCOUNT_ID: "a", GROQ_API_KEY: "secret" })).toBe(
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: as above
+      "https://x/a/${GROQ_API_KEY}",
+    );
   });
 });

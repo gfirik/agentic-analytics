@@ -44,7 +44,7 @@ const doctor = defineCommand({
       duckdbVersion,
       fetch: globalThis.fetch,
       env: process.env,
-      modelClient: (config) => createModelClient(config, { env: process.env }),
+      modelClient: (config) => createModelClient(config, { env: process.env, onCall: logCall }),
       ...(file !== undefined ? { configFile: file } : {}),
     });
     process.stdout.write(formatReport(results));
@@ -248,7 +248,7 @@ const serveCmd = defineCommand({
         duckdbVersion,
         fetch: globalThis.fetch,
         env: process.env,
-        modelClient: (config) => createModelClient(config, { env: process.env }),
+        modelClient: (config) => createModelClient(config, { env: process.env, onCall: logCall }),
         ...(file !== undefined ? { configFile: file } : {}),
       });
       const value = Object.fromEntries(results.map((r) => [r.name, { ok: r.status === "ok", detail: r.detail }]));

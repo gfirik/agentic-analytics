@@ -25,6 +25,8 @@ export function durationMs(v: string | null | undefined): number | undefined {
   return ((Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0)) * 60 + Number(m[3] ?? 0)) * 1000 + Number(m[4] ?? 0);
 }
 
+const MAX_RESET_MS = 24 * 3600_000;
+
 export function readRateHeaders(h: Headers): RateHeaders {
   const num = (k: string) => {
     const v = h.get(k);
@@ -33,8 +35,14 @@ export function readRateHeaders(h: Headers): RateHeaders {
   const out: { -readonly [K in keyof RateHeaders]?: number } = {};
   const rr = num("x-ratelimit-remaining-requests");
   const rt = num("x-ratelimit-remaining-tokens");
-  const sr = durationMs(h.get("x-ratelimit-reset-requests"));
-  const st = durationMs(h.get("x-ratelimit-reset-tokens"));
+  // Groq/OpenAI-style headers only. A reset longer than a day is not a duration (some providers send an epoch
+  // timestamp there): ignored rather than blocking the route for decades.
+  const reset = (k: string) => {
+    const ms = durationMs(h.get(k));
+    return ms !== undefined && ms <= MAX_RESET_MS ? ms : undefined;
+  };
+  const sr = reset("x-ratelimit-reset-requests");
+  const st = reset("x-ratelimit-reset-tokens");
   if (rr !== undefined) out.remainingRequests = rr;
   if (rt !== undefined) out.remainingTokens = rt;
   if (sr !== undefined) out.resetRequestsMs = sr;
@@ -44,11 +52,15 @@ export function readRateHeaders(h: Headers): RateHeaders {
 
 /** Thrown by the transport when a route is limited and the router prefers to try another route. */
 export class RouteBusyError extends Error {
+  readonly code = "ROUTE_BUSY";
   constructor(readonly waitMs: number) {
     super(`route rate-limited for ${Math.round(waitMs)} ms`);
     this.name = "RouteBusyError";
   }
 }
+
+/** How often one call may try each route before it stops (with RATE_LIMITED) once limits are being hit. */
+const MAX_ATTEMPTS_PER_ROUTE = 4;
 
 /** Minimum token headroom before a route counts as empty (a request needs room for its prompt and answer). */
 const TOKEN_HEADROOM = 1500;
@@ -127,17 +139,23 @@ export class Router {
    * with RATE_LIMITED naming every route.
    */
   async run<T>(routes: readonly RouteModel[], call: (lease: RouteLease) => Promise<T>): Promise<T> {
-    for (;;) {
+    // The waiting a call may do is bounded in total, not per wait: a provider that keeps answering 429 with a short
+    // (or no) retry-after would otherwise keep the call looping for ever. The clock starts at the first limit hit.
+    let deadline: number | undefined;
+    const stop = (waits: readonly number[]) =>
+      new ModelError(
+        "RATE_LIMITED",
+        `every route is rate-limited: ${routes.map((r, i) => `${routeKey(r)} for ${Math.ceil((waits[i] ?? 0) / 1000)} s`).join("; ")}. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.`,
+      );
+    for (let attempt = 0; ; attempt++) {
       const now = this.now();
       const waits = routes.map((r) => this.state(r).availableIn(now));
       const free = routes.filter((_, i) => waits[i] === 0);
+      if (deadline !== undefined && (now > deadline || attempt > MAX_ATTEMPTS_PER_ROUTE * routes.length)) throw stop(waits);
       if (!free.length) {
         const soonest = Math.min(...waits);
-        if (soonest > this.maxWait)
-          throw new ModelError(
-            "RATE_LIMITED",
-            `every route is rate-limited: ${routes.map((r, i) => `${routeKey(r)} for ${Math.ceil((waits[i] ?? 0) / 1000)} s`).join("; ")}. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.`,
-          );
+        deadline ??= now + this.maxWait;
+        if (soonest > this.maxWait || now + soonest > deadline) throw stop(waits);
         await this.sleep(soonest + 50);
         continue;
       }
@@ -158,11 +176,13 @@ export class Router {
         const busy = causeOf(err, RouteBusyError);
         if (busy) {
           this.block(route, busy.waitMs);
+          deadline ??= this.now() + this.maxWait;
           continue;
         }
         const limited = rateLimitedWait(err);
         if (limited !== undefined && !sent) {
           this.block(route, limited);
+          deadline ??= this.now() + this.maxWait;
           continue;
         }
         throw err;

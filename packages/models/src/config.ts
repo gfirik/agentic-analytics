@@ -25,9 +25,13 @@ export const OPENAI_COMPATIBLE_PRESETS: Readonly<Record<string, { base_url: stri
   },
 };
 
-/** Fills `${VAR}` in a base URL from the environment; a missing variable stays visible so the error names it. */
+/**
+ * Fills `${VAR}` in a base URL from the environment; a missing variable stays visible so the error names it. Only
+ * account-style variables (`*_ACCOUNT_ID`) are filled: a URL is printed and probed by `aa doctor`, so it must never
+ * be able to pull in a key.
+ */
 export function expandUrl(url: string, env: Env): string {
-  return url.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (m, name: string) => env[name] ?? m);
+  return url.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (m, name: string) => (/_ACCOUNT_ID$/.test(name) ? (env[name] ?? m) : m));
 }
 
 /**

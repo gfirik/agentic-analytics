@@ -130,6 +130,8 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
     if (key && o.cache) {
       const hit = o.cache.get(key);
       if (hit !== undefined) {
+        // A cached step counts as progress like a live one: tools may have run on it, so the call stays on this route.
+        o.lease?.started();
         record(200, true, hit);
         return new Response(hit, { status: 200, headers: { "content-type": "application/json" } });
       }
@@ -143,7 +145,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         // From now on the call has made progress (a tool loop may have run tools): it stays on this route.
         o.lease?.started();
         const text = await res.clone().text();
-        if (key && o.cache) o.cache.set(key, text);
+        if (key && o.cache && cacheable(text)) o.cache.set(key, text);
         record(res.status, false, text);
         return res;
       }
@@ -172,4 +174,17 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
       await sleep(wait + 250);
     }
   }) as typeof fetch;
+}
+
+/**
+ * Only a complete answer is cached: a 200 can still carry `{"error": …}` (OpenRouter) or an answer cut off at the
+ * token limit, and a rerun must not replay that failure.
+ */
+function cacheable(text: string): boolean {
+  try {
+    const j = JSON.parse(text) as { error?: unknown; choices?: { finish_reason?: string }[] };
+    return !j.error && !!j.choices?.length && j.choices.every((c) => c.finish_reason === "stop" || c.finish_reason === "tool_calls");
+  } catch {
+    return false;
+  }
 }
