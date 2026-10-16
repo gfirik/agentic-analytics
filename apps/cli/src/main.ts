@@ -239,6 +239,10 @@ const serveCmd = defineCommand({
     host: { type: "string", description: "Interface to listen on (default 127.0.0.1)" },
     embedder: { type: "string", description: "'hash' for the offline embedder" },
     log: { type: "boolean", description: "Write structured logs to stderr" },
+    "allow-no-auth": {
+      type: "boolean",
+      description: "Listen beyond localhost without API_TOKEN (only behind a proxy or a localhost-only port mapping)",
+    },
   },
   async run({ args }) {
     const rt = runtime(args.embedder);
@@ -265,6 +269,7 @@ const serveCmd = defineCommand({
       port: Number(args.port ?? process.env.PORT ?? 8080),
       ...(args.host ? { hostname: args.host } : {}),
       ...(process.env.API_TOKEN ? { token: process.env.API_TOKEN } : {}),
+      ...(args["allow-no-auth"] ? { allowNoAuth: true } : {}),
       // Names this server may be reached by besides localhost (a LAN name, a Docker service name).
       allowedHosts: [
         ...(args.host && args.host !== "0.0.0.0" ? [args.host] : []),
@@ -274,6 +279,7 @@ const serveCmd = defineCommand({
           .filter(Boolean),
       ],
       health,
+      onError: (err) => process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`),
       mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
       viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
       version: ENGINE_VERSION,

@@ -20,6 +20,7 @@ Settings come from `.env` (gitignored; copy `.env.example`) and an optional `age
 | `AA_JOBS_DIR` | `data/jobs` | where jobs live |
 | `API_TOKEN` | — | bearer auth for the API and `/mcp` |
 | `AA_ALLOWED_HOSTS` | — | host names the API may be reached by besides localhost |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHATS`, `AA_API_URL` | — | the Telegram demo |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHATS`, `AA_API_URL` | — | the Telegram demo (it refuses to start with no allowed chats) |
+| `TELEGRAM_PUBLIC` | — | `1` lets the Telegram bot answer any chat |
 
 The config file's JSON Schema: [config.schema.json](https://github.com/gfirik/agentic-analytics/blob/main/packages/schema/json/config.schema.json).

@@ -207,9 +207,17 @@ export function errorOf(text: string): string | undefined {
   } catch {
     // Not JSON: keep the text.
   }
-  const clean = msg
-    .replace(/\b(gsk_|sk-|sk_|AIza|nvapi-|Bearer\s+)[\w.-]+/g, "$1***")
-    .replace(/\s+/g, " ")
-    .trim();
+  const clean = maskSecrets(msg).replace(/\s+/g, " ").trim();
   return clean ? clean.slice(0, 200) : undefined;
+}
+
+/**
+ * Masks key-like strings in text that leaves the process (logs, job status, API and chat replies): known key prefixes
+ * (Groq `gsk_`, OpenAI-style `sk-`/`csk-`, Google `AIza`, NVIDIA `nvapi-`, bearer tokens) and, exactly, any of the
+ * given secret values (the configured API keys, whatever their format).
+ */
+export function maskSecrets(text: string, secrets: readonly string[] = []): string {
+  let out = text.replace(/(gsk_|c?sk-|sk_|AIza|nvapi-|Bearer\s+)[\w.-]{4,}/g, "$1***");
+  for (const s of secrets) if (s.length >= 8) out = out.split(s).join("***");
+  return out;
 }

@@ -14,6 +14,8 @@ export interface BotOptions {
   readonly botInfo?: UserFromGetMe;
   /** Chats allowed to use the bot (TELEGRAM_ALLOWED_CHATS); empty or absent means anyone who finds it. */
   readonly allowedChats?: readonly number[];
+  /** Receives a job or delivery error; the chat only gets a short generic message. */
+  readonly onError?: (err: unknown) => void;
   /** Most files per job (default 20); Telegram itself caps each at 20 MB for bots. */
   readonly maxFiles?: number;
 }
@@ -69,7 +71,9 @@ export function createBot(token: string, api: ApiClient, o: BotOptions = {}): Bo
         if (e.type === "stage_started" && STAGE_WORDS[e.stage]) await show(`${STAGE_WORDS[e.stage]}…`);
       });
       if (last?.type !== "done") {
-        const why = last?.type === "failed" ? `${last.error.code}: ${last.error.message}` : "the job did not finish";
+        // The code only: an error message can name files, paths or provider details meant for the owner's log.
+        if (last?.type === "failed") o.onError?.(new Error(`${last.error.code}: ${last.error.message}`));
+        const why = last?.type === "failed" ? `${last.error.code} (details are in the bot's log)` : "the job did not finish";
         await show(`Stopped: ${why}`);
         return;
       }
@@ -79,7 +83,8 @@ export function createBot(token: string, api: ApiClient, o: BotOptions = {}): Bo
       const html = await api.reportHtml(jobId);
       await ctx.replyWithDocument(new InputFile(new TextEncoder().encode(html), "report.html"), { caption: `Full report · job ${jobId}` });
     } catch (err) {
-      await show(`Something went wrong: ${err instanceof Error ? err.message : String(err)}`);
+      o.onError?.(err);
+      await show("Something went wrong (details are in the bot's log).");
     }
   };
 
@@ -118,4 +123,20 @@ export function createBot(token: string, api: ApiClient, o: BotOptions = {}): Bo
     return run(ctx, ctx.message.text);
   });
   return bot;
+}
+
+/**
+ * Who may use the bot: the chats in TELEGRAM_ALLOWED_CHATS. Jobs run on the owner's engine and model keys, so an empty
+ * list is refused unless TELEGRAM_PUBLIC=1 says the bot is meant to be open.
+ */
+export function chatPolicy(env: Readonly<Record<string, string | undefined>>): { allowedChats: number[] } | { error: string } {
+  const allowedChats = (env.TELEGRAM_ALLOWED_CHATS ?? "")
+    .split(",")
+    .map((x) => Number(x.trim()))
+    .filter((n) => Number.isInteger(n) && n !== 0);
+  if (allowedChats.length || env.TELEGRAM_PUBLIC === "1") return { allowedChats };
+  return {
+    error:
+      "Set TELEGRAM_ALLOWED_CHATS to your chat id(s) (the bot tells a stranger their id), or TELEGRAM_PUBLIC=1 to let anyone run jobs on this engine.",
+  };
 }

@@ -14,7 +14,7 @@ The `agentic-analytics` / `aa` command line (citty).
 | `aa analyze <paths…> [--yes] [--objective text] [--web] [--small-model] [--out dir] [--open] [--currency CODE] [--today date] [--embedder hash]` | A full job through the job manager (the API and MCP run jobs the same way). It shows a live stage view and, without `--yes`, an interactive metric review: accept, edit (YAML) or drop each metric. An edit the validator refuses is reported and reviewed again. The report is copied to `<out>/agentic-analytics/report.json` and `report.html`, and a summary is printed. |
 | `aa ask <jobId> "question"` | A follow-up answer: verified claims with numbers from the report's facts, and how many statements failed verification. |
 | `aa explain <jobId> <factId>` | The number, its label, definition, SQL and parameters (or function and inputs) and input rows. |
-| `aa serve [--port 8080] [--host 127.0.0.1]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. `API_TOKEN` turns on bearer auth. |
+| `aa serve [--port 8080] [--host 127.0.0.1]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. `API_TOKEN` turns on bearer auth; a non-loopback `--host` needs it (or `--allow-no-auth` behind a proxy). |
 | `aa mcp` | The MCP server on stdio (Claude Desktop config: apps/mcp/README.md). |
 | `aa jobs ls \| rm <id> \| resume <id>` | Lists, deletes or resumes jobs in `AA_JOBS_DIR` (default `data/jobs`). |
 | `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>] [--small-model] [--embedder hash]` | Runs the eval suite on the generated datasets. It writes `evals/results/*.json`, regenerates `evals/RESULTS.md`, and exits 1 if a bar fails (evals/runner/README.md). |

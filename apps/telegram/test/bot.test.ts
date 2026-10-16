@@ -10,7 +10,7 @@ import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { createApp } from "@agentic-analytics/server";
 import { afterAll, describe, expect, it } from "vitest";
-import { ApiClient, createBot } from "../src/index.ts";
+import { ApiClient, chatPolicy, createBot } from "../src/index.ts";
 
 const root = mkdtempSync(join(tmpdir(), "aa-tg-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -106,5 +106,11 @@ describe("Telegram bot (long polling)", () => {
     });
     await bot.handleUpdate(message({ text: "Why did revenue fall?" }) as never);
     expect(replies).toEqual(["This bot is private. Its owner can allow chat 42 in TELEGRAM_ALLOWED_CHATS."]);
+  });
+
+  it("refuses to start without an allowlist unless TELEGRAM_PUBLIC=1", () => {
+    expect(chatPolicy({})).toHaveProperty("error");
+    expect(chatPolicy({ TELEGRAM_ALLOWED_CHATS: "42, -100" })).toEqual({ allowedChats: [42, -100] });
+    expect(chatPolicy({ TELEGRAM_PUBLIC: "1" })).toEqual({ allowedChats: [] });
   });
 });

@@ -8,6 +8,7 @@ import {
   durationMs,
   expandUrl,
   ModelError,
+  maskSecrets,
   memoryCache,
   Router,
   readRateHeaders,
@@ -308,5 +309,17 @@ describe("router bounds", () => {
     const lm = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, onCall: (c) => calls.push(c) });
     await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch(() => undefined);
     expect(calls.map((c) => [c.status, c.error])).toEqual([[401, "Invalid key gsk_*** for org"]]);
+  });
+
+  it("masks configured keys of any format, and key-like prefixes, in errors a client throws", async () => {
+    expect(maskSecrets("bad key csk-abcdef123 and Bearer xyz12345", [])).toBe("bad key csk-*** and Bearer ***");
+    const t = hosts({
+      "api.mistral.ai": [() => Response.json({ error: { message: "key Zq9mistralKEY77 is not activated" } }, { status: 401 })],
+    });
+    const menv = { PLANNER_MODEL: "openai-compatible:mistral:mistral-small-2603", MISTRAL_API_KEY: "Zq9mistralKEY77" };
+    const lm = createModelClient(resolveModelConfig(menv), { env: menv, fetch: t.f });
+    const err = await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch((e: unknown) => e);
+    expect((err as Error).message).not.toContain("Zq9mistralKEY77");
+    expect((err as Error).message).toContain("***");
   });
 });

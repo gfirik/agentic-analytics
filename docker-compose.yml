@@ -24,7 +24,8 @@ services:
     image: searxng/searxng:latest
     profiles: ["web"]
     ports:
-      - "8888:8080"
+      # Localhost only: none of the optional services has auth; the engine reaches them by service name.
+      - "127.0.0.1:8888:8080"
     environment:
       SEARXNG_BASE_URL: http://localhost:8888/
     volumes:
@@ -35,13 +36,13 @@ services:
     image: quay.io/docling-project/docling-serve:latest
     profiles: ["docling"]
     ports:
-      - "5001:5001"
+      - "127.0.0.1:5001:5001"
 
   ollama:
     image: ollama/ollama:latest
     profiles: ["ollama"]
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama:/root/.ollama
 

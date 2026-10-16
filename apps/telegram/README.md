@@ -19,7 +19,7 @@ bun run aa serve                                   # the engine API on :8080
 TELEGRAM_BOT_TOKEN=123:abc bun run --filter @agentic-analytics/telegram start
 ```
 
-Set `TELEGRAM_ALLOWED_CHATS` (comma-separated chat ids) so only you can run jobs on your engine and model; other chats are told their id and refused. `AA_API_URL` points at another engine (default `http://127.0.0.1:8080`), and `API_TOKEN` is sent as the bearer token.
+Set `TELEGRAM_ALLOWED_CHATS` (comma-separated chat ids) so only you can run jobs on your engine and model; other chats are told their id and refused. The bot won't start without it unless `TELEGRAM_PUBLIC=1` says it is meant to be open. Errors go to the bot's log; the chat only gets a short message. `AA_API_URL` points at another engine (default `http://127.0.0.1:8080`), and `API_TOKEN` is sent as the bearer token.
 
 ## Public API
 
