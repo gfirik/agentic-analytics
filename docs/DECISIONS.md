@@ -76,3 +76,14 @@ Bun is the package manager (maintainer preference, faster installs). The repo us
 The runtime stays Node 22 until DuckDB is verified under Bun (see D7). `scripts/check-bun-runtime.sh` runs a DuckDB query under Bun and records the result in `docs/progress/STATE.md`, so the switch can be decided on evidence.
 
 **Supersedes:** the "pnpm workspaces" row of the AGENTS.md stack table.
+
+## D15. VHS and Playwright for README assets; Astro Starlight docs (2026-10-16)
+
+The README visuals and their checks (docs/DOCS-SITE.md §3) use two free, local, dev-only tools:
+
+- **VHS** (MIT, charmbracelet) records the terminal part of the demo GIF from a committed `.tape`. It needs `ttyd` and `ffmpeg`. Install it with `brew install vhs` or the release binaries. It is never a runtime dependency.
+- **Playwright** (Apache-2.0) records the report clip and runs the browser checks (`readme:check:browser`): hero animations under reduced motion, the `<picture>` variant per color scheme, and the citation click. CI installs Chromium in a separate job.
+
+The docs site is Astro Starlight (already in the AGENTS.md §3 stack), deployed to GitHub Pages once the repo is public.
+
+Nothing here runs in the engine, and no paid service is involved.

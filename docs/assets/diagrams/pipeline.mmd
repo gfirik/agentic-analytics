@@ -1,0 +1,17 @@
+stateDiagram-v2
+  [*] --> INGEST
+  INGEST --> PROFILE
+  PROFILE --> METRICS_DRAFT
+  METRICS_DRAFT --> AWAIT_CONFIRM: interactive
+  METRICS_DRAFT --> MEASURE: --yes (assumptions flagged)
+  AWAIT_CONFIRM --> MEASURE: user confirms/edits
+  MEASURE --> DETECT
+  DETECT --> DECOMPOSE
+  DECOMPOSE --> INDEX_DOCS
+  INDEX_DOCS --> WEB_CONTEXT: web enabled
+  INDEX_DOCS --> EXPLAIN: web disabled
+  WEB_CONTEXT --> EXPLAIN
+  EXPLAIN --> DECIDE
+  DECIDE --> VERIFY
+  VERIFY --> RENDER
+  RENDER --> [*]

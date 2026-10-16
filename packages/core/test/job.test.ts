@@ -137,4 +137,22 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     for (const f of r.report.findings) if (/retail/i.test(f.claims[0]?.text ?? "")) expect(f.title).not.toMatch(/hotel/i);
     expect(checkReportIntegrity(r.report)).toEqual([]);
   }, 180_000);
+
+  it("report.json carries evidence for what it cites: the cited table rows and the passage around each quote", () => {
+    const ev = report.evidence ?? [];
+    const cited = report.findings.flatMap((f) => f.claims.flatMap((c) => c.citations)).filter((c) => c.quote);
+    expect(cited.length).toBeGreaterThan(0);
+    for (const c of cited) {
+      const e = ev.find((x) => x.source_id === c.source_id);
+      expect(e?.kind, c.source_id).toBe("text");
+      expect(e?.kind === "text" && e.text.includes(c.quote as string), c.source_id).toBe(true);
+    }
+    const rowCite = report.facts.flatMap((f) => f.citations).find((c) => c.rows?.length);
+    const table = ev.find((x) => x.source_id === rowCite?.source_id);
+    expect(table?.kind).toBe("table");
+    if (table?.kind === "table") {
+      expect(table.columns.map((c) => c.name)).toContain("Amount");
+      expect(table.rows.map((r) => r.row)).toContain(rowCite?.rows?.[0]);
+    }
+  });
 });

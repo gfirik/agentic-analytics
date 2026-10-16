@@ -1,4 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
-  "include": ["*.ts", "test/**/*.ts", "../vitest.config.ts"]
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["*.ts", "test/**/*.ts", "readme-assets/**/*.ts", "../vitest.config.ts"]
 }

@@ -1,0 +1,22 @@
+---
+title: Documents lane
+description: Chunking, BM25, vectors, reciprocal-rank fusion, rerank and quarantined extraction — step by step.
+sidebar:
+  order: 7
+---
+
+import RagStepper from "../../../components/RagStepper.tsx";
+
+Documents answer the *why*: a price list, an email, an ops note. The lane is built so that text from your files can inform the analysis without ever steering it.
+
+1. **Chunk** each section into overlapping passages with their page, heading path and character span.
+2. **Search two ways** in the same DuckDB file: BM25 full-text (stemmed for the document's language) and exact vector search over in-process embeddings (`bge-m3` by default; an offline hash embedder for tests).
+3. **Fuse** the two rankings with reciprocal-rank fusion: each list votes 1/(60 + rank).
+4. **Rerank** the top passages with a cross-encoder; if it is unavailable the result is marked *degraded*, not hidden.
+5. **Extract.** Only the *quarantined extractor* — a model call with no tools — reads the passage text. It returns typed events and statements with **exact quotes**, checked to be substrings of the passage. The planner sees only those extracts, inside a delimited data block.
+
+Step through a real query on the example:
+
+<RagStepper client:visible />
+
+Retrieval recall@8 is measured on two labelled corpora (`bun run --filter @agentic-analytics/retrieval eval:retrieval`): 1.0 on both with the offline embedder.

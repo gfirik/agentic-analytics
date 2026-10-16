@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-labelledby="title desc">
+<title id="title">agentic-analytics: files in, a verified report out</title>
+<desc id="desc">Business files flow into three lanes (tables via DuckDB SQL, documents via hybrid retrieval, and a sanitized web lane), then to an analyst that detects, decomposes, explains and decides, then to a verifier that recomputes every number and checks every citation, and finally to a cited report. dark theme.</desc>
+<style>
+.t{font:600 17px system-ui,-apple-system,"Segoe UI",sans-serif}
+.s{font:13px system-ui,-apple-system,"Segoe UI",sans-serif}
+.cap{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.06em}
+.flow{stroke-dasharray:none}
+@media (prefers-reduced-motion: no-preference){
+.flow{stroke-dasharray:6 8;animation:flow 1.2s linear infinite}
+.stage{animation:glow 4.8s ease-in-out infinite}
+.s-tables{animation-delay:0.6s}.s-docs{animation-delay:0.9s}.s-web{animation-delay:1.2s}.s-analyst{animation-delay:1.8s}.s-verifier{animation-delay:2.4s}.s-report{animation-delay:3s}
+.file{animation:glow 4.8s ease-in-out infinite}
+@keyframes flow{to{stroke-dashoffset:-28}}
+@keyframes glow{0%,100%{opacity:.55}15%,60%{opacity:1}}
+}
+</style>
+<rect width="1200" height="420" rx="18" fill="#161614"/>
+<text x="24" y="40" class="cap" fill="#a3a29c">YOUR FILES</text>
+<text x="250" y="40" class="cap" fill="#a3a29c">THREE LANES</text>
+<text x="540" y="128" class="cap" fill="#a3a29c">COMPUTED FACTS ONLY</text>
+<text x="800" y="128" class="cap" fill="#a3a29c">NOTHING UNVERIFIED SHIPS</text>
+<path id="l1" class="flow" d="M192 110 C220 110 222 97 250 97" fill="none" stroke="#7cb4f0" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l2" class="flow" d="M192 168 C220 168 222 97 250 97" fill="none" stroke="#7cb4f0" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l3" class="flow" d="M192 226 C220 226 222 210 250 210" fill="none" stroke="#f0b46c" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l4" class="flow" d="M192 284 C220 284 222 210 250 210" fill="none" stroke="#f0b46c" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l5" class="flow" d="M192 342 C220 342 222 323 250 323" fill="none" stroke="#c4a3f0" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l6" class="flow" d="M460 97 C500 97 500 190 540 190" fill="none" stroke="#7cb4f0" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l7" class="flow" d="M460 210 L540 210" fill="none" stroke="#f0b46c" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l8" class="flow" d="M460 323 C500 323 500 230 540 230" fill="none" stroke="#c4a3f0" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l9" class="flow" d="M740 210 L800 210" fill="none" stroke="#74c69d" stroke-width="2.5" stroke-linecap="round"/>
+<path id="l10" class="flow" d="M970 210 L1020 210" fill="none" stroke="#f08a7c" stroke-width="2.5" stroke-linecap="round"/>
+<g class="file f0">
+  <rect x="24" y="70" width="168" height="40" rx="8" fill="#201f1c" stroke="#3a3934" stroke-width="1.5"/>
+  <text x="108" y="95" text-anchor="middle" class="s" fill="#ecebe6">sales.xlsx</text>
+</g>
+<g class="file f1">
+  <rect x="24" y="128" width="168" height="40" rx="8" fill="#201f1c" stroke="#3a3934" stroke-width="1.5"/>
+  <text x="108" y="153" text-anchor="middle" class="s" fill="#ecebe6">export.csv</text>
+</g>
+<g class="file f2">
+  <rect x="24" y="186" width="168" height="40" rx="8" fill="#201f1c" stroke="#3a3934" stroke-width="1.5"/>
+  <text x="108" y="211" text-anchor="middle" class="s" fill="#ecebe6">price-list.pdf</text>
+</g>
+<g class="file f3">
+  <rect x="24" y="244" width="168" height="40" rx="8" fill="#201f1c" stroke="#3a3934" stroke-width="1.5"/>
+  <text x="108" y="269" text-anchor="middle" class="s" fill="#ecebe6">notes.docx</text>
+</g>
+<g class="file f4">
+  <rect x="24" y="302" width="168" height="40" rx="8" fill="#201f1c" stroke="#3a3934" stroke-width="1.5"/>
+  <text x="108" y="327" text-anchor="middle" class="s" fill="#ecebe6">email.eml</text>
+</g>
+<g class="stage s-tables">
+  <rect x="250" y="60" width="210" height="74" rx="14" fill="#201f1c" stroke="#7cb4f0" stroke-width="2"/>
+  <text x="355" y="84" text-anchor="middle" class="t" fill="#7cb4f0">Tables lane</text>
+  <text x="355" y="106" text-anchor="middle" class="s" fill="#a3a29c">DuckDB SQL · metrics</text>
+</g>
+<g class="stage s-docs">
+  <rect x="250" y="173" width="210" height="74" rx="14" fill="#201f1c" stroke="#f0b46c" stroke-width="2"/>
+  <text x="355" y="197" text-anchor="middle" class="t" fill="#f0b46c">Documents lane</text>
+  <text x="355" y="219" text-anchor="middle" class="s" fill="#a3a29c">BM25 + vectors · quotes</text>
+</g>
+<g class="stage s-web">
+  <rect x="250" y="286" width="210" height="74" rx="14" fill="#201f1c" stroke="#c4a3f0" stroke-width="2"/>
+  <text x="355" y="310" text-anchor="middle" class="t" fill="#c4a3f0">Web lane</text>
+  <text x="355" y="332" text-anchor="middle" class="s" fill="#a3a29c">sanitized · external</text>
+</g>
+<g class="stage s-analyst">
+  <rect x="540" y="150" width="200" height="120" rx="14" fill="#201f1c" stroke="#74c69d" stroke-width="2"/>
+  <text x="640" y="188" text-anchor="middle" class="t" fill="#74c69d">Analyst</text>
+  <text x="640" y="210" text-anchor="middle" class="s" fill="#a3a29c">detect · decompose</text>
+  <text x="640" y="228" text-anchor="middle" class="s" fill="#a3a29c">explain · decide</text>
+</g>
+<g class="stage s-verifier">
+  <rect x="800" y="150" width="170" height="120" rx="14" fill="#201f1c" stroke="#f08a7c" stroke-width="2"/>
+  <text x="885" y="188" text-anchor="middle" class="t" fill="#f08a7c">Verifier</text>
+  <text x="885" y="210" text-anchor="middle" class="s" fill="#a3a29c">recompute · re-derive</text>
+  <text x="885" y="228" text-anchor="middle" class="s" fill="#a3a29c">check every citation</text>
+</g>
+<g class="stage s-report">
+  <rect x="1020" y="150" width="150" height="120" rx="14" fill="#201f1c" stroke="#74c69d" stroke-width="2"/>
+  <text x="1095" y="188" text-anchor="middle" class="t" fill="#74c69d">Report</text>
+  <text x="1095" y="210" text-anchor="middle" class="s" fill="#a3a29c">what changed, why,</text>
+  <text x="1095" y="228" text-anchor="middle" class="s" fill="#a3a29c">what to do · cited</text>
+</g>
+<text x="1095" y="300" text-anchor="middle" class="s" fill="#a3a29c">report.json + report.html</text>
+</svg>

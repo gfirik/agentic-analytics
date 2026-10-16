@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
+import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { evalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
@@ -57,7 +58,10 @@ const print = (l: string) => process.stdout.write(`${l}\n`);
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
 function runtime(embedderArg?: string) {
   const config = resolveModelConfig(process.env, configFile());
-  const model = createModelClient(config, { env: process.env });
+  // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
+  const scripted = process.env.AA_DEMO_MODEL === "scripted";
+  if (scripted) process.stderr.write("Scripted demo model (no LLM): a deterministic replay for examples/coffee-roaster.\n");
+  const model: ModelClient = scripted ? coffeePlanner() : createModelClient(config, { env: process.env });
   const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
   const embedder =
     embedderArg === "hash" ? hashEmbedder() : transformersEmbedder({ model: embedderArg ?? config.models.embedder.model, cacheDir });

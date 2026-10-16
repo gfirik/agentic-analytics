@@ -1,0 +1,27 @@
+---
+title: The verifier
+description: V1–V8 — the passes every report goes through, with a real before/after.
+sidebar:
+  order: 11
+---
+
+import VerifierDiff from "../../../components/VerifierDiff.tsx";
+
+The draft report is checked by eight passes. Nothing reaches `report.json` without passing them.
+
+| Pass | Checks | On failure |
+|---|---|---|
+| **V1** placeholders | No free numerals in model text except dates, IDs and exact quotes; every `{{N…}}` is a listed fact | drop |
+| **V2** recompute | Every fact re-run (SQL or function) and equal within 1e-9 | **job fails** with `diagnostics.json` |
+| **V3** re-derive | Headline totals recomputed another way (summing members) | **job fails** |
+| **V4** definitions | Each fact matches its metric's definition, period and filters; claim wording names the right metric; no "fell" with a negative value | drop |
+| **V5** citations | Quotes exist at their source; cited rows are inputs of the fact; a judge model checks support | drop |
+| **V6** causal language | Causal words need a document-supported grade | rewrite / downgrade |
+| **V7** grounding | Recommendations cite surviving findings, impact facts exist, the check date is in the future | drop recommendation |
+| **V8** external | A web number cites its exact web source | drop |
+
+A wrong number is an engine bug, not a model mistake, so V2/V3 failures stop the job instead of shipping a report.
+
+Below, the real draft of the example against the verified report — the scripted planner makes the mistakes a model makes (an unknown fact id, causal words with no document, an action tied to no finding):
+
+<VerifierDiff client:visible />

@@ -1,0 +1,32 @@
+---
+title: Pipeline overview
+description: The stages a job goes through, checkpointed in one DuckDB file.
+sidebar:
+  order: 1
+---
+
+import Mermaid from "../../../components/Mermaid.tsx";
+import Pipeline from "../../../components/Pipeline.tsx";
+import code from "../../../data/pipeline.mmd?raw";
+
+A job is a folder with one DuckDB file. Each stage is checkpointed: a killed job resumes from its last completed stage, and an interrupted stage is reset and re-run, giving the same result as an uninterrupted run.
+
+<Mermaid client:visible code={code} title="The pipeline state machine (docs/assets/diagrams/pipeline.mmd)" />
+
+| Stage | Does | Model |
+|---|---|---|
+| INGEST | Detects tables in spreadsheets and CSV; parses PDF, DOCX, EML, MD, TXT into sections | — |
+| PROFILE | Types, units, dates, duplicates, outliers, entity matching; screens table text for injections | — |
+| METRICS_DRAFT | Drafts metric definitions, validated by code | optional |
+| AWAIT_CONFIRM | Pauses for review unless `--yes` / `auto_confirm` | — |
+| MEASURE · DETECT · DECOMPOSE | Insight templates and decompositions, all SQL | — |
+| INDEX_DOCS | Screens and indexes documents: BM25 + vectors | — |
+| WEB_CONTEXT | Prepares the sanitized web lane (`--web` only) | — |
+| EXPLAIN | Investigates each top finding with fixed tools | yes |
+| DECIDE | Candidate actions, impact ranges computed in code | yes |
+| VERIFY | V1–V8; nothing unverified ships | judge |
+| RENDER | `report.html`, self-contained | — |
+
+Every stage emits events (the API streams them over SSE). A real run, replayed:
+
+<Pipeline client:visible />

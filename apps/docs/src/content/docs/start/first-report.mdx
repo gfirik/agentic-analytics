@@ -1,0 +1,38 @@
+---
+title: Your first report
+description: A walk through the coffee-roaster example — what the report found and how to check it.
+sidebar:
+  order: 3
+---
+
+import CitationDemo from "../../../components/CitationDemo.tsx";
+import Decomposition from "../../../components/Decomposition.tsx";
+
+`examples/coffee-roaster` is a specialty roaster's first half of 2026: 6,260 orders in a workbook (plus the owner's monthly summary), a wholesale price list (PDF), an email from a hotel customer, and operations notes (DOCX). Its answer key says a correct report finds:
+
+- revenue −17.9% in April, driven by wholesale after a hotel group paused its standing order over the price rise;
+- the refund rate rising from 1.2% to 3.4% after a packaging supplier switch;
+- a ×1000 typo in the costs, and dd/mm dates that are ambiguous.
+
+## The headline finding
+
+The numbers below are facts from a real run; click a citation to see what it points at.
+
+<CitationDemo client:visible />
+
+## Why revenue fell
+
+The change is split by customer with `contribution.v1`. One customer accounts for more than 100% of the drop because others grew:
+
+<Decomposition client:visible />
+
+## Checking a number
+
+Every number in the HTML report opens a panel with its SQL, parameters and input rows. From the terminal:
+
+```bash
+bun run aa explain <job-id> N12      # the SQL, the definition, the rows behind N12
+bun run aa ask <job-id> "why did refunds rise?"
+```
+
+`aa ask` answers with claims that pass the same verifier as the report.
