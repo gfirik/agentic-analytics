@@ -73,11 +73,12 @@ function runtime(embedderArg?: string) {
   );
   const engine = {
     version: ENGINE_VERSION,
-    models: (["planner", "extractor", "judge"] as const).map((role) => ({
-      role,
-      provider: config.models[role].provider,
-      model: config.models[role].model,
-    })),
+    // The report's provenance names the scripted planner when it ran, never a model that wasn't called.
+    models: (["planner", "extractor", "judge"] as const).map((role) =>
+      scripted
+        ? { role, provider: "scripted", model: "coffee-roaster demo planner (no LLM)" }
+        : { role, provider: config.models[role].provider, model: config.models[role].model },
+    ),
   };
   const web = () => ({
     provider: searxngProvider({

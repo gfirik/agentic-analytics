@@ -38,7 +38,7 @@ Post once the docs site and the image are live. Each post links the repo, the do
 >
 > It runs locally with Ollama or a free endpoint. There's a CLI, an HTTP API, an MCP server and a Telegram bot.
 >
-> Honest status: on 30 generated businesses the evals don't meet our own bars yet (72% recall of planted events against an 80% bar). Results per model are in the repo.
+> Honest status: it doesn't meet our own eval bars yet. On the smoke suite no free model we tried finds the planted events with the right driver (0% recall@5; the one that completed every job found the key event twice but named the wrong driver). Every result is in evals/RESULTS.md, weak ones included.
 
 ### Draft: r/selfhosted
 
@@ -47,4 +47,4 @@ Post once the docs site and the image are live. Each post links the repo, the do
 ## After launch
 
 - Watch issues and the eval results. A regression of any bar blocks the next release (EVALS §5).
-- The next work is the M12 gaps in docs/progress/STATE.md: seasonal baselines, member-change slots, findings on flagged series, real-model metric drafting, and EXPLAIN degradation.
+- The next work is the open gaps in docs/progress/STATE.md: seasonal baselines, member-change slots, guarding findings on other data-quality kinds (unit errors are guarded since M12), real-model metric drafting (dimensions, summary sheets), and EXPLAIN degradation.

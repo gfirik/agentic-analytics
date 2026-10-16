@@ -53,8 +53,11 @@ export async function buildEvidence(ws: Workspace, report: Report): Promise<Evid
     char_start: number | null;
     text: string | null;
   }>(sql`SELECT id, kind, page, section, char_start, text FROM sources ORDER BY id`);
+  // A quarantined source is cited by its data-quality item, but its text is untrusted and never copied into the
+  // report (security §3: quarantine applies to the whole source); the report says that it was flagged, not what.
+  const quarantined = new Set((await ws.all<{ source_id: string }>(sql`SELECT source_id FROM quarantine`)).map((r) => r.source_id));
   const out: Evidence[] = [];
-  for (const s of sources.filter((x) => cited.has(x.id))) {
+  for (const s of sources.filter((x) => cited.has(x.id) && !quarantined.has(x.id))) {
     if (s.kind === "table") {
       const wanted = [...(rows.get(s.id) ?? [])].sort((a, b) => a - b);
       if (!wanted.length) continue;

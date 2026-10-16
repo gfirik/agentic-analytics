@@ -65,10 +65,14 @@ export async function flaggedPeriods(ws: Workspace, defs: readonly MetricDef[]):
   return out;
 }
 
-/** True when the insight compares or reports a period that a flagged cell distorts. */
+/**
+ * True when the insight reports a flagged period or uses one anywhere in its computation: a role, or an input of
+ * any of its calcs (a before-mean or trailing baseline that averages in the distorted period counts too).
+ */
 export function touchesFlagged(insight: Insight, flagged: ReadonlyMap<string, Flagged>): boolean {
   const f = flagged.get(insight.metric);
   if (!f) return false;
   if (f.periods.has(insight.period)) return true;
-  return Object.values(insight.roles).some((r) => r.kind === "point" && f.periods.has(r.period));
+  const refs = [...Object.values(insight.roles), ...insight.calcs.flatMap((c) => c.inputs)];
+  return refs.some((r) => r.kind === "point" && f.periods.has(r.period));
 }

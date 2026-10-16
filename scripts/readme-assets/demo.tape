@@ -15,7 +15,7 @@ Type "export PS1='$ ' AA_DEMO_MODEL=scripted AA_JOBS_DIR=/tmp/aa-demo/jobs PATH=
 Enter
 Show
 
-Type "aa analyze examples/coffee-roaster --yes --currency USD --embedder hash --open"
+Type "aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-01 --embedder hash --open"
 Sleep 400ms
 Enter
 Sleep 9s

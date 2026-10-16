@@ -26,6 +26,9 @@ export default function Pipeline() {
   const events = useMemo(() => (coffee.events as Ev[]).filter((e) => e.type !== "done"), []);
   const [n, setN] = useState(events.length);
   const [playing, setPlaying] = useState(false);
+  // Read after mount: the server render can't know the reader's motion setting.
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => setReduce(reducedMotion()), []);
   useEffect(() => {
     if (!playing) return;
     if (n >= events.length) {
@@ -42,7 +45,7 @@ export default function Pipeline() {
     return n === events.length ? "skipped" : "";
   };
   const play = () => {
-    if (reducedMotion()) {
+    if (reduce) {
       setN((x) => (x >= events.length ? 1 : x + 1));
       return;
     }
@@ -51,7 +54,7 @@ export default function Pipeline() {
   };
   return (
     <section className="aa-island" aria-label="Pipeline replay">
-      <h4>A real run, replayed · examples/coffee-roaster</h4>
+      <h4>The engine's event log, replayed · examples/coffee-roaster · scripted planner, no LLM</h4>
       <div className="aa-row">
         {STAGES.map((s) => (
           <span key={s} className={`aa-chip ${state(s)}`}>
@@ -61,7 +64,7 @@ export default function Pipeline() {
       </div>
       <div className="aa-row" style={{ marginTop: "0.6rem" }}>
         <button type="button" className="aa-btn" onClick={play}>
-          {reducedMotion() ? "Next event" : "Replay"}
+          {reduce ? "Next event" : "Replay"}
         </button>
         <span style={{ fontSize: "0.8rem" }}>
           event {n} of {events.length}

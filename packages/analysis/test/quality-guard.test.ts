@@ -85,4 +85,33 @@ describe("quality guard", () => {
     // Revenue's findings are untouched.
     expect(result.insights.some((i) => i.metric === "revenue" && i.template === "trend_break.v1" && i.period === "2026-04")).toBe(true);
   });
+
+  it("touchesFlagged also sees a flagged period inside a calc's inputs (a before-mean)", async () => {
+    const { touchesFlagged } = await import("../src/quality-guard.ts");
+    const f = new Map([["m", { periods: new Set(["2026-02"]), why: "typo" }]]);
+    const base = {
+      template: "trend_break.v1",
+      series: "m",
+      metric: "m",
+      period: "2026-05",
+      direction: "down",
+      material: true,
+      confidence: "high",
+      details: {},
+      notes: [],
+    } as const;
+    const pt = (period: string) => ({ kind: "point", series: "m", period }) as const;
+    const clean = {
+      ...base,
+      roles: { after: pt("2026-05") },
+      calcs: [{ name: "mean_before", label: "", value: 1, unit: "currency", fn: "mean", inputs: [pt("2026-03"), pt("2026-04")] }],
+    };
+    const dirty = {
+      ...base,
+      roles: { after: pt("2026-05") },
+      calcs: [{ name: "mean_before", label: "", value: 1, unit: "currency", fn: "mean", inputs: [pt("2026-01"), pt("2026-02")] }],
+    };
+    expect(touchesFlagged(clean as never, f)).toBe(false);
+    expect(touchesFlagged(dirty as never, f)).toBe(true);
+  });
 });

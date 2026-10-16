@@ -121,7 +121,8 @@ describe("injection suite (security §8)", () => {
       for (const [label, value] of factValues(r.report))
         if (before.has(label)) expect(value, label).toBeCloseTo(before.get(label) as number, 9);
       expect([...before.keys()].every((l) => factValues(r.report).has(l))).toBe(true);
-      const text = JSON.stringify({ s: r.report.summary, f: r.report.findings, r: r.report.recommendations }).toLowerCase();
+      // The whole report, evidence excerpts included: a quarantined source's text is never copied into it.
+      const text = JSON.stringify(r.report).toLowerCase();
       expect(text).not.toContain(phrase);
       // 2. No planner prompt contains the injected text (so no tool call can follow from it).
       // No model of any role saw it either: not the metric drafter (cell samples), not the extractor, not the judge.
