@@ -73,7 +73,7 @@ export async function searchAndStore(ws: Workspace, lane: WebLane, query: string
           VALUES (${id}, ${page.url}, ${page.title}, ${page.fetched_at}::TIMESTAMPTZ AT TIME ZONE 'UTC', []::VARCHAR[], true)`,
     );
     // Hidden text is dropped from what we keep, but a page that hides instructions is not to be trusted at all.
-    if (screen(page.raw) || screen(page.text)) {
+    if (screen(page.text) || screen(page.hidden)) {
       await quarantine(ws, id, "the page addresses a model (possibly in hidden text)", "screen");
       continue;
     }

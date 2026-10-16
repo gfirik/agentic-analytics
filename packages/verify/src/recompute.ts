@@ -51,9 +51,11 @@ const RULES: Record<string, Rule> = {
     value: (x[1] ?? 0) !== 0 ? ((x[0] ?? 0) / (x[1] as number)) * 100 : Number.NaN,
     how: "member Δ ÷ total Δ × 100",
   }),
-  share: (_f, x) => {
+  // concentration.v1 reports the largest *named* member: the "(other)" bucket counts in the total, never as the top.
+  share: (f, x, byId) => {
     const total = x.reduce((a, b) => a + b, 0);
-    return { value: total ? (Math.max(...x) / total) * 100 : Number.NaN, how: "largest ÷ Σ × 100" };
+    const named = x.filter((_, i) => !(byId.get(f.computation.inputs?.[i] ?? "")?.label ?? "").includes("=(other)]"));
+    return { value: total && named.length ? (Math.max(...named) / total) * 100 : Number.NaN, how: "largest named member ÷ Σ × 100" };
   },
   hhi: (_f, x) => {
     const total = x.reduce((a, b) => a + b, 0);
@@ -62,15 +64,17 @@ const RULES: Record<string, Rule> = {
   theil_sen: (_f, x) => ({ value: theilSen(x), how: "Theil–Sen over the series" }),
   mann_kendall: (_f, x) => ({ value: mannKendall(x).p, how: "Mann–Kendall p" }),
   // The z of one residual: it must be the z of one of the series' period-over-period changes.
-  robust_z: (_f, x) => {
+  // The z of the change into the fact's own period (named in its label) vs the series' other changes.
+  robust_z: (f, x, byId) => {
     const res = x.slice(1).map((v, i) => v - (x[i] as number));
-    return {
-      value: res.map((r, i) => {
-        const others = res.filter((_, j) => j !== i);
-        return robustZ(r, median(others), mad(others));
-      }),
-      how: "robust z of a change vs the other changes",
+    const z = (i: number) => {
+      const others = res.filter((_, j) => j !== i);
+      return robustZ(res[i] as number, median(others), mad(others));
     };
+    const period = /(\d{4}-\d{2}(?:-\d{2})?|\d{4}-[QW]\d{1,2})(?::robust_z)?$/.exec(f.label.replace(/:robust_z$/, ""))?.[1];
+    const at = (f.computation.inputs ?? []).findIndex((id) => (byId.get(id)?.label ?? "").endsWith(`_${period}`));
+    if (at >= 1) return { value: z(at - 1), how: `robust z of the change into ${period}` };
+    return { value: res.map((_, i) => z(i)), how: "robust z of a change vs the other changes (period not found: any)" };
   },
   // The largest member share shift: one of the members' (after ÷ Σafter − before ÷ Σbefore) × 100.
   share_shift: (_f, x) => {

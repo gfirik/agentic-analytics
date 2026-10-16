@@ -141,6 +141,58 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     expect(reasonFor(r.report, refundFinding.title)).toBe(`V7: finding ${refundFinding.id} has no verified claim left`);
   });
 
+  it("a derived fact presented as another metric is dropped (V4 follows it back to its measures)", async () => {
+    const d = clone(draft);
+    // The revenue change % (a derived fact with no metric_id of its own) presented as an orders figure.
+    const pct = f1(d).claims[0]?.facts[3] as string;
+    expect(d.facts.find((x) => x.id === pct)?.metric_id).toBeUndefined();
+    const text = `Orders changed by {{${pct}}}.`;
+    f1(d).claims.push(claim(text, [pct], { causal_grade: "observed" }));
+    const r = await verify(d);
+    expect(reasonFor(r.report, text)).toMatch(/^V4: the claim names Orders but fact N\d+ measures Revenue/);
+  });
+
+  it("a number the model put in quotation marks is dropped unless it is from a source or the data (V1)", async () => {
+    const d = clone(draft);
+    const made = 'Revenue rose "50%" after the supplier note.';
+    const name = "By product, “Espresso blend 1kg” stood out.";
+    f1(d).claims.push(claim(made, []), claim(name, []));
+    const r = await verify(d);
+    expect(reasonFor(r.report, made)).toBe("V1: quoted “50%” is not from a cited source or the data");
+    expect(f1(r.report).claims.map((c) => c.text)).toContain(name);
+  });
+
+  it("other causal phrasings are reworded too, and so is a causal title without a document (V6)", async () => {
+    const d = clone(draft);
+    f1(d).claims.push(claim("Revenue fell because Hotel Group paused orders.", []), claim("The drop was driven by wholesale.", []));
+    const other = d.findings.find((f) => f.title.startsWith("A change in retail")) as Report["findings"][number];
+    other.title = "Retail revenue rose because of the spring campaign";
+    const r = await verify(d);
+    const texts = f1(r.report).claims.map((c) => c.text);
+    expect(texts).toContain("Revenue fell around the time Hotel Group paused orders.");
+    expect(texts).toContain("The drop moved with wholesale.");
+    expect(r.report.findings.find((f) => f.id === other.id)?.title).toBe("Retail revenue rose around the time of the spring campaign");
+    // a title backed by a document-supported claim keeps its wording
+    expect(f1(r.report).title).toBe(f1(draft).title);
+  });
+
+  it("a decline followed by a signed value is dropped (state the magnitude)", async () => {
+    const d = clone(draft);
+    const change = f1(d).claims[0]?.facts[2] as string; // −7,900
+    const text = `Revenue fell {{${change}}} in April.`;
+    f1(d).claims.push(claim(text, [change], { causal_grade: "observed" }));
+    const r = await verify(d);
+    expect(reasonFor(r.report, text)).toBe(`V4: a word of decline is followed by the signed value {{${change}}} (state the magnitude)`);
+  });
+
+  it("a recommendation whose whole rationale is dropped is dropped (V7)", async () => {
+    const d = clone(draft);
+    const r1 = d.recommendations[0] as Report["recommendations"][number];
+    r1.rationale = [claim("Wholesale lost 8,500 dollars.", [])];
+    const r = await verify(d);
+    expect(reasonFor(r.report, r1.action)).toBe("V7: none of its rationale survived verification");
+  });
+
   it("a V2 mismatch (a tampered fact) fails verification instead of shipping", async () => {
     const d = clone(draft);
     const f = d.facts.find((x) => x.computation.kind === "sql") as Report["facts"][number];

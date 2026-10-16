@@ -8,7 +8,8 @@ function escapePdf(s: string): string {
   return s.replace(/[\\()]/g, (c) => `\\${c}`);
 }
 
-export function textPdf(pages: readonly (readonly string[])[]): Uint8Array {
+/** `white`: lines drawn in white on the white page (invisible to a reader, still in the text layer). */
+export function textPdf(pages: readonly (readonly string[])[], options: { white?: ReadonlySet<string> } = {}): Uint8Array {
   const objects: string[] = [];
   const add = (body: string) => objects.push(body); // returns the 1-based object number
   const catalog = add("");
@@ -16,7 +17,8 @@ export function textPdf(pages: readonly (readonly string[])[]): Uint8Array {
   const font = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
   const kids: number[] = [];
   for (const lines of pages) {
-    const ops = ["BT", "/F1 11 Tf", "14 TL", "56 780 Td", ...lines.map((l) => `(${escapePdf(l)}) Tj T*`), "ET"].join("\n");
+    const line = (l: string) => (options.white?.has(l) ? `1 1 1 rg (${escapePdf(l)}) Tj T* 0 0 0 rg` : `(${escapePdf(l)}) Tj T*`);
+    const ops = ["BT", "/F1 11 Tf", "14 TL", "56 780 Td", ...lines.map(line), "ET"].join("\n");
     const content = add(`<< /Length ${ops.length} >>\nstream\n${ops}\nendstream`);
     kids.push(
       add(

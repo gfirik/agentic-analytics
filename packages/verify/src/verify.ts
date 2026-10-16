@@ -6,7 +6,7 @@
 
 import { data, renderPrompt } from "@agentic-analytics/agent";
 import { externalFacts, readFacts } from "@agentic-analytics/analysis";
-import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics";
+import { type Catalog, compileMetric, compileMetricRows, type Grain, runMetric } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
 import {
   type Claim,
@@ -39,6 +39,8 @@ export interface CheckRow {
   readonly passed: boolean;
   readonly fact?: string;
   readonly claim?: string;
+  /** Where the claim sits ("finding F1", "recommendation R2"); stored as the check's claim reference. */
+  readonly where?: string;
   readonly detail: string;
 }
 
@@ -61,7 +63,19 @@ const CAUSAL: readonly [RegExp, string][] = [
   [/\bbecause of\b/gi, "around the time of"],
   [/\bled to\b/gi, "was followed by"],
   [/\bleads to\b/gi, "is followed by"],
+  [/\bstemmed from\b/gi, "followed"],
+  [/\bstems from\b/gi, "follows"],
+  [/\b(?:was|were|is|are) driven by\b/gi, "moved with"],
+  [/\bdriven by\b/gi, "alongside"],
+  [/\bdrove\b/gi, "coincided with"],
+  [/\bdrives\b/gi, "coincides with"],
+  [/\btriggered\b/gi, "preceded"],
+  [/\btriggers\b/gi, "precedes"],
+  [/\bbecause\b/gi, "around the time"],
   [/из-за/gi, "одновременно с"],
+  [/благодаря/gi, "одновременно с"],
+  [/стал[оаи]? причиной/gi, "совпало с"],
+  [/повлекл[оаи]?/gi, "совпало с"],
   [/привел[оаи]? к/gi, "совпало с"],
   [/вызван[оаы]?/gi, "совпало с"],
   [/по причине/gi, "одновременно с"],
@@ -69,6 +83,7 @@ const CAUSAL: readonly [RegExp, string][] = [
   [/\bsababli\b/gi, "bilan bir vaqtda"],
   [/\btufayli\b/gi, "bilan bir vaqtda"],
   [/\bolib keldi\b/gi, "bilan bir vaqtga to'g'ri keldi"],
+  [/\bsabab bo'ldi\b/gi, "bilan bir vaqtda bo'ldi"],
   [/\bnatijasida\b/gi, "bilan bir vaqtda"],
 ];
 
@@ -114,7 +129,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     );
 
   // V5 for facts: every cited input row exists in its table (a wrong row is an engine bug, like V2).
-  const rows = await checkFactRows(ctx.ws, draft.facts);
+  const rows = await checkFactRows(ctx.ws, draft.facts, ctx.defs, ctx.catalog, ctx.grain);
   checks.push(...rows);
   const badRows = rows.filter((r) => !r.passed);
   if (badRows.length)
@@ -125,7 +140,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const rederived: (Recomputed & { path: string })[] = [];
   for (const id of headline) {
     const f = all.get(id);
-    if (!f || f.computation.kind !== "sql" || !f.metric_id) continue;
+    if (f?.computation.kind !== "sql" || !f.metric_id) continue;
     const r = await rederive(ctx, f);
     if (r) rederived.push(r);
   }
@@ -143,6 +158,49 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     ).map((s) => [s.id, s]),
   );
   const external = externalFacts([...all.values()]);
+  const labelOf = (metric: string) => ctx.defs.find((d) => d.id === metric)?.label ?? metric;
+  const memo = new Map<string, Set<string>>();
+  /** The metrics a fact is measured from: its own, or those of the facts it was computed from. */
+  const metricsOf = (id: string, seen = new Set<string>()): Set<string> => {
+    const known = memo.get(id);
+    if (known) return known;
+    const f = all.get(id);
+    const out = new Set<string>();
+    if (f && !seen.has(id)) {
+      seen.add(id);
+      if (f.metric_id) out.add(f.metric_id);
+      else for (const x of f.computation.inputs ?? []) for (const m of metricsOf(x, seen)) out.add(m);
+    }
+    memo.set(id, out);
+    return out;
+  };
+  /** The web sources behind an external number (its external_quote ancestors' citations). */
+  const externalSourcesOf = (id: string, seen = new Set<string>()): string[] => {
+    const f = all.get(id);
+    if (!f || seen.has(id)) return [];
+    seen.add(id);
+    if (f.computation.fn === "external_quote") return f.citations.map((c) => c.source_id);
+    return (f.computation.inputs ?? []).flatMap((x) => externalSourcesOf(x, seen));
+  };
+  /** V4: a measured fact's SQL must be its metric's definition for its period and member filter. */
+  const definitionProblem = (f: Fact): string | undefined => {
+    if (f.computation.kind !== "sql") return undefined;
+    const m = parseMeasured(f.label);
+    const def = m ? ctx.defs.find((d) => d.id === m.metric) : undefined;
+    if (!m || !def || m.where === null) return undefined;
+    const compiled = compileMetric(def.id, ctx.defs, ctx.catalog, {
+      from: m.period,
+      to: m.period,
+      grain: ctx.grain,
+      ...(m.where ? { where: m.where } : {}),
+    });
+    const stored = Object.entries(f.computation.params ?? {})
+      .filter(([k]) => /^\$\d+$/.test(k))
+      .sort((a, b) => Number(a[0].slice(1)) - Number(b[0].slice(1)))
+      .map(([, v]) => v);
+    const same = compiled.text === f.computation.sql && JSON.stringify(compiled.params) === JSON.stringify(stored);
+    return same ? undefined : `fact ${f.id}'s SQL is not the definition of ${def.id} for ${m.period}${m.where ? ` (${m.where})` : ""}`;
+  };
   const dropped = [...draft.verification.claims_dropped];
   const downgraded = [...draft.verification.claims_downgraded];
   let definitionViolations = 0;
@@ -151,7 +209,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
 
   const checkClaim = async (c: Claim, where: string): Promise<Claim | undefined> => {
     const drop = (check: CheckRow["check"], reason: string) => {
-      checks.push({ check, passed: false, claim: c.text, detail: `${where}: ${reason}` });
+      checks.push({ check, passed: false, claim: c.text, where, detail: `${where}: ${reason}` });
       dropped.push({ claim: c.text, reason: `${check}: ${reason}` });
       return undefined;
     };
@@ -160,36 +218,63 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     if (free.length) return drop("V1", `free numeral(s) ${free.join(", ")}`);
     const unknown = placeholders(c.text).find((id) => !factIds.has(id) || !c.facts.includes(id));
     if (unknown) return drop("V1", `placeholder {{${unknown}}} is not a listed fact`);
-    checks.push({ check: "V1", passed: true, claim: c.text, detail: where });
+    // Quoted text may hold digits only when it really is quoted: from a cited source, or a name from the data.
+    for (const span of quotedSpans(c.text).filter((q) => /\p{Nd}/u.test(q))) {
+      const fromSource = c.citations.some((x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span));
+      const fromData = [...all.values()].some((f) => f.label.includes(span));
+      if (!fromSource && !fromData) return drop("V1", `quoted “${span}” is not from a cited source or the data`);
+    }
+    // A decline is stated as a magnitude (report-schema §5a): "fell {{N}}" with a negative N reads as a double
+    // negative ("fell −7,900") or an increase, depending on the renderer.
+    for (const m of c.text.matchAll(
+      /(?<![\p{L}])(?:fell|dropped|declined|decreased|shrank|lost|fall|drop|decline|decrease|упал\p{L}*|снизил\p{L}*|сократил\p{L}*|kamaydi|tushdi)(?![\p{L}])(?:\s+\p{L}+){0,3}\s+(?:by\s+|на\s+)?\{\{(N\d+)\}\}/giu,
+    )) {
+      const v = all.get(m[1] ?? "")?.value ?? 0;
+      if (v < 0) return drop("V4", `a word of decline is followed by the signed value {{${m[1]}}} (state the magnitude)`);
+    }
+    checks.push({ check: "V1", passed: true, claim: c.text, where, detail: where });
 
-    // V4: each fact measures a defined metric with its unit/currency, and the claim doesn't name another metric.
+    // V4: each fact measures a defined metric with its unit/currency, period and filters; and the claim names no
+    // other metric than the ones its facts come from (followed back through derived facts).
     const named = ctx.defs.filter((d) =>
-      new RegExp(`(?<![\\p{L}])${d.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu").test(c.text),
+      [d.label, d.id].some((n) =>
+        new RegExp(`(?<![\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/_/g, "[ _]")}(?![\\p{L}])`, "iu").test(c.text),
+      ),
     );
     for (const id of c.facts) {
       const f = all.get(id);
-      if (!f?.metric_id) continue;
-      const def = ctx.defs.find((d) => d.id === f.metric_id);
-      const problem = !def
-        ? `fact ${id} measures unknown metric ${f.metric_id}`
-        : (UNIT[def.unit] ?? "other") !== f.unit && !(def.type === "ratio" && f.unit === "ratio")
-          ? `fact ${id} is in ${f.unit}, ${def.id} is defined in ${def.unit}`
-          : f.unit === "currency" && def.currency && f.currency && f.currency !== def.currency
-            ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
-            : named.length && !named.some((n) => n.id === def.id || def.label.toLowerCase().includes(n.label.toLowerCase()))
-              ? `the claim names ${named.map((n) => n.label).join(", ")} but fact ${id} measures ${def.label}`
-              : undefined;
+      if (!f) continue;
+      const def = f.metric_id ? ctx.defs.find((d) => d.id === f.metric_id) : undefined;
+      const from = metricsOf(id);
+      const lexicon =
+        named.length > 0 &&
+        from.size > 0 &&
+        !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
+      const problem =
+        f.metric_id && !def
+          ? `fact ${id} measures unknown metric ${f.metric_id}`
+          : def && (UNIT[def.unit] ?? "other") !== f.unit && !(def.type === "ratio" && f.unit === "ratio")
+            ? `fact ${id} is in ${f.unit}, ${def.id} is defined in ${def.unit}`
+            : def && f.unit === "currency" && def.currency && f.currency && f.currency !== def.currency
+              ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
+              : (definitionProblem(f) ??
+                (lexicon
+                  ? `the claim names ${named.map((n) => n.label).join(", ")} but fact ${id} measures ${[...from].map(labelOf).join(", ")}`
+                  : undefined));
       if (problem) {
         definitionViolations++;
         return drop("V4", problem);
       }
     }
-    checks.push({ check: "V4", passed: true, claim: c.text, detail: where });
+    checks.push({ check: "V4", passed: true, claim: c.text, where, detail: where });
 
     // V8: a number derived from the web needs its web source cited.
-    if (c.facts.some((id) => external.has(id))) {
-      const web = c.citations.some((x) => sources.get(x.source_id)?.kind === "web" && sources.get(x.source_id)?.external);
-      if (!web) return drop("V8", "uses an external number without citing its web source");
+    // The claim must cite the very web sources its external numbers were quoted from, each marked external.
+    const needed = new Set(c.facts.filter((id) => external.has(id)).flatMap((id) => externalSourcesOf(id)));
+    for (const src of needed) {
+      const cited = c.citations.some((x) => x.source_id === src);
+      if (!cited || !(sources.get(src)?.kind === "web" && sources.get(src)?.external))
+        return drop("V8", "uses an external number without citing its web source");
     }
     checks.push({ check: "V8", passed: true, claim: c.text, detail: where });
 
@@ -259,6 +344,24 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     }
     findings.push({ ...f, claims });
   }
+  // V6 for model-written plain text (titles, headline, actions): causal words need a document-supported claim
+  // in the finding they speak for; otherwise they are reworded like claims.
+  const documented = new Set(
+    findings.filter((f) => f.claims.some((c) => (RANK[c.causal_grade ?? "correlated"] ?? 1) >= 2)).map((f) => f.id),
+  );
+  const plain = (text: string, ok: boolean, where: string): string => {
+    if (ok || !isCausal(text)) return text;
+    const reworded = rewriteCorrelational(text);
+    downgraded.push({
+      claim: text,
+      from: "causal wording",
+      to: "correlated",
+      reason: `V6: ${where} without a supporting document; reworded to “${reworded}”`,
+    });
+    checks.push({ check: "V6", passed: false, where, detail: `${where}: reworded` });
+    return reworded;
+  };
+  for (const [k, f] of findings.entries()) findings[k] = { ...f, title: plain(f.title, documented.has(f.id), `the title of ${f.id}`) };
   const kept = new Set(findings.map((f) => f.id));
 
   const recommendations: Recommendation[] = [];
@@ -283,8 +386,20 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       const ok = await checkClaim(c, `recommendation ${r.id}`);
       if (ok) rationale.push(ok);
     }
+    if (r.rationale.length && !rationale.length) {
+      dropped.push({ claim: r.action, reason: "V7: none of its rationale survived verification" });
+      checks.push({ check: "V7", passed: false, detail: `recommendation ${r.id}: rationale dropped` });
+      continue;
+    }
     checks.push({ check: "V7", passed: true, detail: `recommendation ${r.id}` });
-    recommendations.push({ ...r, because, rationale });
+    const backed = because.some((b) => documented.has(b));
+    recommendations.push({
+      ...r,
+      action: plain(r.action, backed, `the action of ${r.id}`),
+      ...(r.not_advised ? { not_advised: plain(r.not_advised, backed, `not_advised of ${r.id}`) } : {}),
+      because,
+      rationale,
+    });
   }
 
   // Summary after the cascade: bullets from the surviving findings; a headline that no longer holds falls back.
@@ -292,7 +407,11 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const surviving = new Set(findings.flatMap((f) => f.claims.flatMap((c) => c.facts)));
   const headlineOk =
     findFreeNumerals(draft.summary.headline).length === 0 && placeholders(draft.summary.headline).every((id) => surviving.has(id));
-  const headlineText = headlineOk ? draft.summary.headline : (findings[0]?.title ?? "No verified findings for this period.");
+  const headlineText = plain(
+    headlineOk ? draft.summary.headline : (findings[0]?.title ?? "No verified findings for this period."),
+    documented.size > 0,
+    "the headline",
+  );
   checks.push({ check: "V1", passed: headlineOk, detail: headlineOk ? "headline" : "headline replaced by the first finding's title" });
 
   const verifiedFacts = new Set(v2.filter((r) => r.ok).map((r) => r.fact));
@@ -359,23 +478,61 @@ async function rederive(ctx: VerifyContext, f: Fact): Promise<(Recomputed & { pa
   return undefined;
 }
 
-/** Cited table rows must exist in the cited table (part of V5 for facts). */
-export async function checkFactRows(ws: Workspace, facts: readonly Fact[]): Promise<CheckRow[]> {
+/**
+ * V5 for facts: the cited rows are rows the fact's metric actually reads for its period (and member), found again
+ * with the metric's own row query. Facts whose label can't be re-derived (helper metrics, "(other)") fall back to
+ * checking that the rows exist in the cited table.
+ */
+export async function checkFactRows(
+  ws: Workspace,
+  facts: readonly Fact[],
+  defs: readonly MetricDef[] = [],
+  catalog?: Catalog,
+  grain: Grain = "month",
+): Promise<CheckRow[]> {
   const out: CheckRow[] = [];
   for (const f of facts) {
-    for (const c of f.citations) {
-      if (!c.rows?.length) continue;
-      const tableIdOk = /^T\d+$/.test(c.source_id);
-      if (!tableIdOk) continue;
+    const cited = f.citations.filter((c) => c.rows?.length);
+    if (!cited.length) continue;
+    const m = parseMeasured(f.label);
+    const def = m ? defs.find((d) => d.id === m.metric) : undefined;
+    if (m && def && catalog && m.where !== null) {
+      const allowed = new Map<string, Set<number>>();
+      for (const q of compileMetricRows(def.id, defs, catalog, {
+        period: m.period,
+        grain,
+        ...(m.where ? { where: m.where } : {}),
+        limit: 10_000_000,
+      })) {
+        const id = catalog.get(q.table)?.id ?? q.table;
+        const rows = (await ws.all<{ _row: number }>(q.rows)).map((r) => r._row);
+        allowed.set(id, new Set([...(allowed.get(id) ?? []), ...rows]));
+      }
+      for (const c of cited) {
+        const set = allowed.get(c.source_id);
+        const stray = (c.rows ?? []).filter((r) => !set?.has(r));
+        out.push({
+          check: "V5",
+          passed: stray.length === 0,
+          fact: f.id,
+          detail: stray.length
+            ? `rows ${stray.slice(0, 5).join(", ")} of ${c.source_id} are not read by ${def.id} for ${m.period}`
+            : `${c.rows?.length} cited row(s) are inputs of ${def.id} for ${m.period}`,
+        });
+      }
+      continue;
+    }
+    for (const c of cited) {
+      if (!/^T\d+$/.test(c.source_id)) continue;
       const n = await ws.one<{ n: number }>(
         sql`SELECT count(*) AS n FROM ${ident(tableName(c.source_id))} WHERE list_contains(${JSON.stringify(c.rows)}::INTEGER[], _row)`,
       );
-      const ok = (n?.n ?? 0) === c.rows.length;
+      const ok = (n?.n ?? 0) === c.rows?.length;
       out.push({
         check: "V5",
         passed: ok,
         fact: f.id,
-        detail: ok ? `${c.rows.length} cited row(s) exist in ${c.source_id}` : `cited rows missing from ${c.source_id}`,
+        detail: ok ? `${c.rows?.length} cited row(s) exist in ${c.source_id}` : `cited rows missing from ${c.source_id}`,
       });
     }
   }
@@ -396,6 +553,29 @@ export async function persistChecks(ws: Workspace, checks: readonly CheckRow[]):
   await ws.run(sql`DELETE FROM verification`);
   for (const [i, c] of checks.entries())
     await ws.run(
-      sql`INSERT INTO verification VALUES (${`V${i + 1}`}, ${c.claim ?? null}, ${c.fact ?? null}, ${c.check}, ${c.passed}, ${c.detail})`,
+      // claim_id holds where the claim sits (e.g. "finding F1"); the claim text goes in the detail.
+      sql`INSERT INTO verification VALUES (${`V${i + 1}`}, ${c.where ?? null}, ${c.fact ?? null}, ${c.check}, ${c.passed}, ${c.claim ? `${c.detail} — “${c.claim}”` : c.detail})`,
     );
+}
+
+/** `revenue_2026-04` or `revenue[customer=Hotel Group LLC]_2026-04` → metric, member filter, period. */
+export function parseMeasured(label: string): { metric: string; where: string | undefined | null; period: string } | undefined {
+  const m = /^([A-Za-z0-9_]+)(?:\[([^=\]]+)=(.*)\])?_(\d{4}(?:-\d{2}){0,2}|\d{4}-[QW]\d{1,2})$/.exec(label);
+  if (!m) return undefined;
+  const [, metric, dim, value, period] = m;
+  // "(other)" is a NOT IN over the kept members, which the label doesn't carry: not re-derivable (null).
+  const where =
+    dim === undefined
+      ? undefined
+      : value === "(other)"
+        ? null
+        : value === "(none)"
+          ? `${dim} IS NULL`
+          : `${dim} = '${(value ?? "").replace(/'/g, "''")}'`;
+  return { metric: metric as string, where, period: period as string };
+}
+
+/** Text inside quotation marks (“…” or "…"). */
+export function quotedSpans(text: string): string[] {
+  return [...text.matchAll(/“([^”]*)”|"([^"]*)"/g)].map((m) => m[1] ?? m[2] ?? "");
 }

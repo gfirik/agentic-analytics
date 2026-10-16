@@ -15,6 +15,8 @@ EXPLAIN and DECIDE.
   - Output is validated by a strict schema.
   - Quotes must be exact substrings of the excerpt.
   - Suspicious text, flagged by the model or by `screen()`, is stored, flagged and excluded.
+- **`screen(text)` / `screenText(text)`**: the deterministic injection screen (security §3). Text is normalised first (NFKC, invisible characters, Latin accents, look-alike letters, spaced-out letters); EN/RU/UZ patterns.
+- **`screenTables(ws)`, `screenDocuments(ws)`, `screenWorkspace(ws)`**: run the screen over table labels and text cells (after PROFILE) and over documents and emails (at INDEX_DOCS). Hits go to the `quarantine` table and are never sent to any model.
 - **`buildTools(ctx, budget)`**: `get_facts`, `drill_down`, `decompose`, `search_documents`, `search_web` (off), `propose_scenario` and `ask_user`.
   - `Budget` allows 25 calls per job and 8 per finding by default.
 - **`explainFindings(...)`**:

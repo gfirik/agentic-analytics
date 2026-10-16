@@ -79,49 +79,66 @@ export function decodeEntities(s: string): string {
   });
 }
 
-export function htmlToText(html: string): { title: string; text: string } {
+/**
+ * `text` is what a reader sees. `hidden` is text a reader doesn't see but a model might: hidden elements and HTML
+ * comments (never scripts or styles, whose URLs and code aren't prose). Callers screen both for injections.
+ */
+export function htmlToText(html: string): { title: string; text: string; hidden: string } {
   const title = decodeEntities(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
     .replace(/\s+/g, " ")
     .trim();
+  const comments = [...html.matchAll(/<!--([\s\S]*?)-->/g)].map((m) => m[1] ?? "");
   const src = html
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, " ")
     // Declarations and processing instructions (<!doctype html>, <?xml …?>) are markup, not text.
     .replace(/<![^>]*>|<\?[^>]*>/g, " ");
   const out: string[] = [];
-  // Open elements whose content is dropped: tag name per level, so nested same-name tags close correctly.
-  const skipping: string[] = [];
+  const hidden: string[] = [...comments];
+  // Open elements whose content is dropped: tag name per level, so nested same-name tags close correctly; `prose`
+  // marks levels that hold prose (hidden elements) rather than code (scripts, styles, svg).
+  const skipping: { name: string; prose: boolean }[] = [];
+  const CODE = new Set(["script", "style", "noscript", "svg", "template", "iframe", "object", "canvas", "head", "title"]);
   // Quote-aware attributes: a ">" inside a quoted value doesn't end the tag (and can't smuggle hidden text out).
   const tag = /<\/?([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
   let pos = 0;
   for (let m = tag.exec(src); m; m = tag.exec(src)) {
-    if (!skipping.length) out.push(src.slice(pos, m.index));
+    const chunk = src.slice(pos, m.index);
+    if (!skipping.length) out.push(chunk);
+    else if (skipping.every((x) => x.prose)) hidden.push(chunk);
     pos = m.index + m[0].length;
     const name = (m[1] ?? "").toLowerCase();
     const closing = m[0][1] === "/";
     const attrs = m[2] ?? "";
     const selfClosing = VOID.has(name) || attrs.trimEnd().endsWith("/");
     if (closing) {
-      const i = skipping.lastIndexOf(name);
+      let i = -1;
+      for (let k = skipping.length - 1; k >= 0; k--)
+        if (skipping[k]?.name === name) {
+          i = k;
+          break;
+        }
       if (i >= 0) skipping.length = i;
       if (!skipping.length && BLOCK.has(name)) out.push("\n");
+      if (skipping.length && BLOCK.has(name)) hidden.push("\n");
       continue;
     }
     if (skipping.length) {
-      if (!selfClosing) skipping.push(name);
+      if (!selfClosing) skipping.push({ name, prose: !CODE.has(name) });
       continue;
     }
     if ((SKIP.has(name) || HIDDEN.test(attrs)) && !selfClosing) {
-      skipping.push(name);
+      skipping.push({ name, prose: !CODE.has(name) && (HIDDEN.test(attrs) || !SKIP.has(name) || !CODE.has(name)) });
       continue;
     }
     if (BLOCK.has(name)) out.push("\n");
   }
   if (!skipping.length) out.push(src.slice(pos));
-  const text = decodeEntities(out.join(""))
-    .split("\n")
-    .map((l) => l.replace(/[ \t\r\f\v ]+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n");
-  return { title, text };
+  const tidy = (parts: string[]) =>
+    decodeEntities(parts.join(""))
+      .split("\n")
+      .map((l) => l.replace(/[ \t\r\f\v\u00a0]+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n");
+  return { title, text: tidy(out), hidden: tidy(hidden.map((h) => `${h}\n`)) };
 }

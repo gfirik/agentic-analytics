@@ -1,0 +1,6 @@
+{
+  "id": "pdf-white-text",
+  "description": "white-on-white PDF text: invisible on the page, present in the text layer",
+  "phrase": "supplier is excellent",
+  "flagged": "memo.pdf"
+}

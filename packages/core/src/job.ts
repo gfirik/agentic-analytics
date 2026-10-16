@@ -18,7 +18,9 @@ import {
   privateTerms,
   quarantinedSources,
   readExtracts,
-  screenWorkspace,
+  screen,
+  screenDocuments,
+  screenTables,
   type ToolContext,
   writeHeadline,
 } from "@agentic-analytics/agent";
@@ -197,8 +199,17 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       },
       {
         stage: "PROFILE",
-        run: async () => {
+        run: async (ctx) => {
           const summary = await profileJob(ws, ingested ?? (await ingest(readInputs(dir))), { today: opts.today });
+          // Tables are screened now, before METRICS_DRAFT shows cell samples to a model (security §3).
+          const t = await screenTables(ws);
+          if (t.quarantined.length)
+            await ctx.bus.emit({
+              type: "warning",
+              stage: "PROFILE",
+              code: "QUARANTINED",
+              message: `${t.quarantined.length} table(s) quarantined for text addressed to a model`,
+            });
           return summary;
         },
       },
@@ -213,6 +224,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const draft = await draftMetrics(summary, catalog, {
             ...(opts.currency ? { defaultCurrency: opts.currency } : {}),
             model: deps.model,
+            suspicious: screen,
           });
           const grain = summary.grain as Grain;
           const bounds = summary.tables.flatMap((t) => (t.date_first && t.date_last ? [t.date_first, t.date_last] : [])).sort();
@@ -257,11 +269,12 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       {
         stage: "INDEX_DOCS",
         reset: async (w) => {
-          await w.run(sql`DELETE FROM quarantine`);
+          await w.run(sql`DELETE FROM quarantine WHERE source_id IN (SELECT id FROM sources WHERE kind IN ('document', 'email'))`);
         },
         run: async (ctx) => {
-          // Screen every untrusted source before any model can read it (security §3).
-          const screened = await screenWorkspace(ws);
+          // Screen every document and email before any model can read it (security §3); tables were screened
+          // after PROFILE.
+          const screened = await screenDocuments(ws);
           if (screened.quarantined.length)
             await ctx.bus.emit({
               type: "warning",
@@ -436,6 +449,9 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
         run: async (ctx) => {
           const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
           const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
+          // Outputs of an earlier attempt must not outlive this one.
+          rmSync(join(dir, "report.json"), { force: true });
+          rmSync(join(dir, "diagnostics.json"), { force: true });
           try {
             const r = await verifyReport(draft, {
               ws,
@@ -446,6 +462,13 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               judge: deps.model,
             });
             await persistChecks(ws, r.checks);
+            const valid = validateReport(r.report);
+            if (!valid.ok)
+              throw new JobError(
+                "INVALID_DRAFT",
+                `the verified report breaks the schema: ${valid.issues[0]?.path} ${valid.issues[0]?.message}`,
+                valid.issues,
+              );
             writeFileSync(join(dir, "report.json"), `${JSON.stringify(r.report, null, 2)}\n`);
             const v = r.report.verification;
             return {
