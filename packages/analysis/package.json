@@ -9,5 +9,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@agentic-analytics/metrics": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
+    "@agentic-analytics/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/profile": "workspace:*"
   }
 }

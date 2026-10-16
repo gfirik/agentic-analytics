@@ -78,6 +78,15 @@
     "packages/analysis": {
       "name": "@agentic-analytics/analysis",
       "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/metrics": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+      },
+      "devDependencies": {
+        "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/profile": "workspace:*",
+      },
     },
     "packages/core": {
       "name": "@agentic-analytics/core",

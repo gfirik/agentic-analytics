@@ -1,12 +1,14 @@
 export { type Catalog, type CatalogColumn, type CatalogTable, loadCatalog } from "./catalog.ts";
 export {
   compileMetric,
+  compileMetricRows,
   type Grain,
   type MetricCompileCode,
   MetricCompileError,
   type MetricQuery,
   type MetricRow,
   periodExpr,
+  type RowsQuery,
   runMetric,
 } from "./compile.ts";
 export { describeMetric } from "./describe.ts";

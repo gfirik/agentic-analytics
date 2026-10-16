@@ -78,7 +78,7 @@ For revenue R = Σ pᵢqᵢ over items present in both periods, with Q = Σ qᵢ
 - Mix = Q₁ · (Σ sᵢ₁ pᵢ₀ − Σ sᵢ₀ pᵢ₀)
 - Price = Σ qᵢ₁ (pᵢ₁ − pᵢ₀)
 
-These three effects add up to the change in revenue exactly. Items that are new or discontinued are reported as separate "new" and "lost" effects. A test asserts the exact identity on 20 or more randomized cases.
+These three effects add up to the change in revenue exactly. Items that are new or discontinued are reported as separate "new" and "lost" effects. An item with revenue in both periods but zero quantity in one of them has no unit price to split; its whole change is a separate "unpriced" effect. Effects whose item group is empty are omitted rather than reported as 0. A test asserts the exact identity on 20 or more randomized cases.
 
 This needs price and quantity columns. When they're missing, fall back to `contribution.v1`.
 
@@ -88,6 +88,15 @@ For a ratio metric r = Σ wᵢ rᵢ, where the weights wᵢ are segment shares o
 
 - Mix effect = Σ (wᵢ₁ − wᵢ₀) rᵢ₀
 - Rate effect = Σ wᵢ₁ (rᵢ₁ − rᵢ₀)
+
+Both sums run over segments with a denominator in both periods. The weights are shares of each period's whole denominator, so segments present in only one period get their own effects, as new and lost items do in `pvm.v1`:
+
+- Entering effect = Σ wᵢ₁ rᵢ₁ over segments with no denominator before
+- Exiting effect = −Σ wᵢ₀ rᵢ₀ over segments with no denominator after
+
+- Unattributed effect = the change in (numerators of segments with no denominator in that period ÷ the period's denominator), for example refunds booked for a customer with no sales that month. The measured rate counts every numerator, so this keeps the identity.
+
+Mix + Rate + Entering + Exiting + Unattributed = r₁ − r₀ exactly. Effects are in the metric's own unit (percentage points for percent metrics).
 
 **Simpson guard:** when the overall rate moves in the opposite direction to most segment rates, emit a `simpson_risk` flag. The finding must then present the segment-level story.
 
