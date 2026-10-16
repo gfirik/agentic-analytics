@@ -7,6 +7,10 @@ sidebar:
 
 ## 1. Install
 
+**Standalone binary (no Node or Bun):** download `aa-<os>-<arch>` and `SHA256SUMS` from a release, check it with `sha256sum -c SHA256SUMS --ignore-missing`, make it executable and run `./aa-linux-x64 doctor`. It bundles the engine and DuckDB. Two differences from the Node CLI: documents are indexed with the offline hash embedder (lexical, no 1 GB model download), and `aa serve` has no viewer at `/` (the API, MCP and `report.html` work). For semantic document search, use Docker or the Node CLI below.
+
+**From source:**
+
 You need **Node 22** and **[Bun](https://bun.sh)** (the package manager).
 
 ```bash
