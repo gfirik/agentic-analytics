@@ -222,3 +222,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M8] The sanitizer doesn't fold look-alike letters across scripts (a Cyrillic "о" inside "Hotel Grоup" passes); only an injected text would steer the planner to write that, and untrusted text is quarantined. Needs a TR39 skeleton map — M11 privacy evals
 - [M9] A planner's claim can repeat a number in words ("halved", "tripled") without a numeral; V1 sees no free numeral and V4/V5 don't judge the wording. A wording check (number words vs the cited facts) is not built — M11 evals
 - [M9] The injection screen is pattern-based: an instruction phrased outside its EN/RU/UZ patterns reaches the extractor, and only the extractor's own flag stops it. The architecture still holds (the planner never sees raw text and numbers come from SQL), but the "source flagged" guarantee is only as wide as the patterns — M11 injection evals
+- [M9] V3's alternate path is the same metric compiler grouped by the first dimension and summed in code, not a row-level scan in TS; ratios with inline (non-metric) terms are not re-derived — M11
+- [M9] V4's lexicon is the metric labels and ids as written: a claim in RU/UZ about an English-labelled metric is not matched (no violation raised either way) — M11
+- [M9] A claim citing a document or email without a quote skips the judge (only quote-bearing claims are judged); the deterministic checks still run — M11
+- [M9] The homoglyph skeleton covers common Cyrillic/Greek look-alikes, not the full Unicode TR39 confusables table — M11
