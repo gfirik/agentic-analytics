@@ -299,25 +299,29 @@ export interface QuotedRange {
 // v0.x reads percentages only: a percent range can't be confused with counts, money or scale words, and it is
 // the unit benchmarks are usually quoted in. Thousands separators ("1,000") never read as decimals.
 const NUM = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)`;
+/** A minus sign belongs to the number only when it doesn't follow a digit ("−3%", not the dash of "1–2%"). */
+const SIGN = String.raw`(?<![\d.,])([-−]?)`;
 const PCT = String.raw`\s*(?:%|percent\b|per cent\b)`;
-const RANGE = new RegExp(String.raw`${NUM}(${PCT})?\s*(?:–|—|-|\bto\b)\s*${NUM}${PCT}(?!\s*(?:points|pp)\b)`, "i");
-const SINGLE = new RegExp(String.raw`${NUM}${PCT}`, "i");
-const num = (s: string) => Number(/^\d{1,3}(,\d{3})+/.test(s) ? s.replace(/,/g, "") : s.replace(",", "."));
+const RANGE = new RegExp(String.raw`${SIGN}${NUM}(${PCT})?\s*(?:–|—|-|\bto\b)\s*${SIGN}${NUM}${PCT}(?!\s*(?:points|pp)\b)`, "i");
+const SINGLE = new RegExp(String.raw`${SIGN}${NUM}${PCT}`, "i");
+const num = (sign: string | undefined, s: string) =>
+  (sign ? -1 : 1) * Number(/^\d{1,3}(,\d{3})+/.test(s) ? s.replace(/,/g, "") : s.replace(",", "."));
 
 /**
- * The first percent range ("5–8%", "1 to 2 percent") or single percentage in a quote, read as written: parsing,
- * not arithmetic. A single value is a range of one. Anything that isn't a percentage is not read (undefined).
+ * The first percent range ("5–8%", "1 to 2 percent", "−5% to −2%") or single percentage ("−3%") in a quote, read
+ * as written, signs included: parsing, not arithmetic. A single value is a range of one. Anything that isn't a
+ * percentage is not read (undefined).
  */
 export function parseQuotedRange(quote: string): QuotedRange | undefined {
   const r = RANGE.exec(quote);
   if (r) {
-    const low = num(r[1] ?? "");
-    const high = num(r[3] ?? "");
+    const low = num(r[1], r[2] ?? "");
+    const high = num(r[4], r[5] ?? "");
     if (Number.isFinite(low) && Number.isFinite(high) && low <= high) return { low, high, unit: "percent", text: r[0] };
   }
   const s = SINGLE.exec(quote);
   if (s) {
-    const v = num(s[1] ?? "");
+    const v = num(s[1], s[2] ?? "");
     if (Number.isFinite(v)) return { low: v, high: v, unit: "percent", text: s[0] };
   }
   return undefined;

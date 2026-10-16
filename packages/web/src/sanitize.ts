@@ -139,19 +139,22 @@ export function sanitizeQuery(query: string, terms: PrivateTerms = { names: [] }
       return " ";
     });
   };
-  // Structured pieces first, on the folded text (dots and @ still intact).
+  // Structured pieces first, on the folded text (dots, @ and phone punctuation still intact).
   cut(URL_RE, "url");
   cut(EMAIL, "email");
   for (const v of terms.values ?? []) if (v.trim().length >= 2) cut(new RegExp(escapeRe(foldDigits(v.trim())), "giu"), "value");
   cut(PHONE, "phone", (m) => YEAR.test(m.trim()));
-  cut(NUMBER, "number", (m) => YEAR.test(m));
-  // Then names and values again, on the normalised text, so spelling variants match too.
+  // Names and values next, on the normalised text and before numbers go, so a name with digits ("Cafe 24") is
+  // removed whole instead of leaking its word part.
   q = ` ${normalizeText(q)} `;
   for (const v of terms.values ?? []) {
     const nv = normalizeText(v);
     if (nv.length >= 3) cut(wordRe(nv), "value");
   }
   for (const p of phrases(terms)) cut(wordRe(p), "name");
+  cut(NUMBER, "number", (m) => YEAR.test(m));
+  // A possessive left behind by a removed name ("Hotel Group's" → "s").
+  q = q.replace(/(?<=\s)s(?=\s)/g, " ");
   const clean = q.replace(/\s+/g, " ").trim().slice(0, 200);
   return { query: clean, removed };
 }

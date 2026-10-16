@@ -27,7 +27,7 @@ describe("query sanitizer (agent-and-verifier §4): no private value reaches a q
     expect(s.query).toBe(
       "why did stop ordering usd of wholesale coffee? ask or see and specialty coffee wholesale price increase 2026 central asia",
     );
-    expect(s.removed.map((r) => r.kind).sort()).toEqual(["email", "name", "number", "phone", "url", "value"].sort());
+    expect([...new Set(s.removed.map((r) => r.kind))].sort()).toEqual(["email", "name", "number", "phone", "url", "value"]);
     expect(leaksPrivate(s.query, terms)).toBe(false);
   });
 
@@ -65,6 +65,12 @@ describe("query sanitizer (agent-and-verifier §4): no private value reaches a q
       for (const c of cores) expect(oracle(q), `${variant} → ${q}`).not.toContain(` ${c} `);
       expect(q).toContain("wholesale coffee prices 2026");
     }
+    // Names with digits go whole; possessives leave nothing behind.
+    const shops: PrivateTerms = { names: ["Cafe 24", "Hotel Group LLC"], values: ["ACC99812"] };
+    expect(sanitizeQuery("Cafe 24 coffee prices 2026", shops).query).toBe("coffee prices 2026");
+    expect(sanitizeQuery("account ACC99812 coffee prices", shops).query).toBe("account coffee prices");
+    expect(sanitizeQuery("Hotel Group's coffee prices", shops).query).toBe("coffee prices");
+    expect(sanitizeQuery("call +1 (555) 010-2030 coffee", shops).query).toBe("call coffee");
     for (const digits of ["１２３４５", "١٢٣", "۴۵۶", "7,190.50", "53%"]) {
       const q = sanitizeQuery(`refund rate ${digits} benchmark`, names).query;
       expect(q, digits).toBe("refund rate benchmark");

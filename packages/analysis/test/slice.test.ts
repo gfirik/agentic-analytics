@@ -123,6 +123,11 @@ describe("external benchmarks (agent-and-verifier §4)", () => {
     expect(parseQuotedRange("refunds run 1 to 2 percent of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1 to 2 percent" });
     expect(parseQuotedRange("about 3,5% of orders")).toEqual({ low: 3.5, high: 3.5, unit: "percent", text: "3,5%" });
     expect(parseQuotedRange("between 2024 and 2026 prices rose")).toBeUndefined();
+    // Signs are kept: a negative benchmark never becomes a positive fact.
+    expect(parseQuotedRange("growth of -3% last year")).toEqual({ low: -3, high: -3, unit: "percent", text: "-3%" });
+    expect(parseQuotedRange("margins fell −5% to −2%")).toEqual({ low: -5, high: -2, unit: "percent", text: "−5% to −2%" });
+    expect(parseQuotedRange("refunds of 1–2% of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1–2%" });
+    expect(parseQuotedRange("refunds of 1-2% of sales")).toEqual({ low: 1, high: 2, unit: "percent", text: "1-2%" });
     // Not percentages: never read (thousands, money and scale words, counts).
     expect(parseQuotedRange("roasters ship 1,000-2,000 orders a month")).toBeUndefined();
     expect(parseQuotedRange("revenue of $1.2–1.5 million")).toBeUndefined();
