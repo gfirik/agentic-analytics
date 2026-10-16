@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -9,7 +9,15 @@ import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { evalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
-import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
+import {
+  type CallRecord,
+  createModelClient,
+  fileCache,
+  type ModelClient,
+  profileFor,
+  Router,
+  resolveModelConfig,
+} from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
 import { startServer } from "@agentic-analytics/server";
 import { duckdbVersion } from "@agentic-analytics/store";
@@ -55,13 +63,34 @@ const ENGINE_VERSION = "0.0.0";
 const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
 
+/**
+ * Every model call, with the provider and model that served it (M13a): appended to data/logs/model-calls.jsonl,
+ * and echoed to stderr when AA_LOG_CALLS is set. No prompt or answer text is logged.
+ */
+function logCall(c: CallRecord): void {
+  const line = `${JSON.stringify({ at: new Date().toISOString(), ...c })}\n`;
+  try {
+    mkdirSync(join("data", "logs"), { recursive: true });
+    appendFileSync(join("data", "logs", "model-calls.jsonl"), line);
+  } catch {
+    // Logging must never stop a job (a read-only folder, for example).
+  }
+  if (process.env.AA_LOG_CALLS) process.stderr.write(line);
+}
+
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
 function runtime(embedderArg?: string) {
   const config = resolveModelConfig(process.env, configFile());
   // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
   const scripted = process.env.AA_DEMO_MODEL === "scripted";
   if (scripted) process.stderr.write("Scripted demo model (no LLM): a deterministic replay for examples/coffee-roaster.\n");
-  const model: ModelClient = scripted ? coffeePlanner() : createModelClient(config, { env: process.env });
+  const model: ModelClient = scripted
+    ? coffeePlanner()
+    : createModelClient(config, {
+        env: process.env,
+        onCall: logCall,
+        ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
+      });
   const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
   const embedder =
     embedderArg === "hash" ? hashEmbedder() : transformersEmbedder({ model: embedderArg ?? config.models.embedder.model, cacheDir });
@@ -307,6 +336,8 @@ const evalCmd = defineCommand({
     const suite = args.suite === "full" ? "full" : "smoke";
     const model = args.model ?? "baseline";
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+    const evalRouter = new Router();
+    const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
     const r = await evalCommand(
       {
         suite,
@@ -318,11 +349,20 @@ const evalCmd = defineCommand({
       {
         embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
         print,
-        modelFor: (name) => {
+        modelFor: (name, onCall) => {
           // One model for every role, unless "configured" keeps the per-role settings.
           const env =
             name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
-          return createModelClient(resolveModelConfig(env, configFile()), { env: process.env });
+          // Shared across datasets: the router keeps each route's rate state, the cache makes reruns free.
+          return createModelClient(resolveModelConfig(env, configFile()), {
+            env: process.env,
+            router: evalRouter,
+            cache: evalCache,
+            onCall: (c) => {
+              onCall(c);
+              logCall(c);
+            },
+          });
         },
       },
     );
@@ -345,7 +385,7 @@ const metrics = defineCommand({
     let model: ModelClient | undefined;
     let modelError: string | undefined;
     try {
-      model = createModelClient(resolveModelConfig(process.env, configFile()), { env: process.env });
+      model = createModelClient(resolveModelConfig(process.env, configFile()), { env: process.env, onCall: logCall });
     } catch (err) {
       // An invalid model config is reported, not hidden: drafting falls back and says why.
       modelError = err instanceof Error ? err.message : String(err);
@@ -404,7 +444,11 @@ const run = defineCommand({
         ? `openai-compatible:${planner.endpoint}:${planner.model}`
         : `${planner.provider}:${planner.model}`,
     );
-    const model = createModelClient(config, { env: process.env });
+    const model = createModelClient(config, {
+      env: process.env,
+      onCall: logCall,
+      ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
+    });
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const embedder =
       args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder ?? config.models.embedder.model, cacheDir });

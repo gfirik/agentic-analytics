@@ -6,13 +6,37 @@ import { ModelError } from "./errors.ts";
 
 export type Env = Readonly<Record<string, string | undefined>>;
 
-/** Free OpenAI-compatible endpoints (no credit card). A config file may add more or override these. */
+/**
+ * Free OpenAI-compatible endpoints (free tiers, no credit card). A config file may add more or override these.
+ * `${VAR}` in a base URL is filled from the environment (Cloudflare's account id). GitHub Models was removed:
+ * the service was retired on 2026-07-30.
+ */
 export const OPENAI_COMPATIBLE_PRESETS: Readonly<Record<string, { base_url: string; api_key_env: string }>> = {
   groq: { base_url: "https://api.groq.com/openai/v1", api_key_env: "GROQ_API_KEY" },
   openrouter: { base_url: "https://openrouter.ai/api/v1", api_key_env: "OPENROUTER_API_KEY" },
   cerebras: { base_url: "https://api.cerebras.ai/v1", api_key_env: "CEREBRAS_API_KEY" },
-  "github-models": { base_url: "https://models.github.ai/inference", api_key_env: "GITHUB_MODELS_TOKEN" },
+  "nvidia-nim": { base_url: "https://integrate.api.nvidia.com/v1", api_key_env: "NVIDIA_API_KEY" },
+  "google-ai-studio": { base_url: "https://generativelanguage.googleapis.com/v1beta/openai", api_key_env: "GEMINI_API_KEY" },
+  sambanova: { base_url: "https://api.sambanova.ai/v1", api_key_env: "SAMBANOVA_API_KEY" },
+  cloudflare: {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: a ${VAR} placeholder filled by expandUrl, not a JS template
+    base_url: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+    api_key_env: "CLOUDFLARE_API_TOKEN",
+  },
 };
+
+/** Fills `${VAR}` in a base URL from the environment; a missing variable stays visible so the error names it. */
+export function expandUrl(url: string, env: Env): string {
+  return url.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (m, name: string) => env[name] ?? m);
+}
+
+/**
+ * The model a route serves, independent of how a provider spells it: the id after the last "/", lower-cased,
+ * without a ":free"-style tag (`openai/gpt-oss-120b` on Groq and `gpt-oss-120b` on Cerebras are the same model).
+ */
+export function canonicalModel(model: string): string {
+  return (model.split("/").pop() ?? model).toLowerCase().replace(/:(free|latest)$/, "");
+}
 
 export const DEFAULT_LOCAL_MODEL = "qwen3.5:9b";
 
@@ -28,9 +52,24 @@ const DEFAULTS: ConfigInput = {
 
 const ROLE_ENV = { planner: "PLANNER_MODEL", extractor: "EXTRACTOR_MODEL", judge: "JUDGE_MODEL", embedder: "EMBEDDING_MODEL" } as const;
 
-/** Parses `ollama:qwen3.5:9b`, `openai-compatible:groq:llama-3.3-70b-versatile` or `transformers:Xenova/bge-m3`. */
+/**
+ * Parses `ollama:qwen3.5:9b`, `openai-compatible:groq:llama-3.3-70b-versatile` or `transformers:Xenova/bge-m3`.
+ * Routes for the same model on several providers are separated by `|`; the first is preferred.
+ */
 export function parseModelSpec(spec: string): RoleModel {
-  const value = spec.trim().replace(/\s+#.*$/, "");
+  const routes = spec
+    .trim()
+    .replace(/\s+#.*$/, "")
+    .split("|")
+    .map((r) => r.trim())
+    .filter(Boolean);
+  const [first, ...rest] = routes.map(parseRoute);
+  if (!first) throw new ModelError("CONFIG", `invalid model spec "${spec}"`);
+  return rest.length ? { ...first, fallbacks: rest } : first;
+}
+
+function parseRoute(spec: string): RoleModel {
+  const value = spec;
   const [provider, ...rest] = value.split(":");
   if (provider === "ollama" || provider === "transformers") {
     const model = rest.join(":");
@@ -71,14 +110,26 @@ export function resolveModelConfig(env: Env, file?: unknown): Config {
     );
   }
   for (const [role, m] of Object.entries(parsed.data.models)) {
-    if (m?.provider === "openai-compatible" && !parsed.data.providers["openai-compatible"]?.[m.endpoint ?? ""]) {
-      throw new ModelError("CONFIG", `${role} uses unknown openai-compatible endpoint "${m.endpoint}"`);
+    if (!m) continue;
+    for (const r of [m, ...(m.fallbacks ?? [])]) {
+      if (r.provider === "openai-compatible" && !parsed.data.providers["openai-compatible"]?.[r.endpoint ?? ""]) {
+        throw new ModelError("CONFIG", `${role} uses unknown openai-compatible endpoint "${r.endpoint}"`);
+      }
+      // The router only ever falls back to the same model: a route that names another model is a config error.
+      if (canonicalModel(r.model) !== canonicalModel(m.model)) {
+        throw new ModelError(
+          "CONFIG",
+          `${role}: fallback ${describeRoleModel(r)} serves "${canonicalModel(r.model)}", not "${canonicalModel(m.model)}"; every route of a role must be the same model`,
+        );
+      }
     }
   }
+  const compatible = parsed.data.providers["openai-compatible"] ?? {};
+  for (const e of Object.values(compatible)) e.base_url = expandUrl(e.base_url, env);
   return parsed.data;
 }
 
 /** "ollama:qwen3.5:9b" style label for logs and doctor output. */
-export function describeRoleModel(m: RoleModel): string {
+export function describeRoleModel(m: { provider: string; endpoint?: string | undefined; model: string }): string {
   return m.provider === "openai-compatible" ? `openai-compatible:${m.endpoint}:${m.model}` : `${m.provider}:${m.model}`;
 }

@@ -1,4 +1,4 @@
-export { Config, type ConfigInput, OpenAICompatibleEndpoint, ProviderId, RoleModel } from "./config.ts";
+export { Config, type ConfigInput, OpenAICompatibleEndpoint, ProviderId, RoleModel, RouteModel } from "./config.ts";
 export { compareSchemas, type DriftReport, type GeneratedSchemas, generateJsonSchemas, hasDrift } from "./drift.ts";
 export { JobEvent, Stage } from "./events.ts";
 export { checkReportIntegrity, findFreeNumerals, type IntegrityIssue, placeholders } from "./integrity.ts";

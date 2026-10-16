@@ -30,3 +30,5 @@ apps/docs/.astro/
 # Playwright run output
 test-results/
 playwright-report/
+# Model response cache (M13a): eval reruns are served from here
+evals/.cache/

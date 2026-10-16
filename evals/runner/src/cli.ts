@@ -2,7 +2,7 @@
 // writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md` from every results file.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ModelClient } from "@agentic-analytics/models";
+import type { CallRecord, ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
 import { resultsMarkdown, runSuite, type Suite, type SuiteResult } from "./run.ts";
@@ -30,7 +30,7 @@ export interface EvalArgs {
 
 export interface EvalDeps {
   /** Builds a real model client for a model name; absent means only the baseline can run. */
-  readonly modelFor?: (name: string) => ModelClient;
+  readonly modelFor?: (name: string, onCall: (c: CallRecord) => void) => ModelClient;
   readonly embedder: Embedder;
   readonly print: (line: string) => void;
   readonly now?: () => Date;
@@ -42,7 +42,9 @@ const BASELINE_NOTE =
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
-  const make = baseline ? () => baselineModel({ small: a.smallModel === true }) : () => (d.modelFor as (n: string) => ModelClient)(a.model);
+  const make = baseline
+    ? () => baselineModel({ small: a.smallModel === true })
+    : (onCall: (c: CallRecord) => void) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
   const r = await runSuite({
     suite: a.suite,
     model: make,
