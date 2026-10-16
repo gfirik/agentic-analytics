@@ -140,10 +140,24 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         return new Response(hit, { status: 200, headers: { "content-type": "application/json" } });
       }
     }
+    let netRetries = 0;
     for (let attempt = 0; ; attempt++) {
       // The timeout is per request, so the waits between attempts don't count against it.
       const signals = [req?.signal, o.timeoutMs ? AbortSignal.timeout(o.timeoutMs) : undefined].filter((x): x is AbortSignal => !!x);
-      const res = await base(input, { ...req, ...(signals.length ? { signal: AbortSignal.any(signals) } : {}) });
+      let res: Response;
+      try {
+        res = await base(input, { ...req, ...(signals.length ? { signal: AbortSignal.any(signals) } : {}) });
+      } catch (err) {
+        // No response at all (a reset connection, a DNS hiccup, the per-request timeout): logged like a failed call,
+        // and a transient network error is retried, since nothing has run on this request yet. The caller's own
+        // abort is never retried.
+        record(0, false, undefined, describeError(err));
+        if (req?.signal?.aborted || !transientNetworkError(err) || netRetries >= MAX_NET_RETRIES) throw err;
+        netRetries++;
+        await sleep(2_000 * netRetries);
+        attempt--;
+        continue;
+      }
       o.lease?.observe(res.headers);
       if (res.ok) {
         // From now on the call has made progress (a tool loop may have run tools): it stays on this route.
@@ -209,6 +223,31 @@ export function errorOf(text: string): string | undefined {
   }
   const clean = maskSecrets(msg).replace(/\s+/g, " ").trim();
   return clean ? clean.slice(0, 200) : undefined;
+}
+
+/** Network retries per request when the provider gives no response at all. */
+const MAX_NET_RETRIES = 2;
+
+const causeCode = (err: unknown): string | undefined => {
+  const c = err instanceof Error ? (err.cause as { code?: unknown } | undefined) : undefined;
+  return typeof c?.code === "string" ? c.code : undefined;
+};
+
+/** A thrown fetch error as a short log line: its name, message and cause code (e.g. "TypeError: fetch failed (ECONNRESET)"). */
+export function describeError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err).slice(0, 200);
+  const code = causeCode(err);
+  return `${err.name}: ${err.message}${code ? ` (${code})` : ""}`.slice(0, 200);
+}
+
+/** A connection-level failure worth one more try; a timeout or an abort is not (it already waited its full time). */
+export function transientNetworkError(err: unknown): boolean {
+  if (!(err instanceof Error) || err.name === "AbortError" || err.name === "TimeoutError") return false;
+  const code = causeCode(err) ?? "";
+  return (
+    /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|EAI_AGAIN|ENOTFOUND|UND_ERR_SOCKET|UND_ERR_CONNECT_TIMEOUT|UND_ERR_CLOSED)$/.test(code) ||
+    (err.name === "TypeError" && /fetch failed|terminated|socket/i.test(err.message))
+  );
 }
 
 /**
