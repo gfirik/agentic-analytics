@@ -40,6 +40,8 @@ export interface DraftInput {
   readonly dropped: readonly Dropped[];
   readonly downgraded: readonly Downgraded[];
   readonly facts: ReadonlyMap<string, Fact>;
+  /** An incomplete last month the analysis left out (it becomes an assumption). */
+  readonly partialPeriod?: string;
 }
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -124,7 +126,14 @@ const ISSUE_WORDING: Record<string, string> = {
   no_tables_found: "No tables were found in a file",
   duplicate_file: "A file was uploaded twice",
   suspicious_instruction: "Text that looks like instructions to an AI was found; this source was quarantined",
+  missing_id: "Some rows have no identifier, so they can't be linked to a customer, order or document",
+  missing_value: "Some values are empty, so the totals of the periods they fall in leave them out",
+  prefixed_id: "Some document numbers carry a letter prefix the others lack; these are often cancellations or credit notes",
+  too_large: "A file is larger than the job's size limit and was not read",
 };
+
+/** A grouped quality issue cites at most this many rows. */
+const MAX_CITED_ROWS = 20;
 
 async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Promise<QualityIssue[]> {
   const rows = await ws.all<{
@@ -139,15 +148,26 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name
         FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY i.id`,
   );
-  const issues: QualityIssue[] = rows.map((r) => {
+  // One report item per kind of issue in one column of one table: a real file can have thousands of negative
+  // quantities, and a list of thousands of identical items hides every other issue. The item cites the first rows.
+  const groups = new Map<string, (typeof rows)[number][]>();
+  for (const r of rows) {
+    const key = JSON.stringify([r.kind, r.file, r.source_id, r.column_name]);
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const rank = { high: 0, medium: 1, low: 2 } as const;
+  const issues: QualityIssue[] = [...groups.values()].map((g) => {
+    const r = g[0] as (typeof rows)[number];
     const what = ISSUE_WORDING[r.kind] ?? `Data issue: ${r.kind.replace(/_/g, " ")}`;
     const where = [r.column_name ? `column ${q(r.column_name)}` : "", r.file ? `in ${q(r.file)}` : ""].filter(Boolean).join(" ");
+    const cited = [...new Set(g.flatMap((x) => x.rows ?? []))].sort((a, b) => a - b).slice(0, MAX_CITED_ROWS);
+    const severity = g.map((x) => x.severity).sort((a, b) => rank[a] - rank[b])[0] ?? r.severity;
     return {
       id: r.id,
       kind: r.kind,
-      severity: r.severity,
+      severity,
       description: `${what}${where ? ` (${where})` : ""}.`,
-      citations: r.source_id ? [{ source_id: r.source_id, ...(r.rows?.length ? { rows: r.rows } : {}) }] : [],
+      citations: r.source_id ? [{ source_id: r.source_id, ...(cited.length ? { rows: cited } : {}) }] : [],
     };
   });
   const files = new Map(
@@ -225,6 +245,13 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       text: `The definition of ${label(d.label)} was drafted automatically and not confirmed by you.`,
       affects: input.findings.filter((f) => usesMetric(f, d.id)).map((f) => f.id),
     }));
+  // Report text carries no free numerals, so the month is not named here; report.period.to shows where it stops.
+  if (input.partialPeriod)
+    assumptions.push({
+      id: `A${assumptions.length + 1}`,
+      text: "The data stops early in its last month, so that part-month is left out: comparing it with whole months would read as a fall.",
+      affects: input.findings.map((f) => f.id),
+    });
   const findings = input.findings.map((f) => ({
     ...f,
     assumptions: assumptions.filter((a) => a.affects.includes(f.id)).map((a) => a.id),
