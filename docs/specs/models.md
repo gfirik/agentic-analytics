@@ -49,7 +49,7 @@ providers:
     groq: { base_url: https://api.groq.com/openai/v1, api_key_env: GROQ_API_KEY }
 ```
 
-Roles that use `openai-compatible` name their endpoint: `planner: { provider: openai-compatible, endpoint: groq, model: llama-3.3-70b-versatile }`. Env overrides use the same shape as one string: `PLANNER_MODEL=ollama:qwen3.5:9b`, `PLANNER_MODEL=openai-compatible:groq:llama-3.3-70b-versatile`, `EMBEDDING_MODEL=transformers:Xenova/bge-m3`. Built-in endpoint presets (groq, openrouter, cerebras, github-models) can be overridden or extended in the config file. An endpoint sets `structured_outputs: true` when its models accept `response_format: json_schema`; otherwise the schema is sent in the system prompt. Ollama always uses native structured outputs.
+Roles that use `openai-compatible` name their endpoint: `planner: { provider: openai-compatible, endpoint: groq, model: llama-3.3-70b-versatile }`. Env overrides use the same shape as one string: `PLANNER_MODEL=ollama:qwen3.5:9b`, `PLANNER_MODEL=openai-compatible:groq:llama-3.3-70b-versatile`, `EMBEDDING_MODEL=transformers:Xenova/bge-m3`. Built-in endpoint presets are `groq`, `openrouter`, `cerebras`, `nvidia-nim`, `google-ai-studio`, `sambanova` and `cloudflare`. Cloudflare's base URL takes `${CLOUDFLARE_ACCOUNT_ID}` from the environment. `github-models` was removed because the service retired on 2026-07-30. The presets can be overridden or extended in the config file. A role can list the same model on several providers, `PLANNER_MODEL=openai-compatible:nvidia-nim:openai/gpt-oss-120b|openai-compatible:groq:openai/gpt-oss-120b` (or `fallbacks:` in the file). Every route must name the same model (compared by the id after the last "/"), or the config is refused. An endpoint sets `structured_outputs: true` when its models accept `response_format: json_schema`; otherwise the schema is sent in the system prompt. Ollama always uses native structured outputs.
 
 Model profiles (`packages/models/src/profiles.ts`) record per-model facts: context size, tool-calling reliability, JSON-mode support, and whether small-model mode applies. They are filled in from eval results.
 
@@ -58,6 +58,14 @@ Model profiles (`packages/models/src/profiles.ts`) record per-model facts: conte
 - **Structured output:** validated by Zod. On failure, retry up to 2 times with the validation error fed back. After that, the stage degrades gracefully (fewer findings) and logs it.
 - **Timeouts:** 120s per call by default, longer for local CPU models (`MODEL_TIMEOUT_MS`).
 - **Usage:** tokens and latency are recorded per role in job events, so evals can report cost and speed.
+- **Router** (M13a). Each route (provider + model) has a token bucket fed by the `x-ratelimit-remaining-*` and `x-ratelimit-reset-*` headers, and by 429s with their `retry-after`:
+  - A call goes to the first route with capacity.
+  - On a 429 before any of the call's requests succeeded, it moves to the next route of the **same model**. Mid tool-loop it waits instead, so tools are never re-run.
+  - When every route is limited, it waits for the soonest, up to 90 s, then stops with `RATE_LIMITED`, naming each route and when it frees up.
+  - It never switches models.
+- **Two kinds of call.** A structured-output call carries no tools, and a tool loop asks for no structured output (enforced by a transport test).
+- **Response cache.** Responses are keyed by SHA-256 of the URL and request body (model, messages, parameters); only successful responses are stored. Tools still run on replay, so cached runs give the same facts. It is on for `aa eval` (`evals/.cache/`), and on elsewhere with `AA_MODEL_CACHE=<dir>`.
+- **Call log.** Every call reports role, provider, endpoint, model as sent, status, cached, latency and tokens. The CLI appends it to `data/logs/model-calls.jsonl` (stderr too with `AA_LOG_CALLS=1`), and eval results record calls per route. No prompt or answer text is logged.
 
 ## 6. Testing
 

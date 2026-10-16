@@ -12,7 +12,10 @@ The model layer: one `ModelClient` interface over the Vercel AI SDK, free provid
 | `ModelClient` | `generateObject` (Zod-validated, retried with feedback), `generateWithTools` (fixed tools, step cap), `embed` |
 | `createModelClient(config, { env, fetch?, embed? })` | AI SDK implementation. The only place `ai` is imported. |
 | `resolveModelConfig(env, file?)` | Defaults < config file < env (`PLANNER_MODEL=ollama:qwen3.5:9b`, `openai-compatible:groq:<model>`) |
-| `OPENAI_COMPATIBLE_PRESETS` | Free endpoints: groq, openrouter, cerebras, github-models |
+| `OPENAI_COMPATIBLE_PRESETS` | Free endpoints: groq, openrouter, cerebras, nvidia-nim, google-ai-studio, sambanova, cloudflare (`${CLOUDFLARE_ACCOUNT_ID}` in its URL). github-models was removed (retired 2026-07-30) |
+| `Router`, `routesOf` | Same-model routing across providers: token buckets from `x-ratelimit-*`, `retry-after`, fallback only to the same model, `RATE_LIMITED` when none is left |
+| `fileCache(dir)`, `memoryCache()` | Response cache keyed by hash(URL, request body); `ProviderDeps.cache` |
+| `CallRecord`, `ProviderDeps.onCall` | Every call with role, provider, model, status, cached, latency, tokens |
 | `ModelError` | Typed errors: `CONFIG`, `MISSING_KEY`, `INVALID_OUTPUT`, `PROVIDER`, `TIMEOUT`, `NOT_AVAILABLE`, `FAKE_NO_SCRIPT` |
 | `@agentic-analytics/models/testing` → `FakeModel`, `FakeRequest`, `promptHash` | Scripted responses by role and prompt substring/hash; runs scripted tool calls against the real tools; deterministic embeddings. An entry's `object` or `steps` may be a function of the `FakeRequest` (`{ role, system, prompt }`), for scripts that must name ids only known at run time (see `packages/core/testing/coffee-planner.ts`) |
 
