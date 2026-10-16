@@ -105,6 +105,12 @@ describe("query flow (spec §3)", () => {
     expect(r.hits.map((h) => h.chunk_id)).toEqual(plain.hits.map((h) => h.chunk_id));
   });
 
+  it("non-finite reranker scores are rejected with their own reason", async () => {
+    const nan: Reranker = { id: "nan", score: async (_q, docs) => docs.map(() => Number.NaN) };
+    const r = await searchDocuments(ws, "rent increase", { embedder, reranker: nan });
+    expect(r.reasons.rerank).toBe("reranker nan returned non-finite scores");
+  });
+
   it("a reopened job file still has BM25 (the fts extension is loaded per connection)", async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-retrieval-"));
     const path = join(dir, "job.duckdb");

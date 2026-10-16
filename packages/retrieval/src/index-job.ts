@@ -59,7 +59,9 @@ export async function readSections(ws: Workspace): Promise<SectionInput[]> {
     meta: string | null;
   }>(sectionsQuery);
   return rows.map((r) => {
-    const parsed = r.meta ? EmailMeta.parse(JSON.parse(r.meta)) : undefined;
+    // Malformed headers (profile is the only writer, so this shouldn't happen) only lose the prefix details.
+    const result = r.meta ? EmailMeta.safeParse(JSON.parse(r.meta)) : undefined;
+    const parsed = result?.success ? result.data : undefined;
     // Keep only present headers (exact optional properties: absent, never undefined).
     const meta = parsed
       ? (Object.fromEntries(Object.entries(parsed).filter(([, v]) => v !== undefined)) as NonNullable<SectionInput["email"]>)

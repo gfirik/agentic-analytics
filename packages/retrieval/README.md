@@ -8,7 +8,7 @@ The RAG lane for documents and emails (never tables: their numbers come from SQL
 ## Public API
 
 - `indexDocuments(ws, embedder, options?)`: chunks the job's document and email sections (`sources` table), embeds `prefix + text`, writes `chunks` and builds the BM25 index. Returns `{ chunks, embedder, dims, stemmer, fts }`.
-- `searchDocuments(ws, query, { embedder, reranker?, k?, sources?, from?, to? })`: BM25 top 50 + vector top 50 → RRF (k = 60) → top 30 reranked → top 8. Returns `{ hits, degraded }`. `degraded` contains `"rerank"` when no reranker is given or it fails, and `"bm25"` when the DuckDB fts extension is unavailable.
+- `searchDocuments(ws, query, { embedder, reranker?, k?, sources?, from?, to? })`: BM25 top 50 + vector top 50 → RRF (k = 60) → top 30 reranked → top 8. Returns `{ hits, degraded, reasons }`. `degraded` contains `"rerank"` when no reranker is given or it fails (including `RERANK_FAILED`: wrong score count or non-finite scores), and `"bm25"` when the DuckDB fts extension is unavailable. `reasons` keeps the message for each. Every hit carries `untrusted: true`: its text goes to the quarantined extractor only.
 - Embedders:
   - `transformersEmbedder({ model?, dtype?, cacheDir? })`: default `Xenova/bge-m3` (q8).
   - `hashEmbedder(dims?)`: deterministic feature hashing, no download. Used by tests and as the offline fallback.

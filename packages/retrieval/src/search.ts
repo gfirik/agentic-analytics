@@ -97,11 +97,13 @@ export async function searchDocuments(ws: Workspace, query: string, options: Sea
         return r ? `${r.prefix}\n${r.text}` : "";
       });
       const scores = await options.reranker.score(query, texts);
-      if (scores.length !== pool.length || scores.some((x) => !Number.isFinite(x)))
+      if (scores.length !== pool.length)
         throw new RetrievalError(
           "RERANK_FAILED",
           `reranker ${options.reranker.id} returned ${scores.length} scores for ${pool.length} documents`,
         );
+      if (scores.some((x) => !Number.isFinite(x)))
+        throw new RetrievalError("RERANK_FAILED", `reranker ${options.reranker.id} returned non-finite scores`);
       ordered = pool
         .map((f, i) => ({ ...f, score: scores[i] as number }))
         .sort((a, b) => b.score - a.score || pool.indexOf(a) - pool.indexOf(b));
