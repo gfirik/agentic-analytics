@@ -8,22 +8,26 @@ import { profileJob } from "@agentic-analytics/profile";
 import type { Fact } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type AnalysisResult, analyzeJob } from "../src/index.ts";
+import { type AnalysisResult, analyzeJob, OTHER } from "../src/index.ts";
 
 const dir = join(import.meta.dirname, "..", "..", "..", "evals/datasets/coffee-roaster-v1/files");
 let ws: Workspace;
 let result: AnalysisResult;
 
-beforeAll(async () => {
-  ws = await Workspace.open();
+const setup = async (options: { maxMembers?: number } = {}): Promise<{ ws: Workspace; result: AnalysisResult }> => {
+  const w = await Workspace.open();
   const files = ["sales-2026.xlsx", "price-list.pdf", "email-0412.eml", "ops-notes.docx"].map((f) => ({
     name: f,
     bytes: new Uint8Array(readFileSync(join(dir, f))),
   }));
-  const summary = await profileJob(ws, await ingest(files), { today: "2026-07-01" });
-  const catalog = await loadCatalog(ws);
+  const summary = await profileJob(w, await ingest(files), { today: "2026-07-01" });
+  const catalog = await loadCatalog(w);
   const defs = validateMetrics(fallbackMetrics(summary), catalog, { defaultCurrency: "USD" }).accepted;
-  result = await analyzeJob(ws, defs, catalog, { from: "2026-01", to: "2026-06" });
+  return { ws: w, result: await analyzeJob(w, defs, catalog, { from: "2026-01", to: "2026-06", ...options }) };
+};
+
+beforeAll(async () => {
+  ({ ws, result } = await setup());
 }, 120_000);
 afterAll(() => ws.close());
 
@@ -73,7 +77,9 @@ describe("M5 golden outputs on coffee-roaster-v1", () => {
     const p = result.decompositions.find((d) => d.insight === b?.id && d.method === "pvm.v1");
     expect(p?.dimension).toBe("product");
     const v = (k: string) => fact(p?.facts[k]).value;
-    expect(v("volume") + v("mix") + v("price") + v("new") + v("lost")).toBeCloseTo(-7900, 6);
+    const parts = Object.keys(p?.facts ?? {}).filter((k) => k !== "total");
+    expect(parts).toEqual(expect.arrayContaining(["volume", "mix", "price"]));
+    expect(parts.reduce((a, k) => a + v(k), 0)).toBeCloseTo(-7900, 6);
     expect(v("total")).toBeCloseTo(-7900, 6);
   });
 });
@@ -112,5 +118,74 @@ describe("every number is a fact with provenance", () => {
 
   it("the March revenue rise (distractor D1) is not a finding", () => {
     expect(result.insights.some((i) => i.metric === "revenue" && !i.member && i.period === "2026-03")).toBe(false);
+  });
+});
+
+describe("rate vs mix on the measured refund rate", () => {
+  it("mix + rate (+ entering + exiting) equals the change between the measured facts", () => {
+    const rm = result.decompositions.filter((d) => d.method === "ratemix.v1");
+    expect(rm.length).toBeGreaterThanOrEqual(2);
+    for (const d of rm) {
+      const ins = result.insights.find((i) => i.id === d.insight);
+      const sum = Object.values(d.facts).reduce((a, id) => a + fact(id).value, 0);
+      expect(sum).toBeCloseTo(fact(ins?.facts.after).value - fact(ins?.facts.before).value, 9);
+    }
+  });
+
+  it("March → April: Hotel Group LLC exits, and the effects keep the right sign", () => {
+    const b = insight("trend_break.v1", "refund_rate", "2026-04");
+    const d = result.decompositions.find((x) => x.insight === b?.id && x.method === "ratemix.v1");
+    expect(d?.details.exiting).toEqual(["Hotel Group LLC"]);
+    // 1.2% → 1.3%: +0.1 points overall. Hotel Group LLC had no refunds in March, so its exit effect is 0 and the
+    // whole +0.1 is mix (+0.2988, volume moved to the higher-refund online store) plus rate (−0.1988).
+    expect(fact(d?.facts.mix).value + fact(d?.facts.rate).value + fact(d?.facts.exiting).value).toBeCloseTo(0.1, 9);
+    expect(fact(d?.facts.mix).value).toBeGreaterThan(0);
+    expect(d?.facts.entering).toBeUndefined();
+  });
+});
+
+describe("open questions", () => {
+  it("says year-over-year needs 13+ months, per metric", () => {
+    expect(result.openQuestions).toContain("Year-over-year for revenue needs 13+ months; only 6 available.");
+    expect(result.openQuestions).toContain("Year-over-year for refund_rate needs 13+ months; only 6 available.");
+  });
+
+  it("helper metrics (quantities, ratio terms) never put a metric_id on facts", () => {
+    const ids = new Set(result.insights.map((i) => i.metric));
+    for (const f of result.facts) if (f.metric_id) expect(f.metric_id).not.toMatch(/__/);
+    expect(ids.size).toBeGreaterThan(0);
+  });
+});
+
+describe('members beyond the top N are grouped as "(other)"', () => {
+  let small: { ws: Workspace; result: AnalysisResult };
+  beforeAll(async () => {
+    small = await setup({ maxMembers: 2 });
+  }, 120_000);
+  afterAll(() => small.ws.close());
+
+  it("the other bucket is a measured member, and member changes still add up to the total", () => {
+    const r = small.result;
+    const b = r.insights.find((i) => i.template === "trend_break.v1" && i.metric === "revenue" && !i.member);
+    const grouped = r.decompositions.filter((d) => d.insight === b?.id && d.method === "contribution.v1" && d.facts[`change:${OTHER}`]);
+    expect(grouped.length).toBeGreaterThan(0);
+    for (const d of grouped) {
+      const get = (id: string | undefined) => r.facts.find((f) => f.id === id);
+      const changes = Object.entries(d.facts).filter(([k]) => k.startsWith("change:"));
+      expect(changes.length).toBe(3); // top 2 + other
+      expect(changes.reduce((a, [, id]) => a + (get(id)?.value ?? 0), 0)).toBeCloseTo(-7900, 6);
+      // The other bucket's points are re-measured in SQL through a NOT IN filter, with cited rows.
+      const otherChange = get(d.facts[`change:${OTHER}`]);
+      const inputs = otherChange?.computation.kind === "function" ? (otherChange.computation.inputs ?? []) : [];
+      const measured = inputs.map(get).filter((f) => f?.computation.kind === "sql");
+      expect(measured.length).toBe(2);
+      for (const f of measured) {
+        expect(f?.computation.kind === "sql" && f.computation.sql).toMatch(/NOT IN/);
+        expect(f?.label).toContain(OTHER);
+      }
+    }
+    expect(r.openQuestions.some((q) => q.includes(`grouped as "${OTHER}"`))).toBe(true);
+    // no PVM over a dimension with an "(other)" bucket: it has no unit price
+    expect(r.decompositions.some((d) => d.insight === b?.id && d.method === "pvm.v1")).toBe(false);
   });
 });

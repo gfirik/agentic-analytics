@@ -16,6 +16,16 @@ export interface RankContext {
   readonly changeOf: (i: Insight) => { readonly value: number; readonly unit: string } | undefined;
 }
 
+/**
+ * The change an insight is ranked by: for a break, the shift that persists to the latest period
+ * (`change_since`), else its change, else the value of lost members. Used by the runner and its tests alike.
+ */
+export function insightChange(i: Insight): { readonly value: number; readonly unit: string } | undefined {
+  const name = i.roles.change_since ? "change_since" : i.roles.change ? "change" : i.roles.lost_value ? "lost_value" : undefined;
+  const c = name ? i.calcs.find((x) => x.name === name) : undefined;
+  return c ? { value: c.value, unit: c.unit } : undefined;
+}
+
 export interface Ranked {
   readonly insight: Insight;
   readonly impactShare: number;

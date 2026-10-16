@@ -8,6 +8,18 @@ import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import type { Calc, Ref, Series } from "./types.ts";
 
+export type AnalysisErrorCode = "UNKNOWN_SERIES" | "NO_VALUE" | "CALC_UNDEFINED" | "CIRCULAR_CALCS";
+
+export class AnalysisError extends Error {
+  constructor(
+    readonly code: AnalysisErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AnalysisError";
+  }
+}
+
 /** Cited rows per fact are capped; the total count is kept in the computation params. */
 export const MAX_CITED_ROWS = 50;
 
@@ -28,6 +40,8 @@ export class FactBook {
     private readonly catalog: Catalog,
     private readonly grain: Grain,
     private readonly series: ReadonlyMap<string, SeriesInfo>,
+    /** Metric ids that may appear as `metric_id` on facts; default: every def. */
+    private readonly reported: ReadonlySet<string> = new Set(defs.map((d) => d.id)),
   ) {}
 
   private nextId(): string {
@@ -40,13 +54,13 @@ export class FactBook {
     const known = this.byKey.get(key);
     if (known) return known;
     const info = this.series.get(seriesId);
-    if (!info) throw new Error(`unknown series ${seriesId}`);
+    if (!info) throw new AnalysisError("UNKNOWN_SERIES", `unknown series ${seriesId}`);
     // An additive metric (sum, count) with no rows in a period is 0 there: the SQL returns no row, the fact is 0
     // and cites nothing. For averages and ratios a missing value is unknown, so it can't become a fact.
     const found = info.series.points.find((p) => p.period === period)?.value;
     const additive = ["sum", "count", "count_distinct"].includes(info.def.type);
     const value = found === undefined && additive ? 0 : found;
-    if (value === undefined || !Number.isFinite(value)) throw new Error(`no value for ${seriesId} at ${period}`);
+    if (value === undefined || !Number.isFinite(value)) throw new AnalysisError("NO_VALUE", `no value for ${seriesId} at ${period}`);
     const query = { from: period, to: period, grain: this.grain, ...(info.where ? { where: info.where } : {}) };
     const sql = compileMetric(info.def.id, this.defs, this.catalog, query);
     const citations: Citation[] = [];
@@ -70,7 +84,7 @@ export class FactBook {
       value,
       unit: info.series.unit,
       ...(info.def.currency && info.series.unit === "currency" ? { currency: info.def.currency } : {}),
-      metric_id: info.def.id,
+      ...(this.reported.has(info.def.id) ? { metric_id: info.def.id } : {}),
       computation: {
         kind: "sql",
         sql: sql.text,
@@ -101,7 +115,9 @@ export class FactBook {
       value: c.value,
       unit: c.unit,
       ...(c.unit === "currency" && def?.currency ? { currency: def.currency } : {}),
-      ...(metricId && c.unit === (this.series.get(metricId)?.series.unit ?? "") ? { metric_id: metricId } : {}),
+      ...(metricId && this.reported.has(metricId) && c.unit === (this.series.get(metricId)?.series.unit ?? "")
+        ? { metric_id: metricId }
+        : {}),
       computation: { kind: "function", fn: c.fn, inputs },
       citations: [],
       verified: false,
@@ -114,7 +130,7 @@ export class FactBook {
   async resolve(r: Ref, scope: Map<string, string>): Promise<string> {
     if (r.kind === "point") return this.point(r.series, r.period);
     const id = scope.get(r.name);
-    if (!id) throw new Error(`calc ${r.name} is used before it is defined`);
+    if (!id) throw new AnalysisError("CALC_UNDEFINED", `calc ${r.name} is used before it is defined`);
     return id;
   }
 
@@ -125,7 +141,7 @@ export class FactBook {
     // Calcs may reference later ones; resolve in dependency order.
     for (let guard = 0; pending.length && guard < 1000; guard++) {
       const i = pending.findIndex((c) => c.inputs.every((r) => r.kind === "point" || scope.has(r.name)));
-      if (i < 0) throw new Error(`circular calcs in ${context}`);
+      if (i < 0) throw new AnalysisError("CIRCULAR_CALCS", `circular calcs in ${context}`);
       const [c] = pending.splice(i, 1);
       if (c) await this.calc(c, scope, context, metricId);
     }

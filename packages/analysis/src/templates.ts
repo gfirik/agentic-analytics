@@ -85,7 +85,10 @@ export function periodChange(s: Series, grain: Grain = "month", minPct = 5): Ins
   };
   const pct = pctChange("change_pct", after, before, last.value, base.value);
   calcs.push(delta, pct);
-  const band = base.method === "previous_period" ? noiseBand(s.points, i) : undefined;
+  // The band comes from period-over-period changes whatever the baseline (spec §2 needs one for every
+  // change with 6+ periods). For YoY there are rarely 6 year-over-year changes to measure, so the
+  // period-over-period band stands in; recorded in STATE.md.
+  const band = noiseBand(s.points, i);
   const m = materiality(delta.value, pct.value, band, mean(valuesOf(s.points)), { minPct });
   return {
     template: "period_change.v1",
@@ -99,10 +102,7 @@ export function periodChange(s: Series, grain: Grain = "month", minPct = 5): Ins
     calcs,
     roles: { before, after, change: calcRef("change"), change_pct: calcRef("change_pct") },
     details: { baseline: base.method, ...m, ...(band !== undefined ? { noise_band: band } : {}) },
-    notes:
-      band === undefined && base.method === "previous_period"
-        ? ["Fewer than 6 periods: no noise band, so confidence is capped at medium."]
-        : [],
+    notes: band === undefined ? ["Fewer than 6 periods: no noise band, so confidence is capped at medium."] : [],
   };
 }
 
@@ -407,8 +407,12 @@ export function newLost(
     direction: dir(added.value - atRisk.value),
     material: true,
     confidence: "high",
-    calcs: [atRisk, added],
-    roles: { lost_value: calcRef("lost_value"), new_value: calcRef("new_value") },
+    // A side with no members would be a 0 citing nothing (AGENTS.md §2.2): only the sides that exist are facts.
+    calcs: [...(lost.length ? [atRisk] : []), ...(gained.length ? [added] : [])],
+    roles: {
+      ...(lost.length ? { lost_value: calcRef("lost_value") } : {}),
+      ...(gained.length ? { new_value: calcRef("new_value") } : {}),
+    },
     details: { dimension, lost: lost.map((m) => m.member?.value), new: gained.map((m) => m.member?.value), baseline: before },
     notes: [],
   };

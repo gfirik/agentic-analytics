@@ -89,6 +89,10 @@ export interface Pvm {
   readonly price: Calc;
   readonly newItems: Calc;
   readonly lostItems: Calc;
+  /** Items with revenue in both periods but no quantity in one of them: no unit price, so no split. */
+  readonly unpriced: Calc;
+  /** The effects that apply (their item group is non-empty); `total` sums exactly these. */
+  readonly parts: readonly Calc[];
   readonly total: Calc;
 }
 
@@ -96,26 +100,33 @@ export interface Pvm {
  * For items present in both periods (spec §4.2): Q = Σqᵢ, sᵢ = qᵢ/Q, P̄₀ = Σ sᵢ₀pᵢ₀;
  *   Volume = (Q₁ − Q₀)·P̄₀ · Mix = Q₁·(Σ sᵢ₁pᵢ₀ − Σ sᵢ₀pᵢ₀) · Price = Σ qᵢ₁(pᵢ₁ − pᵢ₀).
  * They add up to the common items' revenue change exactly; new and lost items are separate effects
- * (+revenue of items only in period 1, −revenue of items only in period 0).
+ * (+revenue of items only in period 1, −revenue of items only in period 0). An item with revenue in both
+ * periods but zero quantity in one has no price to split, so its whole change is an "unpriced" effect.
  */
 export function pvm(items: readonly PvmItem[], unit: Unit = "currency"): Pvm {
-  const both = items.filter((i) => i.q0 && i.q1 && i.r0 !== undefined && i.r1 !== undefined);
+  const sold0 = (i: PvmItem) => (i.r0 ?? 0) !== 0;
+  const sold1 = (i: PvmItem) => (i.r1 ?? 0) !== 0;
+  const both = items.filter((i) => sold0(i) && sold1(i) && i.q0 && i.q1);
+  const onlyNew = items.filter((i) => sold1(i) && !sold0(i));
+  const onlyLost = items.filter((i) => sold0(i) && !sold1(i));
+  const unpricedItems = items.filter((i) => sold0(i) && sold1(i) && !(i.q0 && i.q1));
   const q0 = both.reduce((s, i) => s + (i.q0 ?? 0), 0);
   const q1 = both.reduce((s, i) => s + (i.q1 ?? 0), 0);
   const p = (r = 0, q = 1) => r / q;
   const avgP0 = q0 ? both.reduce((s, i) => s + ((i.q0 ?? 0) / q0) * p(i.r0, i.q0), 0) : 0;
   const mixP0 = q1 ? both.reduce((s, i) => s + ((i.q1 ?? 0) / q1) * p(i.r0, i.q0), 0) : 0;
-  const inputs = both.flatMap((i) => [i.refs.r0, i.refs.q0, i.refs.r1, i.refs.q1].filter((r): r is Ref => r !== undefined));
+  const refsOf = (list: readonly PvmItem[], keys: readonly ("r0" | "q0" | "r1" | "q1")[]) =>
+    list.flatMap((i) => keys.map((k) => i.refs[k]).filter((r): r is Ref => r !== undefined));
+  const inputs = refsOf(both, ["r0", "q0", "r1", "q1"]);
   const calc = (name: string, label: string, value: number, refs: readonly Ref[] = inputs): Calc => ({
     name,
     label,
-    value,
+    // 0 − x style sums can yield −0; a fact never shows "-0".
+    value: value === 0 ? 0 : value,
     unit,
     fn: "pvm.v1",
     inputs: refs,
   });
-  const onlyNew = items.filter((i) => (i.r1 ?? 0) !== 0 && !(i.q0 && i.r0 !== undefined));
-  const onlyLost = items.filter((i) => (i.r0 ?? 0) !== 0 && !(i.q1 && i.r1 !== undefined));
   const volume = calc("pvm:volume", "volume effect", (q1 - q0) * avgP0);
   const mix = calc("pvm:mix", "mix effect", q1 * (mixP0 - avgP0));
   const price = calc(
@@ -127,23 +138,31 @@ export function pvm(items: readonly PvmItem[], unit: Unit = "currency"): Pvm {
     "pvm:new",
     "new items",
     onlyNew.reduce((s, i) => s + (i.r1 ?? 0), 0),
-    onlyNew.flatMap((i) => (i.refs.r1 ? [i.refs.r1] : [])),
+    refsOf(onlyNew, ["r1"]),
   );
-  const lostItems = calc(
-    "pvm:lost",
-    "lost items",
-    -onlyLost.reduce((s, i) => s + (i.r0 ?? 0), 0),
-    onlyLost.flatMap((i) => (i.refs.r0 ? [i.refs.r0] : [])),
+  const lostItems = calc("pvm:lost", "lost items", -onlyLost.reduce((s, i) => s + (i.r0 ?? 0), 0), refsOf(onlyLost, ["r0"]));
+  const unpriced = calc(
+    "pvm:unpriced",
+    "items without quantity",
+    unpricedItems.reduce((s, i) => s + (i.r1 ?? 0) - (i.r0 ?? 0), 0),
+    refsOf(unpricedItems, ["r0", "q0", "r1", "q1"]),
   );
+  // Effects whose item group is empty would be 0 with nothing to cite (AGENTS.md §2.2), so they're left out.
+  const parts = [
+    ...(both.length ? [volume, mix, price] : []),
+    ...(onlyNew.length ? [newItems] : []),
+    ...(onlyLost.length ? [lostItems] : []),
+    ...(unpricedItems.length ? [unpriced] : []),
+  ];
   const total: Calc = {
     name: "pvm:total",
     label: "total change",
-    value: volume.value + mix.value + price.value + newItems.value + lostItems.value,
+    value: parts.reduce((s, c) => s + c.value, 0),
     unit,
     fn: "sum",
-    inputs: [volume, mix, price, newItems, lostItems].map((c) => calcRef(c.name)),
+    inputs: parts.map((c) => calcRef(c.name)),
   };
-  return { method: "pvm.v1", volume, mix, price, newItems, lostItems, total };
+  return { method: "pvm.v1", volume, mix, price, newItems, lostItems, unpriced, parts, total };
 }
 
 // ── 4.3 Rate vs mix (ratemix.v1) and the Simpson guard ──────────────────────────────────────────────────────
@@ -163,6 +182,10 @@ export interface RateMix {
   readonly overall1: number;
   readonly mix: Calc;
   readonly rate: Calc;
+  /** Segments with a denominator only in the after period (+Σ wᵢ₁ rᵢ₁). */
+  readonly entering: Calc;
+  /** Segments with a denominator only in the before period (−Σ wᵢ₀ rᵢ₀). */
+  readonly exiting: Calc;
   readonly segments: readonly {
     readonly key: string;
     readonly r0: number;
@@ -170,39 +193,66 @@ export interface RateMix {
     readonly w0: number;
     readonly w1: number;
   }[];
+  readonly enteringKeys: readonly string[];
+  readonly exitingKeys: readonly string[];
   /** The overall rate moves against most segment rates: the finding must tell the segment story (spec §4.3). */
   readonly simpsonRisk: boolean;
 }
 
 /**
- * For r = Σ wᵢrᵢ with wᵢ = segment share of the denominator (spec §4.3):
- *   Mix = Σ (wᵢ₁ − wᵢ₀) rᵢ₀ · Rate = Σ wᵢ₁ (rᵢ₁ − rᵢ₀); Mix + Rate = r₁ − r₀ for segments present in both.
- * Rates are fractions here; the runner scales percent metrics.
+ * For r = Σ wᵢrᵢ with wᵢ = segment share of the whole period's denominator (spec §4.3):
+ *   Mix = Σ_both (wᵢ₁ − wᵢ₀) rᵢ₀ · Rate = Σ_both wᵢ₁ (rᵢ₁ − rᵢ₀)
+ *   Entering = Σ_new wᵢ₁ rᵢ₁ · Exiting = −Σ_gone wᵢ₀ rᵢ₀
+ * so Mix + Rate + Entering + Exiting = r₁ − r₀ exactly, even when segments appear or disappear (like
+ * new/lost in pvm.v1). Rates are num/den × `scale` (100 for percent metrics, like the metric compiler), so the
+ * effects are in the metric's own unit and sum to the change between its measured facts.
  */
-export function rateMix(segments: readonly RateSegment[], unit: Unit = "ratio"): RateMix {
+export function rateMix(segments: readonly RateSegment[], unit: Unit = "ratio", scale = 1): RateMix {
+  const d0 = segments.reduce((a, s) => a + (s.den0 > 0 ? s.den0 : 0), 0);
+  const d1 = segments.reduce((a, s) => a + (s.den1 > 0 ? s.den1 : 0), 0);
   const both = segments.filter((s) => s.den0 > 0 && s.den1 > 0);
-  const d0 = both.reduce((a, s) => a + s.den0, 0);
-  const d1 = both.reduce((a, s) => a + s.den1, 0);
-  const rows = both.map((s) => ({ key: s.key, r0: s.num0 / s.den0, r1: s.num1 / s.den1, w0: s.den0 / d0, w1: s.den1 / d1 }));
-  const overall0 = both.reduce((a, s) => a + s.num0, 0) / d0;
-  const overall1 = both.reduce((a, s) => a + s.num1, 0) / d1;
-  const refs = both.flatMap((s) => s.refs ?? []);
-  const mix: Calc = {
-    name: "ratemix:mix",
-    label: "mix effect",
-    value: rows.reduce((a, r) => a + (r.w1 - r.w0) * r.r0, 0),
+  const entering = segments.filter((s) => !(s.den0 > 0) && s.den1 > 0);
+  const exiting = segments.filter((s) => s.den0 > 0 && !(s.den1 > 0));
+  const rows = both.map((s) => ({
+    key: s.key,
+    r0: (s.num0 / s.den0) * scale,
+    r1: (s.num1 / s.den1) * scale,
+    w0: s.den0 / d0,
+    w1: s.den1 / d1,
+  }));
+  const overall0 = d0 > 0 ? (segments.reduce((a, s) => a + (s.den0 > 0 ? s.num0 : 0), 0) / d0) * scale : 0;
+  const overall1 = d1 > 0 ? (segments.reduce((a, s) => a + (s.den1 > 0 ? s.num1 : 0), 0) / d1) * scale : 0;
+  // Every effect depends on the totals d0 and d1, so each cites every segment's points.
+  const refs = segments.flatMap((s) => s.refs ?? []);
+  const calc = (name: string, label: string, value: number): Calc => ({
+    name: `ratemix:${name}`,
+    label,
+    value,
     unit,
     fn: "ratemix.v1",
     inputs: refs,
-  };
-  const rate: Calc = {
-    name: "ratemix:rate",
-    label: "rate effect",
-    value: rows.reduce((a, r) => a + r.w1 * (r.r1 - r.r0), 0),
-    unit,
-    fn: "ratemix.v1",
-    inputs: refs,
-  };
+  });
+  const mix = calc(
+    "mix",
+    "mix effect",
+    rows.reduce((a, r) => a + (r.w1 - r.w0) * r.r0, 0),
+  );
+  const rate = calc(
+    "rate",
+    "rate effect",
+    rows.reduce((a, r) => a + r.w1 * (r.r1 - r.r0), 0),
+  );
+  const enteringCalc = calc(
+    "entering",
+    "entering segments effect",
+    entering.reduce((a, s) => a + (s.num1 / d1) * scale, 0),
+  );
+  const exitingCalc = calc(
+    "exiting",
+    "exiting segments effect",
+    // 0 − x, not −x: no exiting segments must give 0, never −0.
+    0 - exiting.reduce((a, s) => a + (s.num0 / d0) * scale, 0),
+  );
   const overallDir = Math.sign(overall1 - overall0);
   const against = rows.filter((r) => Math.sign(r.r1 - r.r0) === -overallDir && overallDir !== 0).length;
   return {
@@ -211,7 +261,11 @@ export function rateMix(segments: readonly RateSegment[], unit: Unit = "ratio"):
     overall1,
     mix,
     rate,
+    entering: enteringCalc,
+    exiting: exitingCalc,
     segments: rows,
+    enteringKeys: entering.map((s) => s.key),
+    exitingKeys: exiting.map((s) => s.key),
     simpsonRisk: overallDir !== 0 && against > rows.length / 2,
   };
 }

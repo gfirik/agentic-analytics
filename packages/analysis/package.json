@@ -17,7 +17,6 @@
   },
   "devDependencies": {
     "@agentic-analytics/ingest": "workspace:*",
-    "@agentic-analytics/profile": "workspace:*",
-    "yaml": "^2.9.1"
+    "@agentic-analytics/profile": "workspace:*"
   }
 }

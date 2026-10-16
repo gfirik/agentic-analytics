@@ -4,9 +4,10 @@
 import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
+import { MIN_PERIODS } from "./baselines.ts";
 import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import { FactBook, type SeriesInfo } from "./factbook.ts";
-import { type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
+import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
 import {
   anomalies,
   concentration,
@@ -65,6 +66,8 @@ export interface AnalysisResult {
   readonly decompositions: StoredDecomposition[];
   /** Ids of the insights that go to EXPLAIN (top 3–7, spec §6). */
   readonly top: string[];
+  /** Per `top` entry: the best score in its event group (spec §6), which is what ordered it. */
+  readonly topScores: number[];
   /** Tests skipped for lack of data and other open questions. */
   readonly openQuestions: string[];
 }
@@ -73,6 +76,15 @@ const DIM_UNIT: Record<string, Unit> = { currency: "currency", percent: "percent
 const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
 const memberFilter = (dimension: string, value: string | null) =>
   value === null ? `${dimension} IS NULL` : `${dimension} = ${quote(value)}`;
+/** The member that groups everything beyond the top N (spec §1). */
+export const OTHER = "(other)";
+const otherFilter = (dimension: string, kept: readonly (string | null)[]) => {
+  const values = kept.filter((v): v is string => v !== null);
+  const notIn = values.length ? `${dimension} NOT IN (${values.map(quote).join(", ")})` : undefined;
+  // SQL NOT IN never matches NULL: NULL belongs to "other" only when it isn't one of the kept members.
+  if (kept.includes(null)) return notIn ? `${dimension} IS NOT NULL AND ${notIn}` : `${dimension} IS NOT NULL`;
+  return notIn ? `(${dimension} IS NULL OR ${notIn})` : `${dimension} IS NULL`;
+};
 const QTY = /qty|quantity|units|pcs|pieces|количество|шт|soni|dona/i;
 const ITEM = /product|item|sku|товар|продукт|mahsulot/i;
 
@@ -124,8 +136,29 @@ export async function analyzeJob(
         return s;
       });
       if (ranked.length > maxMembers) {
+        // The rest become one "(other)" member, so member changes still add up to the total. Its points are
+        // re-measured by the fact book through the NOT IN filter, never summed here as facts.
+        const rest = ranked.slice(maxMembers);
+        const perPeriod = new Map<string, number>();
+        for (const [, points] of rest) for (const p of points) perPeriod.set(p.period, (perPeriod.get(p.period) ?? 0) + p.value);
+        const s: Series = {
+          id: `${def.id}|${dimension}=${OTHER}`,
+          metric: def.id,
+          unit,
+          member: { dimension, value: OTHER },
+          points: [...perPeriod.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([period, value]) => ({ period, value })),
+        };
+        series.set(s.id, {
+          series: s,
+          def,
+          where: otherFilter(
+            dimension,
+            kept.map(([v]) => v),
+          ),
+        });
+        list.push(s);
         openQuestions.push(
-          `${def.id} has ${ranked.length} ${dimension} members; the top ${maxMembers} are analysed and the rest are grouped as "other".`,
+          `${def.id} has ${ranked.length} ${dimension} members; the top ${maxMembers} are analysed and the other ${rest.length} are grouped as "${OTHER}".`,
         );
       }
       members.set(def.id, [...(members.get(def.id) ?? []), { dimension, series: list }]);
@@ -136,6 +169,9 @@ export async function analyzeJob(
   const found: Insight[] = [];
   for (const s of totals) {
     const def = series.get(s.id)?.def;
+    // Spec §2: the same-period-last-year baseline needs 13+ months; say so rather than skip it silently.
+    if (grain === "month" && s.points.length < MIN_PERIODS.yoy_months)
+      openQuestions.push(`Year-over-year for ${s.metric} needs ${MIN_PERIODS.yoy_months}+ months; only ${s.points.length} available.`);
     const change = def?.type === "ratio" ? ratioShift(s, undefined, grain) : periodChange(s, grain);
     if (change) found.push(change);
     for (const r of [trend(s), trendBreak(s)]) {
@@ -243,15 +279,13 @@ export async function analyzeJob(
     objectiveMetric: objective,
     objectiveTotals: new Map((objectiveSeries?.points ?? []).map((p) => [p.period, p.value])),
     periods: objectiveSeries?.points.map((p) => p.period) ?? [],
-    changeOf: (i) => {
-      const name = i.roles.change_since ? "change_since" : i.roles.change ? "change" : i.roles.lost_value ? "lost_value" : undefined;
-      const c = name ? i.calcs.find((x) => x.name === name) : undefined;
-      return c ? { value: c.value, unit: c.unit } : undefined;
-    },
+    changeOf: insightChange,
   });
 
   // FACTS: record the numbers of every material insight and its decompositions.
-  const book = new FactBook(ws, allDefs, catalog, grain, series);
+  // Helper metrics (quantities, ratio terms) are compiled by the fact book but aren't report metrics, so their
+  // facts carry no metric_id (report integrity only accepts ids from the metric list).
+  const book = new FactBook(ws, allDefs, catalog, grain, series, new Set(defs.map((d) => d.id)));
   const stored: StoredInsight[] = [];
   const scoreOf = new Map<Insight, Ranked>(ranked.map((r) => [r.insight, r]));
   const material = found.filter((i) => i.material).sort((a, b) => (scoreOf.get(b)?.score ?? 0) - (scoreOf.get(a)?.score ?? 0));
@@ -297,26 +331,32 @@ export async function analyzeJob(
       details = { ...d.contribution.details };
     } else if (d.pvm) {
       const p = d.pvm;
-      const scope = await book.calcs([p.volume, p.mix, p.price, p.newItems, p.lostItems, p.total], context, d.insight.metric);
-      for (const k of ["volume", "mix", "price", "new", "lost", "total"]) facts[k] = scope.get(`pvm:${k}`) ?? "";
+      const calcs = [...p.parts, p.total];
+      const scope = await book.calcs(calcs, context, d.insight.metric);
+      for (const c of calcs) facts[c.name.replace("pvm:", "")] = scope.get(c.name) ?? "";
     } else if (d.ratemix) {
       const r = d.ratemix;
-      const scope = await book.calcs([r.mix, r.rate], context);
-      facts.mix = scope.get("ratemix:mix") ?? "";
-      facts.rate = scope.get("ratemix:rate") ?? "";
-      details = { simpson_risk: r.simpsonRisk, segments: r.segments };
+      // Entering/exiting effects only exist as facts when such segments do: a 0 with no inputs would cite nothing.
+      const calcs = [r.mix, r.rate, ...(r.enteringKeys.length ? [r.entering] : []), ...(r.exitingKeys.length ? [r.exiting] : [])];
+      const scope = await book.calcs(calcs, context);
+      for (const c of calcs) facts[c.name.replace("ratemix:", "")] = scope.get(c.name) ?? "";
+      details = { simpson_risk: r.simpsonRisk, segments: r.segments, entering: r.enteringKeys, exiting: r.exitingKeys };
     }
     storedDecomp.push({ id, method: d.method, insight: insightId, dimension: d.dimension, facts, details });
   }
 
-  const top = topForExplain(ranked)
-    .map((r) => idOf.get(r.insight))
-    .filter((x): x is string => x !== undefined);
+  const explain = topForExplain(ranked).flatMap((r) => {
+    const id = idOf.get(r.insight);
+    return id ? [{ id, score: r.score }] : [];
+  });
+  const top = explain.map((e) => e.id);
+  const topScores = explain.map((e) => e.score);
   const result: AnalysisResult = {
     facts: book.facts,
     insights: stored,
     decompositions: storedDecomp,
     top,
+    topScores,
     openQuestions: [...new Set(openQuestions)],
   };
   await persist(ws, result);
@@ -348,6 +388,8 @@ async function pvmFor(
   const dimCol = table?.columns.get(dimension);
   const qtyCol = [...(table?.columns.values() ?? [])].find((c) => (c.type === "integer" || c.type === "decimal") && QTY.test(c.label));
   if (def.type !== "sum" || !table || !dimCol || !qtyCol || !ITEM.test(dimCol.label)) return undefined;
+  // An "(other)" bucket mixes many items, so it has no unit price; contribution.v1 still covers this dimension.
+  if (items.some((m) => m.member?.value === OTHER)) return undefined;
   // The quantity metric is registered with the runner's defs so the fact book can compile its points.
   const qtyDef: MetricDef = {
     ...def,
@@ -449,7 +491,8 @@ async function rateMixFor(
       refs: [point(ns.id, before), point(ds.id, before), point(ns.id, after), point(ds.id, after)],
     };
   });
-  return { dimension, result: rateMix(segments, "ratio") };
+  const percent = def.unit === "percent";
+  return { dimension, result: rateMix(segments, percent ? "percent" : "ratio", percent ? 100 : 1) };
 }
 
 async function persist(ws: Workspace, r: AnalysisResult): Promise<void> {

@@ -8,6 +8,7 @@ import {
   newLost,
   periodChange,
   ratioShift,
+  topContributors,
   trend,
   trendBreak,
 } from "../src/templates.ts";
@@ -47,6 +48,63 @@ describe("period_change.v1", () => {
   });
 });
 
+describe("period_change.v1 baselines all get a noise band", () => {
+  const months = (n: number, start = 2025) =>
+    Array.from({ length: n }, (_, k) => `${start + Math.floor((k + 4) / 12)}-${String(((k + 4) % 12) + 1).padStart(2, "0")}`);
+  const mk = (values: number[]): Series => {
+    const ps = months(values.length);
+    return { id: "m", metric: "m", unit: "count", points: values.map((value, k) => ({ period: ps[k] as string, value })) };
+  };
+
+  it("14 months: year-over-year baseline, band from period-over-period changes", () => {
+    // 2025-05 … 2026-06. Baseline = 2025-06 (102); latest 108 → Δ 6, Δ% 5.882%.
+    const s = mk([100, 102, 101, 103, 102, 104, 103, 105, 104, 106, 105, 107, 120, 108]);
+    const i = periodChange(s);
+    expect(i?.details.baseline).toBe("same_period_last_year");
+    expect(i?.roles.before).toEqual({ kind: "point", series: "m", period: "2025-06" });
+    expect(calc(i as Insight, "change")).toBe(6);
+    expect(calc(i as Insight, "change_pct")).toBeCloseTo(5.882353, 5);
+    // changes without the last: [2,−1,2,−1,2,−1,2,−1,2,−1,2,13] → median 2; |dev| [0×6, 3×5, 11] → MAD 1.5
+    // band = 2 × 1.4826 × 1.5 = 4.4478 < 6 → material
+    expect(i?.details.noise_band).toBeCloseTo(4.4478, 6);
+    expect(i?.material).toBe(true);
+    expect(i?.notes).toEqual([]);
+  });
+
+  it("previous period unknown: trailing mean of the last 3 known periods, with a band", () => {
+    // [10, 12, 11, 13, 12, NaN, 20]: baseline = mean(11, 13, 12) = 12 → Δ 8, Δ% 66.67%
+    const s = mk([10, 12, 11, 13, 12, Number.NaN, 20]);
+    const i = periodChange(s);
+    expect(i?.details.baseline).toBe("trailing_mean_3");
+    expect(calc(i as Insight, "change")).toBe(8);
+    expect(calc(i as Insight, "change_pct")).toBeCloseTo(66.666667, 5);
+    // 6 known points; finite changes [2, −1, 2, −1] → median 0.5, |dev| [1.5×4] → MAD 1.5 → band 4.4478
+    expect(i?.details.noise_band).toBeCloseTo(4.4478, 6);
+    expect(i?.material).toBe(true);
+  });
+});
+
+describe("top_contributors.v1", () => {
+  it("March → April by channel: wholesale −8,500 is 107.59% of −7,900", () => {
+    const at = (m: Series, p: string) => ({ period: p, value: m.points.find((x) => x.period === p)?.value ?? 0 });
+    const changes = [WHOLESALE, RETAIL].map((m) => ({
+      key: String(m.member?.value),
+      series: m.id,
+      before: at(m, "2026-03"),
+      after: at(m, "2026-04"),
+    }));
+    const i = topContributors(REVENUE, changes, "currency", "2026-04", "channel");
+    // total = (7,400 + 28,800) − (15,900 + 28,200) = −7,900
+    expect(calc(i, "delta:total")).toBe(-7900);
+    expect(i.details.top).toBe("wholesale");
+    const share = i.calcs.find((c) => c.name === (i.roles.top_share as { name: string }).name)?.value;
+    // −8,500 / −7,900 = 1.0759494 → 107.59%; retail +600 / −7,900 = −7.59%
+    expect(share).toBeCloseTo(107.594937, 5);
+    expect(i.calcs.find((c) => c.name === (i.roles.top_change as { name: string }).name)?.value).toBe(-8500);
+    expect(i.direction).toBe("down");
+  });
+});
+
 describe("trend_break.v1 — coffee-roaster golden numbers", () => {
   it("revenue breaks after March: Apr vs Mar −17.9%", () => {
     const i = trendBreak(REVENUE);
@@ -61,6 +119,19 @@ describe("trend_break.v1 — coffee-roaster golden numbers", () => {
     expect(i.details.noise_band).toBeCloseTo(741.3, 6);
     expect(i.material).toBe(true);
     expect(i.period).toBe("2026-04");
+  });
+
+  it("SSE search finds an off-centre split on 9 points", () => {
+    // [100, 101, 99, 100, 102, 100 | 130, 131, 129]: the middle split (k = 4 or 5) mixes levels.
+    // k = 6: left mean 100.3333, SSE 5.3333; right mean 130, SSE 2 → 7.3333, the minimum over k = 3…6
+    // (k = 5: left SSE 5.2, right [100,130,131,129] SSE 678 → far worse).
+    const i = trendBreak(series("orders", [100, 101, 99, 100, 102, 100, 130, 131, 129], "count"));
+    if (!isInsight(i)) throw new Error("skipped");
+    expect(i.details.split_after).toBe("2026-06");
+    expect(calc(i, "mean_before")).toBeCloseTo(100.333333, 5);
+    expect(calc(i, "mean_after")).toBe(130);
+    expect(calc(i, "shift")).toBeCloseTo(29.666667, 5);
+    expect(i.period).toBe("p6");
   });
 
   it("refund rate: 1.2% before the break → 3.4% latest", () => {
@@ -134,6 +205,9 @@ describe("concentration, new/lost and mix shift", () => {
     const i = newLost("revenue", REVENUE, [hotel, cafe], "2026-03", "2026-04", "customer");
     expect(calc(i as Insight, "lost_value")).toBe(8500);
     expect(i?.details.lost).toEqual(["Hotel Group LLC"]);
+    // nobody new: no 0-valued new_value fact citing nothing
+    expect(i?.roles.new_value).toBeUndefined();
+    expect(i?.calcs.map((c) => c.name)).toEqual(["lost_value"]);
   });
 
   it("wholesale's share fell 15.6 pp from March to April", () => {

@@ -45,9 +45,10 @@ try {
   const show = (id: string | undefined) => {
     const f: Fact | undefined = id ? facts.get(id) : undefined;
     if (!f) return "?";
-    const v =
-      f.unit === "percent" ? `${f.value.toFixed(2)}%` : Number.isInteger(f.value) ? f.value.toLocaleString("en-US") : f.value.toFixed(2);
-    return `${v} [${f.id}]`;
+    // One format for every number: grouped, at most 2 decimals, and never "-0" from rounding.
+    const n = Number(f.value.toFixed(2)) || 0;
+    const v = n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    return `${v}${f.unit === "percent" ? "%" : ""} [${f.id}]`;
   };
   const out: string[] = [
     `metrics: ${defs.map((d) => d.id).join(", ")}`,
@@ -55,13 +56,16 @@ try {
     "",
     "top findings (to EXPLAIN):",
   ];
-  for (const id of result.top) {
+  for (const [k, id] of result.top.entries()) {
     const i = result.insights.find((x) => x.id === id);
     if (!i) continue;
     const roles = Object.entries(i.facts)
       .map(([role, fid]) => `${role} ${show(fid)}`)
       .join(" · ");
-    out.push(`  ${i.id} ${i.template} ${i.series} @ ${i.period} (${i.confidence}, score ${i.score.toFixed(4)})`);
+    const group = result.topScores[k] ?? i.score;
+    out.push(
+      `  ${i.id} ${i.template} ${i.series} @ ${i.period} (${i.confidence}, score ${i.score.toFixed(4)}, event score ${group.toFixed(4)})`,
+    );
     out.push(`      ${roles}`);
     for (const d of result.decompositions.filter((x) => x.insight === i.id)) {
       out.push(

@@ -69,19 +69,34 @@ describe("pvm.v1 (spec §4.2)", () => {
       const items: PvmItem[] = Array.from({ length: 2 + Math.floor(rand() * 8) }, (_, i) => {
         const present0 = rand() > 0.15;
         const present1 = rand() > 0.15 || !present0;
-        const q0 = 1 + Math.floor(rand() * 100);
-        const q1 = 1 + Math.floor(rand() * 100);
+        // ~10% of quantities are 0 with revenue still booked (adjustments): the unpriced path.
+        const q0 = rand() > 0.1 ? 1 + Math.floor(rand() * 100) : 0;
+        const q1 = rand() > 0.1 ? 1 + Math.floor(rand() * 100) : 0;
         return {
           key: `i${i}`,
-          ...(present0 ? { q0, r0: Math.round(q0 * (1 + rand() * 50) * 100) / 100 } : {}),
-          ...(present1 ? { q1, r1: Math.round(q1 * (1 + rand() * 50) * 100) / 100 } : {}),
+          ...(present0 ? { q0, r0: Math.round(Math.max(q0, 1) * (1 + rand() * 50) * 100) / 100 } : {}),
+          ...(present1 ? { q1, r1: Math.round(Math.max(q1, 1) * (1 + rand() * 50) * 100) / 100 } : {}),
           refs: {},
         };
       });
       const r = pvm(items);
       const delta = items.reduce((s, i) => s + (i.r1 ?? 0) - (i.r0 ?? 0), 0);
-      expect(r.volume.value + r.mix.value + r.price.value + r.newItems.value + r.lostItems.value).toBeCloseTo(delta, 6);
+      expect(r.parts.reduce((a, c) => a + c.value, 0)).toBeCloseTo(delta, 6);
+      expect(r.total.value).toBeCloseTo(delta, 6);
     }
+  });
+
+  it("revenue with zero quantity is an unpriced effect, not a vanished item", () => {
+    // A: q 10 → 10, r 50 → 60 (price +10). B: r 20 → 35 but q 0 in the after period (a credit/adjustment).
+    const r = pvm([
+      { key: "A", r0: 50, q0: 10, r1: 60, q1: 10, refs: {} },
+      { key: "B", r0: 20, q0: 4, r1: 35, q1: 0, refs: {} },
+    ]);
+    expect(r.price.value).toBeCloseTo(10, 12);
+    expect(r.unpriced.value).toBe(15); // 35 − 20
+    expect(r.total.value).toBeCloseTo(25, 12); // (60 + 35) − (50 + 20)
+    // no new or lost items → those effects aren't parts (no 0-valued facts citing nothing)
+    expect(r.parts.map((c) => c.name)).toEqual(["pvm:volume", "pvm:mix", "pvm:price", "pvm:unpriced"]);
   });
 });
 
@@ -99,6 +114,36 @@ describe("ratemix.v1 and the Simpson guard (spec §4.3)", () => {
     expect(r.rate.value).toBeCloseTo(0, 12);
     expect(r.mix.value + r.rate.value).toBeCloseTo(r.overall1 - r.overall0, 12);
     expect(r.simpsonRisk).toBe(false); // one segment up, one down: no majority against the total
+  });
+
+  it("entering and exiting segments close the identity, hand-computed", () => {
+    // S1 both: 10/100 → 12/100. S2 exits: 20/100 → 0/0. S3 enters: 0/0 → 6/50.
+    // r0 = 30/200 = 0.15; r1 = 18/150 = 0.12; Δ = −0.03.
+    // w0: S1 0.5, S2 0.5 · w1: S1 2/3, S3 1/3
+    // mix = (2/3 − 1/2)·0.10 = 0.016667 · rate = (2/3)·0.02 = 0.013333
+    // entering = (1/3)·0.12 = 0.04 · exiting = −0.5·0.20 = −0.10 → sum −0.03
+    const r = rateMix([
+      { key: "S1", num0: 10, den0: 100, num1: 12, den1: 100 },
+      { key: "S2", num0: 20, den0: 100, num1: 0, den1: 0 },
+      { key: "S3", num0: 0, den0: 0, num1: 6, den1: 50 },
+    ]);
+    expect(r.overall0).toBeCloseTo(0.15, 12);
+    expect(r.overall1).toBeCloseTo(0.12, 12);
+    expect(r.mix.value).toBeCloseTo(1 / 60, 12);
+    expect(r.rate.value).toBeCloseTo(2 / 150, 12);
+    expect(r.entering.value).toBeCloseTo(0.04, 12);
+    expect(r.exiting.value).toBeCloseTo(-0.1, 12);
+    expect(r.mix.value + r.rate.value + r.entering.value + r.exiting.value).toBeCloseTo(-0.03, 12);
+    expect(r.enteringKeys).toEqual(["S3"]);
+    expect(r.exitingKeys).toEqual(["S2"]);
+  });
+
+  it("scale 100 gives percentage points and no −0", () => {
+    const r = rateMix([{ key: "S1", num0: 1, den0: 100, num1: 3, den1: 100 }], "percent", 100);
+    expect(r.overall0).toBeCloseTo(1, 12);
+    expect(r.rate.value).toBeCloseTo(2, 12);
+    expect(Object.is(r.exiting.value, -0)).toBe(false);
+    expect(r.mix.unit).toBe("percent");
   });
 
   it("classic Simpson fixture triggers the guard", () => {

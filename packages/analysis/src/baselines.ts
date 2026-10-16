@@ -29,7 +29,12 @@ export function chooseBaseline(points: readonly Point[], i: number, grain: Grain
   }
   const prev = points[i - 1];
   if (prev && Number.isFinite(prev.value)) return { method: "previous_period", value: prev.value, periods: [prev.period] };
-  const trailing = points.slice(Math.max(0, i - 3), i).filter((p) => Number.isFinite(p.value));
+  // The previous period is unknown here, so "the last 3 periods" means the last 3 with a value, looking back at
+  // most 6 periods (a window that ends at i − 1 would always contain the missing point and never apply).
+  const trailing = points
+    .slice(Math.max(0, i - 6), i)
+    .filter((p) => Number.isFinite(p.value))
+    .slice(-3);
   if (trailing.length === 3)
     return { method: "trailing_mean_3", value: mean(trailing.map((p) => p.value)), periods: trailing.map((p) => p.period) };
   return undefined;
@@ -40,10 +45,13 @@ export function chooseBaseline(points: readonly Point[], i: number, grain: Grain
  * being tested is left out so it can't widen its own band). Needs 6+ periods; otherwise undefined.
  */
 export function noiseBand(points: readonly Point[], excludeChangeAt?: number): number | undefined {
-  if (points.length < MIN_PERIODS.mad_band) return undefined;
+  if (points.filter((p) => Number.isFinite(p.value)).length < MIN_PERIODS.mad_band) return undefined;
   const changes: number[] = [];
-  for (let i = 1; i < points.length; i++)
-    if (i !== excludeChangeAt) changes.push((points[i] as Point).value - (points[i - 1] as Point).value);
+  for (let i = 1; i < points.length; i++) {
+    const c = (points[i] as Point).value - (points[i - 1] as Point).value;
+    if (i !== excludeChangeAt && Number.isFinite(c)) changes.push(c);
+  }
+  if (changes.length === 0) return undefined;
   return 2 * MAD_SCALE * mad(changes);
 }
 

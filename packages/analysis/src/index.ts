@@ -22,11 +22,12 @@ export {
   type RateSegment,
   rateMix,
 } from "./decompose.ts";
-export { FactBook, MAX_CITED_ROWS, type SeriesInfo } from "./factbook.ts";
+export { AnalysisError, type AnalysisErrorCode, FactBook, MAX_CITED_ROWS, type SeriesInfo } from "./factbook.ts";
 export { type Amount, ImpactError, type ImpactRange, impactRange, type Scenario } from "./impact.ts";
 export {
   CONFIDENCE_WEIGHT,
   impactShare,
+  insightChange,
   type RankContext,
   type Ranked,
   RECENCY_DECAY,
@@ -34,7 +35,7 @@ export {
   TEMPLATE_PRIORITY,
   topForExplain,
 } from "./rank.ts";
-export { type AnalysisResult, type AnalyzeOptions, analyzeJob, type StoredDecomposition, type StoredInsight } from "./runner.ts";
+export { type AnalysisResult, type AnalyzeOptions, analyzeJob, OTHER, type StoredDecomposition, type StoredInsight } from "./runner.ts";
 export { hhi, MAD_SCALE, mad, mannKendall, mean, median, normalCdf, robustZ, sse, theilSen, twoProportionZ } from "./stats.ts";
 export {
   anomalies,

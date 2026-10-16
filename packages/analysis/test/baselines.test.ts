@@ -18,8 +18,11 @@ describe("baselines (spec §2)", () => {
 
   it("falls back to the trailing mean of 3 when the previous period is missing", () => {
     const gap = [...series([10, 20, 30]), { period: "2026-04", value: Number.NaN }, { period: "2026-05", value: 99 }];
-    // previous (2026-04) is NaN; trailing [20, 30, NaN] has only 2 finite values → no baseline
-    expect(chooseBaseline(gap, 4)).toBeUndefined();
+    // previous (2026-04) is NaN → mean of the last 3 known periods: (10 + 20 + 30) / 3 = 20
+    expect(chooseBaseline(gap, 4)).toEqual({ method: "trailing_mean_3", value: 20, periods: ["2026-01", "2026-02", "2026-03"] });
+    // only 2 known periods before the gap → no baseline
+    const short = [...series([20, 30]), { period: "2026-03", value: Number.NaN }, { period: "2026-04", value: 99 }];
+    expect(chooseBaseline(short, 3)).toBeUndefined();
     const gap2 = [...series([10, 20, 30]), { period: "2026-04", value: Number.NaN }];
     // target 2026-04's previous is 30 → previous_period
     expect(chooseBaseline(gap2, 3)?.method).toBe("previous_period");

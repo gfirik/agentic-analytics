@@ -18,7 +18,15 @@ export interface Amount {
   readonly value: number;
 }
 
-export type Scenario =
+export type Scenario = ScenarioKind & {
+  /**
+   * Evidence for the chosen parameters (e.g. a supplier's quoted discount, a past recovery rate): refs to facts
+   * that become the inputs of the `scenario_param` facts, so a parameter is never an unexplained number.
+   */
+  readonly justifiedBy?: readonly Ref[];
+};
+
+type ScenarioKind =
   /** Recover a share of a lost amount (0.3–0.9), net of a discount the action gives (0–0.5). */
   | { readonly type: "recover_share"; readonly lost: Amount; readonly low: number; readonly high: number; readonly discount?: number }
   /** Change a price by −15%…+15% on a revenue base (no volume response is assumed). */
@@ -72,7 +80,7 @@ export function impactRange(s: Scenario, unit: Unit = "currency"): ImpactRange {
     value: value * 100,
     unit: "percent",
     fn: "scenario_param",
-    inputs: [],
+    inputs: s.justifiedBy ?? [],
   });
   const method = `impact.v1:${s.type}` as const;
   const make = (name: string, value: number, inputs: readonly Ref[]): Calc => ({
