@@ -13,7 +13,8 @@ const names =
         .filter(Boolean)
     : [];
 const query = args.filter((_, k) => k !== i && k !== i + 1).join(" ");
-const provider = searxngProvider({ baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888" });
+const engines = process.env.SEARXNG_ENGINES;
+const provider = searxngProvider({ baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888", ...(engines ? { engines } : {}) });
 const r = await webSearch(query, { provider, terms: { names } });
 const lines = [
   `query as typed: ${query}`,

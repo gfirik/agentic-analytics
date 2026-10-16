@@ -9,6 +9,8 @@ export interface SearxngOptions {
   readonly fetch?: typeof globalThis.fetch;
   readonly maxResults?: number;
   readonly timeoutMs?: number;
+  /** Comma-separated SearXNG engines to use (default: the instance's own); some engines rate-limit or CAPTCHA. */
+  readonly engines?: string;
 }
 
 export function searxngProvider(options: SearxngOptions): SearchProvider {
@@ -21,6 +23,7 @@ export function searxngProvider(options: SearxngOptions): SearchProvider {
       url.searchParams.set("q", query);
       url.searchParams.set("format", "json");
       url.searchParams.set("safesearch", "1");
+      if (options.engines) url.searchParams.set("engines", options.engines);
       let res: Response;
       try {
         res = await doFetch(url, { signal: AbortSignal.timeout(options.timeoutMs ?? 10_000), headers: { accept: "application/json" } });

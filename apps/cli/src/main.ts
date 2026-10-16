@@ -180,7 +180,16 @@ const run = defineCommand({
         model,
         embedder,
         // The web lane uses the self-hosted SearXNG (docker compose --profile web up -d searxng).
-        ...(args.web ? { web: { provider: searxngProvider({ baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888" }) } } : {}),
+        ...(args.web
+          ? {
+              web: {
+                provider: searxngProvider({
+                  baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888",
+                  ...(process.env.SEARXNG_ENGINES ? { engines: process.env.SEARXNG_ENGINES } : {}),
+                }),
+              },
+            }
+          : {}),
         engine: {
           version: "0.0.0",
           models: (["planner", "extractor", "judge"] as const).map((role) => ({

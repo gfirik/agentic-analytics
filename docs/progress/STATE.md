@@ -164,6 +164,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M8] Fetched pages are stored as external sources `W…` (`sources.kind = 'web'`, readable text + URL/title/fetch time); each page's first three ~300-token excerpts go to the quarantined extractor; extracts are marked `external` — agent-and-verifier §4
 - [M8] External numbers enter only through `compare_benchmark`: code reads the quoted range (`parseQuotedRange`, never a year) into two `external_quote` facts citing the quote and runs `benchmark_gap.v1` against a fact of the same unit (spec §3 tool table updated) — agent-and-verifier §3–§4
 - [M8] SearXNG's JSON API is off by default, so the compose service mounts `docker/searxng/settings.yml` enabling it (limiter off, local secret) — ENGINEERING
+- [M8] SearXNG's default upstream engines refuse traffic from some networks (here, 2026-10-16: Brave rate-limited, DuckDuckGo CAPTCHA, Google CSE timeout), so the provider takes `SEARXNG_ENGINES` (e.g. `yahoo`). Verified on this machine with the real container: `SEARXNG_ENGINES=yahoo bun run --filter @agentic-analytics/web web:search -- "Hotel Group LLC 8500 specialty coffee wholesale price increase 2026" --private "Hotel Group LLC"` sent "specialty coffee wholesale price increase 2026" and fetched three real pages through the safe fetcher — ENGINEERING
 
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 

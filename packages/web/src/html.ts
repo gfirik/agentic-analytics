@@ -83,7 +83,11 @@ export function htmlToText(html: string): { title: string; text: string } {
   const title = decodeEntities(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
     .replace(/\s+/g, " ")
     .trim();
-  const src = html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, " ");
+  const src = html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, " ")
+    // Declarations and processing instructions (<!doctype html>, <?xml …?>) are markup, not text.
+    .replace(/<![^>]*>|<\?[^>]*>/g, " ");
   const out: string[] = [];
   // Open elements whose content is dropped: tag name per level, so nested same-name tags close correctly.
   const skipping: string[] = [];
