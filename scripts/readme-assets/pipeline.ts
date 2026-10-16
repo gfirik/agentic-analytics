@@ -12,12 +12,13 @@ export const PIPELINE_SCALE = 1.5;
 export const PIPELINE_LIMITS = { bytes: 3 * 1024 * 1024, seconds: 15, minWidth: 720 } as const;
 
 const SCENE = "apps/docs/src/components/pipeline-scene.ts";
+const RECORDER = "scripts/readme-assets/pipeline-gif.ts";
 const DATA = "docs/assets/readme/pipeline.json";
 
-/** What a recording depends on: the run data and the scene code. A change to either means re-recording. */
+/** What a recording depends on: the run data, the scene code and the recorder (fps, scale, palette). A change to any means re-recording. */
 export function pipelineInputsHash(root = ROOT): string {
   const h = createHash("sha256");
-  for (const f of [DATA, SCENE]) h.update(readFileSync(join(root, f), "utf8").replace(/\r\n/g, "\n"));
+  for (const f of [DATA, SCENE, RECORDER]) h.update(readFileSync(join(root, f), "utf8").replace(/\r\n/g, "\n"));
   return h.digest("hex");
 }
 
@@ -53,7 +54,7 @@ export function pipelinePicture(d: PipelineData): string {
     `  <img alt="${altText(d).replace(/"/g, "&quot;")}" src="${a}-light.png" width="100%">`,
     "</picture>",
     "",
-    `<sub>One real engine run on \`${d.run.example}\` with the scripted planner (no LLM) and an offline web fixture: every number on screen is a fact from its verified report, shown with its id. Recorded by \`scripts/readme-assets/pipeline-gif.ts\` from the same animation as the docs site.</sub>`,
+    `<sub>One real engine run on \`${d.run.example}\` with the scripted planner (no LLM) and an offline web fixture: every number on screen comes from that run: facts are shown with their ids, counts come from the report and the verifier's check table, and the stages follow its event log. Recorded by \`scripts/readme-assets/pipeline-gif.ts\` from the same animation as the docs site.</sub>`,
   ].join("\n");
 }
 
@@ -66,12 +67,14 @@ export function pipelineProblems(files: {
   readonly seconds: (b: Uint8Array) => number;
 }): string[] {
   const problems: string[] = [];
-  if (!files.manifest) problems.push("pipeline-gif.json is missing: run scripts/readme-assets/pipeline-gif.ts");
+  if (!files.manifest) problems.push("pipeline-gif.json is missing: run `bun run readme:pipeline`");
   else if (files.manifest.inputs !== files.inputs)
-    problems.push("the pipeline GIFs are stale (pipeline.json or pipeline-scene.ts changed): run scripts/readme-assets/pipeline-gif.ts");
+    problems.push(
+      "the pipeline GIFs are stale (pipeline.json, pipeline-scene.ts or pipeline-gif.ts changed): run `bun run readme:pipeline`",
+    );
   for (const [name, b] of Object.entries(files.gifs)) {
     if (!b) {
-      problems.push(`${name} is missing: run scripts/readme-assets/pipeline-gif.ts`);
+      problems.push(`${name} is missing: run \`bun run readme:pipeline\``);
       continue;
     }
     if (b.length > PIPELINE_LIMITS.bytes) problems.push(`${name} is larger than 3 MB`);
@@ -80,7 +83,7 @@ export function pipelineProblems(files: {
     if (gifDimensions(b).width < PIPELINE_LIMITS.minWidth) problems.push(`${name} is narrower than ${PIPELINE_LIMITS.minWidth} px`);
   }
   for (const [name, b] of Object.entries(files.pngs)) {
-    if (!b) problems.push(`${name} is missing: run scripts/readme-assets/pipeline-gif.ts`);
+    if (!b) problems.push(`${name} is missing: run \`bun run readme:pipeline\``);
     else if (pngDimensions(b).width < PIPELINE_LIMITS.minWidth)
       problems.push(`${name} is not a PNG of at least ${PIPELINE_LIMITS.minWidth} px`);
   }

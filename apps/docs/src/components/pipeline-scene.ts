@@ -2,8 +2,11 @@
 // <Pipeline /> island plays it with requestAnimationFrame, and scripts/readme-assets/pipeline-gif.ts screenshots it
 // frame by frame into the README GIFs, so the two can't drift. Every number and quote comes from `data`, which is
 // extracted from a real engine run (apps/docs/scripts/pipeline-data.ts); this file only lays it out.
-// Sized for a 640×480 canvas that stays legible when the GIF is shown 360 px wide: body type ≥ 22 px, a few
-// words per frame. Colors are CSS custom properties (light by default, dark under `.dark` or Starlight's
+// The rail and each card's caption come from the run's event log (`data.stages`): which rail nodes exist, their
+// order, and the engine stages each one stands for.
+// Sized for a 640×480 canvas that stays legible when the GIF is shown 360 px wide: body text (sentences, quotes,
+// numbers) ≥ 22 px, labels (stage names, ids, captions, counts) ≥ 18 px, a few words per frame (a test enforces
+// the 18 px floor). Colors are CSS custom properties (light by default, dark under `.dark` or Starlight's
 // `data-theme="dark"`), so one frame serves both themes.
 
 export interface ShownFact {
@@ -45,6 +48,8 @@ export interface PipelineData {
     readonly at: string;
     readonly quote: string;
     readonly grade: string | null;
+    /** The sender's name, from the parsed email headers (emails only). */
+    readonly from: string | null;
   }[];
   readonly web: { readonly source_id: string; readonly url: string; readonly quote: string; readonly gap: ShownFact } | null;
   readonly checks: readonly { readonly check: string; readonly name: string; readonly run: number; readonly failed: number }[];
@@ -72,26 +77,60 @@ export interface PipelineData {
 export const WIDTH = 640;
 export const HEIGHT = 480;
 
-/** The rail along the top: what the viewer tracks while the card below changes. */
-export const RAIL = ["Files", "Profile", "Metric", "SQL", "Evidence", "Verify", "Report"] as const;
+/** The rail nodes a run can show, and which engine stage each node stands for. */
+export type RailNode = "Files" | "Profile" | "Metric" | "SQL" | "Evidence" | "Verify" | "Report";
+export const STAGE_NODE: Readonly<Record<string, RailNode>> = {
+  INGEST: "Files",
+  PROFILE: "Profile",
+  METRICS_DRAFT: "Metric",
+  AWAIT_CONFIRM: "Metric",
+  MEASURE: "SQL",
+  DETECT: "SQL",
+  DECOMPOSE: "SQL",
+  INDEX_DOCS: "Evidence",
+  WEB_CONTEXT: "Evidence",
+  EXPLAIN: "Evidence",
+  DECIDE: "Evidence",
+  VERIFY: "Verify",
+  RENDER: "Report",
+};
 
-interface Scene {
+export interface RailStop {
+  readonly node: RailNode;
+  /** The engine stages behind this node, in the order the event log reported them. */
+  readonly stages: readonly string[];
+}
+
+/** The rail, read from the event log: a node per group of completed stages, in the order they first ran. */
+export function railOf(stages: readonly string[]): RailStop[] {
+  const out: { node: RailNode; stages: string[] }[] = [];
+  for (const stage of stages) {
+    const node = STAGE_NODE[stage];
+    if (!node) continue;
+    const stop = out.find((s) => s.node === node);
+    if (stop) stop.stages.push(stage);
+    else out.push({ node, stages: [stage] });
+  }
+  return out;
+}
+
+export interface Scene {
   readonly key: string;
-  readonly rail: number;
+  readonly node: RailNode;
   readonly start: number;
   readonly end: number;
 }
 
 /** The loop: under 15 s, one scene per pipeline step (the driver and the SQL facts share the SQL node). */
 export const SCENES: readonly Scene[] = [
-  { key: "files", rail: 0, start: 0, end: 1.6 },
-  { key: "profile", rail: 1, start: 1.6, end: 3.2 },
-  { key: "metric", rail: 2, start: 3.2, end: 4.8 },
-  { key: "facts", rail: 3, start: 4.8, end: 7.0 },
-  { key: "driver", rail: 3, start: 7.0, end: 8.4 },
-  { key: "evidence", rail: 4, start: 8.4, end: 10.4 },
-  { key: "verify", rail: 5, start: 10.4, end: 12.2 },
-  { key: "report", rail: 6, start: 12.2, end: 14.8 },
+  { key: "files", node: "Files", start: 0, end: 1.6 },
+  { key: "profile", node: "Profile", start: 1.6, end: 3.2 },
+  { key: "metric", node: "Metric", start: 3.2, end: 4.8 },
+  { key: "facts", node: "SQL", start: 4.8, end: 7.0 },
+  { key: "driver", node: "SQL", start: 7.0, end: 8.4 },
+  { key: "evidence", node: "Evidence", start: 8.4, end: 10.4 },
+  { key: "verify", node: "Verify", start: 10.4, end: 12.2 },
+  { key: "report", node: "Report", start: 12.2, end: 14.8 },
 ];
 export const LOOP_SECONDS = 14.8;
 /** The still frame (PNG fallback, reduced motion, server render): the finished report. */
@@ -184,39 +223,48 @@ function chip(x: number, y: number, id: string, local: number, at: number, cls =
 
 const RAIL_Y = 40;
 // Inset so the bold active label stays off the edge even with wider fallback fonts (DejaVu on CI).
-const railX = (i: number) => 60 + i * ((WIDTH - 120) / (RAIL.length - 1));
+const railX = (i: number, n: number) => 60 + i * ((WIDTH - 120) / Math.max(1, n - 1));
 
-function rail(scene: Scene, local: number): string {
-  const lines = RAIL.slice(1).map((_, i) => {
-    const x1 = railX(i) + 11;
-    const x2 = railX(i + 1) - 11;
-    return `<line x1="${r1(x1)}" y1="${RAIL_Y}" x2="${r1(x2)}" y2="${RAIL_Y}" class="${i < scene.rail ? "lit" : "line"}"/>`;
+function rail(stops: readonly RailStop[], scene: Scene, local: number): string {
+  const n = stops.length;
+  const at = stops.findIndex((s) => s.node === scene.node);
+  const lines = stops.slice(1).map((_, i) => {
+    const x1 = railX(i, n) + 11;
+    const x2 = railX(i + 1, n) - 11;
+    return `<line x1="${r1(x1)}" y1="${RAIL_Y}" x2="${r1(x2)}" y2="${RAIL_Y}" class="${i < at ? "lit" : "line"}"/>`;
   });
-  const dots = RAIL.map((label, i) => {
-    const cls = i < scene.rail ? "dot done" : i === scene.rail ? "dot now" : "dot";
-    return `<circle cx="${r1(railX(i))}" cy="${RAIL_Y}" r="10" class="${cls}"/>${txt({
-      x: railX(i),
+  const dots = stops.map((stop, i) => {
+    const cls = i < at ? "dot done" : i === at ? "dot now" : "dot";
+    return `<circle cx="${r1(railX(i, n))}" cy="${RAIL_Y}" r="10" class="${cls}"/>${txt({
+      x: railX(i, n),
       y: RAIL_Y + 34,
-      size: 17,
-      text: label,
-      cls: i === scene.rail ? "accent" : "muted",
-      weight: i === scene.rail ? 700 : 400,
+      size: 18,
+      text: stop.node,
+      cls: i === at ? "accent" : "muted",
+      weight: i === at ? 700 : 400,
       anchor: "middle",
     })}`;
   });
   // Data moving on: in a scene's last 0.45 s a packet runs to the next node.
   const next = SCENES[SCENES.indexOf(scene) + 1];
+  const to = next ? stops.findIndex((s) => s.node === next.node) : -1;
   let packet = "";
   const go = (local - (scene.end - scene.start - 0.45)) / 0.45;
-  if (next && next.rail !== scene.rail && go > 0) {
-    const x = railX(scene.rail) + (railX(next.rail) - railX(scene.rail)) * ease(go);
+  if (at >= 0 && to > at && go > 0) {
+    const x = railX(at, n) + (railX(to, n) - railX(at, n)) * ease(go);
     packet = `<circle cx="${r1(x)}" cy="${RAIL_Y}" r="8" class="packet"/>`;
   }
   return lines.join("") + dots.join("") + packet;
 }
 
+/** The card caption: the engine stages behind the current rail node, as the event log named them. */
+const stagesOf = (d: PipelineData, node: RailNode) =>
+  railOf(d.stages)
+    .find((s) => s.node === node)
+    ?.stages.join(" · ") ?? "";
+
 const title = (step: string, words: string) =>
-  txt({ x: 40, y: 128, size: 17, text: step, cls: "muted", weight: 700 }) + txt({ x: 40, y: 162, size: 30, text: words, weight: 700 });
+  txt({ x: 40, y: 128, size: 18, text: step, cls: "mono muted", weight: 700 }) + txt({ x: 40, y: 162, size: 30, text: words, weight: 700 });
 
 function files(d: PipelineData, local: number, dur: number): string {
   const rows = d.files
@@ -226,11 +274,11 @@ function files(d: PipelineData, local: number, dur: number): string {
         local,
         0.1 + i * 0.15,
         dur,
-        `<rect x="40" y="${192 + i * 58}" width="560" height="46" rx="10" class="card"/>${txt({ x: 60, y: 223 + i * 58, size: 23, text: f.name, cls: "mono" })}${txt({ x: 580, y: 223 + i * 58, size: 20, text: f.kind, cls: "muted", anchor: "end" })}`,
+        `<rect x="40" y="${192 + i * 58}" width="560" height="46" rx="10" class="card"/>${txt({ x: 60, y: 223 + i * 58, size: 23, text: f.name, cls: "mono" })}${txt({ x: 580, y: 223 + i * 58, size: 22, text: f.kind, cls: "muted", anchor: "end" })}`,
         -40,
       ),
     );
-  return group(local, 0, dur, title("YOUR FILES", `${d.files.length} files in`)) + rows.join("");
+  return group(local, 0, dur, title(stagesOf(d, "Files"), `${d.files.length} files in`)) + rows.join("");
 }
 
 function stat(x: number, n: number, label: string, local: number, at: number, dur: number): string {
@@ -244,7 +292,7 @@ function stat(x: number, n: number, label: string, local: number, at: number, du
 
 function profile(d: PipelineData, local: number, dur: number): string {
   return (
-    group(local, 0, dur, title("PROFILE", "Tables found, text parsed")) +
+    group(local, 0, dur, title(stagesOf(d, "Profile"), "Tables found, text parsed")) +
     stat(40, d.profile.tables, "tables", local, 0.15, dur) +
     stat(234, d.profile.sections, "doc sections", local, 0.3, dur) +
     stat(428, d.profile.issues, "data issues", local, 0.45, dur)
@@ -253,10 +301,10 @@ function profile(d: PipelineData, local: number, dur: number): string {
 
 function metric(d: PipelineData, local: number, dur: number): string {
   const m = d.metric;
-  const stamp = m.status === "assumed" ? "KEPT AS ASSUMPTION (--yes)" : "CONFIRMED";
+  const stamp = m.status === "assumed" ? "KEPT AS AN ASSUMPTION" : "CONFIRMED";
   const k = ease((local - 0.7) / 0.3);
   return (
-    group(local, 0, dur, title("METRIC DEFINITION", "Shown in plain words")) +
+    group(local, 0, dur, title(stagesOf(d, "Metric"), "The metric, in plain words")) +
     group(
       local,
       0.15,
@@ -272,7 +320,7 @@ function metric(d: PipelineData, local: number, dur: number): string {
 function facts(d: PipelineData, local: number, dur: number): string {
   const c = d.change;
   return (
-    group(local, 0, dur, title("ANALYSIS · DuckDB SQL", `${c.metric}, month on month`)) +
+    group(local, 0, dur, title(stagesOf(d, "SQL"), `DuckDB SQL: ${c.metric}`)) +
     group(
       local,
       0.15,
@@ -295,7 +343,7 @@ function facts(d: PipelineData, local: number, dur: number): string {
 function driver(d: PipelineData, local: number, dur: number): string {
   const v = d.driver;
   return (
-    group(local, 0, dur, title(`DECOMPOSE · by ${v.dimension}`, `Driver: ${v.member}`)) +
+    group(local, 0, dur, title(stagesOf(d, "SQL"), `Driver by ${v.dimension}: ${v.member}`)) +
     group(
       local,
       0.15,
@@ -323,7 +371,7 @@ function quoteCard(y: number, head: string, quote: string, src: string, local: n
     local,
     at,
     dur,
-    `<rect x="40" y="${y}" width="560" height="${quoteHeight(quote)}" rx="12" class="${web ? "webline" : "card"}"/>${txt({ x: 60, y: y + 30, size: 19, text: head, weight: 700, cls: web ? "webc" : "accent" })}${txt({ x: 580, y: y + 30, size: 19, text: src, cls: "mono muted", anchor: "end" })}${marks}${lines
+    `<rect x="40" y="${y}" width="560" height="${quoteHeight(quote)}" rx="12" class="${web ? "webline" : "card"}"/>${txt({ x: 60, y: y + 30, size: 20, text: head, weight: 700, cls: web ? "webc" : "accent" })}${txt({ x: 580, y: y + 30, size: 20, text: src, cls: "mono muted", anchor: "end" })}${marks}${lines
       .map((l, i) => txt({ x: 64, y: y + 65 + i * 28, size: 22, text: l }))
       .join("")}`,
   );
@@ -332,7 +380,9 @@ function quoteCard(y: number, head: string, quote: string, src: string, local: n
 function evidence(d: PipelineData, local: number, dur: number): string {
   // The customer's own email first (the document that explains the driver), then the web lane's labelled quote.
   const doc = d.docs.find((x) => x.kind === "email") ?? d.docs[0];
-  const docCard = doc ? quoteCard(180, doc.file, doc.quote, doc.source_id, local, 0.15, dur, false) : "";
+  const docCard = doc
+    ? quoteCard(180, doc.from ? `${doc.from} · ${doc.kind}` : doc.file, doc.quote, doc.source_id, local, 0.15, dur, false)
+    : "";
   const webCard = d.web
     ? quoteCard(
         doc ? 180 + quoteHeight(doc.quote) + 14 : 180,
@@ -345,7 +395,7 @@ function evidence(d: PipelineData, local: number, dur: number): string {
         true,
       )
     : "";
-  return group(local, 0, dur, title("EVIDENCE · documents + web", "Why it changed, cited")) + docCard + webCard;
+  return group(local, 0, dur, title(stagesOf(d, "Evidence"), "Why it changed, cited")) + docCard + webCard;
 }
 
 function verify(d: PipelineData, local: number, dur: number): string {
@@ -364,13 +414,13 @@ function verify(d: PipelineData, local: number, dur: number): string {
       local,
       at,
       dur,
-      `<rect x="${x}" y="${y - 30}" width="272" height="48" rx="10" class="card"/>${txt({ x: x + 14, y: y + 3, size: 21, text: c.check, weight: 800, cls: "mono" })}${txt({ x: x + 56, y: y + 3, size: 19, text: c.name })}${txt({ x: x + 230, y: y + 3, size: 17, text: count, cls: ok ? "muted" : "warn", anchor: "end" })}${mark}`,
+      `<rect x="${x}" y="${y - 30}" width="272" height="48" rx="10" class="card"/>${txt({ x: x + 12, y: y + 3, size: 21, text: c.check, weight: 800, cls: "mono" })}${txt({ x: x + 52, y: y + 3, size: 20, text: c.name })}${txt({ x: x + 234, y: y + 3, size: 18, text: count, cls: ok ? "muted" : "warn", anchor: "end" })}${mark}`,
       8,
     );
   });
   const v = d.verification;
   return (
-    group(local, 0, dur, title("VERIFIER · V1–V8", `${v.numbers_checked} numbers recomputed`)) +
+    group(local, 0, dur, title(`${stagesOf(d, "Verify")} · V1–V8`, `${v.numbers_checked} numbers recomputed`)) +
     rows.join("") +
     group(
       local,
@@ -379,7 +429,7 @@ function verify(d: PipelineData, local: number, dur: number): string {
       txt({
         x: 40,
         y: 446,
-        size: 20,
+        size: 22,
         text: `${v.numbers_mismatched} mismatches · ${v.citations_checked} citations checked · ${v.claims_dropped} dropped`,
         cls: "muted",
       }),
@@ -389,20 +439,25 @@ function verify(d: PipelineData, local: number, dur: number): string {
 
 function report(d: PipelineData, local: number, dur: number): string {
   const head = wrap(d.headline, 40).slice(0, 3);
-  const act = wrap(d.action.text, 42).slice(0, 3);
+  const act = wrap(d.action.text, 40).slice(0, 3);
   const top = 180 + head.length * 34;
-  const h = 118 + act.length * 28;
+  const h = 120 + act.length * 29;
   const a = d.action;
-  const impactY = top + 76 + act.length * 28;
+  const impactY = top + 78 + act.length * 29;
   return (
-    group(local, 0, dur, txt({ x: 40, y: 128, size: 17, text: "REPORT · verified, cited", cls: "muted", weight: 700 })) +
+    group(
+      local,
+      0,
+      dur,
+      txt({ x: 40, y: 128, size: 18, text: `${stagesOf(d, "Report")} · verified, cited`, cls: "mono muted", weight: 700 }),
+    ) +
     group(local, 0.1, dur, head.map((l, i) => txt({ x: 40, y: 162 + i * 34, size: 26, text: l, weight: 700 })).join("")) +
     group(
       local,
       0.5,
       dur,
       `<rect x="40" y="${top}" width="560" height="${h}" rx="12" class="card"/><rect x="40" y="${top}" width="8" height="${h}" rx="4" class="chip"/>${txt({ x: 66, y: top + 32, size: 19, text: `#${a.rank} ACTION of ${a.of} · ${a.confidence} confidence`, cls: "accent", weight: 700 })}${act
-        .map((l, i) => txt({ x: 66, y: top + 64 + i * 28, size: 21, text: l }))
+        .map((l, i) => txt({ x: 66, y: top + 64 + i * 29, size: 22, text: l }))
         .join(
           "",
         )}${txt({ x: 66, y: impactY, size: 27, text: `+${a.low.text} to +${a.high.text}`, weight: 800, cls: "accent" })}${txt({ x: 66, y: impactY + 26, size: 18, text: a.horizon, cls: "muted" })}`,
@@ -427,11 +482,11 @@ const RENDER: Record<string, (d: PipelineData, local: number, dur: number) => st
 export function altText(d: PipelineData): string {
   const doc = d.docs.find((x) => x.kind === "email") ?? d.docs[0];
   return [
-    `Animated pipeline on ${d.run.example} (a real engine run, scripted planner, no LLM): ${d.files.map((f) => f.name).join(", ")} flow in;`,
+    `Animated pipeline on ${d.run.example} (a real engine run, scripted planner, no LLM; its stages follow the run's ${d.run.events}-event log): ${d.files.map((f) => f.name).join(", ")} flow in;`,
     `profiling finds ${d.profile.tables} tables and ${d.profile.sections} document sections; the ${d.metric.label} metric is defined in plain words;`,
     `DuckDB SQL computes ${d.change.metric} ${d.change.from.text} in ${d.change.fromPeriod} and ${d.change.to.text} in ${d.change.period}, ${d.change.pct.text} (fact ${d.change.pct.id});`,
     `the driver is ${d.driver.member} (${d.driver.delta.text}, ${d.driver.share.text} of the drop);`,
-    doc ? `${doc.file} is cited: “${doc.quote}”;` : "",
+    doc ? `${doc.file}${doc.from ? ` from ${doc.from}` : ""} is cited: “${doc.quote}”;` : "",
     d.web ? `a web benchmark is cited and labelled External;` : "",
     `the verifier runs V1–V8 and recomputes ${d.verification.numbers_checked} numbers with ${d.verification.numbers_mismatched} mismatches;`,
     `the report's top-ranked action: ${d.action.text} (+${d.action.low.text} to +${d.action.high.text}, ${d.action.horizon}).`,
@@ -454,5 +509,5 @@ export function sceneSvg(d: PipelineData, t: number, o: SceneOptions = {}): stri
   const theme = o.theme ?? "auto";
   const cls = theme === "auto" ? "pp" : `pp ${theme}`;
   const w = o.width ?? "100%";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${w}" class="${cls}" role="img" aria-label="${esc(altText(d))}"><style>${THEME_CSS}</style><rect width="${WIDTH}" height="${HEIGHT}" rx="16" class="bg"/>${rail(scene, local)}${RENDER[scene.key]?.(d, local, dur) ?? ""}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${w}" class="${cls}" role="img" aria-label="${esc(altText(d))}"><style>${THEME_CSS}</style><rect width="${WIDTH}" height="${HEIGHT}" rx="16" class="bg"/>${rail(railOf(d.stages), scene, local)}${RENDER[scene.key]?.(d, local, dur) ?? ""}</svg>`;
 }

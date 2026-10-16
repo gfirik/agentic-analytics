@@ -42,6 +42,13 @@ export interface RunRecord {
   readonly report: Report;
   /** The verifier's check table (`verification`): one row per check run. */
   readonly checks: readonly { readonly check_name: string; readonly passed: boolean }[];
+  /** Each document source's retrieval prefix, which carries the parsed email headers (`… · from Name <address> · …`). */
+  readonly prefixes: readonly { readonly source_id: string; readonly prefix: string }[];
+}
+
+/** The sender's display name from an email chunk's prefix, as ingest parsed the From header. */
+export function senderOf(prefix: string | undefined): string | null {
+  return prefix ? (/ · from ([^<·]+?)\s*</.exec(prefix)?.[1] ?? null) : null;
 }
 
 /** Pure: the run's events, verified report and check rows → what the animation shows. */
@@ -87,7 +94,15 @@ export function extractPipelineData(run: RunRecord): PipelineData {
     .map((q) => {
       const s = need(q.src, "a cited source");
       const at = "page" in s.locator && s.locator.page ? `p.${s.locator.page}` : "section" in s.locator ? String(s.locator.section) : "";
-      return { source_id: s.id, file: s.file, kind: s.kind, at, quote: need(q.cite.quote, "a quote"), grade: q.claim.causal_grade ?? null };
+      return {
+        source_id: s.id,
+        file: s.file,
+        kind: s.kind,
+        at,
+        quote: need(q.cite.quote, "a quote"),
+        grade: q.claim.causal_grade ?? null,
+        from: s.kind === "email" ? senderOf(run.prefixes.find((p) => p.source_id === s.id)?.prefix) : null,
+      };
     });
   const webQ = cites(report.findings.flatMap((f) => f.claims)).find((q) => q.src?.external);
   const web = webQ
@@ -161,7 +176,9 @@ export function extractPipelineData(run: RunRecord): PipelineData {
     headline: fill(report.summary.headline),
     action: {
       id: rec.id,
-      rank: 1,
+      // report.recommendations is already in DECIDE's ranked order (packages/agent/src/decide.ts sorts by score and
+      // VERIFY keeps the order), so the first one is rank 1.
+      rank: report.recommendations.indexOf(rec) + 1,
       of: report.recommendations.length,
       text: rec.action,
       low: shown(fact(impact.low, "impact low")),
@@ -193,7 +210,10 @@ export async function recordRun(): Promise<RunRecord> {
     const ws = await Workspace.open(join(dir, "job.duckdb"));
     try {
       const checks = await ws.all<{ check_name: string; passed: boolean }>(sql`SELECT check_name, passed FROM verification ORDER BY id`);
-      return { events, report: out.report, checks };
+      const prefixes = await ws.all<{ source_id: string; prefix: string }>(
+        sql`SELECT source_id, any_value(prefix) AS prefix FROM chunks GROUP BY source_id ORDER BY source_id`,
+      );
+      return { events, report: out.report, checks, prefixes };
     } finally {
       ws.close();
     }

@@ -5,12 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import data from "../../../../docs/assets/readme/pipeline.json";
 import "./islands.css";
 import { reducedMotion } from "./format.ts";
-import { LOOP_SECONDS, type PipelineData, POSTER_SECONDS, RAIL, SCENES, sceneAt, sceneSvg } from "./pipeline-scene.ts";
+import { LOOP_SECONDS, type PipelineData, POSTER_SECONDS, railOf, SCENES, sceneAt, sceneSvg } from "./pipeline-scene.ts";
 
 const run = data as PipelineData;
-/** A still moment in each rail stage: just before its scene starts to fade out. */
-const STILLS = RAIL.map((_, i) => {
-  const last = [...SCENES].reverse().find((s) => s.rail === i);
+/** The rail as the run's event log ordered it, and a still moment per node: just before its last scene fades out. */
+const STOPS = railOf(run.stages);
+const STILLS = STOPS.map((stop) => {
+  const last = [...SCENES].reverse().find((s) => s.node === stop.node);
   return last ? last.end - 0.3 : POSTER_SECONDS;
 });
 
@@ -52,7 +53,7 @@ export default function Pipeline() {
     return () => cancelAnimationFrame(raf);
   }, [playing]);
 
-  const current = sceneAt(t).scene.rail;
+  const current = sceneAt(t).scene.node;
   return (
     <section className="aa-island aa-pipe" aria-label="Pipeline animation">
       <h4>One real run · examples/coffee-roaster · scripted planner, no LLM</h4>
@@ -62,18 +63,19 @@ export default function Pipeline() {
         <button type="button" className="aa-btn" onClick={() => setPlaying((p) => !p)} aria-pressed={playing}>
           {playing ? "Pause" : "Play"}
         </button>
-        {RAIL.map((label, i) => (
+        {STOPS.map(({ node, stages }, i) => (
           <button
-            key={label}
+            key={node}
             type="button"
             className="aa-btn"
-            aria-pressed={!playing && current === i}
+            title={stages.join(" · ")}
+            aria-pressed={!playing && current === node}
             onClick={() => {
               setPlaying(false);
               setT(STILLS[i] ?? POSTER_SECONDS);
             }}
           >
-            {label}
+            {node}
           </button>
         ))}
       </div>

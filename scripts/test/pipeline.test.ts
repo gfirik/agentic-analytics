@@ -1,8 +1,8 @@
 // The README pipeline GIF and the docs <Pipeline /> island (docs/DOCS-SITE.md §3.3): the data they show is a real
 // run's, the checked-in copy can't drift from the engine, the scene is deterministic, and the asset limits hold.
 import { describe, expect, it } from "vitest";
-import { extractPipelineData, pipelineJson, recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
-import { LOOP_SECONDS, POSTER_SECONDS, SCENES, sceneSvg, wrap } from "../../apps/docs/src/components/pipeline-scene.ts";
+import { extractPipelineData, pipelineJson, recordRun, senderOf } from "../../apps/docs/scripts/pipeline-data.ts";
+import { LOOP_SECONDS, POSTER_SECONDS, railOf, SCENES, sceneSvg, wrap } from "../../apps/docs/src/components/pipeline-scene.ts";
 import { gifDimensions, PIPELINE_LIMITS, pipelineProblems, pngDimensions, readPipelineData } from "../readme-assets/pipeline.ts";
 
 const data = readPipelineData();
@@ -34,6 +34,8 @@ describe("pipeline.json (from a real run)", () => {
     const email = data.docs.find((d) => d.kind === "email");
     expect(email).toMatchObject({ file: "email-0412.eml", source_id: "D1", grade: "document_supported" });
     expect(email?.quote).toContain("pausing our standing order");
+    // The sender comes from the From header ingest parsed: "Purchasing, Hotel Group" <purchasing@hotelgroup.example>
+    expect(email?.from).toBe("Purchasing, Hotel Group");
     expect(data.web?.url).toBe("https://coffee-benchmarks.example/refunds");
     expect(data.web?.quote).toContain("1–2% of sales");
   });
@@ -42,7 +44,7 @@ describe("pipeline.json (from a real run)", () => {
     expect(data.checks.map((c) => c.check)).toEqual(["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8"]);
     for (const c of data.checks) expect(c.run).toBeGreaterThan(0);
     expect(data.verification.numbers_mismatched).toBe(0);
-    expect(data.action).toMatchObject({ id: "R1", rank: 1, horizon: "next quarter" });
+    expect(data.action).toMatchObject({ id: "R1", rank: 1, of: 2, horizon: "next quarter" });
     expect(data.action.text).toMatch(/wholesale/);
     expect(data.stages).toEqual(expect.arrayContaining(["INGEST", "PROFILE", "METRICS_DRAFT", "WEB_CONTEXT", "VERIFY", "RENDER"]));
   });
@@ -51,6 +53,39 @@ describe("pipeline.json (from a real run)", () => {
     const fresh = extractPipelineData(await recordRun());
     expect(stable(pipelineJson(fresh))).toEqual(stable(JSON.stringify(data)));
   }, 180_000);
+});
+
+describe("rail from the event log", () => {
+  it("groups the run's completed stages into rail nodes, in the order the log reported them", () => {
+    expect(railOf(data.stages)).toEqual([
+      { node: "Files", stages: ["INGEST"] },
+      { node: "Profile", stages: ["PROFILE"] },
+      { node: "Metric", stages: ["METRICS_DRAFT"] },
+      { node: "SQL", stages: ["MEASURE", "DETECT", "DECOMPOSE"] },
+      { node: "Evidence", stages: ["INDEX_DOCS", "WEB_CONTEXT", "EXPLAIN", "DECIDE"] },
+      { node: "Verify", stages: ["VERIFY"] },
+      { node: "Report", stages: ["RENDER"] },
+    ]);
+    expect(data.run.events).toBeGreaterThan(data.stages.length);
+  });
+
+  it("follows the log, not a fixed list: order, missing stages and captions change with it", () => {
+    expect(railOf(["PROFILE", "INGEST"]).map((s) => s.node)).toEqual(["Profile", "Files"]);
+    const noWeb = { ...data, stages: data.stages.filter((s) => s !== "WEB_CONTEXT") };
+    const evidenceAt = (SCENES.find((s) => s.key === "evidence")?.end ?? 0) - 0.3;
+    expect(sceneSvg(data, evidenceAt)).toContain("INDEX_DOCS · WEB_CONTEXT · EXPLAIN · DECIDE");
+    expect(sceneSvg(noWeb, evidenceAt)).toContain("INDEX_DOCS · EXPLAIN · DECIDE");
+    const noProfile = { ...data, stages: data.stages.filter((s) => s !== "PROFILE") };
+    expect(sceneSvg(noProfile, 0.5)).not.toContain(">Profile<");
+    expect(sceneSvg(data, 0.5)).toContain(">Profile<");
+  });
+
+  it("reads the sender's name from an email chunk prefix", () => {
+    expect(senderOf("[email-0412.eml · from Purchasing, Hotel Group <purchasing@hotelgroup.example> · to x · Standing order]")).toBe(
+      "Purchasing, Hotel Group",
+    );
+    expect(senderOf("[notes.docx · 1. Roasting]")).toBeNull();
+  });
 });
 
 describe("pipeline scene", () => {
@@ -67,13 +102,24 @@ describe("pipeline scene", () => {
     };
     expect(at("facts")).toContain("−17.9%");
     expect(at("facts")).toContain(data.change.pct.id);
-    expect(at("driver")).toContain("Driver: wholesale");
+    expect(at("driver")).toContain("Driver by channel: wholesale");
     expect(at("evidence")).toContain("email-0412.eml");
     expect(at("verify")).toContain("V8");
     const poster = sceneSvg(data, POSTER_SECONDS);
     expect(poster).toContain(data.action.low.id);
     expect(poster).toContain("+$3,995 to +$7,191");
     for (let t = 0; t < LOOP_SECONDS; t += 0.25) expect(sceneSvg(data, t)).not.toMatch(/NaN|undefined|\{\{N/);
+  });
+
+  it("never sets type below 18 px (labels); body text is 22 px or more", () => {
+    for (let t = 0; t < LOOP_SECONDS; t += 0.2) {
+      const sizes = [...sceneSvg(data, t).matchAll(/font-size="(\d+)"/g)].map((m) => Number(m[1]));
+      expect(Math.min(...sizes), `t=${t.toFixed(1)}`).toBeGreaterThanOrEqual(18);
+    }
+    // The body lines: the cited quote, the action and the verifier summary.
+    const evidence = sceneSvg(data, (SCENES.find((s) => s.key === "evidence")?.end ?? 0) - 0.3);
+    expect(evidence).toMatch(/font-size="22">“After the new price list/);
+    expect(sceneSvg(data, POSTER_SECONDS)).toMatch(/font-size="22">Offer wholesale/);
   });
 
   it("wraps text by words", () => {

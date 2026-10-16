@@ -33,26 +33,27 @@ for (const [scheme, motion, file] of [
   });
 }
 
-test("every scene keeps its text inside the 640×480 canvas, off the edges", async ({ page }) => {
-  const data = readPipelineData();
-  await page.setViewportSize({ width: WIDTH, height: HEIGHT });
-  await page.setContent(`<!doctype html><html><body style="margin:0"><div id="s"></div></body></html>`);
-  for (const t of [...SCENES.map((s) => s.end - 0.3), POSTER_SECONDS]) {
-    await page.evaluate(
-      (html) => {
-        (document.getElementById("s") as HTMLElement).innerHTML = html;
-      },
-      sceneSvg(data, t, { theme: "light", width: WIDTH }),
-    );
-    // Screen boxes (the SVG is drawn at 640 px, so CSS px are canvas units), after every transform and scale.
-    const out = await page.evaluate(
-      ([w, h]) =>
-        [...document.querySelectorAll("text")]
-          .map((el) => ({ text: el.textContent, b: el.getBoundingClientRect() }))
-          .filter(({ b }) => b.left < 16 || b.top < 0 || b.right > (w ?? 0) - 16 || b.bottom > (h ?? 0) - 8)
-          .map(({ text }) => text),
-      [WIDTH, HEIGHT],
-    );
-    expect(out, `t=${t}`).toEqual([]);
-  }
-});
+for (const theme of ["light", "dark"] as const)
+  test(`every ${theme} scene keeps its text inside the 640×480 canvas, off the edges`, async ({ page }) => {
+    const data = readPipelineData();
+    await page.setViewportSize({ width: WIDTH, height: HEIGHT });
+    await page.setContent(`<!doctype html><html><body style="margin:0"><div id="s"></div></body></html>`);
+    for (const t of [...SCENES.map((s) => s.end - 0.3), POSTER_SECONDS]) {
+      await page.evaluate(
+        (html) => {
+          (document.getElementById("s") as HTMLElement).innerHTML = html;
+        },
+        sceneSvg(data, t, { theme, width: WIDTH }),
+      );
+      // Screen boxes (the SVG is drawn at 640 px, so CSS px are canvas units), after every transform and scale.
+      const out = await page.evaluate(
+        ([w, h]) =>
+          [...document.querySelectorAll("text")]
+            .map((el) => ({ text: el.textContent, b: el.getBoundingClientRect() }))
+            .filter(({ b }) => b.left < 16 || b.top < 0 || b.right > (w ?? 0) - 16 || b.bottom > (h ?? 0) - 8)
+            .map(({ text }) => text),
+        [WIDTH, HEIGHT],
+      );
+      expect(out, `t=${t}`).toEqual([]);
+    }
+  });

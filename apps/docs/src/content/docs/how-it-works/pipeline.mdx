@@ -27,6 +27,6 @@ A job is a folder with one DuckDB file. Each stage is checkpointed: a killed job
 | VERIFY | V1–V8; nothing unverified ships | judge |
 | RENDER | `report.html`, self-contained | — |
 
-Every stage emits events (the API streams them over SSE). One web-enabled run of the example (scripted planner, offline web fixture, no LLM), animated: the stage order is the run's event log, every number is a fact of its verified report with its id, and the V1–V8 rows are the verifier's own check table. The data is `docs/assets/readme/pipeline.json` (regenerate with `tsx apps/docs/scripts/pipeline-data.ts --write`); a test reruns the engine and fails if it drifts.
+Every stage emits events (the API streams them over SSE). One web-enabled run of the example (scripted planner, offline web fixture, no LLM), animated: the rail and each card's caption follow the run's event log (which stages ran, in which order), facts are shown with their ids from the verified report, and the V1–V8 counts are the verifier's own check table. The data is `docs/assets/readme/pipeline.json` (regenerate with `tsx apps/docs/scripts/pipeline-data.ts --write`); a test reruns the engine and fails if it drifts.
 
 <Pipeline client:visible />

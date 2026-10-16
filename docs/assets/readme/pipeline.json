@@ -102,7 +102,8 @@
       "kind": "email",
       "at": "Standing order",
       "quote": "After the new price list we are pausing our standing order while we compare suppliers.",
-      "grade": "document_supported"
+      "grade": "document_supported",
+      "from": "Purchasing, Hotel Group"
     },
     {
       "source_id": "D7",
@@ -110,7 +111,8 @@
       "kind": "document",
       "at": "p.2",
       "quote": "Wholesale prices increase 12% from 15 March 2026.",
-      "grade": "correlated"
+      "grade": "correlated",
+      "from": null
     }
   ],
   "web": {
