@@ -9,6 +9,7 @@ import {
   expandUrl,
   ModelError,
   memoryCache,
+  providerFetch,
   Router,
   readRateHeaders,
   resolveModelConfig,
@@ -308,5 +309,33 @@ describe("router bounds", () => {
     const lm = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, onCall: (c) => calls.push(c) });
     await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch(() => undefined);
     expect(calls.map((c) => [c.status, c.error])).toEqual([[401, "Invalid key gsk_*** for org"]]);
+  });
+
+  it("logs a request that got no response, and retries a reset connection before any response", async () => {
+    let n = 0;
+    const f = (async () => {
+      n++;
+      if (n === 1) throw new TypeError("fetch failed", { cause: Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }) });
+      return ok('{"reply":"OK"}');
+    }) as typeof fetch;
+    const calls: CallRecord[] = [];
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:openai/gpt-oss-20b", GROQ_API_KEY: "g" };
+    const pf = providerFetch(f, { sleep: async () => {}, onCall: (c) => calls.push(c), label: { provider: "openai-compatible" } });
+    const res = await pf("https://api.groq.com/openai/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+    expect(res.status).toBe(200);
+    expect(calls.map((c) => [c.status, c.error])).toEqual([
+      [0, "TypeError: fetch failed (ECONNRESET)"],
+      [200, undefined],
+    ]);
+    // A timeout is logged but not retried.
+    const slow = providerFetch(
+      (async () => {
+        throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
+      }) as typeof fetch,
+      { sleep: async () => {}, onCall: (c) => calls.push(c) },
+    );
+    await expect(slow("https://x/v1/chat/completions", { method: "POST", body: "{}" })).rejects.toThrow("timed out");
+    expect(calls.at(-1)?.error).toBe("TimeoutError: timed out");
+    void genv;
   });
 });
