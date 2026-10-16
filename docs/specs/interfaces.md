@@ -42,7 +42,7 @@ The binary is `agentic-analytics`, with the short alias `aa`.
 | `aa explain <jobId> <factId>` | Shows the computation behind a number |
 | `aa serve [--port 8080]` | Starts the HTTP API |
 | `aa mcp` | Starts the MCP server on stdio |
-| `aa doctor` | Checks Node, DuckDB, Ollama models, SearXNG and Docling; prints fixes |
+| `aa doctor` | Checks Node, DuckDB, model providers, SearXNG and Docling; calls each role's model (planner, extractor, judge) once; `--models` lists every reachable provider's model ids; prints fixes |
 | `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>]` | Runs the eval suites and updates `evals/RESULTS.md` |
 | `aa jobs ls\|rm\|resume` | Manages jobs |
 | `aa run <path...>` / `aa run --resume <dir>` | A job in an explicit folder, without the job manager (M7; kept for scripts) |
