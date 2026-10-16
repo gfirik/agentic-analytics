@@ -96,6 +96,18 @@
     "packages/metrics": {
       "name": "@agentic-analytics/metrics",
       "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/models": "workspace:*",
+        "@agentic-analytics/profile": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+        "yaml": "^2.9.1",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
+        "@agentic-analytics/ingest": "workspace:*",
+      },
     },
     "packages/models": {
       "name": "@agentic-analytics/models",

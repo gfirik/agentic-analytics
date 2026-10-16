@@ -1,0 +1,222 @@
+// Metric → parameterized SQL (docs/specs/metric-layer.md §4): metric(id, period_range, dimension_filters?,
+// group_by?). Every number a report shows comes through this compiler, so it is tied to a metric id and its SQL.
+import type { MetricDef } from "@agentic-analytics/schema";
+import { ident, type Sql, type Workspace } from "@agentic-analytics/store";
+import { type Catalog, NUMERIC_TYPES } from "./catalog.ts";
+import { builder, compileExpr, compileFilter, exprColumns, parseExpression, parseFilter, type SqlBuilder } from "./lang.ts";
+
+export type Grain = "day" | "week" | "month" | "quarter" | "year";
+
+export interface MetricQuery {
+  /** Inclusive period range at the grain, e.g. "2026-01" … "2026-06" for months. */
+  readonly from: string;
+  readonly to: string;
+  readonly grain?: Grain;
+  /** Dimension columns to group by (must exist in every table the metric reads). */
+  readonly groupBy?: readonly string[];
+  /** Extra filter in the metric language, e.g. "channel = 'wholesale'". */
+  readonly where?: string;
+}
+
+export class MetricCompileError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MetricCompileError";
+  }
+}
+
+const q = (name: string) => ident(name).quoted;
+
+/** Period key at the job grain (lexically ordered, so BETWEEN works). */
+export function periodExpr(column: string, grain: Grain): string {
+  const c = q(column);
+  switch (grain) {
+    case "day":
+      return `strftime(${c}, '%Y-%m-%d')`;
+    case "week":
+      return `strftime(${c}, '%G-W%V')`;
+    case "month":
+      return `strftime(${c}, '%Y-%m')`;
+    case "quarter":
+      return `(strftime(${c}, '%Y') || '-Q' || quarter(${c}))`;
+    case "year":
+      return `strftime(${c}, '%Y')`;
+  }
+}
+
+interface Ctx {
+  readonly defs: ReadonlyMap<string, MetricDef>;
+  readonly catalog: Catalog;
+  readonly b: SqlBuilder;
+  readonly query: MetricQuery;
+  readonly grain: Grain;
+  readonly groups: readonly string[];
+  readonly ctes: string[];
+  readonly done: Map<string, string>;
+}
+
+/** One aggregate over one table, grouped by period (and groups), as a CTE. Returns the CTE name. */
+function tableCte(
+  ctx: Ctx,
+  key: string,
+  table: string,
+  time: string,
+  aggregate: (col: (n: string) => string) => string,
+  filters: readonly string[],
+): string {
+  const existing = ctx.done.get(key);
+  if (existing) return existing;
+  const t = ctx.catalog.get(table);
+  if (!t) throw new MetricCompileError(`unknown table ${table}`);
+  for (const g of ctx.groups) if (!t.columns.has(g)) throw new MetricCompileError(`group-by column "${g}" does not exist in ${table}`);
+  const col = (n: string) => {
+    if (!t.columns.has(n)) throw new MetricCompileError(`column "${n}" does not exist in ${table}`);
+    return q(n);
+  };
+  const where = [
+    "NOT _is_total",
+    `${q(time)} IS NOT NULL`,
+    ...filters.map((f) => compileFilter(parseFilter(f), ctx.b, col)),
+    ...(ctx.query.where ? [compileFilter(parseFilter(ctx.query.where), ctx.b, col)] : []),
+    `${periodExpr(time, ctx.grain)} BETWEEN ${ctx.b.param(ctx.query.from)} AND ${ctx.b.param(ctx.query.to)}`,
+  ];
+  const groupCols = ctx.groups.map((g) => `${q(g)}`).join(", ");
+  const name = `m${ctx.ctes.length + 1}`;
+  ctx.ctes.push(
+    `${name} AS (SELECT ${periodExpr(time, ctx.grain)} AS period${groupCols ? `, ${groupCols}` : ""}, ${aggregate(col)} AS value FROM ${q(table)} WHERE ${where.join(" AND ")} GROUP BY ALL)`,
+  );
+  ctx.done.set(key, name);
+  return name;
+}
+
+/** Joins CTEs on period (and groups) and combines their values with `combine`. */
+function joinCtes(ctx: Ctx, names: readonly string[], combine: (value: (i: number) => string) => string): string {
+  const keys = ["period", ...ctx.groups.map((g) => q(g))];
+  const [first, ...rest] = names;
+  if (!first) throw new MetricCompileError("nothing to join");
+  const from = rest.reduce((acc, n) => `${acc} FULL JOIN ${n} USING (${keys.join(", ")})`, first);
+  const name = `m${ctx.ctes.length + 1}`;
+  ctx.ctes.push(`${name} AS (SELECT ${keys.join(", ")}, ${combine((i) => `${names[i]}.value`)} AS value FROM ${from})`);
+  return name;
+}
+
+function metricCte(ctx: Ctx, def: MetricDef): string {
+  const cached = ctx.done.get(`metric:${def.id}`);
+  if (cached) return cached;
+  let name: string;
+  switch (def.type) {
+    case "ratio": {
+      const term = (t: unknown, side: string): string => {
+        const term = t as { metric: string } | { table: string; expression: string; filters?: string[] };
+        if ("metric" in term) {
+          const ref = ctx.defs.get(term.metric);
+          if (!ref) throw new MetricCompileError(`${side} metric ${term.metric} is not defined`);
+          return metricCte(ctx, ref);
+        }
+        const table = ctx.catalog.get(term.table);
+        if (!table?.dateColumn) throw new MetricCompileError(`${side} table ${term.table} has no date column`);
+        const e = parseExpression(term.expression);
+        return tableCte(
+          ctx,
+          `${def.id}:${side}`,
+          term.table,
+          table.dateColumn,
+          (col) => `sum(${compileExpr(e, ctx.b, col)})`,
+          term.filters ?? [],
+        );
+      };
+      const n = term(def.numerator, "numerator");
+      const d = term(def.denominator, "denominator");
+      // Spec §2.3: ratios never divide by a sum that could be zero without a guard.
+      const scale = def.unit === "percent" ? " * 100" : "";
+      // No numerator rows in a period means 0 (e.g. no refunds that month); no denominator means unknown.
+      name = joinCtes(ctx, [n, d], (v) => `coalesce(${v(0)}, 0) / NULLIF(${v(1)}, 0)${scale}`);
+      break;
+    }
+    case "derived": {
+      const e = parseExpression(def.expression ?? "");
+      const refs = [...new Set(exprColumns(e))];
+      const ctes = refs.map((r) => {
+        const ref = ctx.defs.get(r);
+        if (!ref) throw new MetricCompileError(`derived metric references unknown metric ${r}`);
+        return metricCte(ctx, ref);
+      });
+      name = joinCtes(ctx, ctes, (v) => compileExpr(e, ctx.b, (r) => v(refs.indexOf(r))));
+      break;
+    }
+    default: {
+      const table = def.table ?? "";
+      const t = ctx.catalog.get(table);
+      const time = def.time_column ?? t?.dateColumn;
+      if (!t || !time) throw new MetricCompileError(`metric ${def.id} has no table or time column`);
+      const e = def.expression ? parseExpression(def.expression) : undefined;
+      // Percent columns hold fractions; a percent-unit average is reported in percentage points.
+      const percentPoints =
+        def.type === "avg" && def.unit === "percent" && e && exprColumns(e).every((c) => t.columns.get(c)?.type === "percent")
+          ? " * 100"
+          : "";
+      const aggregate = (col: (n: string) => string) => {
+        const x = e ? compileExpr(e, ctx.b, col) : "*";
+        switch (def.type) {
+          case "sum":
+            return `sum(${x})`;
+          case "avg":
+            return `avg(${x})${percentPoints}`;
+          case "count":
+            return `count(${x})`;
+          case "count_distinct":
+            return `count(DISTINCT ${x})`;
+          default:
+            throw new MetricCompileError(`unsupported metric type ${def.type}`);
+        }
+      };
+      name = tableCte(ctx, `metric:${def.id}`, table, time, aggregate, def.filters ?? []);
+      if (e)
+        for (const c of exprColumns(e))
+          if (def.type !== "count" && def.type !== "count_distinct" && !NUMERIC_TYPES.has(t.columns.get(c)?.type ?? "text"))
+            throw new MetricCompileError(`column ${c} is not numeric`);
+    }
+  }
+  ctx.done.set(`metric:${def.id}`, name);
+  return name;
+}
+
+/** Compiles one metric (with every metric it depends on) to a single parameterized statement. */
+export function compileMetric(id: string, defs: readonly MetricDef[], catalog: Catalog, query: MetricQuery): Sql {
+  const byId = new Map(defs.map((d) => [d.id, d]));
+  const def = byId.get(id);
+  if (!def) throw new MetricCompileError(`unknown metric ${id}`);
+  const ctx: Ctx = {
+    defs: byId,
+    catalog,
+    b: builder(),
+    query,
+    grain: query.grain ?? "month",
+    groups: query.groupBy ?? [],
+    ctes: [],
+    done: new Map(),
+  };
+  for (const g of ctx.groups) ident(g);
+  const last = metricCte(ctx, def);
+  const order = ["period", ...ctx.groups.map((g) => q(g))].join(", ");
+  return {
+    text: `WITH ${ctx.ctes.join(",\n  ")}\nSELECT ${order}, value FROM ${last} ORDER BY ${order}`,
+    params: ctx.b.params,
+  };
+}
+
+export interface MetricRow {
+  readonly period: string;
+  readonly value: number | null;
+  readonly [group: string]: string | number | null;
+}
+
+export async function runMetric(
+  ws: Workspace,
+  id: string,
+  defs: readonly MetricDef[],
+  catalog: Catalog,
+  query: MetricQuery,
+): Promise<MetricRow[]> {
+  return ws.all<MetricRow>(compileMetric(id, defs, catalog, query));
+}
