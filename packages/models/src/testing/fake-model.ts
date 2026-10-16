@@ -30,12 +30,22 @@ export interface FakeScriptEntry {
   readonly match?: string | RegExp;
   /** Matches an exact prompt by `promptHash(system, prompt)`. */
   readonly promptHash?: string;
-  /** For generateObject: the raw object the "model" returns (validated by the caller's schema). */
-  readonly object?: unknown;
-  /** For generateWithTools: the steps the "model" takes; tool calls run against the real tools. */
-  readonly steps?: readonly FakeStep[];
+  /**
+   * For generateObject: the raw object the "model" returns (validated by the caller's schema), or a function of
+   * the call that builds it, for scripts that must name ids only known at run time (fact ids, extract ids).
+   */
+  readonly object?: unknown | ((call: FakeRequest) => unknown);
+  /** For generateWithTools: the steps the "model" takes (or a function building them); tool calls run against the real tools. */
+  readonly steps?: readonly FakeStep[] | ((call: FakeRequest) => readonly FakeStep[]);
   /** Keep the entry after use (default: each entry answers once, in order). */
   readonly repeat?: boolean;
+}
+
+/** What a function-valued script entry sees: the system prompt and the prompt (or last user message). */
+export interface FakeRequest {
+  readonly role: Role;
+  readonly system: string;
+  readonly prompt: string;
 }
 
 export interface FakeCall {
@@ -78,7 +88,9 @@ export class FakeModel implements ModelClient {
         this.calls.push({ kind: "object", role: args.role, system: args.system, prompt, hash });
         // Retries carry feedback appended to the prompt, so match on the original prompt.
         const entry = this.take(args.role, args.system, args.prompt, (e) => e.object !== undefined);
-        return { value: entry.object, usage: FAKE_USAGE };
+        const value =
+          typeof entry.object === "function" ? entry.object({ role: args.role, system: args.system, prompt: args.prompt }) : entry.object;
+        return { value, usage: FAKE_USAGE };
       },
       args.maxRetries,
     );
@@ -90,7 +102,9 @@ export class FakeModel implements ModelClient {
     this.calls.push({ kind: "tools", role: args.role, system: args.system, prompt, hash: promptHash(args.system, prompt) });
     const entry = this.take(args.role, args.system, prompt, (e) => e.steps !== undefined);
     const steps: Step[] = [];
-    for (const s of (entry.steps ?? []).slice(0, args.maxSteps)) {
+    const scripted =
+      typeof entry.steps === "function" ? entry.steps({ role: args.role, system: args.system, prompt }) : (entry.steps ?? []);
+    for (const s of scripted.slice(0, args.maxSteps)) {
       const toolCalls: ToolCallRecord[] = [];
       for (const call of s.toolCalls ?? []) {
         const t = args.tools[call.toolName];

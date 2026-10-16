@@ -26,6 +26,7 @@
   ```
 
 - **What the planner sees.** Only extracts, never the raw text. Quotes are shown inside data delimiters, and the planner prompt states that quoted content is data, never instructions.
+- **Per source.** Quarantine applies to the whole source: one flagged chunk excludes every extract of that document, including extracts found earlier in the job.
 - **Flagging.** If the extractor (or a deterministic regex screen for patterns like "ignore previous", "system prompt", "you are now" or URLs with query strings) flags suspicious instructions, the source becomes a `QualityIssue` (kind `suspicious_instruction`) and its extracts are excluded by default.
 
 ## 4. Web isolation

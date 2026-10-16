@@ -8,7 +8,7 @@ import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import type { Calc, Ref, Series } from "./types.ts";
 
-export type AnalysisErrorCode = "UNKNOWN_SERIES" | "NO_VALUE" | "CALC_UNDEFINED" | "CIRCULAR_CALCS";
+export type AnalysisErrorCode = "UNKNOWN_SERIES" | "NO_VALUE" | "CALC_UNDEFINED" | "CIRCULAR_CALCS" | "BAD_SLICE" | "UNKNOWN_FACT";
 
 export class AnalysisError extends Error {
   constructor(
@@ -42,10 +42,12 @@ export class FactBook {
     private readonly series: ReadonlyMap<string, SeriesInfo>,
     /** Metric ids that may appear as `metric_id` on facts; default: every def. */
     private readonly reported: ReadonlySet<string> = new Set(defs.map((d) => d.id)),
+    /** Number of the first new fact: later passes (agent tools) continue after the facts already stored. */
+    private readonly firstId = 1,
   ) {}
 
   private nextId(): string {
-    return `N${this.facts.length + 1}`;
+    return `N${this.firstId + this.facts.length}`;
   }
 
   /** The fact for a measured point (metric value for a period, maybe for one dimension member). */
@@ -129,6 +131,7 @@ export class FactBook {
 
   async resolve(r: Ref, scope: Map<string, string>): Promise<string> {
     if (r.kind === "point") return this.point(r.series, r.period);
+    if (r.kind === "fact") return r.id;
     const id = scope.get(r.name);
     if (!id) throw new AnalysisError("CALC_UNDEFINED", `calc ${r.name} is used before it is defined`);
     return id;
@@ -140,7 +143,7 @@ export class FactBook {
     const pending = [...list];
     // Calcs may reference later ones; resolve in dependency order.
     for (let guard = 0; pending.length && guard < 1000; guard++) {
-      const i = pending.findIndex((c) => c.inputs.every((r) => r.kind === "point" || scope.has(r.name)));
+      const i = pending.findIndex((c) => c.inputs.every((r) => r.kind !== "calc" || scope.has(r.name)));
       if (i < 0) throw new AnalysisError("CIRCULAR_CALCS", `circular calcs in ${context}`);
       const [c] = pending.splice(i, 1);
       if (c) await this.calc(c, scope, context, metricId);

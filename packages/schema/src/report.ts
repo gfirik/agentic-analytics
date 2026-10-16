@@ -193,3 +193,6 @@ export type Evidence = z.infer<typeof Evidence>;
 export type TableExcerpt = z.infer<typeof TableExcerpt>;
 export type TextExcerpt = z.infer<typeof TextExcerpt>;
 export type VerificationSummary = z.infer<typeof VerificationSummary>;
+export type QualityIssue = z.infer<typeof QualityIssue>;
+export type OpenQuestion = z.infer<typeof OpenQuestion>;
+export type Assumption = z.infer<typeof Assumption>;

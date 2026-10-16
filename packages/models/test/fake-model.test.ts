@@ -113,3 +113,23 @@ describe("FakeModel", () => {
     expect(dot(a, b)).toBeGreaterThan(dot(a, c));
   });
 });
+
+describe("function-valued script entries", () => {
+  it("build the object and the steps from the request, so scripts can name run-time ids", async () => {
+    const { z } = await import("zod");
+    const m = new FakeModel([
+      { role: "planner", match: "pick", object: (r: { prompt: string }) => ({ id: r.prompt.split(" ")[1] }) },
+      { role: "planner", match: "go", steps: (r: { prompt: string }) => [{ text: `saw ${r.prompt}` }] },
+    ]);
+    const o = await m.generateObject({ role: "planner", schema: z.object({ id: z.string() }), system: "s", prompt: "pick N42" });
+    expect(o.object).toEqual({ id: "N42" });
+    const t = await m.generateWithTools({
+      role: "planner",
+      system: "s",
+      messages: [{ role: "user", content: "go now" }],
+      tools: {},
+      maxSteps: 3,
+    });
+    expect(t.steps.map((s) => s.text)).toEqual(["saw go now"]);
+  });
+});

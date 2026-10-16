@@ -21,7 +21,9 @@ export interface Series {
 /** A reference to an input number: a measured point of a series, or another calc by name. */
 export type Ref =
   | { readonly kind: "point"; readonly series: string; readonly period: string }
-  | { readonly kind: "calc"; readonly name: string };
+  | { readonly kind: "calc"; readonly name: string }
+  /** A fact that already exists in the job (e.g. an agent tool computing on top of the analysis). */
+  | { readonly kind: "fact"; readonly id: string };
 
 export interface Calc {
   readonly name: string; // unique within one insight/decomposition
@@ -42,3 +44,4 @@ export const isOther = (m: Series): boolean => m.member?.value === OTHER;
 
 export const point = (series: string, period: string): Ref => ({ kind: "point", series, period });
 export const calcRef = (name: string): Ref => ({ kind: "calc", name });
+export const factRef = (id: string): Ref => ({ kind: "fact", id });

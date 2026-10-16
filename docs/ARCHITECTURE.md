@@ -48,7 +48,7 @@ flowchart TB
 
 ## 2. Pipeline
 
-A job moves through fixed stages. Each stage reads from and writes to the job's DuckDB workspace, emits progress events, and checkpoints. A crashed job resumes from the last completed stage.
+A job moves through fixed stages. Each stage reads from and writes to the job's DuckDB workspace, emits progress events, and checkpoints. A crashed job resumes from the last completed stage. The interrupted stage first has its facts deleted (from the fact number it started at) and its own rows reset. Before PROFILE completes there is nothing to keep, so the workspace starts fresh. MEASURE runs the analysis library once (measure, detect and decompose in one deterministic pass). DETECT and DECOMPOSE are the checkpoints that report what it stored.
 
 ```mermaid
 stateDiagram-v2
@@ -109,6 +109,8 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | `claims` | every sentence-level claim in the draft report, with fact and citation refs |
 | `verification` | per-claim and per-number verification results |
 | `events` | progress log |
+| `job_stages` | pipeline checkpoints: status per stage, where its facts start, its small JSON output |
+| `job_meta` | the job's id and options (inputs are copied to `<job folder>/input/`) |
 
 ## 4. Packages
 
