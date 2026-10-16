@@ -1,0 +1,172 @@
+{
+  "suite": "smoke",
+  "model": "openai-compatible:groq:openai/gpt-oss-20b (small-model mode)",
+  "date": "2026-10-16",
+  "datasets": 3,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 279.72,
+      "tokens": {
+        "input": 30657,
+        "output": 14622
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": false,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": ["Q1", "Q2"],
+      "citationsChecked": 8,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 216.932,
+      "tokens": {
+        "input": 17690,
+        "output": 6320
+      },
+      "completed": false,
+      "error": "PROVIDER: DECIDE failed: Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 206.542,
+      "tokens": {
+        "input": 16175,
+        "output": 5623
+      },
+      "completed": false,
+      "error": "PROVIDER: DECIDE failed: Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 0.3333333333333333,
+      "bar": "100%",
+      "pass": false
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0,
+      "bar": "\u2265 80%",
+      "pass": false
+    },
+    {
+      "metric": "Driver accuracy",
+      "value": 0,
+      "bar": "\u2265 90%",
+      "pass": false
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "value": 1,
+      "bar": "\u2265 80%",
+      "pass": true
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "\u2264 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 0.5,
+      "bar": "\u2265 90%",
+      "pass": false
+    },
+    {
+      "metric": "Citation precision",
+      "value": 1,
+      "bar": "\u2265 95%",
+      "pass": true
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "bar": "100%"
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 0,
+      "bar": "\u2265 70%",
+      "pass": false
+    }
+  ],
+  "seconds": 703.232,
+  "tokens": {
+    "input": 64522,
+    "output": 26565
+  },
+  "note": "Groq free tier. Run before DECIDE degraded gracefully on invalid output: two jobs failed at DECIDE on Groq's own JSON validation (fixed since; rerun pending quota)."
+}

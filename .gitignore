@@ -9,8 +9,8 @@ data/
 *.duckdb
 *.duckdb.wal
 .DS_Store
-# Smoke runs are local; full-suite results are published (RESULTS.md is rebuilt from them)
-evals/results/*-smoke.json
+# Baseline smoke runs are local; full-suite and real-model results are published (RESULTS.md is rebuilt from them)
+evals/results/*-baseline-smoke.json
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/
