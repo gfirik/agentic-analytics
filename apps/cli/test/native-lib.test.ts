@@ -56,7 +56,7 @@ describe("stageNativeLib (standalone binary)", () => {
         platform: "linux",
         arch: "x64",
       }),
-    ).rejects.toMatchObject({ name: "Error", code: "NATIVE_LIB" });
+    ).rejects.toMatchObject({ name: "NativeLibError", code: "NATIVE_LIB" });
   });
 
   it("a staged path that can't be replaced (a folder in its place) is a typed error", async () => {

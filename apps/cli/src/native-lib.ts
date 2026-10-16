@@ -23,6 +23,7 @@ export interface StageOptions {
 /** Thrown when the embedded library can't be staged (a read-only cache, a full disk). */
 export class NativeLibError extends Error {
   readonly code = "NATIVE_LIB";
+  override readonly name = "NativeLibError";
 }
 
 const sizeOf = (path: string): number | undefined => {
@@ -75,7 +76,13 @@ export async function stageNativeLib(o: StageOptions): Promise<string> {
     } catch {
       // Best effort: a leftover .tmp is rewritten on the next start.
     }
-    if (sizeOf(target) === want) return target;
+    let staged: number | undefined;
+    try {
+      staged = sizeOf(target);
+    } catch {
+      // Fall through to the typed error below.
+    }
+    if (staged === want) return target;
     fail(err);
   }
   return target;

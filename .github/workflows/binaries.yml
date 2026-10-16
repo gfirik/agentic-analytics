@@ -8,6 +8,8 @@ on:
     paths:
       - scripts/build-binary.ts
       - apps/cli/src/native-lib.ts
+      - apps/cli/src/standalone.ts
+      - evals/runner/**
       - apps/cli/src/main.ts
       - .github/workflows/binaries.yml
       - .github/workflows/release.yml
@@ -55,7 +57,7 @@ jobs:
           grep -E "^Jobs completed: 100.0%" default.txt
           ls eval-results/*.json
           test -f eval-results/RESULTS.md
-          ! test -f RESULTS.md
+          test ! -f RESULTS.md
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
