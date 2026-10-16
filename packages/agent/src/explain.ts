@@ -1,0 +1,250 @@
+// EXPLAIN (agent-and-verifier §5). For each top finding: code states the observed change and its decomposition;
+// the planner investigates with the fixed tools, then writes candidate explanations with causal grades and the
+// alternatives it rejected. Its text is checked here before it enters the draft: placeholders must name known
+// facts, extract ids must be ones it was shown, and document_supported needs a cited document.
+// In small-model mode there is no tool loop: code runs one document search and the model fills a strict form.
+import type { StoredDecomposition, StoredInsight } from "@agentic-analytics/analysis";
+import type { ModelClient, ToolSet } from "@agentic-analytics/models";
+import { type Citation, type Claim, type Fact, type Finding, findFreeNumerals, placeholders } from "@agentic-analytics/schema";
+import { z } from "zod";
+import { contributionDrivers, decompositionClaims, findingType, observedClaim, q, severity } from "./claims.ts";
+import type { Extract } from "./extractor.ts";
+import { type FactSheet, sheetFact } from "./factsheet.ts";
+import { renderPrompt } from "./prompts.ts";
+import type { Budget, ToolContext } from "./tools.ts";
+
+const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
+const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
+const Text = z.string().min(3).max(600).refine(noNumerals, NUMERALS);
+const Grade = z.enum(["observed", "correlated", "document_supported", "intervention_supported"]);
+
+export const ExplainOutput = z.object({
+  title: z.string().min(3).max(160).refine(noNumerals, NUMERALS),
+  explanations: z
+    .array(z.object({ text: Text, facts: z.array(z.string()).max(12), extract_ids: z.array(z.string()).max(5), causal_grade: Grade }))
+    .max(4),
+  alternatives_rejected: z.array(z.object({ explanation: Text, reason: Text })).max(4),
+  confidence: z.enum(["high", "medium", "low"]),
+  confidence_reasons: z.array(Text).max(4),
+});
+export type ExplainOutput = z.infer<typeof ExplainOutput>;
+
+/** Small-model form: pick, don't write. Code turns the picks into sentences. */
+export const SmallExplainOutput = z.object({
+  title: z.string().min(3).max(160).refine(noNumerals, NUMERALS),
+  links: z.array(z.object({ extract_id: z.string(), causal_grade: z.enum(["correlated", "document_supported"]) })).max(3),
+  confidence: z.enum(["high", "medium", "low"]),
+});
+
+export interface Dropped {
+  readonly claim: string;
+  readonly reason: string;
+}
+
+export interface Downgraded {
+  readonly claim: string;
+  readonly from: string;
+  readonly to: string;
+  readonly reason: string;
+}
+
+export interface ExplainResult {
+  readonly findings: Finding[];
+  readonly dropped: Dropped[];
+  readonly downgraded: Downgraded[];
+  /** Which top insight each finding explains (finding id → insight id). */
+  readonly insightOf: Record<string, string>;
+}
+
+export interface ExplainOptions {
+  readonly small: boolean;
+  /** At most this many findings (5, or 3 in small-model mode). */
+  readonly maxFindings: number;
+  readonly log?: { info(msg: string, fields?: Record<string, unknown>): void; warn(msg: string, fields?: Record<string, unknown>): void };
+}
+
+const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
+
+function citationOf(e: Extract): Citation {
+  return { source_id: e.citation.source_id, quote: e.citation.quote };
+}
+
+/**
+ * A model claim enters the draft only if every fact it names exists and every placeholder is listed (fixed up
+ * here), every extract id is one it was shown, and its grade is backed: document_supported needs a document.
+ */
+function checkClaim(
+  c: { text: string; facts: string[]; extract_ids: string[]; causal_grade: Claim["causal_grade"] },
+  facts: ReadonlyMap<string, Fact>,
+  extracts: ReadonlyMap<string, Extract>,
+  dropped: Dropped[],
+  downgraded: Downgraded[],
+): Claim | undefined {
+  const ids = [...new Set([...c.facts, ...placeholders(c.text)])];
+  const unknownFact = ids.find((id) => !facts.has(id));
+  if (unknownFact) {
+    dropped.push({ claim: c.text, reason: `unknown fact ${unknownFact}` });
+    return undefined;
+  }
+  const unknownExtract = c.extract_ids.find((id) => !extracts.has(id));
+  if (unknownExtract) {
+    dropped.push({ claim: c.text, reason: `unknown or quarantined extract ${unknownExtract}` });
+    return undefined;
+  }
+  let grade = c.causal_grade ?? "correlated";
+  if ((RANK[grade] ?? 0) >= (RANK.document_supported ?? 2) && c.extract_ids.length === 0) {
+    downgraded.push({ claim: c.text, from: grade, to: "correlated", reason: "no source document cited" });
+    grade = "correlated";
+  }
+  return {
+    text: c.text,
+    facts: ids,
+    citations: c.extract_ids.map((id) => citationOf(extracts.get(id) as Extract)),
+    causal_grade: grade,
+    verified: false,
+  };
+}
+
+export async function explainFindings(
+  ctx: ToolContext,
+  tools: ToolSet,
+  budget: Budget,
+  model: ModelClient,
+  top: readonly StoredInsight[],
+  decompositions: readonly StoredDecomposition[],
+  sheet: FactSheet,
+  facts: () => Promise<Map<string, Fact>>,
+  options: ExplainOptions,
+): Promise<ExplainResult> {
+  const findings: Finding[] = [];
+  const dropped: Dropped[] = [];
+  const downgraded: Downgraded[] = [];
+  const insightOf: Record<string, string> = {};
+  for (const insight of top.slice(0, options.maxFindings)) {
+    budget.startFinding();
+    const id = `F${findings.length + 1}`;
+    const def = ctx.defs.find((d) => d.id === insight.metric);
+    const ds = decompositions.filter((d) => d.insight === insight.id);
+    const before = await facts();
+    const observed = [observedClaim(insight, ctx.defs, before), ...decompositionClaims(ds, before)].filter(
+      (c): c is Claim => c !== undefined,
+    );
+    const findingSheet = {
+      ...sheet,
+      insights: sheet.insights.filter((i) => i.id === insight.id),
+      decompositions: sheet.decompositions.filter((d) => d.insight === insight.id),
+    };
+    const brief = JSON.stringify({
+      id: insight.id,
+      template: insight.template,
+      metric: insight.metric,
+      ...(insight.member ? { member: insight.member } : {}),
+      period: insight.period,
+      observed: observed.map((c) => c.text),
+    });
+    const seen = ctx.found.extracts.length;
+
+    if (!options.small) {
+      const run = await model.generateWithTools({
+        role: "planner",
+        system: renderPrompt("explain", { finding: brief, factsheet: JSON.stringify(findingSheet), budget: String(budget.perFinding) }),
+        messages: [
+          { role: "user", content: `Investigate finding ${insight.id} (${insight.template}, ${insight.metric}, ${insight.period}).` },
+        ],
+        tools,
+        maxSteps: budget.perFinding,
+      });
+      // Tool errors went back to the planner as data; they are also logged so a failing tool is visible.
+      for (const step of run.steps)
+        for (const t of step.toolCalls) {
+          const err =
+            t.error ??
+            (t.output && typeof t.output === "object" && "error" in t.output ? String((t.output as { error: unknown }).error) : undefined);
+          if (err) options.log?.warn("tool call failed", { finding: id, tool: t.toolName, error: err });
+        }
+    } else {
+      // Small models call tools unreliably (§8): code runs the one search that matters.
+      const top = contributionDrivers(ds, before)?.drivers[0]?.label;
+      const query = [def?.label ?? insight.metric, top, insight.period].filter(Boolean).join(" ");
+      await (tools.search_documents as { execute(i: unknown): Promise<unknown> }).execute({ query });
+    }
+    const evidence = ctx.found.extracts.slice(seen);
+    const extracts = new Map(evidence.map((e) => [e.id, e]));
+    const after = await facts();
+    const newFacts = [...after.values()].filter((f) => !before.has(f.id)).map(sheetFact);
+    const evidenceText = JSON.stringify({
+      extracts: evidence.map((e) => ({ id: e.id, kind: e.kind, file: e.file, date: e.date, actor: e.actor, text: e.text, quote: e.quote })),
+      new_facts: newFacts,
+    });
+
+    let claims: Claim[] = [...observed];
+    let title: string;
+    let confidence: Finding["confidence"] = insight.confidence;
+    const reasons: string[] = [];
+    if (!options.small) {
+      const { object } = await model.generateObject({
+        role: "planner",
+        schema: ExplainOutput,
+        system: renderPrompt("explain-write", { finding: brief, factsheet: JSON.stringify(findingSheet), evidence: evidenceText }),
+        prompt: `Write the explanation for finding ${insight.id}.`,
+      });
+      title = object.title;
+      for (const e of object.explanations) {
+        const c = checkClaim({ ...e, causal_grade: e.causal_grade }, after, extracts, dropped, downgraded);
+        if (c) claims.push(c);
+      }
+      for (const a of object.alternatives_rejected) reasons.push(`Considered and rejected: ${a.explanation} (${a.reason})`);
+      reasons.push(...object.confidence_reasons);
+      confidence = lower(confidence, object.confidence);
+    } else {
+      const { object } = await model.generateObject({
+        role: "planner",
+        schema: SmallExplainOutput,
+        system: renderPrompt("explain-write", { finding: brief, factsheet: JSON.stringify(findingSheet), evidence: evidenceText }),
+        prompt: `Fill the form for finding ${insight.id}: a title, and which extracts (by id) relate to the change.`,
+      });
+      title = object.title;
+      for (const l of object.links) {
+        const e = extracts.get(l.extract_id);
+        const text = e ? `${q(e.file)} says: ${q(e.quote)}.` : l.extract_id;
+        const c = checkClaim(
+          { text, facts: [], extract_ids: [l.extract_id], causal_grade: l.causal_grade },
+          after,
+          extracts,
+          dropped,
+          downgraded,
+        );
+        if (c) claims.push(c);
+      }
+      confidence = lower(confidence, object.confidence);
+    }
+    if (insight.notes.length) reasons.push(...insight.notes.filter(noNumerals));
+    claims = claims.filter((c) => c.text.length > 0);
+    const drivers = contributionDrivers(ds, after)
+      ?.drivers.slice(0, 3)
+      .map((d) => ({ ...d, label: q(d.label) }));
+    const finding: Finding = {
+      id,
+      type: findingType(insight, def),
+      severity: severity(insight.score),
+      title,
+      claims,
+      ...(drivers?.length ? { drivers } : {}),
+      method: ds[0]?.method ?? insight.template,
+      confidence,
+      confidence_reasons: reasons.length
+        ? reasons
+        : [`Detected by the ${insight.template.replace(/\.v\d+$/, "").replace(/_/g, " ")} test with ${insight.confidence} confidence.`],
+      assumptions: [],
+    };
+    findings.push(finding);
+    insightOf[id] = insight.id;
+    options.log?.info("finding explained", { finding: id, insight: insight.id, claims: claims.length, extracts: evidence.length });
+  }
+  return { findings, dropped, downgraded, insightOf };
+}
+
+const LEVEL = { low: 0, medium: 1, high: 2 } as const;
+function lower(a: Finding["confidence"], b: Finding["confidence"]): Finding["confidence"] {
+  return LEVEL[a] <= LEVEL[b] ? a : b;
+}
