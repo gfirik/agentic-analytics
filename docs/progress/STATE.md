@@ -39,6 +39,8 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 - [M1] `aa doctor` calls the configured model with a one-line prompt — DEFERRED (no model configured); the code path is unit-tested with FakeModel and a stubbed OpenAI-format transport — `ollama pull qwen3.5:9b && bun run aa doctor` (or `GROQ_API_KEY=… PLANNER_MODEL=openai-compatible:groq:llama-3.3-70b-versatile bun run aa doctor`); expect `✓ model call  planner … replied "OK"`
 
+- [M2] Docling path for PDFs without a text layer against a real docling-serve — DEFERRED (service not running; client tested with a stub) — `docker compose --profile docling up -d && DOCLING_URL=http://localhost:5001 bun run ingest fixtures/docs/scanned.pdf`
+
 <!-- Format: - [M<N>] <criterion> — <reason> — `<exact command to run>` -->
 
 ## Decisions made by agents
@@ -70,6 +72,18 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M1] The Monthly sheet keeps a single header row (no merged header) so its rows match the blueprint citations r4–r5; merged and multi-row headers are covered by the M2 `fixtures/xlsx/` set instead — ingestion spec §3, blueprint §02 (plan said merged header; deviation recorded)
 - [M1] Structured outputs: Ollama gets `response_format: json_schema` (supported on its /v1 since 0.5); other OpenAI-compatible endpoints opt in with `structured_outputs: true` in config, and otherwise receive the JSON Schema in the system prompt plus json_object mode — specs/models.md §5
 
+- [M2] Ingestion returns an in-memory `IngestResult` (files, tables with sheet row numbers and A1 ranges, document sections with page and char offsets, issues); writing `sources`/`t_<id>` into DuckDB happens in M3's `packages/store` — ingestion spec §3.6, ROADMAP M3 ("after M2's table output format is fixed")
+- [M2] Region gap tolerance (1 row/column) can join neighbouring tables, so a joined region is split at an empty column when the right side is a table with its own label/date column or repeated header names, and at an empty row when the lower side has its own header row; spacer rows/columns inside one table fail those tests and stay joined — ingestion spec §3.1–3.2
+- [M2] Title/note rows (single filled cell) above a table and single-cell text rows under it are kept as table `notes`, not data; the table range excludes them — ingestion spec §3
+- [M2] Hidden sheets are read (their tables are included and flagged `hidden_sheet`) and noted as a low-severity issue — ingestion spec §3 acceptance list
+- [M2] A formula with no cached value is empty (null) plus a `missing_cached_value` issue; formulas are never evaluated — ingestion spec §2, security §5
+- [M2] Transposed tables pivot to `<label> | period | value`, each row carrying the A1 refs of its label, period header and value cells; a non-period column (e.g. Total) pivots with `is_total = true` — ingestion spec §3.5
+- [M2] CSV/TSV: the first row is the header; only plain decimals become numbers, locale formats (`1 234,50`, `01.03.2026`) stay text for M3 normalization — ingestion spec §6
+- [M2] PDF sections are one per page (offsets into the page text); DOCX/MD sections start at headings with nested heading paths; TXT sections are blank-line paragraphs; EML has one body section titled by the subject. Chunking for retrieval refines these in M6 — ingestion spec §4, retrieval spec §1
+- [M2] The coffee-roaster price-list PDF is authored without blank lines so authored text equals extracted text, and the golden fixture spans are checked against real extraction — M1 known gap resolved
+- [M2] Root script `bun run ingest <paths…>` is the ingestion demo — ROADMAP M2 demo
+- [M2] New dependencies, all free: `unpdf` (MIT; PDF text, the stack choice), `mammoth` (BSD-2; DOCX, stack), `mailparser` (MIT; EML, stack), `@types/mailparser` (MIT, dev) — AGENTS.md §3
+
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
@@ -77,6 +91,8 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M0] docker-compose images for searxng, docling and ollama use `:latest` — pin versions before M10/M12
 - [M0] `aa serve` doesn't exist yet, so the engine container runs `aa doctor` and exits — M10
 - [M1] `ModelClient.embed` throws `NOT_AVAILABLE` until the in-process transformers embedder lands — M6 (FakeModel embeds deterministically for tests)
-- [M1] Document char offsets in the golden fixture are relative to the authored page/body/notes text (`pageText`, `EMAIL_BODY`, `opsNotesText`); M2 extractors must produce the same text or the fixture spans need re-basing — M2
+- [M2] Parsing runs in-process with a per-file timeout; isolation in worker threads (security §5) needs a compiled worker entry and is planned with the server/Docker work — M10
+- [M2] Password-protected `.xlsx`/`.xls` map to `password_protected` by SheetJS error message, but there is no encrypted-workbook fixture (only the encrypted PDF is tested) — add one when a real encrypted file is available
+- [M2] Docling runs as a compose profile with a published port for local use; the spec's "no network" for the Docling container (internal-only network) is not configured yet — M10
 - [M1] Sign-vs-wording consistency ("fell" with a negative value) is caught today only by fixture tests; the verifier should check it for model-written claims — M9
 - [M1] The HTML renderer was checked structurally (happy-dom clicks, offline scan) but not reviewed visually in a real browser — review the rendered `packages/report/out/report.coffee-roaster.html` at the M1 notify gate
