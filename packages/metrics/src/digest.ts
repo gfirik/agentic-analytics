@@ -43,7 +43,16 @@ export function maskSample(value: string, label: string, index: number, type = "
   return value.length > 60 ? `${value.slice(0, 57)}…` : value;
 }
 
-export function buildDigest(summary: ProfileSummary): Digest {
+export interface DigestOptions {
+  /**
+   * The injection screen (security §3): a sample or label for which it returns true is withheld, so text
+   * addressed to a model never reaches the drafting model either.
+   */
+  readonly suspicious?: (text: string) => boolean;
+}
+
+export function buildDigest(summary: ProfileSummary, options: DigestOptions = {}): Digest {
+  const bad = options.suspicious ?? (() => false);
   return {
     grain: summary.grain,
     tables: summary.tables.map((t) => ({
@@ -53,11 +62,11 @@ export function buildDigest(summary: ProfileSummary): Digest {
       ...(t.date_column ? { date_column: t.date_column } : {}),
       columns: t.columns.map((c) => ({
         name: c.name,
-        label: c.label,
+        label: bad(c.label) ? `<withheld label: ${c.name}>` : c.label,
         type: c.type,
         ...(c.currency ? { currency: c.currency } : {}),
         distinct: c.distinct_count,
-        samples: c.top_values.slice(0, MAX_SAMPLES).map((v, i) => maskSample(v.value, c.label, i, c.type)),
+        samples: c.top_values.slice(0, MAX_SAMPLES).map((v, i) => (bad(v.value) ? "<withheld>" : maskSample(v.value, c.label, i, c.type))),
       })),
     })),
   };

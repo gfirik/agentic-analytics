@@ -115,6 +115,35 @@ All passes run on the draft report. Results are written to the `verification` ta
 | V7 grounding | Every recommendation cites verified findings; impact facts exist; check date is in the future; every finding has at least one verified claim | deterministic |
 | V8 external | Every web-derived claim cites an external source and is rendered as external | deterministic |
 
+**How each pass works (v0.1):**
+
+- **V2** re-runs every SQL fact with its stored parameters. It recomputes every function fact from its input facts through a registry that mirrors the analysis functions:
+  - `robust_z` and `share_shift` are checked by membership: the value must equal one of the candidates the inputs give;
+  - `pvm.v1` and `ratemix.v1` read their inputs in groups of four;
+  - impact ranges are recomputed from their amount and parameter facts;
+  - `scenario_param` is checked against the scenario's bounds;
+  - `external_quote` is re-parsed from its stored text.
+  A function without a rule counts as a mismatch. Cited input rows must exist in their table.
+- **V3** re-derives the headline measures, i.e. total facts of sum/count metrics referenced by finding claims or the headline. The alternate path is the metric grouped by its first dimension, summed in code. Ratios with metric numerator and denominator are re-derived the same way. Member-level facts are checked by V2 only.
+- **V1** also refuses digits inside quotation marks unless the quoted text comes from a cited source or is a name in the data (a fact label).
+- **V4:**
+  - each fact's metric exists with the same unit and currency;
+  - a measured fact's SQL and parameters are re-compiled from its definition for its period and member filter, and must be identical (period and filters);
+  - the lexicon uses metric labels and ids: a claim that names metrics, none of which its facts are measured from, is a violation. Derived facts are followed back through their inputs to the measured facts.
+  - a word of decline (EN/RU/UZ: fell, dropped, упал, kamaydi…) followed by a negative fact placeholder is a violation: a decline is stated as a magnitude.
+- **V5:**
+  - a fact's cited rows must be rows its metric actually reads for that period and member, found again with the metric's own row query (an engine bug otherwise, like V2);
+  - every quote must occur in its source's stored text;
+  - claims with quotes go to the judge (`prompts/judge.md`, yes/no) when a judge model is configured;
+  - otherwise the judge step is skipped and the check row says so.
+- **V6:**
+  - a `document_supported` or stronger grade without a document or email citation is downgraded to `correlated`;
+  - causal wording in a claim below that grade is rewritten (EN "because of" → "around the time of", "due to" → "alongside", "caused" → "coincided with"; RU "из-за" → "одновременно с"; UZ "sababli" → "bilan bir vaqtda").
+  - the lexicon also covers bare "because", "driven by", "drove", "triggered", "stemmed from", RU "благодаря", "повлекло", "стало причиной", and UZ "sabab bo'ldi";
+  - titles, the headline, actions and `not_advised` get the same rewrite unless their finding has a document-supported claim.
+  - Everything rewritten or downgraded is listed in `claims_downgraded`.
+- **V7** keeps a recommendation only when at least one of its findings survived, its impact facts exist, its check threshold is a fact, its check date is after the data, and (when it had any) at least one rationale claim survived. The cascade also prunes assumption `affects` and open-question `would_change` references to dropped items. The headline falls back to the first surviving finding's title when its placeholders no longer resolve.
+
 **Failure policy:**
 
 - **Drop:** a claim that fails V1, V4, V5 or V8.
@@ -123,7 +152,7 @@ All passes run on the draft report. Results are written to the `verification` ta
   - A finding left with no claims is dropped.
   - A recommendation that loses its grounding is dropped.
   - Every drop and downgrade is listed in `verification.claims_dropped` / `claims_downgraded`.
-- **V2/V3 mismatches** are engine bugs. The job fails loudly with a diagnostic bundle instead of shipping a report.
+- **V2/V3 mismatches** are engine bugs, and so are cited rows that don't exist. The job fails loudly with a diagnostic bundle (`<job>/diagnostics.json`) instead of shipping a report: `report.json` is only written by a passing VERIFY.
 
 ## 8. Small-model mode
 

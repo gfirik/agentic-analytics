@@ -110,6 +110,7 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | `verification` | per-claim and per-number verification results |
 | `events` | progress log |
 | `job_stages` | pipeline checkpoints: status per stage, where its facts start, its small JSON output |
+| `quarantine` | sources quarantined for text addressed to a model (by the INDEX_DOCS screen or the extractor) |
 | `job_meta` | the job's id and options (inputs are copied to `<job folder>/input/`) |
 
 ## 4. Packages

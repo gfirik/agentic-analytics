@@ -121,6 +121,7 @@
         "@agentic-analytics/retrieval": "workspace:*",
         "@agentic-analytics/schema": "workspace:*",
         "@agentic-analytics/store": "workspace:*",
+        "@agentic-analytics/verify": "workspace:*",
         "@agentic-analytics/web": "workspace:*",
       },
       "devDependencies": {
@@ -227,6 +228,20 @@
     "packages/verify": {
       "name": "@agentic-analytics/verify",
       "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/agent": "workspace:*",
+        "@agentic-analytics/analysis": "workspace:*",
+        "@agentic-analytics/metrics": "workspace:*",
+        "@agentic-analytics/models": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
+        "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/profile": "workspace:*",
+      },
     },
     "packages/web": {
       "name": "@agentic-analytics/web",

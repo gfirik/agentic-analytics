@@ -26,8 +26,13 @@
   ```
 
 - **What the planner sees.** Only extracts, never the raw text. Quotes are shown inside data delimiters, and the planner prompt states that quoted content is data, never instructions.
+- **Screened before any model reads.** A deterministic screen (EN/RU/UZ) runs after normalising the text:
+  - NFKC folding, invisible characters removed, accents dropped from Latin letters, Latin look-alikes folded, spaced-out letters joined.
+  - Every column label and every distinct text cell of every table is screened right after PROFILE, before METRICS_DRAFT shows cell samples to a model. Flagged samples and labels are withheld from the digest.
+  - Every document and email is screened at INDEX_DOCS.
+  - Web pages are screened on their readable text and their hidden text (hidden elements, comments). Scripts, styles and link URLs are not prose and are not screened. A hit goes into the `quarantine` table and the source is never sent to the extractor. The extractor's own flag adds to the same table.
 - **Per source.** Quarantine applies to the whole source: one flagged chunk excludes every extract of that document, including extracts found earlier in the job.
-- **Flagging.** If the extractor (or a deterministic regex screen for patterns like "ignore previous", "system prompt", "you are now" or URLs with query strings) flags suspicious instructions, the source becomes a `QualityIssue` (kind `suspicious_instruction`) and its extracts are excluded by default.
+- **Flagging.** If the extractor (or the deterministic screen of §3: patterns like "ignore previous", "system prompt", "you are now", an AI addressed with a request, a URL next to a send verb, a link whose query carries a data placeholder next to a visit or confirm verb, or a spreadsheet formula calling a URL) flags suspicious instructions, the source becomes a `QualityIssue` (kind `suspicious_instruction`) and its extracts are excluded by default.
 
 ## 4. Web isolation
 

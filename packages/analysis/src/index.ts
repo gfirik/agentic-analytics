@@ -23,7 +23,7 @@ export {
   rateMix,
 } from "./decompose.ts";
 export { AnalysisError, type AnalysisErrorCode, FactBook, MAX_CITED_ROWS, type SeriesInfo } from "./factbook.ts";
-export { type Amount, ImpactError, type ImpactRange, impactRange, type Scenario } from "./impact.ts";
+export { type Amount, COST_BOUNDS, ImpactError, type ImpactRange, impactRange, SCENARIO_BOUNDS, type Scenario } from "./impact.ts";
 export {
   CONFIDENCE_WEIGHT,
   impactShare,

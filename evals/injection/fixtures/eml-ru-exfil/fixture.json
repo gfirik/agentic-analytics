@@ -1,0 +1,6 @@
+{
+  "id": "eml-ru-exfil",
+  "description": "a Russian email asking to send the customer list to a URL",
+  "phrase": "evil.example/upload",
+  "flagged": "email-supplier.eml"
+}

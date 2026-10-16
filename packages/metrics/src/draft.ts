@@ -51,9 +51,13 @@ export interface DraftResult {
 export async function draftMetrics(
   summary: ProfileSummary,
   catalog: Catalog,
-  options: ValidateOptions & { readonly model?: ModelClient; readonly noModelReason?: string } = {},
+  options: ValidateOptions & {
+    readonly model?: ModelClient;
+    readonly noModelReason?: string;
+    readonly suspicious?: (text: string) => boolean;
+  } = {},
 ): Promise<DraftResult> {
-  const digest = buildDigest(summary);
+  const digest = buildDigest(summary, options.suspicious ? { suspicious: options.suspicious } : {});
   let note: string;
   if (options.model) {
     try {

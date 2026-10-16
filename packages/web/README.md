@@ -20,9 +20,9 @@ The web lane: search providers (SearXNG first), the query sanitizer, the safe fe
   - manual redirects, re-checked each time, at most 3;
   - a 10 s timeout, a 3 MB cap, and text types only.
   - `checkUrl` runs the URL checks alone.
-- `htmlToText(html)` returns `{ title, text }`: visible text only, with scripts, navigation and hidden elements dropped.
+- `htmlToText(html)` returns `{ title, text, hidden }`: `text` is the visible text only (scripts, navigation and hidden elements dropped); `hidden` is the text of hidden and white-on-white elements, kept only so the injection screen can read it.
 - `searxngProvider({ baseUrl })` is a `SearchProvider` over SearXNG's JSON API. `docker compose --profile web up -d searxng` starts one with JSON enabled (`docker/searxng/settings.yml`).
-- `webSearch(query, { provider, terms, fetchPage? })` runs sanitize → search → fetch the top pages → readable text. It returns `{ query (as sent), removed, pages, skipped }`.
+- `webSearch(query, { provider, terms, fetchPage? })` runs sanitize → search → fetch the top pages → readable text. It returns `{ query (as sent), removed, pages, skipped }`; each `WebPage` carries `text` and `hidden` (never the raw HTML).
 - Typed errors: `WebError` with codes `BAD_URL`, `BLOCKED_ADDRESS`, `PRIVATE_VALUE`, `TOO_LARGE`, `TIMEOUT`, `TOO_MANY_REDIRECTS`, `HTTP_STATUS`, `NOT_TEXT`, `FETCH_FAILED` and `PROVIDER`.
 
 ## Example

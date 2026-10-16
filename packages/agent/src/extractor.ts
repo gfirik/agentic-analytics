@@ -8,6 +8,7 @@ import type { Citation } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
 import { renderPrompt } from "./prompts.ts";
+import { screen } from "./screen.ts";
 
 export const ExtractOutput = z.object({
   events: z
@@ -42,20 +43,7 @@ export interface Extract {
   readonly citation: Citation & { readonly char_start: number; readonly char_end: number; readonly page?: number };
 }
 
-/** Patterns that address a model or exfiltrate data (security spec §3). Matching text is quarantined. */
-const SUSPICIOUS = [
-  /\bignore\b[^.\n]{0,40}\b(instructions?|previous|prior|above)\b/i,
-  /\bdisregard\b[^.\n]{0,40}\b(instructions?|previous|prior|above)\b/i,
-  /\bsystem prompt\b/i,
-  /\byou are now\b/i,
-  /\b(assistant|AI|model|LLM)\s*[:,]\s*(please\s+)?(report|say|write|state|output)\b/i,
-  /https?:\/\/[^\s?]+\?[^\s]*=/i,
-  /игнорируй|забудь (все|предыдущие) инструкции/i,
-];
-
-export function screen(text: string): boolean {
-  return SUSPICIOUS.some((re) => re.test(text));
-}
+export { screen } from "./screen.ts";
 
 export interface ExtractResult {
   readonly extracts: Extract[];
@@ -85,6 +73,13 @@ export async function extractFromHits(
   let droppedQuotes = 0;
   let n = await nextExtract(ws);
   for (const hit of hits) {
+    // A source already quarantined is never read by a model again.
+    if (quarantined.has(hit.source_id)) continue;
+    if (screen(hit.text)) {
+      quarantined.add(hit.source_id);
+      await quarantine(ws, hit.source_id, "text addressed to a model", "screen");
+      continue;
+    }
     const { object } = await model.generateObject({
       role: "extractor",
       schema: ExtractOutput,
@@ -92,7 +87,7 @@ export async function extractFromHits(
       // The data can't close its own block: a literal "</document>" in the text is neutralised.
       prompt: `<document source="${hit.file.replace(/["<>]/g, "_")}">\n${hit.text.replace(/<\/?document/gi, "‹document")}\n</document>`,
     });
-    const suspicious = object.suspicious_instructions || screen(hit.text);
+    const suspicious = object.suspicious_instructions;
     const items = [
       ...object.events.map((e) => ({ kind: "event" as const, text: e.what, quote: e.quote, date: e.date, actor: e.actor })),
       ...object.statements.map((s) => ({ kind: "statement" as const, text: s.claim, quote: s.quote, topic: s.topic })),
@@ -128,6 +123,7 @@ export async function extractFromHits(
     }
     if (suspicious) {
       quarantined.add(hit.source_id);
+      await quarantine(ws, hit.source_id, "the extractor flagged instructions", "extractor");
       // Mark the source's other extracts too, so later readers (DECIDE, the report) exclude them by row.
       await ws.run(sql`UPDATE extracts SET suspicious = true WHERE source_id = ${hit.source_id}`);
     }
@@ -137,18 +133,25 @@ export async function extractFromHits(
   return { extracts, quarantined: [...quarantined].filter((s) => touched.has(s)), droppedQuotes };
 }
 
-/** Sources with at least one suspicious extract. */
+/** Sources quarantined by the screen or the extractor (security §3). */
 export async function quarantinedSources(ws: Workspace): Promise<string[]> {
-  return (await ws.all<{ source_id: string }>(sql`SELECT DISTINCT source_id FROM extracts WHERE suspicious ORDER BY source_id`)).map(
-    (r) => r.source_id,
-  );
+  return (
+    await ws.all<{ source_id: string }>(
+      sql`SELECT source_id FROM quarantine UNION SELECT source_id FROM extracts WHERE suspicious ORDER BY source_id`,
+    )
+  ).map((r) => r.source_id);
+}
+
+/** Records a quarantined source (idempotent). */
+export async function quarantine(ws: Workspace, sourceId: string, reason: string, detectedBy: "screen" | "extractor"): Promise<void> {
+  await ws.run(sql`INSERT OR IGNORE INTO quarantine VALUES (${sourceId}, ${reason}, ${detectedBy})`);
 }
 
 /** Stored, non-suspicious extracts by id (for citing them in claims). */
 export async function readExtracts(ws: Workspace): Promise<Map<string, Extract>> {
   const rows = await ws.all<{ payload: string }>(
     sql`SELECT payload::VARCHAR AS payload FROM extracts
-        WHERE source_id NOT IN (SELECT source_id FROM extracts WHERE suspicious)`,
+        WHERE source_id NOT IN (SELECT source_id FROM extracts WHERE suspicious UNION SELECT source_id FROM quarantine)`,
   );
   return new Map(rows.map((r) => JSON.parse(r.payload) as Extract).map((e) => [e.id, e]));
 }

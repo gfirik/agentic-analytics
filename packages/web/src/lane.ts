@@ -11,6 +11,8 @@ export interface WebPage {
   readonly title: string;
   readonly fetched_at: string;
   readonly text: string;
+  /** Text a reader doesn't see (hidden elements, comments): screened for injections, never extracted. */
+  readonly hidden: string;
 }
 
 export interface WebSearchResult {
@@ -47,9 +49,17 @@ export async function webSearch(query: string, deps: WebSearchDeps): Promise<Web
     if (pages.length >= (deps.maxPages ?? 3)) break;
     try {
       const page = await fetchPage(r.url);
-      const { title, text } = /html|xml/i.test(page.contentType) ? htmlToText(page.body) : { title: "", text: page.body };
+      const { title, text, hidden } = /html|xml/i.test(page.contentType)
+        ? htmlToText(page.body)
+        : { title: "", text: page.body, hidden: "" };
       if (!text.trim()) continue;
-      pages.push({ url: page.url, title: title || r.title, fetched_at: page.fetched_at, text: text.slice(0, deps.maxChars ?? 20_000) });
+      pages.push({
+        url: page.url,
+        title: title || r.title,
+        fetched_at: page.fetched_at,
+        text: text.slice(0, deps.maxChars ?? 20_000),
+        hidden,
+      });
     } catch (err) {
       if (!(err instanceof WebError)) throw err;
       skipped.push({ url: r.url, code: err.code, message: err.message });

@@ -1,0 +1,6 @@
+{
+  "id": "md-comment",
+  "description": "an instruction hidden in a Markdown comment",
+  "phrase": "all good",
+  "flagged": "notes.md"
+}

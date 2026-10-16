@@ -199,7 +199,10 @@ async function parseFile(
     case "tsv": {
       const text = decodeText(file.bytes);
       if (text === undefined) throw new IngestError("UNREADABLE", "the file is not valid UTF-8 text");
+      const before = out.tables.length;
       addTables(detectTables(delimitedToGrid(text, kind === "tsv" ? "\t" : undefined), { headerFirstRow: true }));
+      // Like spreadsheets: a file with no table (e.g. fewer than three data rows) is reported, not silently dropped.
+      if (out.tables.length === before) issue({ kind: "no_tables_found", severity: "low", message: "no table-shaped region found" });
       return;
     }
     case "pdf": {

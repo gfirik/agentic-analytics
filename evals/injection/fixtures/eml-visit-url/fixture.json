@@ -1,0 +1,6 @@
+{
+  "id": "eml-visit-url",
+  "description": "an email asking to visit a URL with data appended",
+  "phrase": "evil.example/collect",
+  "flagged": "email-supplier.eml"
+}

@@ -16,7 +16,11 @@ import {
   explainFindings,
   type OpenQuestionDraft,
   privateTerms,
+  quarantinedSources,
   readExtracts,
+  screen,
+  screenDocuments,
+  screenTables,
   type ToolContext,
   writeHeadline,
 } from "@agentic-analytics/agent";
@@ -28,6 +32,7 @@ import { type ProfileSummary, periodOf, profileJob } from "@agentic-analytics/pr
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
+import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
 import { type Logger, silentLogger } from "./log.ts";
@@ -83,7 +88,11 @@ export interface RunJobInput {
 export interface JobOutcome {
   readonly jobId: string;
   readonly draftPath: string;
+  /** The verified report (report.json). */
+  readonly reportPath: string;
   readonly report: Report;
+  /** The unverified draft (report.draft.json), as EXPLAIN/DECIDE wrote it. */
+  readonly draft: Report;
   readonly run: RunResult;
 }
 
@@ -190,8 +199,17 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       },
       {
         stage: "PROFILE",
-        run: async () => {
+        run: async (ctx) => {
           const summary = await profileJob(ws, ingested ?? (await ingest(readInputs(dir))), { today: opts.today });
+          // Tables are screened now, before METRICS_DRAFT shows cell samples to a model (security §3).
+          const t = await screenTables(ws);
+          if (t.quarantined.length)
+            await ctx.bus.emit({
+              type: "warning",
+              stage: "PROFILE",
+              code: "QUARANTINED",
+              message: `${t.quarantined.length} table(s) quarantined for text addressed to a model`,
+            });
           return summary;
         },
       },
@@ -206,6 +224,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const draft = await draftMetrics(summary, catalog, {
             ...(opts.currency ? { defaultCurrency: opts.currency } : {}),
             model: deps.model,
+            suspicious: screen,
           });
           const grain = summary.grain as Grain;
           const bounds = summary.tables.flatMap((t) => (t.date_first && t.date_last ? [t.date_first, t.date_last] : [])).sort();
@@ -249,7 +268,22 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       },
       {
         stage: "INDEX_DOCS",
-        run: async () => indexDocuments(ws, deps.embedder),
+        reset: async (w) => {
+          await w.run(sql`DELETE FROM quarantine WHERE source_id IN (SELECT id FROM sources WHERE kind IN ('document', 'email'))`);
+        },
+        run: async (ctx) => {
+          // Screen every document and email before any model can read it (security §3); tables were screened
+          // after PROFILE.
+          const screened = await screenDocuments(ws);
+          if (screened.quarantined.length)
+            await ctx.bus.emit({
+              type: "warning",
+              stage: "INDEX_DOCS",
+              code: "QUARANTINED",
+              message: `${screened.quarantined.length} source(s) quarantined for text addressed to a model`,
+            });
+          return { ...(await indexDocuments(ws, deps.embedder)), quarantined: screened.quarantined };
+        },
       },
       {
         stage: "WEB_CONTEXT",
@@ -272,6 +306,8 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           await w.run(sql`DELETE FROM extracts`);
           await w.run(sql`DELETE FROM web_results`);
           await w.run(sql`DELETE FROM sources WHERE kind = 'web'`);
+          // Quarantine rows EXPLAIN created (extractor flags, web pages); INDEX_DOCS' screen rows stay.
+          await w.run(sql`DELETE FROM quarantine WHERE detected_by = 'extractor' OR source_id LIKE 'W%'`);
         },
         run: async (ctx) => {
           const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
@@ -389,7 +425,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             recommendations: d.recommendations as Recommendation[],
             analysisQuestions: measured.openQuestions,
             askedQuestions: ex.questions,
-            quarantined: ex.quarantined,
+            quarantined: await quarantinedSources(ws),
             dropped: [...ex.dropped, ...d.dropped],
             downgraded: ex.downgraded,
             facts: await factMap(),
@@ -408,14 +444,59 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           return { findings: report.findings.length, recommendations: report.recommendations.length, facts: report.facts.length };
         },
       },
-      { stage: "VERIFY", skip: () => "the verifier is built in M9", run: async () => null },
+      {
+        stage: "VERIFY",
+        run: async (ctx) => {
+          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
+          // Outputs of an earlier attempt must not outlive this one.
+          rmSync(join(dir, "report.json"), { force: true });
+          rmSync(join(dir, "diagnostics.json"), { force: true });
+          try {
+            const r = await verifyReport(draft, {
+              ws,
+              defs: m.defs,
+              catalog: await loadCatalog(ws),
+              grain: m.range.grain,
+              periodEnd: m.periodEnd,
+              judge: deps.model,
+            });
+            await persistChecks(ws, r.checks);
+            const valid = validateReport(r.report);
+            if (!valid.ok)
+              throw new JobError(
+                "INVALID_DRAFT",
+                `the verified report breaks the schema: ${valid.issues[0]?.path} ${valid.issues[0]?.message}`,
+                valid.issues,
+              );
+            writeFileSync(join(dir, "report.json"), `${JSON.stringify(r.report, null, 2)}\n`);
+            const v = r.report.verification;
+            return {
+              numbers_checked: v.numbers_checked,
+              rederived: v.rederived_metrics,
+              dropped: v.claims_dropped.length,
+              downgraded: v.claims_downgraded.length,
+            };
+          } catch (err) {
+            // V2/V3 mismatches are engine bugs (§7): nothing ships; the evidence goes to a diagnostic bundle.
+            if (err instanceof VerifyError)
+              writeFileSync(
+                join(dir, "diagnostics.json"),
+                `${JSON.stringify({ code: err.code, message: err.message, detail: err.diagnostic }, null, 2)}\n`,
+              );
+            throw err;
+          }
+        },
+      },
       { stage: "RENDER", skip: () => "the final renderer is built in M10", run: async () => null },
     ];
 
     const run = await runPipeline(ws, bus, log, stages);
-    await bus.emit({ type: "done", report_path: join(dir, "report.draft.json") });
-    const report = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
-    return { jobId: id, draftPath: join(dir, "report.draft.json"), report, run };
+    const reportPath = join(dir, "report.json");
+    await bus.emit({ type: "done", report_path: reportPath });
+    const report = JSON.parse(readFileSync(reportPath, "utf8")) as Report;
+    const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
+    return { jobId: id, draftPath: join(dir, "report.draft.json"), reportPath, report, draft, run };
   } finally {
     ws.close();
   }

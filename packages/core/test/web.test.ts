@@ -5,10 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { privateTerms } from "@agentic-analytics/agent";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
+import { loadCatalog } from "@agentic-analytics/metrics";
 import type { GenerateObjectArgs, ModelClient } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
-import { checkReportIntegrity, type Report } from "@agentic-analytics/schema";
+import { checkReportIntegrity, type MetricDef, type Report } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
+import { verifyReport } from "@agentic-analytics/verify";
 import { leaksPrivate } from "@agentic-analytics/web";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type JobOutcome, runJob } from "../src/index.ts";
@@ -53,7 +55,7 @@ describe("web-enabled run (M8 acceptance)", () => {
   });
 
   it("never fetches a private address the provider returned", () => {
-    expect(web.fetched).toEqual(["https://coffee-benchmarks.example/refunds"]);
+    expect(web.fetched).toEqual(["https://coffee-benchmarks.example/refunds", "https://roaster-forum.example/thread"]);
   });
 
   it("labels external sources, claims and facts", () => {
@@ -78,6 +80,14 @@ describe("web-enabled run (M8 acceptance)", () => {
     expect(external.every((f) => f?.citations[0]?.source_id === w?.id)).toBe(true);
   });
 
+  it("a page hiding an instruction is quarantined as a whole and flagged", () => {
+    const forum = report.sources.find((x) => x.file === "https://roaster-forum.example/thread");
+    expect(forum).toMatchObject({ kind: "web", external: true });
+    expect(report.data_quality.some((q) => q.kind === "suspicious_instruction" && q.citations[0]?.source_id === forum?.id)).toBe(true);
+    const cited = report.findings.flatMap((f) => f.claims).flatMap((c) => c.citations.map((x) => x.source_id));
+    expect(cited).not.toContain(forum?.id);
+  });
+
   it("the hidden instruction on the page never reached the extractor (or anything else)", () => {
     const extractorPrompts = model.calls.filter((c) => c.role === "extractor").map((c) => c.prompt);
     expect(extractorPrompts.some((p) => p.includes("refunds of 1–2% of sales"))).toBe(true);
@@ -88,6 +98,28 @@ describe("web-enabled run (M8 acceptance)", () => {
   it("the planner sees the web result's site, never its URL path", () => {
     const planner = model.calls.filter((c) => c.role === "planner").map((c) => `${c.system ?? ""}${c.prompt}`);
     expect(planner.some((p) => p.includes("/refunds"))).toBe(false);
+  });
+});
+
+describe("V8: external numbers need their web source", () => {
+  it("the verified report keeps the cited benchmark claim; without its web citation it is dropped", async () => {
+    const claimText = (r: Report) => r.findings.flatMap((f) => f.claims).find((c) => c.text.includes("percentage points above the range"));
+    expect(claimText(out.report)?.verified).toBe(true);
+    const ws = await Workspace.open(join(dir, "job.duckdb"));
+    try {
+      const m = await ws.one<{ output: string }>(sql`SELECT output::VARCHAR AS output FROM job_stages WHERE stage = 'METRICS_DRAFT'`);
+      const defs = (JSON.parse(m?.output ?? "{}") as { defs: MetricDef[] }).defs;
+      const d = JSON.parse(JSON.stringify(out.draft)) as Report;
+      const c = claimText(d) as Report["findings"][number]["claims"][number];
+      c.citations = [];
+      const r = await verifyReport(d, { ws, defs, catalog: await loadCatalog(ws), grain: "month", periodEnd: "2026-06-30" });
+      expect(r.report.verification.claims_dropped).toContainEqual({
+        claim: c.text,
+        reason: "V8: uses an external number without citing its web source",
+      });
+    } finally {
+      ws.close();
+    }
   });
 });
 
@@ -120,8 +152,9 @@ describe("resume after an EXPLAIN that already searched the web", () => {
     expect(r.run.resumed).toEqual(["EXPLAIN"]);
     const ws = await Workspace.open(join(d, "job.duckdb"));
     const n = async (q: ReturnType<typeof sql>) => (await ws.one<{ n: number }>(q))?.n;
-    expect(await n(sql`SELECT count(*) AS n FROM sources WHERE kind = 'web'`)).toBe(1);
-    expect(await n(sql`SELECT count(*) AS n FROM web_results`)).toBe(1);
+    // Two pages fetched once each (the benchmark page and the quarantined forum page), not twice.
+    expect(await n(sql`SELECT count(*) AS n FROM sources WHERE kind = 'web'`)).toBe(2);
+    expect(await n(sql`SELECT count(*) AS n FROM web_results`)).toBe(2);
     expect(await n(sql`SELECT count(*) AS n FROM facts WHERE fn = 'external_quote'`)).toBe(2);
     ws.close();
     expect(checkReportIntegrity(r.report)).toEqual([]);

@@ -115,8 +115,9 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
       "INDEX_DOCS",
       "EXPLAIN",
       "DECIDE",
+      "VERIFY",
     ]);
-    expect(out.run.skipped).toEqual(["AWAIT_CONFIRM", "WEB_CONTEXT", "VERIFY", "RENDER"]);
+    expect(out.run.skipped).toEqual(["AWAIT_CONFIRM", "WEB_CONTEXT", "RENDER"]);
     // the extractor saw document text; the planner never did
     const planner = model.calls.filter((c) => c.role === "planner").map((c) => `${c.system ?? ""}${c.prompt}`);
     expect(planner.some((p) => p.includes("we are pausing our standing order while we compare suppliers"))).toBe(true); // only as an extract quote
