@@ -21,6 +21,7 @@ import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { formatEvent, runCommand } from "./run.ts";
+import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -32,7 +33,7 @@ const doctor = defineCommand({
   async run() {
     const file = configFile();
     const results = await runDoctor({
-      nodeVersion: process.version,
+      nodeVersion: runtimeVersion(process.env, process.versions, process.version),
       duckdbVersion,
       fetch: globalThis.fetch,
       env: process.env,
@@ -56,6 +57,16 @@ const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
 
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
+/** The embedder for a run: see embedderChoice (standalone.ts) for the binary's default. */
+function pickEmbedder(arg: string | undefined, configured: string, cacheDir: string) {
+  const choice = embedderChoice(arg, process.env);
+  if (choice.kind === "hash") {
+    if (choice.notice) process.stderr.write(`${choice.notice}\n`);
+    return hashEmbedder();
+  }
+  return transformersEmbedder({ model: choice.model ?? configured, cacheDir });
+}
+
 function runtime(embedderArg?: string) {
   const config = resolveModelConfig(process.env, configFile());
   // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
@@ -63,8 +74,7 @@ function runtime(embedderArg?: string) {
   if (scripted) process.stderr.write("Scripted demo model (no LLM): a deterministic replay for examples/coffee-roaster.\n");
   const model: ModelClient = scripted ? coffeePlanner() : createModelClient(config, { env: process.env });
   const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-  const embedder =
-    embedderArg === "hash" ? hashEmbedder() : transformersEmbedder({ model: embedderArg ?? config.models.embedder.model, cacheDir });
+  const embedder = pickEmbedder(embedderArg, config.models.embedder.model, cacheDir);
   const planner = config.models.planner;
   const plannerProfile = profileFor(
     planner.provider === "openai-compatible"
@@ -215,7 +225,7 @@ const serveCmd = defineCommand({
       if (cached && Date.now() - cached.at < 60_000) return cached.value;
       const file = configFile();
       const results = await runDoctor({
-        nodeVersion: process.version,
+        nodeVersion: runtimeVersion(process.env, process.versions, process.version),
         duckdbVersion,
         fetch: globalThis.fetch,
         env: process.env,
@@ -240,10 +250,13 @@ const serveCmd = defineCommand({
       ],
       health,
       mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
-      viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
+      // The binary carries no viewer build: the API, MCP and report.html still work.
+      ...(isStandalone(process.env) ? {} : { viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)) }),
       version: ENGINE_VERSION,
     });
-    print(`agentic-analytics API on ${s.url} (viewer at /, OpenAPI at /openapi.json, MCP at /mcp)`);
+    print(
+      `agentic-analytics API on ${s.url} (${isStandalone(process.env) ? "no viewer in the standalone binary" : "viewer at /"}, OpenAPI at /openapi.json, MCP at /mcp)`,
+    );
   },
 });
 
@@ -305,12 +318,19 @@ const evalCmd = defineCommand({
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
+    "results-dir": { type: "string", description: "Where results files and RESULTS.md go (default evals/results)" },
   },
   async run({ args }) {
     const model = args.model ?? "baseline";
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const resultsDir = fileURLToPath(new URL("../../../evals/results", import.meta.url));
+    const where = resultsLocation(
+      args["results-dir"],
+      process.env,
+      process.cwd(),
+      fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+    );
     const deps = {
+      // Evals default to the hash embedder everywhere (deterministic, no download), unlike analyze.
       embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
       print,
       modelFor: (name: string) => {
@@ -323,7 +343,8 @@ const evalCmd = defineCommand({
       const r = await realEvalCommand(
         {
           model,
-          resultsDir,
+          resultsDir: where.dir,
+          ...(where.page ? { resultsPage: where.page } : {}),
           dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
           answersDir: fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
           ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
@@ -339,7 +360,8 @@ const evalCmd = defineCommand({
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
-        resultsDir,
+        resultsDir: where.dir,
+        ...(where.page ? { resultsPage: where.page } : {}),
       },
       deps,
     );
@@ -423,8 +445,7 @@ const run = defineCommand({
     );
     const model = createModelClient(config, { env: process.env });
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const embedder =
-      args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder ?? config.models.embedder.model, cacheDir });
+    const embedder = pickEmbedder(args.embedder, config.models.embedder.model, cacheDir);
     const dir =
       resume ??
       args.dir ??

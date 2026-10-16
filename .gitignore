@@ -30,3 +30,6 @@ apps/docs/.astro/
 # Playwright run output
 test-results/
 playwright-report/
+
+# Standalone binary build (scripts/build-binary.ts)
+apps/cli/native/

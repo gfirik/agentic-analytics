@@ -38,6 +38,7 @@ bun run aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-
 - `--embedder hash` skips the 1 GB embedding-model download for a first run. Drop it for better document search.
 - `--yes` keeps the drafted metric definitions as assumptions. Without it you review them first.
 - Docker: `docker compose up` starts the API, the viewer and MCP on `http://127.0.0.1:8080`.
+- No Node or Bun: each release attaches a standalone `aa` binary (Linux x64/arm64, macOS arm64, Windows x64) with `SHA256SUMS`. It runs every command except the viewer at `/`, and indexes documents with the offline hash embedder (lexical); use Docker or the Node CLI for semantic document search.
 
 Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/quickstart/).
 

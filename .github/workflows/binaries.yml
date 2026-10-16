@@ -1,0 +1,67 @@
+name: binaries
+
+# The standalone `aa` CLI binaries (scripts/build-binary.ts): built on one native runner per target and smoke tested
+# from outside the repo. Called by release.yml on a v* tag; also runs on pull requests that touch the build.
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - scripts/build-binary.ts
+      - apps/cli/src/native-lib.ts
+      - apps/cli/src/standalone.ts
+      - evals/runner/**
+      - apps/cli/src/main.ts
+      - .github/workflows/binaries.yml
+      - .github/workflows/release.yml
+      - package.json
+      - bun.lock
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, name: aa-linux-x64 }
+          - { runner: ubuntu-24.04-arm, name: aa-linux-arm64 }
+          - { runner: macos-14, name: aa-macos-arm64 }
+          - { runner: windows-latest, name: aa-windows-x64.exe }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun scripts/build-binary.ts
+      # Smoke test the binary itself, from outside the repo: DuckDB loads (doctor), and a full offline job runs
+      # (ingest → DuckDB → analysis → verifier → report) on the scripted baseline.
+      - name: smoke test
+        run: |
+          bin="$GITHUB_WORKSPACE/dist/bin/${{ matrix.name }}"
+          cd "$RUNNER_TEMP"
+          "$bin" doctor | tee doctor.txt
+          grep -E "✓ duckdb" doctor.txt
+          "$bin" eval --suite smoke --model baseline --results-dir "$RUNNER_TEMP/results" | tee eval.txt || true
+          grep -E "^Jobs completed: 100.0%" eval.txt
+          grep -E "^Number mismatches: 0 " eval.txt
+          # Without --results-dir the binary writes to ./eval-results (it has no source checkout next to it).
+          "$bin" eval --suite smoke --model baseline > default.txt || true
+          grep -E "^Jobs completed: 100.0%" default.txt
+          ls eval-results/*.json
+          test -f eval-results/RESULTS.md
+          test ! -f RESULTS.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/bin/${{ matrix.name }}
+            dist/bin/${{ matrix.name }}.sha256
+          if-no-files-found: error

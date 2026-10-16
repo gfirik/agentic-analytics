@@ -16,8 +16,10 @@ export interface EvalArgs {
   /** "baseline" (the scripted heuristic, no LLM) or a model name used for every role. */
   readonly model: string;
   readonly smallModel?: boolean;
-  /** Where results files go (default evals/results) and where RESULTS.md is written (its parent). */
+  /** Where results files go (default evals/results). */
   readonly resultsDir: string;
+  /** Where the RESULTS.md page is written (default: beside the results folder, i.e. evals/RESULTS.md in a checkout). */
+  readonly resultsPage?: string;
   /** Keep each dataset's report.json in this folder. */
   readonly keepReports?: string;
 }
@@ -54,7 +56,7 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
   mkdirSync(a.resultsDir, { recursive: true });
   const slug = `${r.date}-${a.model.replace(/[^\w.-]+/g, "_")}${a.smallModel ? "-small" : ""}-${a.suite}`;
   writeFileSync(join(a.resultsDir, `${slug}.json`), `${JSON.stringify(r, null, 2)}\n`);
-  writeFileSync(join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
+  writeFileSync(a.resultsPage ?? join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
   d.print("");
   for (const b of r.bars)
     d.print(
@@ -71,6 +73,8 @@ export interface RealEvalArgs {
   /** evals/real/data (fetched files) and evals/real/answers. */
   readonly dataDir: string;
   readonly answersDir: string;
+  /** Where the RESULTS.md page is written (default: beside the results folder). */
+  readonly resultsPage?: string;
   readonly keepReports?: string;
 }
 
@@ -104,7 +108,7 @@ export async function realEvalCommand(a: RealEvalArgs, d: EvalDeps): Promise<Rea
   mkdirSync(a.resultsDir, { recursive: true });
   const slug = `${r.date}-${a.model.replace(/[^\w.-]+/g, "_")}-real`;
   writeFileSync(join(a.resultsDir, `${slug}.json`), `${JSON.stringify(r, null, 2)}\n`);
-  writeFileSync(join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
+  writeFileSync(a.resultsPage ?? join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
   d.print("");
   for (const s of r.datasets)
     for (const c of s.checks) d.print(`${s.dataset} ${c.id} ${c.pass ? "pass" : "FAIL"}: ${c.about} — ${c.detail}`);

@@ -35,3 +35,5 @@ bun run eval -- --suite full --model ollama:qwen3.5:9b        # a local model (e
 bun run eval -- --suite full --model configured               # the models in .env / config
 bun run eval:real:fetch && bun run eval:real                 # public datasets (evals/real), offline baseline
 ```
+
+`EvalArgs.resultsPage` sets where the RESULTS.md page is written. It defaults to beside the results folder (`evals/RESULTS.md` in a checkout); `aa eval --results-dir dir` and the standalone binary put it inside the results folder instead, never in the user's working directory.
