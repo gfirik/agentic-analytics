@@ -8,7 +8,7 @@ export {
   resolveModelConfig,
 } from "./config.ts";
 export { ModelError, type ModelErrorCode } from "./errors.ts";
-export { type ProviderFetchOptions, providerFetch, retryAfterMs } from "./fetch.ts";
+export { outputLimit, type ProviderFetchOptions, providerFetch, retryAfterMs } from "./fetch.ts";
 export { MODEL_PROFILES, type ModelProfile, profileFor } from "./profiles.ts";
 export { DEFAULT_MAX_RETRIES, generateValidated, type RawAttempt } from "./retry.ts";
 export {
