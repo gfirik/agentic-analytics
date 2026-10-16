@@ -9,7 +9,7 @@
       "dataset": "coffee_roaster-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.369,
+      "seconds": 4.009,
       "tokens": {
         "input": 470,
         "output": 235
@@ -26,7 +26,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -39,7 +42,7 @@
       "dataset": "coffee_roaster-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 6.186,
+      "seconds": 5.339,
       "tokens": {
         "input": 530,
         "output": 265
@@ -62,7 +65,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -75,7 +80,7 @@
       "dataset": "coffee_roaster-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 8.745,
+      "seconds": 8.122,
       "tokens": {
         "input": 560,
         "output": 280
@@ -95,8 +100,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 9,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -109,7 +118,7 @@
       "dataset": "printing_shop-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.09,
+      "seconds": 2.103,
       "tokens": {
         "input": 290,
         "output": 145
@@ -126,7 +135,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 3,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -139,7 +151,7 @@
       "dataset": "printing_shop-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 3.962,
+      "seconds": 4.121,
       "tokens": {
         "input": 530,
         "output": 265
@@ -162,7 +174,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -175,7 +189,7 @@
       "dataset": "printing_shop-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.02,
+      "seconds": 5.266,
       "tokens": {
         "input": 570,
         "output": 285
@@ -195,8 +209,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -209,7 +227,7 @@
       "dataset": "clinic-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.832,
+      "seconds": 2.914,
       "tokens": {
         "input": 470,
         "output": 235
@@ -226,7 +244,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -239,7 +260,7 @@
       "dataset": "clinic-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.174,
+      "seconds": 4.304,
       "tokens": {
         "input": 530,
         "output": 265
@@ -262,7 +283,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -275,7 +298,7 @@
       "dataset": "clinic-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.07,
+      "seconds": 5.245,
       "tokens": {
         "input": 570,
         "output": 285
@@ -295,8 +318,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -309,7 +336,7 @@
       "dataset": "online_store-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.045,
+      "seconds": 3.176,
       "tokens": {
         "input": 380,
         "output": 190
@@ -326,7 +353,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 4,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -339,7 +369,7 @@
       "dataset": "online_store-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.602,
+      "seconds": 4.714,
       "tokens": {
         "input": 530,
         "output": 265
@@ -360,7 +390,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -373,7 +405,7 @@
       "dataset": "online_store-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.899,
+      "seconds": 8.054,
       "tokens": {
         "input": 570,
         "output": 285
@@ -393,8 +425,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -407,7 +443,7 @@
       "dataset": "distributor-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.45,
+      "seconds": 2.822,
       "tokens": {
         "input": 470,
         "output": 235
@@ -424,7 +460,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -437,7 +476,7 @@
       "dataset": "distributor-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 3.417,
+      "seconds": 4.141,
       "tokens": {
         "input": 530,
         "output": 265
@@ -458,7 +497,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -471,7 +512,7 @@
       "dataset": "distributor-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.06,
+      "seconds": 6.198,
       "tokens": {
         "input": 560,
         "output": 280
@@ -491,8 +532,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 9,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -505,7 +550,7 @@
       "dataset": "restaurant-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.742,
+      "seconds": 4.053,
       "tokens": {
         "input": 470,
         "output": 235
@@ -522,7 +567,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -535,7 +583,7 @@
       "dataset": "restaurant-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.579,
+      "seconds": 5.124,
       "tokens": {
         "input": 530,
         "output": 265
@@ -558,7 +606,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -571,7 +621,7 @@
       "dataset": "restaurant-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 8.085,
+      "seconds": 8.618,
       "tokens": {
         "input": 570,
         "output": 285
@@ -591,8 +641,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -605,7 +659,7 @@
       "dataset": "saas-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 5.803,
+      "seconds": 4.117,
       "tokens": {
         "input": 470,
         "output": 235
@@ -622,7 +676,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -635,7 +692,7 @@
       "dataset": "saas-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 9.023,
+      "seconds": 5.502,
       "tokens": {
         "input": 530,
         "output": 265
@@ -656,7 +713,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -669,7 +728,7 @@
       "dataset": "saas-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 18.532,
+      "seconds": 8.312,
       "tokens": {
         "input": 570,
         "output": 285
@@ -689,8 +748,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -703,7 +766,7 @@
       "dataset": "logistics-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 9.886,
+      "seconds": 4.201,
       "tokens": {
         "input": 470,
         "output": 235
@@ -720,7 +783,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -733,7 +799,7 @@
       "dataset": "logistics-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 13.561,
+      "seconds": 4.943,
       "tokens": {
         "input": 530,
         "output": 265
@@ -756,7 +822,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -769,7 +837,7 @@
       "dataset": "logistics-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 21.449,
+      "seconds": 7.192,
       "tokens": {
         "input": 570,
         "output": 285
@@ -789,8 +857,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -803,7 +875,7 @@
       "dataset": "construction_supplier-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 10.787,
+      "seconds": 3.367,
       "tokens": {
         "input": 470,
         "output": 235
@@ -820,7 +892,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -833,7 +908,7 @@
       "dataset": "construction_supplier-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 9.306,
+      "seconds": 4.116,
       "tokens": {
         "input": 530,
         "output": 265
@@ -856,7 +931,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -869,7 +946,7 @@
       "dataset": "construction_supplier-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 10.969,
+      "seconds": 5.743,
       "tokens": {
         "input": 570,
         "output": 285
@@ -889,8 +966,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -903,7 +984,7 @@
       "dataset": "agency-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.473,
+      "seconds": 2.106,
       "tokens": {
         "input": 470,
         "output": 235
@@ -920,7 +1001,10 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1", "Q2"],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -933,7 +1017,7 @@
       "dataset": "agency-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.873,
+      "seconds": 2.815,
       "tokens": {
         "input": 520,
         "output": 260
@@ -954,7 +1038,9 @@
         }
       ],
       "distractorsReported": [],
-      "qualityFound": ["Q1"],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -967,7 +1053,7 @@
       "dataset": "agency-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.031,
+      "seconds": 4.527,
       "tokens": {
         "input": 560,
         "output": 280
@@ -987,8 +1073,12 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D2"],
-      "qualityFound": ["Q1"],
+      "distractorsReported": [
+        "D2"
+      ],
+      "qualityFound": [
+        "Q1"
+      ],
       "citationsChecked": 9,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
@@ -1066,7 +1156,7 @@
       "pass": true
     }
   ],
-  "seconds": 212.177,
+  "seconds": 145.388,
   "tokens": {
     "input": 15390,
     "output": 7695

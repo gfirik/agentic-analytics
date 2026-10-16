@@ -1,0 +1,26 @@
+---
+title: What it is
+description: A one-minute read on what agentic-analytics does, and what it refuses to do.
+sidebar:
+  order: 1
+---
+
+import Pipeline from "../../../components/Pipeline.tsx";
+
+agentic-analytics reads a small or medium business's own files — spreadsheets, CSV exports, PDFs, Word documents, emails — and writes a report: **what changed, why it changed, where the data is wrong, and what to do next**.
+
+It is built around three refusals:
+
+1. **The model never does arithmetic.** Every number is a *fact*: the result of SQL run in DuckDB, or of a deterministic function, with its computation attached. Model-written text holds numbers only as `{{N12}}` placeholders that resolve to facts.
+2. **No claim without a source.** Every claim carries citations — the rows, cells, pages or URLs it rests on — and a causal grade: observed, correlated, document-supported.
+3. **Nothing unverified ships.** A verifier recomputes every number, re-derives the headline metrics another way, checks every citation and every causal word, and drops or downgrades what fails before `report.json` is written.
+
+Below is the engine's event log for the example business (scripted planner, no LLM), replayed:
+
+<Pipeline client:visible />
+
+## What it is not
+
+- Not a dashboard or a BI tool: it answers "what changed and why", once per period.
+- Not a chatbot over your files: follow-up questions are answered with verified claims only (`aa ask`).
+- Not a forecaster: v0.1 explains the past and proposes checks; it does not predict.

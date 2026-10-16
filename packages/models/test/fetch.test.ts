@@ -1,7 +1,7 @@
 // The provider HTTP layer: reasoning is not sent back, and a 429 waits as long as the endpoint asks (Groq's free
 // tier: "Please try again in 24.735s"), within a cap. No network: a scripted fetch.
 import { describe, expect, it } from "vitest";
-import { providerFetch, retryAfterMs } from "../src/index.ts";
+import { outputLimit, providerFetch, retryAfterMs } from "../src/index.ts";
 
 const limited = (body: string, headers: Record<string, string> = {}) => new Response(body, { status: 429, headers });
 
@@ -47,5 +47,21 @@ describe("providerFetch", () => {
     };
     await f("https://x", { method: "POST", body: JSON.stringify(body) });
     expect(JSON.parse(sent).messages[1]).toEqual({ role: "assistant", content: "", tool_calls: [] });
+  });
+
+  it("retries a 413 output-tokens-per-minute refusal once, with max_tokens under the limit", async () => {
+    const bodies: string[] = [];
+    let n = 0;
+    const f = providerFetch((async (_u: unknown, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return n++ === 0
+        ? new Response("Request too large for model `qwen/qwen3.8-27b` … on output tokens per minute (OTPM): Limit 1000, Requested 1047.", {
+            status: 413,
+          })
+        : new Response("{}");
+    }) as typeof fetch);
+    expect((await f("https://x", { method: "POST", body: JSON.stringify({ model: "m", messages: [] }) })).status).toBe(200);
+    expect(JSON.parse(bodies[1] ?? "{}").max_tokens).toBe(950);
+    expect(outputLimit("tokens per minute (TPM): Limit 8000")).toBeUndefined();
   });
 });

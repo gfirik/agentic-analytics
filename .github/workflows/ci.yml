@@ -33,3 +33,28 @@ jobs:
         run: bun run aa doctor
       - name: compose file is valid
         run: docker compose config --quiet
+
+  readme-browser:
+    # README asset checks in a real browser (docs/DOCS-SITE.md §3): hero motion, <picture> variants, citation click.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run readme:check:browser

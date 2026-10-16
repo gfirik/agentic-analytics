@@ -9,5 +9,6 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     }
-  }
+  },
+  "globalEnv": ["PW_CHANNEL"]
 }

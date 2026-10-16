@@ -8,6 +8,7 @@ import { join } from "node:path";
 import {
   Budget,
   buildDraft,
+  buildEvidence,
   buildFactSheet,
   buildTools,
   data,
@@ -529,14 +530,17 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               judge: deps.model,
             });
             await persistChecks(ws, r.checks);
-            const valid = validateReport(r.report);
+            // Excerpts of what the shipped claims and facts cite, so the HTML report can show them offline.
+            const evidence = await buildEvidence(ws, r.report);
+            const verified: Report = evidence.length ? { ...r.report, evidence } : r.report;
+            const valid = validateReport(verified);
             if (!valid.ok)
               throw new JobError(
                 "INVALID_DRAFT",
                 `the verified report breaks the schema: ${valid.issues[0]?.path} ${valid.issues[0]?.message}`,
                 valid.issues,
               );
-            writeFileSync(join(dir, "report.json"), `${JSON.stringify(r.report, null, 2)}\n`);
+            writeFileSync(join(dir, "report.json"), `${JSON.stringify(verified, null, 2)}\n`);
             const v = r.report.verification;
             return {
               numbers_checked: v.numbers_checked,

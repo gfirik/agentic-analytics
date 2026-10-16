@@ -12,6 +12,7 @@ The engine is a library first: a set of plain TypeScript packages with typed inp
 
 A future hosted product (NestJS, multi-tenant) imports the same packages.
 
+<!-- diagram:architecture:start -->
 ```mermaid
 flowchart TB
   subgraph Doors
@@ -45,11 +46,13 @@ flowchart TB
   INGEST & PROFILE & METRICS & ANALYSIS & RETRIEVAL & VERIFY --> STORE
   AGENT & METRICS & WEB & VERIFY & RETRIEVAL --> MODELS
 ```
+<!-- diagram:architecture:end -->
 
 ## 2. Pipeline
 
 A job moves through fixed stages. Each stage reads from and writes to the job's DuckDB workspace, emits progress events, and checkpoints. A crashed job resumes from the last completed stage. The interrupted stage first has its facts deleted (from the fact number it started at) and its own rows reset. Before PROFILE completes there is nothing to keep, so the workspace starts fresh. MEASURE runs the analysis library once (measure, detect and decompose in one deterministic pass). DETECT and DECOMPOSE are the checkpoints that report what it stored.
 
+<!-- diagram:pipeline:start -->
 ```mermaid
 stateDiagram-v2
   [*] --> INGEST
@@ -69,6 +72,7 @@ stateDiagram-v2
   VERIFY --> RENDER
   RENDER --> [*]
 ```
+<!-- diagram:pipeline:end -->
 
 | Stage | Package | Deterministic? | Model use |
 |---|---|---|---|

@@ -15,7 +15,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "biome check . && turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json && vitest run && bun run schema:drift",
+    "check": "biome check . && turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json && vitest run && bun run schema:drift && bun run readme:check",
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json",
@@ -27,15 +27,21 @@
     "ingest": "tsx packages/ingest/scripts/demo.ts",
     "profile": "tsx packages/profile/scripts/demo.ts",
     "analyze": "tsx packages/analysis/scripts/demo.ts",
-    "eval": "node apps/cli/bin/aa.js eval"
+    "eval": "node apps/cli/bin/aa.js eval",
+    "readme:assets": "tsx scripts/readme-assets/assets.ts --write",
+    "readme:check": "tsx scripts/readme-assets/assets.ts --check",
+    "readme:check:browser": "playwright test -c scripts/readme-assets/playwright.config.ts"
   },
   "devDependencies": {
+    "@agentic-analytics/eval-datasets": "workspace:*",
     "@agentic-analytics/schema": "workspace:*",
     "@biomejs/biome": "^2.5.15",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.20.5",
     "tsx": "^4.23.15",
     "turbo": "^2.11.8",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "yaml": "^2.9.1"
   }
 }

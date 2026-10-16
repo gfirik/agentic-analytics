@@ -4,10 +4,30 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsx scripts/generate.ts && tsc --noEmit -p tsconfig.json",
+    "dev": "tsx scripts/generate.ts && astro dev",
+    "build": "tsx scripts/generate.ts && astro build",
+    "preview": "astro preview",
+    "generate": "tsx scripts/generate.ts"
+  },
+  "dependencies": {
+    "@agentic-analytics/core": "workspace:*",
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "@agentic-analytics/retrieval": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
+    "@agentic-analytics/server": "workspace:*",
+    "@agentic-analytics/store": "workspace:*",
+    "@astrojs/react": "^4.4.2",
+    "@astrojs/starlight": "^0.36.3",
+    "astro": "^5.18.2",
+    "mermaid": "^12.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15"
   }
 }

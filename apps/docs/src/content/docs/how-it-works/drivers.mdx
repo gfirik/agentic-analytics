@@ -1,0 +1,32 @@
+---
+title: Finding drivers
+description: Contribution, price–volume–mix, rate vs mix and the Simpson guard, with worked examples.
+sidebar:
+  order: 6
+---
+
+import Decomposition from "../../../components/Decomposition.tsx";
+
+A finding says *that* something changed; a decomposition says *where*. Every method is exact: the effects add up to the change, and the identity is tested on randomized cases.
+
+## Contribution (`contribution.v1`)
+
+For a total T = Σ xᵢ, the change ΔT = Σ Δxᵢ and each member's share is Δxᵢ / ΔT. Shares can exceed 100% when members offset each other — in the example, one customer is 108% of the drop because others grew:
+
+<Decomposition client:visible />
+
+## Price–volume–mix (`pvm.v1`)
+
+When price and quantity columns exist, revenue R = Σ pᵢqᵢ splits into
+
+- **volume** = (Q₁ − Q₀) · P̄₀,
+- **mix** = Q₁ · (Σ sᵢ₁ pᵢ₀ − Σ sᵢ₀ pᵢ₀),
+- **price** = Σ qᵢ₁ (pᵢ₁ − pᵢ₀),
+
+plus separate **new**, **lost** and **unpriced** effects for items present in only one period. Volume + mix + price + new + lost + unpriced = ΔR exactly.
+
+## Rate vs mix (`ratemix.v1`) and the Simpson guard
+
+For a rate r = Σ wᵢ rᵢ (a refund rate, a conversion rate), the change splits into a **mix** effect (segment weights moved), a **rate** effect (rates within segments moved), and entering, exiting and unattributed effects. When the overall rate moves against most segment rates, a `simpson_risk` flag makes the finding tell the segment-level story.
+
+Worked numbers for every method are in `docs/specs/analysis-library.md` §4 and its tests.

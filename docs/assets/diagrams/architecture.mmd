@@ -1,0 +1,31 @@
+flowchart TB
+  subgraph Doors
+    CLI[apps/cli]
+    API[apps/server · Hono]
+    MCP[apps/mcp]
+    TG[apps/telegram · grammY]
+    VIEW[apps/viewer · Vite+React]
+  end
+  subgraph Engine["packages/* (the engine)"]
+    CORE[core · pipeline state machine, jobs, events]
+    SCHEMA[schema · Zod contracts]
+    INGEST[ingest]
+    PROFILE[profile]
+    METRICS[metrics]
+    ANALYSIS[analysis]
+    RETRIEVAL[retrieval]
+    WEB[web]
+    AGENT[agent]
+    VERIFY[verify]
+    REPORT[report]
+    MODELS[models · ModelClient over AI SDK]
+    STORE[store · DuckDB workspace]
+  end
+  CLI --> CORE
+  API --> CORE
+  MCP --> API
+  TG --> API
+  VIEW --> API
+  CORE --> INGEST & PROFILE & METRICS & ANALYSIS & RETRIEVAL & WEB & AGENT & VERIFY & REPORT
+  INGEST & PROFILE & METRICS & ANALYSIS & RETRIEVAL & VERIFY --> STORE
+  AGENT & METRICS & WEB & VERIFY & RETRIEVAL --> MODELS

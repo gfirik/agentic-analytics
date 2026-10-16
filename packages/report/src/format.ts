@@ -10,7 +10,8 @@ const sign = (v: number) => (v < 0 ? MINUS : "");
 export function formatValue(value: number, unit: Fact["unit"]): string {
   switch (unit) {
     case "currency":
-      return `${sign(value)}${grouped(value, Number.isInteger(value) ? 0 : 2)}`;
+      // Sums of cents come back from SQL as e.g. 44100.00000000001: whole to the cent reads as whole.
+      return `${sign(value)}${grouped(value, Math.abs(value - Math.round(value)) < 0.005 ? 0 : 2)}`;
     case "percent":
       // ≥ 100% reads better without decimals ("108%"); smaller shares keep one ("−17.9%").
       return `${sign(value)}${grouped(value, Math.abs(value) >= 100 ? 0 : 1)}%`;

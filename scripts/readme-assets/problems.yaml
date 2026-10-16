@@ -1,0 +1,49 @@
+# The "problems it solves" table (docs/DOCS-SITE.md §3, table 1). Seven rows from blueprint §04 ("what others
+# leave broken"), plus the wrong metric definition (PRD §1) and prompt injection (specs/security.md §1).
+# `after` names the mechanism; `docs` is the docs-site page that explains it.
+rows:
+  - problem: Confidently wrong numbers
+    before: The model does arithmetic in its head; reviews of AI data tools cite figures that were simply wrong.
+    after: The model never computes. DuckDB runs the SQL, and a verifier recomputes every number before the report ships.
+    docs: how-it-works/verifier/
+    source: blueprint §04
+  - problem: Spreadsheets treated as text
+    before: Excel files are chunked like documents, so totals and trends are invented.
+    after: Tables are detected and loaded as real tables (merged headers, several tables per sheet). Text gets search, numbers get SQL.
+    docs: how-it-works/ingest/
+    source: blueprint §04
+  - problem: No way to check a claim
+    before: Answers arrive as prose with no source.
+    after: Every claim carries a row, cell, page or URL, clickable in the HTML report.
+    docs: reference/report-schema/
+    source: blueprint §04
+  - problem: Advice with no basis
+    before: “Consider improving marketing.”
+    after: Recommendations cite verified findings, carry an impact range and confidence, and name the metric and date that will judge them.
+    docs: how-it-works/decide/
+    source: blueprint §04
+  - problem: Tables, documents and the web never meet
+    before: Text-to-SQL tools ignore documents; research agents ignore your numbers.
+    after: One analysis joins three lanes; outside sources are always labelled External and can never replace your numbers.
+    docs: how-it-works/documents/
+    source: blueprint §04
+  - problem: Business data leaves the building
+    before: Hosted tools upload your files to a vendor.
+    after: Self-hosted, works fully offline with Ollama, no telemetry; web queries are sanitized of names and numbers.
+    docs: how-it-works/web/
+    source: blueprint §04
+  - problem: Hard to plug into a real system
+    before: Chat UIs only.
+    after: A typed JSON report schema, an HTTP API, an MCP server, a CLI and a Telegram demo over one engine.
+    docs: use-it/http-api/
+    source: blueprint §04
+  - problem: Correct math on the wrong thing
+    before: The model measures a nearby metric, the wrong period, or gross where you meant net.
+    after: Metric definitions are drafted, shown in plain words and confirmed; the verifier checks every number against its definition.
+    docs: how-it-works/metrics/
+    source: PRD §1
+  - problem: Instructions hidden in your files
+    before: A line in a PDF or a spreadsheet cell can steer the model or leak data.
+    after: Untrusted text is screened and read only by a quarantined extractor with no tools; a 23-fixture injection suite runs in CI.
+    docs: how-it-works/security/
+    source: specs/security.md §1

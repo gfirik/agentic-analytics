@@ -13,6 +13,7 @@ export {
 } from "./claims.ts";
 export { type DecideInput, DecideOutput, decide } from "./decide.ts";
 export { buildDraft, type DraftInput, reportQuestion } from "./draft.ts";
+export { buildEvidence, MAX_EVIDENCE_ROWS } from "./evidence.ts";
 export {
   type Downgraded,
   type Dropped,

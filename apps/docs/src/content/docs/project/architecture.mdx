@@ -1,0 +1,27 @@
+---
+title: Architecture
+description: Packages, doors and the data flow.
+---
+
+import Mermaid from "../../../components/Mermaid.tsx";
+import code from "../../../data/architecture.mmd?raw";
+
+The engine is a library first: plain TypeScript packages with typed inputs and outputs, and every door — CLI, HTTP API, MCP, Telegram, viewer — is a thin adapter over the job manager in `packages/core`.
+
+<Mermaid client:visible code={code} title="Packages and doors (docs/assets/diagrams/architecture.mmd)" />
+
+| Package | Does |
+|---|---|
+| `schema` | Zod contracts: report v1, metric YAML, config, events; JSON Schema export |
+| `store` | One DuckDB workspace per job; migrations; typed queries |
+| `core` | Pipeline state machine, checkpoints, event bus, job manager, follow-ups |
+| `ingest` · `profile` | Files to tables and sections; profiling and data quality |
+| `metrics` | Draft, validate, review and compile metric definitions |
+| `analysis` | Measure, insight templates, decompositions, impact ranges, ranking |
+| `retrieval` · `web` | Documents lane; sanitized web lane |
+| `models` | `ModelClient` over the AI SDK; Ollama and OpenAI-compatible; FakeModel |
+| `agent` | Fact sheet, quarantined extractor, explain, decide, ask, screening |
+| `verify` | V1–V8 and the failure policy |
+| `report` | report.json to self-contained HTML |
+
+More: [docs/ARCHITECTURE.md](https://github.com/gfirik/agentic-analytics/blob/main/docs/ARCHITECTURE.md).
