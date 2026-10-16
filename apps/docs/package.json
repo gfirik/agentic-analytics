@@ -4,9 +4,6 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "scripts": {
     "typecheck": "tsx scripts/generate.ts && tsc --noEmit -p tsconfig.json",
     "dev": "tsx scripts/generate.ts && astro dev",

@@ -7,6 +7,7 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
 import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import { FactBook, type SeriesInfo } from "./factbook.ts";
+import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
 import {
   anomalies,
@@ -262,6 +263,20 @@ export async function analyzeJob(
     if (def.type === "ratio") {
       const r = await rateMixFor(ws, allDefs, register, catalog, def, before, after, range, series);
       if (r) decompositions.push({ insight, method: "ratemix.v1", dimension: r.dimension, ratemix: r.result });
+    }
+  }
+
+  // Changes that a flagged data error produces (a ×1000 cell) are data quality, not business findings.
+  const flagged = await flaggedPeriods(ws, defs);
+  const withheld = found.filter((i) => touchesFlagged(i, flagged));
+  if (withheld.length) {
+    found.splice(0, found.length, ...found.filter((i) => !withheld.includes(i)));
+    for (const metric of new Set(withheld.map((i) => i.metric))) {
+      const f = flagged.get(metric);
+      const label = defs.find((d) => d.id === metric)?.label ?? metric;
+      openQuestions.push(
+        `Changes in "${label}" around ${[...(f?.periods ?? [])].sort().join(", ")} are not reported as findings: ${f?.why ?? "a flagged data error"}. Correct the value and run again.`,
+      );
     }
   }
 
