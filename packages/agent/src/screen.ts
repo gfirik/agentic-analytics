@@ -57,8 +57,8 @@ function despace(s: string): string {
 
 // An AI addressed by name. Bare "assistant", "AI", "model" or "agent" are ordinary words; only clear AI forms,
 // or a vocative ("Assistant: …", "AI, …"), count.
-const AI = String.raw`(?:ai (?:assistant|model|agent|system)s?|virtual assistant|language[- ]models?|llms?|chatbots?|gpt|claude|artificial intelligence)`;
-const ASK = String.raw`(?:must|should|need to|please|report|state|say|write|output|tell|recommend|append|send|include|reveal|mention|disregard|ignore|conclude|summari[sz]e|describe|respond)`;
+const AI = `(?:ai (?:assistant|model|agent|system)s?|virtual assistant|language[- ]models?|llms?|chatbots?|gpt|claude|artificial intelligence)`;
+const ASK = `(?:must|should|need to|please|report|state|say|write|output|tell|recommend|append|send|include|reveal|mention|disregard|ignore|conclude|summari[sz]e|describe|respond)`;
 // Verbs that move data out. Confirming, logging in or paying at a link is ordinary email; it counts only when the
 // link's query carries a placeholder for data ("?d=REVENUE", "?x={customers}") rather than an order id.
 const SEND = String.raw`(?:send|submit|post|upload|append|forward|отправ\p{L}*|пришли\p{L}*|yubor\p{L}*)`;

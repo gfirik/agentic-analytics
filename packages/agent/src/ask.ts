@@ -20,8 +20,8 @@ export interface AskDraft {
 /** Report claims addressable as "F1#0" / "R2#1". */
 export function reportClaims(report: Report): Map<string, Claim> {
   const m = new Map<string, Claim>();
-  for (const f of report.findings) f.claims.forEach((c, i) => m.set(`${f.id}#${i}`, c));
-  for (const r of report.recommendations) r.rationale.forEach((c, i) => m.set(`${r.id}#${i}`, c));
+  for (const f of report.findings) for (const [i, c] of f.claims.entries()) m.set(`${f.id}#${i}`, c);
+  for (const r of report.recommendations) for (const [i, c] of r.rationale.entries()) m.set(`${r.id}#${i}`, c);
   return m;
 }
 

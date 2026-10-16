@@ -33,7 +33,7 @@ function readReport(dir: string): Report {
 }
 
 async function jobMetrics(ws: Workspace): Promise<JobMetrics> {
-  const out = async <T>(stage: string) =>
+  const out = async (stage: string) =>
     (await ws.one<{ o: string | null }>(sql`SELECT output::VARCHAR AS o FROM job_stages WHERE stage = ${stage}`))?.o;
   const drafted = JSON.parse((await out("METRICS_DRAFT")) ?? "{}") as {
     defs?: MetricDef[];

@@ -31,7 +31,8 @@ export interface JobStatus {
   readonly progress: number;
   readonly created_at: string;
   readonly updated_at: string;
-  readonly timings: Partial<Record<Stage, number>>;
+  /** Milliseconds per completed stage, by stage name. */
+  readonly timings: Record<string, number>;
   readonly error?: { readonly code: string; readonly message: string; readonly stage?: Stage };
 }
 
@@ -137,7 +138,7 @@ export class JobManager {
     const dir = join(this.opts.root, id);
     const options = JSON.parse(readFileSync(join(dir, "options.json"), "utf8")) as JobOptions;
     const started = new Map<Stage, number>();
-    const timings: Partial<Record<Stage, number>> = { ...(this.readStatus(id)?.timings ?? {}) };
+    const timings: Record<string, number> = { ...(this.readStatus(id)?.timings ?? {}) };
     this.write(id, { status: "running" });
     const deps = this.opts.deps(options);
     try {
