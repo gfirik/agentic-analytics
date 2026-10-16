@@ -26,7 +26,8 @@
     "aa": "node apps/cli/bin/aa.js",
     "ingest": "tsx packages/ingest/scripts/demo.ts",
     "profile": "tsx packages/profile/scripts/demo.ts",
-    "analyze": "tsx packages/analysis/scripts/demo.ts"
+    "analyze": "tsx packages/analysis/scripts/demo.ts",
+    "eval": "node apps/cli/bin/aa.js eval"
   },
   "devDependencies": {
     "@agentic-analytics/schema": "workspace:*",

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@agentic-analytics/core": "workspace:*",
+    "@agentic-analytics/eval-runner": "workspace:*",
     "@agentic-analytics/ingest": "workspace:*",
     "@agentic-analytics/mcp": "workspace:*",
     "@agentic-analytics/metrics": "workspace:*",

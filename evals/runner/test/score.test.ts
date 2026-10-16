@@ -1,0 +1,170 @@
+// Scoring (docs/EVALS.md §2) on hand-built reports: what counts as finding a planted event, a correct driver, a
+// supported cause, a reported distractor, and the suite arithmetic.
+import type { AnswerKey } from "@agentic-analytics/eval-generator";
+import type { Fact, Finding, Report } from "@agentic-analytics/schema";
+import { describe, expect, it } from "vitest";
+import { matches, scoreReport, subjectOf, summarize } from "../src/index.ts";
+
+const fact = (id: string, label: string): Fact => ({
+  id,
+  label,
+  value: 1,
+  unit: "currency",
+  computation: { kind: "sql", sql: "SELECT 1" },
+  citations: [],
+  verified: true,
+});
+const finding = (id: string, facts: string[], extra: Partial<Finding> = {}): Finding => ({
+  id,
+  type: "regression",
+  severity: "high",
+  title: id,
+  claims: [{ text: "x", facts, citations: [], causal_grade: "observed", verified: true }],
+  method: "m",
+  confidence: "high",
+  confidence_reasons: [],
+  assumptions: [],
+  ...extra,
+});
+
+const key: AnswerKey = {
+  dataset: "t-v1",
+  archetype: "t",
+  business: "T",
+  generator_version: 1,
+  seed: 1,
+  variant: 1,
+  period: { from: "2026-01", to: "2026-06", grain: "month" },
+  currency: "USD",
+  today: "2026-07-01",
+  files: ["sales.xlsx", "email-key.eml"],
+  planted: [
+    {
+      id: "P1",
+      type: "regression",
+      metric: "revenue",
+      period: "2026-04",
+      driver: { dimension: "customer", member: "Key Co" },
+      driver_alternatives: [{ dimension: "channel", member: "wholesale" }],
+      persists: true,
+      cause: { doc: "email-key.eml", grade_at_least: "document_supported" },
+      good_actions: ["recover_share"],
+      description: "",
+    },
+    { id: "P2", type: "regression", metric: "refund_rate", period: "2026-05", good_actions: [], description: "" },
+  ],
+  distractors: [
+    {
+      id: "D1",
+      description: "",
+      metric: "revenue",
+      period: "2026-02",
+      member: { dimension: "customer", member: "Web" },
+      must_not_appear_as_finding: true,
+    },
+  ],
+  quality: [{ id: "Q1", kind: "unit_error", file: "sales.xlsx", location: "sales.xlsx#Costs!D3", description: "" }],
+};
+
+function report(): Report {
+  const facts = [
+    fact("N1", "revenue_2026-03"),
+    fact("N2", "revenue_2026-04"),
+    fact("N3", "I5 trend_break.v1 revenue 2026-04:change"),
+    fact("N4", "revenue[customer=Web]_2026-02"),
+    fact("N5", "I7 anomaly.v1 revenue|customer=Web 2026-02:change"),
+  ];
+  return {
+    facts,
+    findings: [
+      finding("F1", ["N1", "N2", "N3"], {
+        drivers: [{ label: "“Key Co”", fact: "N3", share_of_change: "N3" }],
+        claims: [
+          { text: "x", facts: ["N1", "N2", "N3"], citations: [], causal_grade: "observed", verified: true },
+          { text: "y", facts: [], citations: [{ source_id: "D1", quote: "q" }], causal_grade: "document_supported", verified: true },
+        ],
+      }),
+      finding("F2", ["N4", "N5"]),
+    ],
+    recommendations: [
+      {
+        id: "R1",
+        action: "a",
+        because: ["F1"],
+        rationale: [],
+        impact: { metric_id: "revenue", low: "N1", high: "N2", horizon: "q", method: "impact.v1:recover_share", inputs: [] },
+        confidence: "high",
+        effort: "low",
+        risk: "r",
+        check: { metric_id: "revenue", comparator: ">=", threshold: "N1", by: "2026-09-30" },
+      },
+    ],
+    sources: [
+      { id: "D1", kind: "email", file: "email-key.eml" },
+      { id: "T1", kind: "table", file: "sales.xlsx" },
+    ],
+    data_quality: [{ id: "Q1", kind: "unit_error", severity: "high", description: "d", citations: [{ source_id: "T1" }] }],
+    verification: {
+      numbers_checked: 5,
+      numbers_mismatched: 0,
+      rederived_metrics: 1,
+      rederivation_mismatches: 0,
+      definition_violations: 0,
+      citations_checked: 4,
+      citations_unsupported: 1,
+      claims_dropped: [],
+      claims_downgraded: [],
+    },
+  } as unknown as Report;
+}
+
+describe("scoring", () => {
+  it("reads a finding's subject from its change fact (the after period), member included", () => {
+    const r = report();
+    expect(subjectOf(r.findings[0] as Finding, r)).toEqual({ metric: "revenue", period: "2026-04" });
+    expect(subjectOf(r.findings[1] as Finding, r)).toEqual({
+      metric: "revenue",
+      member: { dimension: "customer", member: "Web" },
+      period: "2026-02",
+    });
+  });
+
+  it("matches the same metric or its channel slice, ±1 period, and later periods for a lasting change", () => {
+    const t = { metric: "revenue", period: "2026-04" };
+    expect(matches({ metric: "revenue", period: "2026-05" }, t)).toBe(true);
+    expect(matches({ metric: "wholesale_revenue", period: "2026-04" }, t)).toBe(true);
+    expect(matches({ metric: "revenue", period: "2026-06" }, t)).toBe(false);
+    expect(matches({ metric: "revenue", period: "2026-06" }, { ...t, persists: true })).toBe(true);
+    expect(matches({ metric: "revenue", period: "2026-02" }, { ...t, persists: true })).toBe(false);
+    expect(matches({ metric: "revenue", member: { dimension: "customer", member: "X" }, period: "2026-04" }, t)).toBe(false);
+  });
+
+  it("scores detection, driver, cause, action relevance, distractors and quality", () => {
+    const s = scoreReport(report(), key, { seconds: 2, tokens: { input: 10, output: 5 } });
+    expect(s.planted).toEqual([
+      { id: "P1", detected: true, rank: 1, driver: true, cause: true, relevantAction: true },
+      { id: "P2", detected: false },
+    ]);
+    expect(s.distractorsReported).toEqual(["D1"]);
+    expect(s.qualityFound).toEqual(["Q1"]);
+    expect(s.groundedRecommendations).toBe(1);
+  });
+
+  it("summarizes with the EVALS bars (hand-computed)", () => {
+    const ok = scoreReport(report(), key, { seconds: 2, tokens: { input: 10, output: 5 } });
+    const failed = scoreReport(undefined, key, {
+      seconds: 1,
+      tokens: { input: 0, output: 0 },
+      error: { code: "RECOMPUTE_MISMATCH", message: "m" },
+    });
+    const bars = Object.fromEntries(summarize([ok, failed]).map((b) => [b.metric, b]));
+    expect(bars["Jobs completed"]?.value).toBe(0.5); // 1 of 2
+    expect(bars["Number mismatches"]?.value).toBe(1);
+    expect(bars["Planted recall@5"]?.value).toBe(0.25); // 1 of 4 planted (2 per dataset)
+    expect(bars["Driver accuracy"]?.value).toBe(1);
+    expect(bars["Distractor FP rate"]?.value).toBe(0.5); // 1 of 2
+    expect(bars["Quality-issue recall"]?.value).toBe(0.5); // 1 of 2
+    expect(bars["Citation precision"]?.value).toBe(0.75); // (4 − 1) / 4
+    expect(bars["Distractor FP rate"]?.pass).toBe(false);
+  });
+});

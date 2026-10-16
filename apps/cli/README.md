@@ -17,7 +17,7 @@ The `agentic-analytics` / `aa` command line (citty).
 | `aa serve [--port 8080] [--host 127.0.0.1]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. `API_TOKEN` turns on bearer auth. |
 | `aa mcp` | The MCP server on stdio (Claude Desktop config: apps/mcp/README.md). |
 | `aa jobs ls \| rm <id> \| resume <id>` | Lists, deletes or resumes jobs in `AA_JOBS_DIR` (default `data/jobs`). |
-| `aa eval` | Points to the available eval commands until the runner lands in M11 (exit code 2). |
+| `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>] [--small-model] [--embedder hash]` | Runs the eval suite on the generated datasets. It writes `evals/results/*.json`, regenerates `evals/RESULTS.md`, and exits 1 if a bar fails (evals/runner/README.md). |
 | `aa doctor` | Checks Node (≥22, required), DuckDB (required), Ollama, every configured OpenAI-compatible endpoint (keyed ones are probed), SearXNG and Docling; then calls the planner model with a one-line prompt if its provider is reachable. Prints a fix for each missing piece. Exits 1 only if a required check fails. |
 
 ## Public API

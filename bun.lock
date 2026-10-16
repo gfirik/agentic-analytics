@@ -23,6 +23,7 @@
       },
       "dependencies": {
         "@agentic-analytics/core": "workspace:*",
+        "@agentic-analytics/eval-runner": "workspace:*",
         "@agentic-analytics/ingest": "workspace:*",
         "@agentic-analytics/mcp": "workspace:*",
         "@agentic-analytics/metrics": "workspace:*",
@@ -123,6 +124,33 @@
         "@agentic-analytics/schema": "workspace:*",
         "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
         "yaml": "^2.9.1",
+      },
+    },
+    "evals/generator": {
+      "name": "@agentic-analytics/eval-generator",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/eval-datasets": "workspace:*",
+        "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+        "yaml": "^2.9.1",
+      },
+      "devDependencies": {
+        "@agentic-analytics/ingest": "workspace:*",
+        "tsx": "^4.23.15",
+      },
+    },
+    "evals/runner": {
+      "name": "@agentic-analytics/eval-runner",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/core": "workspace:*",
+        "@agentic-analytics/eval-generator": "workspace:*",
+        "@agentic-analytics/models": "workspace:*",
+        "@agentic-analytics/retrieval": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+      },
+      "devDependencies": {
+        "tsx": "^4.23.15",
       },
     },
     "fixtures": {
@@ -320,6 +348,10 @@
     "@agentic-analytics/docs": ["@agentic-analytics/docs@workspace:apps/docs"],
 
     "@agentic-analytics/eval-datasets": ["@agentic-analytics/eval-datasets@workspace:evals/datasets"],
+
+    "@agentic-analytics/eval-generator": ["@agentic-analytics/eval-generator@workspace:evals/generator"],
+
+    "@agentic-analytics/eval-runner": ["@agentic-analytics/eval-runner@workspace:evals/runner"],
 
     "@agentic-analytics/fixtures": ["@agentic-analytics/fixtures@workspace:fixtures"],
 
