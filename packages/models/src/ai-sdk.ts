@@ -25,7 +25,7 @@ export interface ProviderDeps {
   readonly env: Env;
   /** Injected for tests; defaults to the global fetch. Never the AI SDK gateway. */
   readonly fetch?: typeof fetch;
-  /** Overrides the embedder (in-process transformers lands in M6). */
+  /** The embedder, e.g. `transformersEmbedder().embed` from @agentic-analytics/retrieval. */
   readonly embed?: (texts: readonly string[]) => Promise<number[][]>;
 }
 
@@ -143,7 +143,9 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
 
     async embed(texts) {
       if (deps.embed) return deps.embed(texts);
-      throw new ModelError("NOT_AVAILABLE", "in-process embeddings (transformers) land in M6; inject `embed` until then");
+      // In-process embeddings live in @agentic-analytics/retrieval (transformersEmbedder), which the pipeline
+      // injects here; models stays free of the ONNX runtime.
+      throw new ModelError("NOT_AVAILABLE", "no embedder injected: pass `embed` (e.g. retrieval's transformersEmbedder)");
     },
   };
 }

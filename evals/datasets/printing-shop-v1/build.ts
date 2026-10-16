@@ -1,0 +1,12 @@
+// Regenerates printing-shop-v1/files/ deterministically. Run: bun run --filter @agentic-analytics/eval-datasets build:printing-shop
+import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { printingShopFiles } from "../src/index.ts";
+
+const dir = join(import.meta.dirname, "files");
+mkdirSync(dir, { recursive: true });
+for (const [name, data] of Object.entries(printingShopFiles())) {
+  writeFileSync(join(dir, name), data);
+  process.stdout.write(`${name}  ${data.length} bytes  sha256=${createHash("sha256").update(data).digest("hex")}\n`);
+}

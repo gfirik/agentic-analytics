@@ -1,0 +1,109 @@
+# Retrieval eval set (docs/specs/retrieval.md §5). Each question lists its relevant passages as
+# (file, text the chunk must contain). recall@8 = share of relevant passages found in the top 8;
+# MRR = 1 / rank of the first relevant hit; answer-in-context = a relevant passage is in the top 8.
+# Wording deliberately paraphrases the sources so that pure keyword match is not enough.
+
+corpora:
+  coffee-roaster-v1:
+    dir: evals/datasets/coffee-roaster-v1/files
+    questions:
+      - q: Why did the hotel stop its standing order?
+        relevant:
+          - { file: email-0412.eml, contains: "pausing our standing order" }
+      - q: When did wholesale prices go up and by how much?
+        relevant:
+          - { file: price-list.pdf, contains: "Wholesale prices increase 12%" }
+      - q: Did anything change with packaging suppliers?
+        relevant:
+          - { file: ops-notes.docx, contains: "new packaging supplier" }
+      - q: How long do customers have to pay invoices?
+        relevant:
+          - { file: price-list.pdf, contains: "due within 14 days" }
+      - q: What is the minimum wholesale order?
+        relevant:
+          - { file: price-list.pdf, contains: "Minimum order: 10 kg" }
+      - q: Was there any equipment downtime?
+        relevant:
+          - { file: ops-notes.docx, contains: "Grinder serviced" }
+
+  printing-shop-v1:
+    dir: evals/datasets/printing-shop-v1/files
+    questions:
+      - q: Why did BrightAds take its catalogue work elsewhere?
+        relevant:
+          - { file: email-brightads.eml, contains: "moving the monthly catalogue print run" }
+          - { file: ops-meeting-may.docx, contains: "BrightAds moved its monthly catalogue job" }
+      - q: How long was the Konica press out of service in May and why?
+        relevant:
+          - { file: maintenance-log.pdf, contains: "fuser unit replacement" }
+          - { file: ops-meeting-may.docx, contains: "Konica press outage" }
+      - q: Is our paper supplier charging more for coated paper?
+        relevant:
+          - { file: supplier-contract.pdf, contains: "A3 coated stock by 9%" }
+          - { file: email-paperworks.eml, contains: "A3 coated stock goes up by 9%" }
+      - q: What extra do we charge for urgent next-day jobs?
+        relevant:
+          - { file: price-list-2026.pdf, contains: "30% surcharge" }
+      - q: Which card are business cards printed on now?
+        relevant:
+          - { file: price-list-2026.pdf, contains: "350gsm silk card" }
+      - q: Why was the night shift stopped?
+        relevant:
+          - { file: ops-meeting-may.docx, contains: "night shift is cancelled" }
+          - { file: hr-notes.txt, contains: "Two press operators resigned" }
+      - q: Customer complaints about faded print colours
+        relevant:
+          - { file: email-complaint.eml, contains: "washed out" }
+          - { file: ops-meeting-june.docx, contains: "washed-out colours" }
+      - q: How much will the workshop rent increase?
+        relevant:
+          - { file: email-landlord.eml, contains: "increases by 5%" }
+          - { file: ops-meeting-june.docx, contains: "Rent rises by 5%" }
+      - q: Why are banners getting more expensive?
+        relevant:
+          - { file: pricing-memo.docx, contains: "Banner prices increase by 15%" }
+      - q: What are the payment terms with the paper supplier?
+        relevant:
+          - { file: supplier-contract.pdf, contains: "net 30 days" }
+      - q: How much does delivery to the suburbs cost?
+        relevant:
+          - { file: delivery-terms.md, contains: "Suburbs" }
+      - q: What is the monthly budget for social media advertising?
+        relevant:
+          - { file: marketing-plan.md, contains: "Instagram ads budget" }
+      - q: Do students get a discount?
+        relevant:
+          - { file: marketing-plan.md, contains: "Students get a 10% discount" }
+      - q: What protective equipment is needed near the cutting machine?
+        relevant:
+          - { file: safety-policy.docx, contains: "Hearing protection is required" }
+      - q: Where are solvents and cleaning fluids kept?
+        relevant:
+          - { file: safety-policy.docx, contains: "metal cabinet by the back door" }
+      - q: When was the plotter print head cleaned?
+        relevant:
+          - { file: maintenance-log.pdf, contains: "print head cleaned" }
+      - q: Did we hire anyone to replace the press operators?
+        relevant:
+          - { file: ops-meeting-june.docx, contains: "One press operator was hired" }
+      - q: Are we looking at other paper suppliers?
+        relevant:
+          - { file: ops-meeting-june.docx, contains: "second paper supplier" }
+      - q: Когда закончилась бумага А4 на складе?
+        relevant:
+          - { file: sklad-otchet.docx, contains: "Запасы бумаги формата А4 закончились" }
+      - q: Почему клиент просит перенести печать каталога?
+        relevant:
+          - { file: email-ru-client.eml, contains: "перенести печать каталога на июль" }
+      - q: У кого теперь заказываем тонер для Konica?
+        relevant:
+          - { file: sklad-otchet.docx, contains: "Тонер для печатной машины Konica" }
+      - q: How much does recycled paper add to a flyer order?
+        relevant:
+          - { file: price-list-2026.pdf, contains: "Recycled paper adds 8%" }
+      - q: What happened with the spring flyer campaign?
+        relevant:
+          - { file: ops-meeting-may.docx, contains: "spring flyer campaign" }
+      - q: What is the minimum paper order per delivery?
+        relevant:
+          - { file: supplier-contract.pdf, contains: "minimum order is 20 reams" }

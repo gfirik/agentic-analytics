@@ -58,4 +58,15 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "metric_defs.params",
     statements: ["ALTER TABLE metric_defs ADD COLUMN params JSON"],
   },
+  {
+    version: 3,
+    name: "sources.meta, retrieval_meta",
+    // Email headers (from, to, date, subject) for document sections: the retrieval chunk prefix needs them
+    // (retrieval spec §1), and they are untrusted text like the body. retrieval_meta records which embedder and
+    // stemmer built the chunk index, so a query is never embedded by a different model.
+    statements: [
+      "ALTER TABLE sources ADD COLUMN meta JSON",
+      "CREATE TABLE retrieval_meta (embedder VARCHAR NOT NULL, dims INTEGER NOT NULL, stemmer VARCHAR NOT NULL, fts BOOLEAN NOT NULL, chunks INTEGER NOT NULL)",
+    ],
+  },
 ];

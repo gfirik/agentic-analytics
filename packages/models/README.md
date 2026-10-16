@@ -3,7 +3,7 @@
 The model layer: one `ModelClient` interface over the Vercel AI SDK, free providers only, and `FakeModel` for tests.
 
 - **Spec:** docs/specs/models.md
-- **Status:** M1. Language models via `ollama` and `openai-compatible`; in-process embeddings land in M6.
+- **Status:** M1. Language models via `ollama` and `openai-compatible`; in-process embeddings live in `@agentic-analytics/retrieval` (`transformersEmbedder`) and are injected as `embed`.
 
 ## Public API
 

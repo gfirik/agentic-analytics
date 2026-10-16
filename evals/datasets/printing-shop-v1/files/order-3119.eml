@@ -1,0 +1,15 @@
+From: "Inkwell orders" <orders@inkwell.example>
+To: green.fork@client.example
+Subject: Order 3119 confirmed
+Date: Mon, 22 May 2026 10:00:00 +0500
+Message-ID: <order-3119@inkwell.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello Green Fork,
+
+Your order 3119 for 250 business cards on silk card is confirmed and goes to press this week.
+Rush not needed; standard turnaround.
+
+Inkwell Print Studio

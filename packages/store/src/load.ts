@@ -14,8 +14,9 @@ export async function loadJob(ws: Workspace, input: LoadInput): Promise<void> {
   }
   for (const t of input.tables) await loadTable(ws, t);
   for (const s of input.sections) {
-    await ws.run(sql`INSERT INTO sources (id, file_id, kind, external, page, section, char_start, char_end, text)
-      VALUES (${s.id}, ${s.file_id}, ${s.kind}, false, ${s.page ?? null}, ${arr(s.heading_path)}::VARCHAR[], ${s.char_start}, ${s.char_end}, ${s.text})`);
+    await ws.run(sql`INSERT INTO sources (id, file_id, kind, external, page, section, char_start, char_end, text, meta)
+      VALUES (${s.id}, ${s.file_id}, ${s.kind}, false, ${s.page ?? null}, ${arr(s.heading_path)}::VARCHAR[], ${s.char_start}, ${s.char_end}, ${s.text},
+        ${s.meta ? JSON.stringify(s.meta) : null}::JSON)`);
   }
   await insertIssues(ws, input.issues);
 }

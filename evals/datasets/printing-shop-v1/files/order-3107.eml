@@ -1,0 +1,15 @@
+From: "Inkwell orders" <orders@inkwell.example>
+To: book.nook@client.example
+Subject: Order 3107 confirmed
+Date: Mon, 22 May 2026 10:00:00 +0500
+Message-ID: <order-3107@inkwell.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello Book Nook,
+
+Your order 3107 for 120 menus, laminated is confirmed and goes to press this week.
+Colours checked against the previous run.
+
+Inkwell Print Studio
