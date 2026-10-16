@@ -1,3 +1,4 @@
+import { FakeModel } from "@agentic-analytics/models/testing";
 import { describe, expect, it } from "vitest";
 import { checkNode, type DoctorDeps, exitCode, formatReport, runDoctor } from "../src/doctor.ts";
 
@@ -17,6 +18,8 @@ const base = (over: Partial<DoctorDeps> = {}): DoctorDeps => ({
   duckdbVersion: async () => "v1.5.6",
   fetch: stubFetch({}),
   env: {},
+  modelClient: () => new FakeModel([{ role: "planner", object: { reply: "OK" } }]),
+  now: () => 0,
   ...over,
 });
 
@@ -77,5 +80,45 @@ describe("aa doctor", () => {
     expect(checkNode("v22.0.0").status).toBe("ok");
     expect(checkNode("v24.1.0").status).toBe("ok");
     expect(checkNode("v20.11.1").status).toBe("error");
+  });
+
+  it("skips the model call when the planner provider is down", async () => {
+    const results = await runDoctor(base());
+    expect(results.find((r) => r.name === "model call")?.detail).toBe("skipped: planner ollama:qwen3.5:9b — ollama not reachable");
+    expect(exitCode(results)).toBe(0);
+  });
+
+  it("calls the configured planner with a one-line prompt when its provider is up", async () => {
+    const fake = new FakeModel([{ role: "planner", object: { reply: "OK" } }]);
+    const fetch = stubFetch({ "http://localhost:11434/api/tags": { models: [{ name: "qwen3.5:9b" }] } });
+    const results = await runDoctor(base({ fetch, modelClient: () => fake }));
+    expect(results.find((r) => r.name === "model call")).toMatchObject({
+      status: "ok",
+      detail: `planner ollama:qwen3.5:9b replied "OK" in 0.0s`,
+    });
+    expect(fake.calls[0]?.prompt).toBe('Reply with {"reply": "OK"}.');
+  });
+
+  it("reports a failing model call without failing the doctor", async () => {
+    const fetch = stubFetch({ "http://localhost:11434/api/tags": { models: [] } });
+    const results = await runDoctor(base({ fetch, modelClient: () => new FakeModel() }));
+    expect(results.find((r) => r.name === "model call")).toMatchObject({ status: "error" });
+    expect(results.find((r) => r.name === "model call")?.detail).toContain("FAKE_NO_SCRIPT");
+    expect(exitCode(results)).toBe(0);
+  });
+
+  it("uses an openai-compatible planner from env and probes only keyed endpoints", async () => {
+    const seen: { url: string; auth?: string }[] = [];
+    const fetch = stubFetch({ "https://api.groq.com/openai/v1/models": { data: [{ id: "llama" }] } }, seen);
+    const env = { PLANNER_MODEL: "openai-compatible:groq:llama", GROQ_API_KEY: "k" };
+    const results = await runDoctor(base({ fetch, env }));
+    expect(results.find((r) => r.name === "model call")?.status).toBe("ok");
+    expect(seen.some((s) => s.url.includes("cerebras"))).toBe(false);
+  });
+
+  it("reports an invalid model config instead of crashing", async () => {
+    const results = await runDoctor(base({ env: { PLANNER_MODEL: "nonsense" } }));
+    expect(results.find((r) => r.name === "model config")?.status).toBe("error");
+    expect(exitCode(results)).toBe(0);
   });
 });

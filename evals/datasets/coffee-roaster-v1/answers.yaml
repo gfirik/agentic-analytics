@@ -1,0 +1,68 @@
+# coffee-roaster-v1 answer key (hand-built; mirrors docs/assets/blueprint.html §02).
+# Changing an answer key requires a note in the PR (docs/EVALS.md §5).
+dataset: coffee-roaster-v1
+archetype: coffee_roaster
+period: { from: 2026-01, to: 2026-06, grain: month }
+currency: USD
+files:
+  - sales-2026.xlsx   # sheets Orders (A1:H6261) and Monthly (summary A1:F7, costs H1:L7)
+  - price-list.pdf    # 4 pages; wholesale price rise on page 2
+  - email-0412.eml    # hotel group pauses its standing order
+  - ops-notes.docx    # §3 packaging supplier switched on 28 April
+
+monthly:   # ground truth; Orders aggregates to exactly these values
+  - { month: 2026-01, revenue: 41200, orders: 980,  wholesale: 14800, retail: 26400, refund_rate_pct: 1.1 }
+  - { month: 2026-02, revenue: 42900, orders: 1010, wholesale: 15300, retail: 27600, refund_rate_pct: 1.0 }
+  - { month: 2026-03, revenue: 44100, orders: 1050, wholesale: 15900, retail: 28200, refund_rate_pct: 1.2 }
+  - { month: 2026-04, revenue: 36200, orders: 1020, wholesale: 7400,  retail: 28800, refund_rate_pct: 1.3 }
+  - { month: 2026-05, revenue: 35800, orders: 1005, wholesale: 7100,  retail: 28700, refund_rate_pct: 2.9 }
+  - { month: 2026-06, revenue: 37000, orders: 1040, wholesale: 7300,  retail: 29700, refund_rate_pct: 3.4 }
+
+planted:
+  - id: P1
+    type: regression
+    metric: revenue
+    period: 2026-04
+    baseline: 2026-03
+    expected_change_pct: -17.9
+    tolerance_pct: 0.1
+    driver: { dimension: channel, member: wholesale, min_share: 1.0, expected_share_pct: 108 }
+    cause: { doc: email-0412.eml, grade_at_least: document_supported }
+    supporting_docs: [price-list.pdf]
+    good_actions: [volume_discount_key_client, renegotiate_price]
+  - id: P2
+    type: regression
+    metric: refund_rate
+    period: 2026-05
+    from_pct: 1.2
+    to_pct: 3.4
+    to_period: 2026-06
+    cause: { doc: ops-notes.docx, grade_at_least: correlated }
+    good_actions: [review_packaging_supplier, quality_check_packaging]
+  - id: P3
+    type: improvement
+    metric: retail_revenue
+    period: { from: 2026-01, to: 2026-06 }
+    expected_change_pct: 12.5
+    tolerance_pct: 0.1
+
+distractors:
+  - id: D1
+    description: "March revenue rise vs February is below the 5% materiality threshold"
+    must_not_appear_as_finding: true
+
+quality:
+  - id: Q1
+    kind: unit_error
+    location: "sales-2026.xlsx#Monthly!J3"
+    description: "February packaging cost 1,240,000 is 1,000x the other months (expected about 1,240)"
+  - id: Q2
+    kind: date_format_ambiguity
+    location: "sales-2026.xlsx#Orders!A2:A6261"
+    description: "Dates are dd/mm/yyyy text; values with day <= 12 are ambiguous, resolved by rows with day > 12"
+
+entities:
+  - id: E1
+    canonical: Hotel Group
+    variants: ["OOO Hotel Group", "Hotel Group LLC"]
+    must_link: true

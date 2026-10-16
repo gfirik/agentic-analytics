@@ -1,0 +1,20 @@
+{
+  "name": "@agentic-analytics/eval-datasets",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build:coffee-roaster": "tsx coffee-roaster-v1/build.ts",
+    "build:golden-report": "tsx coffee-roaster-v1/build-report.ts"
+  },
+  "dependencies": {
+    "@agentic-analytics/schema": "workspace:*",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "yaml": "^2.9.1"
+  }
+}

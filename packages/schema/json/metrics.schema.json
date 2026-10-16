@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "grain": {
+      "type": "string",
+      "enum": [
+        "day",
+        "week",
+        "month",
+        "quarter",
+        "year"
+      ]
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source"
+        ]
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "sum",
+              "count",
+              "count_distinct",
+              "avg",
+              "ratio",
+              "derived"
+            ]
+          },
+          "table": {
+            "type": "string"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "numerator": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "expression": {
+                    "type": "string"
+                  },
+                  "filters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "table",
+                  "expression"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
+                },
+                "required": [
+                  "metric"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "denominator": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "expression": {
+                    "type": "string"
+                  },
+                  "filters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "table",
+                  "expression"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "metric": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
+                },
+                "required": [
+                  "metric"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "time_column": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "currency",
+              "percent",
+              "count",
+              "ratio",
+              "days",
+              "other"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "assumed"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "type",
+          "unit",
+          "status"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "grain",
+    "metrics"
+  ]
+}

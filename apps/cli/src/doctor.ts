@@ -1,6 +1,11 @@
 // `aa doctor` (docs/specs/interfaces.md §2): checks Node, DuckDB, model providers, SearXNG and Docling,
-// and prints fixes. Only Node and DuckDB are required; every model provider and service is optional,
-// because the engine builds and tests with FakeModel and in-process embeddings (AGENTS.md §2.9).
+// prints fixes, and calls the configured planner model with a one-line prompt when its provider is up.
+// Only Node and DuckDB are required; everything else is optional, because the engine builds and tests
+// with FakeModel and in-process embeddings (AGENTS.md §2.9).
+
+import { describeRoleModel, type ModelClient, ModelError, resolveModelConfig } from "@agentic-analytics/models";
+import type { Config } from "@agentic-analytics/schema";
+import { z } from "zod";
 
 export type CheckStatus = "ok" | "missing" | "error";
 
@@ -19,32 +24,48 @@ export interface DoctorDeps {
   readonly duckdbVersion: () => Promise<string>;
   readonly fetch: typeof fetch;
   readonly env: Env;
+  /** Builds the client used for the one-line model call; tests inject FakeModel. */
+  readonly modelClient: (config: Config) => ModelClient;
+  /** Parsed agentic-analytics.config.yaml, if present. */
+  readonly configFile?: unknown;
   readonly timeoutMs?: number;
+  readonly now?: () => number;
 }
 
 const MIN_NODE_MAJOR = 22;
 
-/** Free OpenAI-compatible endpoints probed when their key is set (docs/specs/models.md §3). */
-export const OPENAI_COMPATIBLE_ENDPOINTS = [
-  { id: "groq", baseUrl: "https://api.groq.com/openai/v1", keyEnv: "GROQ_API_KEY" },
-  { id: "openrouter", baseUrl: "https://openrouter.ai/api/v1", keyEnv: "OPENROUTER_API_KEY" },
-] as const;
-
 export async function runDoctor(deps: DoctorDeps): Promise<CheckResult[]> {
   const timeoutMs = deps.timeoutMs ?? 2000;
-  const probe = (url: string, headers?: Record<string, string>) => probeUrl(deps.fetch, url, timeoutMs, headers);
-  const ollamaUrl = trimSlash(deps.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
+  const probe: Probe = (url, headers) => probeUrl(deps.fetch, url, timeoutMs, headers);
   const searxngUrl = trimSlash(deps.env.SEARXNG_URL ?? "http://localhost:8888");
   const doclingUrl = trimSlash(deps.env.DOCLING_URL ?? "http://localhost:5001");
 
+  let config: Config | undefined;
+  let configError: CheckResult | undefined;
+  try {
+    config = resolveModelConfig(deps.env, deps.configFile);
+  } catch (err) {
+    configError = {
+      name: "model config",
+      status: "error",
+      detail: errorMessage(err),
+      required: false,
+      fix: "fix PLANNER_MODEL/EXTRACTOR_MODEL/JUDGE_MODEL or agentic-analytics.config.yaml",
+    };
+  }
+
+  const ollamaUrl = trimSlash(config?.providers.ollama?.base_url ?? "http://localhost:11434");
+  const endpoints = Object.entries(config?.providers["openai-compatible"] ?? {});
   const [duckdb, ollama, searxng, docling, ...openai] = await Promise.all([
     checkDuckdb(deps.duckdbVersion),
     checkOllama(ollamaUrl, probe),
     checkService("searxng", `${searxngUrl}/healthz`, probe, "optional web lane: docker compose --profile web up -d"),
     checkService("docling", `${doclingUrl}/health`, probe, "optional hard-PDF parser: docker compose --profile docling up -d"),
-    ...OPENAI_COMPATIBLE_ENDPOINTS.map((e) => checkOpenAiCompatible(e, deps.env, probe)),
+    ...endpoints.map(([id, e]) => checkOpenAiCompatible(id, e.base_url, e.api_key_env, deps.env, probe)),
   ]);
-  return [checkNode(deps.nodeVersion), duckdb, ollama, ...openai, searxng, docling];
+  const providers = [ollama, ...openai];
+  const model = config ? await checkModelCall(config, providers, deps) : configError;
+  return [checkNode(deps.nodeVersion), duckdb, ...providers, ...(model ? [model] : []), searxng, docling];
 }
 
 export function checkNode(version: string): CheckResult {
@@ -86,23 +107,73 @@ async function checkOllama(baseUrl: string, probe: Probe): Promise<CheckResult> 
   };
 }
 
-async function checkOpenAiCompatible(endpoint: (typeof OPENAI_COMPATIBLE_ENDPOINTS)[number], env: Env, probe: Probe): Promise<CheckResult> {
-  const name = `openai-compatible:${endpoint.id}`;
-  const key = env[endpoint.keyEnv];
-  if (!key) {
+async function checkOpenAiCompatible(
+  id: string,
+  baseUrl: string,
+  keyEnv: string | undefined,
+  env: Env,
+  probe: Probe,
+): Promise<CheckResult> {
+  const name = `openai-compatible:${id}`;
+  const key = keyEnv ? env[keyEnv] : undefined;
+  if (keyEnv && !key) {
+    return { name, status: "missing", detail: `${keyEnv} not set`, required: false, fix: `optional: put a free ${keyEnv} in .env` };
+  }
+  const res = await probe(`${trimSlash(baseUrl)}/models`, key ? { authorization: `Bearer ${key}` } : undefined);
+  if (!res.ok)
     return {
       name,
-      status: "missing",
-      detail: `${endpoint.keyEnv} not set`,
+      status: "error",
+      detail: `not reachable (${res.reason})`,
       required: false,
-      fix: `optional: put a free ${endpoint.keyEnv} in .env`,
+      fix: keyEnv ? `check ${keyEnv} and network` : "check the base_url",
     };
-  }
-  const res = await probe(`${endpoint.baseUrl}/models`, { authorization: `Bearer ${key}` });
-  if (!res.ok)
-    return { name, status: "error", detail: `not reachable (${res.reason})`, required: false, fix: `check ${endpoint.keyEnv} and network` };
   const count = modelNames(res.body, "data", "id").length;
   return { name, status: "ok", detail: `reachable, ${count} model(s) listed`, required: false };
+}
+
+/** The one-line prompt (ROADMAP M1): only attempted when the planner's provider answered its probe. */
+async function checkModelCall(config: Config, providers: readonly CheckResult[], deps: DoctorDeps): Promise<CheckResult> {
+  const planner = config.models.planner;
+  const label = describeRoleModel(planner);
+  const providerCheck = planner.provider === "ollama" ? "ollama" : `openai-compatible:${planner.endpoint}`;
+  const up = providers.find((p) => p.name === providerCheck)?.status === "ok";
+  if (!up) {
+    return {
+      name: "model call",
+      status: "missing",
+      detail: `skipped: planner ${label} — ${providerCheck} not reachable`,
+      required: false,
+      fix: "optional: start the planner's provider, or set PLANNER_MODEL to a reachable one",
+    };
+  }
+  const now = deps.now ?? (() => performance.now());
+  const started = now();
+  try {
+    const { object } = await deps.modelClient(config).generateObject({
+      role: "planner",
+      schema: z.object({ reply: z.string() }),
+      system: "You are a health check. Answer with JSON only.",
+      prompt: 'Reply with {"reply": "OK"}.',
+      maxRetries: 1,
+    });
+    const seconds = ((now() - started) / 1000).toFixed(1);
+    return {
+      name: "model call",
+      status: "ok",
+      detail: `planner ${label} replied "${object.reply.slice(0, 40)}" in ${seconds}s`,
+      required: false,
+    };
+  } catch (err) {
+    const code = err instanceof ModelError ? `${err.code}: ` : "";
+    return {
+      name: "model call",
+      status: "error",
+      detail: `planner ${label} failed (${code}${errorMessage(err)})`,
+      required: false,
+      fix: "check that the model is pulled/available and supports JSON output",
+    };
+  }
 }
 
 async function checkService(name: string, url: string, probe: Probe, fix: string): Promise<CheckResult> {

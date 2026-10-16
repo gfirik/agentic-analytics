@@ -17,7 +17,7 @@ export function generateJsonSchemas(registry: Readonly<Record<string, ZodType>>)
   for (const name of Object.keys(registry).sort()) {
     const schema = registry[name];
     if (schema === undefined) continue;
-    out[`${name}.json`] = `${JSON.stringify(z.toJSONSchema(schema), null, 2)}\n`;
+    out[`${name}.json`] = `${JSON.stringify(z.toJSONSchema(schema, { io: "input" }), null, 2)}\n`;
   }
   return out;
 }

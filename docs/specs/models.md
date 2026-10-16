@@ -49,7 +49,9 @@ providers:
     groq: { base_url: https://api.groq.com/openai/v1, api_key_env: GROQ_API_KEY }
 ```
 
-Model profiles (`packages/models/profiles.ts`) record per-model facts: context size, tool-calling reliability, JSON-mode support, and whether small-model mode applies. They are filled in from eval results.
+Roles that use `openai-compatible` name their endpoint: `planner: { provider: openai-compatible, endpoint: groq, model: llama-3.3-70b-versatile }`. Env overrides use the same shape as one string: `PLANNER_MODEL=ollama:qwen3.5:9b`, `PLANNER_MODEL=openai-compatible:groq:llama-3.3-70b-versatile`, `EMBEDDING_MODEL=transformers:Xenova/bge-m3`. Built-in endpoint presets (groq, openrouter, cerebras, github-models) can be overridden or extended in the config file. An endpoint sets `structured_outputs: true` when its models accept `response_format: json_schema`; otherwise the schema is sent in the system prompt. Ollama always uses native structured outputs.
+
+Model profiles (`packages/models/src/profiles.ts`) record per-model facts: context size, tool-calling reliability, JSON-mode support, and whether small-model mode applies. They are filled in from eval results.
 
 ## 5. Reliability
 

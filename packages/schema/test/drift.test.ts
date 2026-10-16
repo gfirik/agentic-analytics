@@ -25,7 +25,7 @@ describe("schema drift", () => {
     expect(hasDrift(report)).toBe(true);
   });
 
-  it("starts with an empty registry in M0", () => {
-    expect(Object.keys(jsonSchemaRegistry)).toEqual([]);
+  it("registers the report, metrics, config and events schemas", () => {
+    expect(Object.keys(jsonSchemaRegistry).sort()).toEqual(["config.schema", "events.schema", "metrics.schema", "report.schema"]);
   });
 });
