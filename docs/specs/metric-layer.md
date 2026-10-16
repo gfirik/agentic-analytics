@@ -44,7 +44,7 @@ metrics:
    - dimensions exist;
    - ratios don't divide by a sum that could be zero without a guard.
    Invalid proposals are dropped with a reason. The model is never trusted to be right.
-4. Deterministic fallbacks apply when the model is unavailable: columns named like `amount|revenue|sum|выручка|сумма|tushum` with a currency type become `revenue` candidates.
+4. Deterministic fallbacks apply when the model is unavailable: columns named like `amount|revenue|sum|выручка|сумма|tushum` with a currency type become `revenue` candidates. A table with no such column but a price-named currency column and a quantity-named number column (invoice lines) gets `revenue = sum(quantity * price)`, so cancellation lines with negative quantities net out.
 
 ## 3. Confirmation
 

@@ -25,6 +25,7 @@ Its rules were written knowing the generator's document templates: a sentence wi
 - `runSuite({ suite, model, modelName, embedder, smallModel?, datasets? })` and `suiteDatasets(suite)`. The smoke suite is coffee_roaster-v1, saas-v2 and restaurant-v3; the full suite is all 30 datasets.
 - `scoreReport(report, key, run)`, `subjectOf`, `matchesPlanted`, `matchesDistractor`, `sliceOf`, `summarize(scores)`: the bars.
 - `evalCommand(args, deps)` (typed `EvalRunError`), `resultsPage(dir)`, `resultsMarkdown(result)`. Full-suite results are committed in `evals/results/`; smoke runs stay local.
+- Real-data tier (evals/real/README.md): `runRealSuite({ model, modelName, embedder, dataDir, answersDir })`, `scoreCheck(check, report)`, `scoreRealReport`, `loadRealAnswers`, `missingRealData`, `realEvalCommand(args, deps)` (`NO_DATA` when a file has not been fetched) and `realResultsMarkdown(result)`. `resultsPage` adds the "Real public data" section from `*-real.json` results.
 
 ## Example
 
@@ -32,6 +33,7 @@ Its rules were written knowing the generator's document templates: a sentence wi
 bun run eval -- --suite full --model baseline                 # one command, offline
 bun run eval -- --suite full --model ollama:qwen3.5:9b        # a local model (every role)
 bun run eval -- --suite full --model configured               # the models in .env / config
+bun run eval:real:fetch && bun run eval:real                 # public datasets (evals/real), offline baseline
 ```
 
 `EvalArgs.resultsPage` sets where the RESULTS.md page is written. It defaults to beside the results folder (`evals/RESULTS.md` in a checkout); `aa eval --results-dir dir` and the standalone binary put it inside the results folder instead, never in the user's working directory.

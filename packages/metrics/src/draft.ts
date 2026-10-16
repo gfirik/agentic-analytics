@@ -84,7 +84,7 @@ const REFUND_VALUE = /refund|return|cancel|chargeback|возврат|отмен|
 const CHANNEL = /channel|segment|канал|сегмент|kanal/i;
 
 /**
- * Deterministic drafts (spec §2.4): money-named currency columns become `revenue`; refund/return statuses give
+ * Deterministic drafts (spec §2.4): money-named currency columns (or quantity × unit price) become `revenue`; refund/return statuses give
  * `refund_rate`; an id column gives `orders`; a channel-like category with 2–5 values gives `<member>_revenue`.
  */
 /** Cell text becomes a metric id and label here, so it must look like a plain short name (security §3 screen). */
@@ -92,13 +92,36 @@ function safeMemberName(value: string): boolean {
   return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !/ignore|instruction|system|prompt|you are|https?:/i.test(value);
 }
 
+const PRICE = /price|цена|narx/i;
+const QUANTITY = /qty|quantity|units|pcs|pieces|кол-во|количество|soni|dona/i;
+
+type ProfiledTable = ProfileSummary["tables"][number];
+
+/**
+ * What revenue sums, in the largest dated table that has it: a money-named amount column, or else a line total,
+ * quantity × unit price, for line-item tables (an invoice line with Quantity and Price but no amount column).
+ */
+function salesAmount(summary: ProfileSummary): { table: ProfiledTable; expression: string; currency?: string } | undefined {
+  const tables = [...summary.tables].filter((t) => t.date_column).sort((a, b) => b.detail_rows - a.detail_rows);
+  for (const t of tables) {
+    const money = t.columns.find((c) => c.type === "currency" && MONEY.test(c.label));
+    if (money) return { table: t, expression: money.name, ...(money.currency ? { currency: money.currency } : {}) };
+  }
+  for (const t of tables) {
+    const price = t.columns.find((c) => c.type === "currency" && PRICE.test(c.label));
+    const qty = t.columns.find((c) => (c.type === "integer" || c.type === "decimal") && QUANTITY.test(c.label));
+    if (price && qty)
+      return { table: t, expression: `${qty.name} * ${price.name}`, ...(price.currency ? { currency: price.currency } : {}) };
+  }
+  return undefined;
+}
+
 export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
   const out: MetricDef[] = [];
-  const tables = [...summary.tables].filter((t) => t.date_column).sort((a, b) => b.detail_rows - a.detail_rows);
-  const table = tables.find((t) => t.columns.some((c) => c.type === "currency" && MONEY.test(c.label)));
-  if (!table) return out;
-  const money = table.columns.find((c) => c.type === "currency" && MONEY.test(c.label));
-  if (!money) return out;
+  const sales = salesAmount(summary);
+  if (!sales) return out;
+  const table = sales.table;
+  const money = { name: sales.expression, ...(sales.currency ? { currency: sales.currency } : {}) };
   const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
   const statusCol = table.columns.find((c) => c.type === "category" && c.top_values.some((v) => REFUND_VALUE.test(v.value)));
   const refundValues = statusCol ? statusCol.top_values.map((v) => v.value).filter((v) => REFUND_VALUE.test(v)) : [];
