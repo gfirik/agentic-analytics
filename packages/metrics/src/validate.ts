@@ -20,6 +20,8 @@ export interface Validation {
 export interface ValidateOptions {
   /** ISO 4217 code for money columns with no detected currency; "XXX" (no currency) when absent. */
   readonly defaultCurrency?: string;
+  /** Keep each definition's `status` (loading a saved metrics file); otherwise every proposal is `assumed`. */
+  readonly keepStatus?: boolean;
 }
 
 type Term = { table: string; expression: string; filters?: string[] } | { metric: string };
@@ -80,7 +82,13 @@ export function validateMetrics(proposals: readonly unknown[], catalog: Catalog,
 
   for (const { p } of ordered) {
     const reasons: string[] = [];
-    const raw = typeof p === "object" && p !== null ? { ...(p as Record<string, unknown>), status: "assumed" } : p;
+    const raw =
+      typeof p === "object" && p !== null
+        ? {
+            ...(p as Record<string, unknown>),
+            status: options.keepStatus && (p as { status?: unknown }).status === "confirmed" ? "confirmed" : "assumed",
+          }
+        : p;
     const id = typeof (raw as { id?: unknown })?.id === "string" ? ((raw as { id: string }).id as string) : undefined;
     let def: MetricDef | undefined;
     // Currency: fill from the column or the job default before the schema's "currency metrics need a currency" rule.

@@ -41,6 +41,8 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 - [M2] Docling path for PDFs without a text layer against a real docling-serve — DEFERRED (service not running; client tested with a stub) — `docker compose --profile docling up -d && DOCLING_URL=http://localhost:5001 bun run ingest fixtures/docs/scanned.pdf`
 
+- [M4] Drafting coffee-roaster metrics with a real free model — DEFERRED (no model configured; the model path is tested with FakeModel and the fallback produced revenue, orders, refund_rate and the channel revenues) — `EXTRACTOR_MODEL=ollama:qwen3.5:9b bun run aa metrics evals/datasets/coffee-roaster-v1/files --currency USD` (or `EXTRACTOR_MODEL=openai-compatible:groq:<model> GROQ_API_KEY=…`); expect revenue, wholesale_revenue and refund_rate among the accepted drafts with values 41,200…37,000 / 14,800…7,300 / 1.1…3.4
+
 <!-- Format: - [M<N>] <criterion> — <reason> — `<exact command to run>` -->
 
 ## Decisions made by agents
@@ -103,6 +105,16 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M3] Money-named headers no longer include "total" ("Total units" is a count, not money) — ingestion spec §5
 - [M3] Root script `bun run profile <paths…> [--json] [--today]` is the M3 demo; `today` is injected so the future-date rule is deterministic — ROADMAP M3
 
+- [M4] Metric expressions and filters use a small grammar parsed into an AST (columns, numbers, + − × ÷, abs, coalesce; comparisons, IN, IS NULL, AND/OR/NOT). Model-written text never reaches SQL as text: identifiers are checked and every literal is a parameter; division inside expressions is NULLIF-guarded like ratio denominators — metric-layer §2.3, AGENTS.md §2.6/§4
+- [M4] Validation order is table metrics → ratios → derived, and references must point at metrics accepted earlier, which rules out cycles; every rejection lists its reasons — metric-layer §2.3
+- [M4] Currency for money metrics: the column's detected currency, else the job default (`--currency`), else `XXX` (ISO 4217 "no currency"); a defaulted currency is recorded as an assumption — metric-layer §1, report-schema (currency)
+- [M4] Percent conventions: profile stores percent columns as fractions; percent-unit ratios and averages of percent columns are reported in percentage points (×100), matching report facts (1.2 = 1.2%) — metric-layer §4, report-schema §3
+- [M4] Ratio semantics: a period with no numerator rows is 0 (no refunds that month); a missing or zero denominator is NULL; derived metrics are NULL when an input is missing in that period (unknown, never guessed) — metric-layer §2.3
+- [M4] The model path falls back to deterministic drafts when no model is configured, the model errors, or none of its proposals validate. Fallbacks: `revenue` (money-named currency column, refund/return statuses excluded), `orders` (distinct ids), `refund_rate` (when a refund-like status exists), `<member>_revenue` for a channel/segment column with 2–5 values — metric-layer §2.4
+- [M4] The drafting digest masks customer/supplier/person columns and emails/phones, caps samples at five, and sends them only inside a `<DATA>` block the system prompt declares to be data, never instructions — metric-layer §2.1, security §2–3
+- [M4] Review: accept → confirmed; edit → YAML re-validated (up to 3 tries, then kept as assumed); drop → removed, and a final re-validation drops metrics that depended on it. `--yes` keeps new drafts as assumed but never downgrades definitions already confirmed in a saved metrics file — metric-layer §3
+- [M4] `aa metrics` is the M4 CLI confirm flow (`aa analyze` in M10 reuses `reviewMetrics`); it prints each metric in plain words, its compiled SQL with parameters and recent values — ROADMAP M4
+
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
@@ -117,7 +129,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M2] Docling runs as a compose profile with a published port for local use; the spec's "no network" for the Docling container (internal-only network) is not configured yet — M10
 - [M3] The PROFILE stage emits no progress events until the event bus and `packages/core/log` land — M7
 - [M3] `profile.json` (the summary) is returned and printed by the demo but not yet persisted to the job folder; the job runner writes it next to `workspace.duckdb` — M7
-- [M3] The profile summary carries raw spreadsheet text (top values, entity spellings, assumption text, ingest messages). Cell text is untrusted (security §2): before any of it reaches a model prompt (M4 metric drafting, M7 planner) it must be screened, masked (names/contacts, metric-layer §2.1) and passed only as delimited data — M4/M7
+- [M3] The profile summary carries raw spreadsheet text (top values, entity spellings, assumption text, ingest messages). Cell text is untrusted (security §2): before any of it reaches a model prompt it must be screened, masked and passed only as delimited data. M4's metric-drafting digest does this (masking + `<DATA>` delimiters); the planner path is still open — M7
 - [M3] Profile and ingest issue messages are developer-facing and contain numbers; the report's `QualityIssue.description` must be rendered without free numerals (placeholders/facts) when issues reach the report — M7/M9
 - [M3] Transposed tables whose period headers are month names without a year get no `_period` (the year is unknown) — revisit with a job-level year hint in M4
 - [M1] Sign-vs-wording consistency ("fell" with a negative value) is caught today only by fixture tests; the verifier should check it for model-written claims — M9

@@ -364,7 +364,7 @@ export function describeFilter(f: Filter): string {
     case "cmp":
       return `${operand(f.left)} ${OP_WORDS[f.op] ?? f.op} ${operand(f.right)}`;
     case "in":
-      return `${f.col} is ${f.negated ? "not " : ""}one of ${f.values.join(", ")}`;
+      return `${f.col} is ${f.negated ? "not " : ""}${f.values.length === 1 ? String(f.values[0]) : `one of ${f.values.join(", ")}`}`;
     case "null":
       return `${f.col} is ${f.negated ? "filled in" : "empty"}`;
     case "and":
