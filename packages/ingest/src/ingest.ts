@@ -11,7 +11,7 @@ import { readWorkbookGrids } from "./grid.ts";
 import { sha256Hex } from "./hash.ts";
 import { type DetectedTable, detectTables } from "./regions.ts";
 import { decodeText, sniff } from "./sniff.ts";
-import type { DocumentMeta, DocumentSection, FileKind, FileRecord, IngestIssue, IngestResult, InputFile } from "./types.ts";
+import type { DocumentMeta, DocumentSection, FileKind, FileRecord, IngestIssue, IngestResult, InputFile, TableRegion } from "./types.ts";
 import { readZipEntries } from "./zip.ts";
 
 export interface IngestLimits {
@@ -52,7 +52,8 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
   for (let item = queue.shift(); item; item = queue.shift()) {
     const id = `F${result.files.length + 1}`;
     const base = { id, name: item.name, size: item.bytes.length, ...(item.parent ? { parent: item.parent } : {}) };
-    const issue = (i: Omit<IngestIssue, "file" | "file_id">) => result.issues.push({ file: item?.name ?? "", file_id: id, ...i });
+    const issue = (i: Omit<IngestIssue, "file" | "file_id">) =>
+      result.issues.push({ file: item?.name ?? "", file_id: id, ...i, message: oneLine(i.message) });
     const sha256 = await sha256Hex(item.bytes);
 
     if (!item.parent && accepted >= limits.maxFiles) {
@@ -69,9 +70,11 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
       });
       continue;
     }
+    const sniffed = sniff(item.bytes, item.name);
     const dup = byHash.get(sha256);
     if (dup) {
-      result.files.push({ ...base, sha256, kind: "unknown", mime: "", status: "duplicate", duplicate_of: dup });
+      const known = sniffed.kind === "archive" ? "unknown" : sniffed.kind;
+      result.files.push({ ...base, sha256, kind: known, mime: sniffed.mime, status: "duplicate", duplicate_of: dup });
       issue({ kind: "duplicate_file", severity: "low", message: `identical to ${dup}; ingested once` });
       continue;
     }
@@ -79,7 +82,6 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
     if (!item.parent) accepted++;
     jobBytes += item.bytes.length;
 
-    const sniffed = sniff(item.bytes, item.name);
     if (sniffed.kind === "archive" || sniffed.kind === "unknown") {
       result.files.push({ ...base, sha256, kind: "unknown", mime: sniffed.mime, status: "rejected" });
       issue({
@@ -105,10 +107,17 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
     }
 
     const record: FileRecord = { ...base, sha256, kind, mime: sniffed.mime, status: "ingested" };
+    // Each parse writes into its own buffer, merged only on success: a parse that times out or fails can
+    // never leak tables or sections into the result after its file was marked failed.
+    const buffer: Parsed = { tables: [], documents: [], documents_meta: [], issues: [], attachments: [] };
+    const abort = new AbortController();
     try {
-      await withTimeout(parseFile(kind, item, id, result, options, queue), limits.timeoutMs, `parsing ${item.name}`);
+      await withTimeout(parseFile(kind, item, id, buffer, options, abort.signal), limits.timeoutMs, `parsing ${item.name}`);
+      merge(result, buffer);
+      queue.push(...buffer.attachments);
       result.files.push(record);
     } catch (err) {
+      abort.abort();
       result.files.push({ ...record, status: "failed" });
       const code = err instanceof IngestError ? err.code : "UNREADABLE";
       issue({
@@ -121,21 +130,42 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
   return result;
 }
 
+/** One file's output before it is merged; ids are assigned at merge time. */
+interface Parsed {
+  readonly tables: Omit<TableRegion, "id">[];
+  readonly documents: Omit<DocumentSection, "id">[];
+  readonly documents_meta: DocumentMeta[];
+  readonly issues: IngestIssue[];
+  readonly attachments: Pending[];
+}
+
+function merge(result: IngestResult, p: Parsed): void {
+  for (const t of p.tables) result.tables.push({ id: `T${result.tables.length + 1}`, ...t });
+  for (const d of p.documents) result.documents.push({ id: `D${result.documents.length + 1}`, ...d });
+  result.documents_meta.push(...p.documents_meta);
+  result.issues.push(...p.issues);
+}
+
+/** Issue messages are single-line and bounded: parser errors can carry raw XML, tabs and newlines. */
+function oneLine(message: string): string {
+  const flat = message.replace(/\s+/g, " ").trim();
+  return flat.length > 300 ? `${flat.slice(0, 297)}…` : flat;
+}
+
 async function parseFile(
   kind: FileKind,
   file: Pending,
   fileId: string,
-  out: IngestResult,
+  out: Parsed,
   options: IngestOptions,
-  queue: Pending[],
+  signal: AbortSignal,
 ): Promise<void> {
   const addTables = (tables: DetectedTable[]) => {
-    for (const t of tables) out.tables.push({ id: `T${out.tables.length + 1}`, file_id: fileId, ...t });
+    for (const t of tables) out.tables.push({ file_id: fileId, ...t });
   };
   const addSections = (docKind: DocumentSection["kind"], sections: RawSection[], page?: number) => {
     for (const s of sections) {
       out.documents.push({
-        id: `D${out.documents.length + 1}`,
         file_id: fileId,
         kind: docKind,
         ...(page !== undefined ? { page } : {}),
@@ -143,7 +173,8 @@ async function parseFile(
       });
     }
   };
-  const issue = (i: Omit<IngestIssue, "file" | "file_id">) => out.issues.push({ file: file.name, file_id: fileId, ...i });
+  const issue = (i: Omit<IngestIssue, "file" | "file_id">) =>
+    out.issues.push({ file: file.name, file_id: fileId, ...i, message: oneLine(i.message) });
 
   switch (kind) {
     case "xlsx":
@@ -184,7 +215,7 @@ async function parseFile(
           out.documents_meta.push({ file_id: fileId, kind: "pdf", pages: pages.length, texts: pages, via });
           return;
         }
-        pages = await options.docling.convertPdf(file.bytes, file.name);
+        pages = await options.docling.convertPdf(file.bytes, file.name, signal);
         via = "docling";
       }
       out.documents_meta.push({ file_id: fileId, kind: "pdf", pages: pages.length, texts: pages, via });
@@ -214,7 +245,7 @@ async function parseFile(
         ]);
       }
       // Attachments re-enter intake with the email as their parent (spec §4).
-      for (const a of mail.attachments) queue.push({ name: a.name, bytes: a.bytes, parent: fileId });
+      for (const a of mail.attachments) out.attachments.push({ name: a.name, bytes: a.bytes, parent: fileId });
       return;
     }
     case "txt":

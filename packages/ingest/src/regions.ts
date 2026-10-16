@@ -49,6 +49,7 @@ interface Layout {
 const TOTAL_WORDS = /^(grand\s+)?(sub\s*-?\s*)?totals?\b|^итого|^всего|^jami\b|^sum\b|^summa\b/i;
 const MIN_DATA_ROWS = 3;
 const MIN_COLS = 2;
+const MIN_TYPE_SHARE = 0.8;
 
 /** Grid with merged ranges unmerged: every cell of a merge carries the top-left value (spec §3.3). */
 class View {
@@ -206,7 +207,7 @@ function analyze(view: View, b: Box, options: DetectOptions): Layout | undefined
   let i = 0;
   const topNotes: number[] = [];
   // Titles and notes above the table: rows with a single filled cell (spec §3, "notes above the table").
-  while (!options.headerFirstRow && i < all.length && occupiedCount(view, all[i] ?? 0, b) <= 1) topNotes.push(all[i++] ?? 0);
+  while (!options.headerFirstRow && i < all.length && isNoteRow(view, all[i] ?? 0, b)) topNotes.push(all[i++] ?? 0);
   const body = all.slice(i);
   if (!body.length) return undefined;
 
@@ -241,9 +242,35 @@ function analyze(view: View, b: Box, options: DetectOptions): Layout | undefined
   return { box: b, topNotes, headerRows, dataRows, bottomNotes, cols: columns };
 }
 
+/**
+ * Spec §3.2: ≥ 2 columns, ≥ 3 data rows, and type consistency below the header — at least two columns whose
+ * filled cells share one type (≥ 80%, total rows excluded). Free-form text blocks and scattered notes fail this.
+ */
+function isNoteRow(view: View, r: number, b: Box): boolean {
+  const filled = cols(b.c0, b.c1).filter((c) => view.occupied(r, c));
+  // Any single-cell row above the header (title, date, note) is kept in `notes`, never dropped silently.
+  return filled.length === 1;
+}
+
 function qualifies(view: View, l: Layout): boolean {
-  const dataCols = l.cols.filter((c) => l.dataRows.some((r) => view.occupied(r, c)));
-  return dataCols.length >= MIN_COLS && l.dataRows.length >= MIN_DATA_ROWS;
+  if (l.dataRows.length < MIN_DATA_ROWS) return false;
+  const detail = l.dataRows.filter((r) => !isKeywordTotal(view, r, l.cols));
+  const consistent = l.cols.filter((c) => {
+    const types = detail.filter((r) => view.occupied(r, c)).map((r) => view.cell(r, c)?.t ?? "z");
+    if (!types.length) return false;
+    const counts = new Map<string, number>();
+    for (const t of types) counts.set(t, (counts.get(t) ?? 0) + 1);
+    return Math.max(...counts.values()) / types.length >= MIN_TYPE_SHARE;
+  });
+  return consistent.length >= MIN_COLS;
+}
+
+function isKeywordTotal(view: View, r: number, columns: readonly number[]): boolean {
+  const label = columns
+    .slice(0, 2)
+    .map((c) => view.cell(r, c))
+    .find((x) => isString(x));
+  return label !== undefined && TOTAL_WORDS.test(String(label.v).trim());
 }
 
 function headerName(view: View, headerRows: readonly number[], c: number): string {
@@ -353,11 +380,7 @@ function totalFlags(view: View, dataRows: readonly number[], columns: readonly n
   let since: number[] = [];
   const detail: number[] = [];
   for (const r of dataRows) {
-    const label = columns
-      .slice(0, 2)
-      .map((c) => view.cell(r, c))
-      .find((x) => isString(x));
-    let total = label !== undefined && TOTAL_WORDS.test(String(label.v).trim());
+    let total = isKeywordTotal(view, r, columns);
     if (!total && !view.occupied(r, columns[0] ?? 0)) {
       const numeric = columns.filter((c) => typeof view.cell(r, c)?.v === "number");
       const sums = (rs: number[]) => (c: number) =>

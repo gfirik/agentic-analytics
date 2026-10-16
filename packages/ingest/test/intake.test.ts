@@ -87,6 +87,37 @@ describe("intake", () => {
     expect(res.tables).toHaveLength(1);
   });
 
+  it("a parse that times out leaves nothing behind, even after it would have finished", async () => {
+    const slowDocling = {
+      convertPdf: (_b: Uint8Array, _n: string, signal?: AbortSignal) =>
+        new Promise<string[]>((resolve, reject) => {
+          const t = setTimeout(() => resolve(["late text from a slow converter"]), 100);
+          signal?.addEventListener("abort", () => {
+            clearTimeout(t);
+            reject(new Error("aborted"));
+          });
+        }),
+    };
+    let aborted = false;
+    const res = await ingest([{ name: "scan.pdf", bytes: fx("docs/scanned.pdf") }], {
+      docling: { convertPdf: (b, n, s) => (s?.addEventListener("abort", () => (aborted = true)), slowDocling.convertPdf(b, n, s)) },
+      limits: { timeoutMs: 30 },
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(res.files[0]?.status).toBe("failed");
+    expect(res.issues.map((i) => i.message)).toEqual(["parsing scan.pdf took longer than 30 ms"]);
+    expect(res.documents).toEqual([]);
+    expect(res.documents_meta).toEqual([]);
+    expect(aborted).toBe(true);
+  });
+
+  it("issue messages are one bounded line", async () => {
+    const res = await ingest([{ name: "bad.docx", bytes: fx("docs/corrupted.docx") }]);
+    const message = res.issues[0]?.message ?? "";
+    expect(message).not.toMatch(/[\n\t]/);
+    expect(message.length).toBeLessThanOrEqual(300);
+  });
+
   it("times out slow work", async () => {
     await expect(withTimeout(new Promise(() => {}), 20, "parsing slow.pdf")).rejects.toMatchObject({ code: "TIMEOUT" });
   });

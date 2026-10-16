@@ -54,7 +54,7 @@ export function sniff(bytes: Uint8Array, name: string): Sniffed {
 
   const text = decodeText(bytes.subarray(0, 64 * 1024));
   if (text === undefined) return { kind: "unknown", mime: "application/octet-stream", reason: "unrecognized binary file" };
-  if (looksLikeEmail(text) || e === "eml") return known("eml");
+  if (looksLikeEmail(text)) return known("eml");
   if (e === "md" || e === "markdown") return known("md");
   if (e === "txt") return known("txt");
   if (e === "tsv") return known("tsv");

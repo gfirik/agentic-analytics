@@ -74,7 +74,11 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 - [M2] Ingestion returns an in-memory `IngestResult` (files, tables with sheet row numbers and A1 ranges, document sections with page and char offsets, issues); writing `sources`/`t_<id>` into DuckDB happens in M3's `packages/store` — ingestion spec §3.6, ROADMAP M3 ("after M2's table output format is fixed")
 - [M2] Region gap tolerance (1 row/column) can join neighbouring tables, so a joined region is split at an empty column when the right side is a table with its own label/date column or repeated header names, and at an empty row when the lower side has its own header row; spacer rows/columns inside one table fail those tests and stay joined — ingestion spec §3.1–3.2
-- [M2] Title/note rows (single filled cell) above a table and single-cell text rows under it are kept as table `notes`, not data; the table range excludes them — ingestion spec §3
+- [M2] Title/note rows (single filled cell of any type) above a table and single-cell text rows under it are kept as table `notes` (so they are never silently dropped), not data; the table range excludes them — ingestion spec §3
+- [M2] Type consistency (spec §3.2): a region qualifies only if at least two columns have one dominant cell type covering ≥ 80% of their filled detail cells (keyword total rows excluded); scattered notes and free-form blocks are rejected — ingestion spec §3.2
+- [M2] `IngestIssue` is ingestion's internal shape; M3 maps each one to a report `QualityIssue` (`id`, `kind`, `severity`, a description rendered without free numerals, and citations built from file, sheet, cell and page) — report-schema §4, ROADMAP M2 acceptance
+- [M2] DOCX goes through mammoth's semantic HTML into text blocks (one per line) rather than mammoth's Markdown output, so offsets are into clean text and headings map to sections — ingestion spec §4 (updated)
+- [M2] Each file's parse writes into a private buffer that is merged into the result (ids assigned) only on success; issue messages are single-line and capped at 300 characters — ingestion spec §1 ("never fatal")
 - [M2] Hidden sheets are read (their tables are included and flagged `hidden_sheet`) and noted as a low-severity issue — ingestion spec §3 acceptance list
 - [M2] A formula with no cached value is empty (null) plus a `missing_cached_value` issue; formulas are never evaluated — ingestion spec §2, security §5
 - [M2] Transposed tables pivot to `<label> | period | value`, each row carrying the A1 refs of its label, period header and value cells; a non-period column (e.g. Total) pivots with `is_total = true` — ingestion spec §3.5
@@ -91,7 +95,9 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M0] docker-compose images for searxng, docling and ollama use `:latest` — pin versions before M10/M12
 - [M0] `aa serve` doesn't exist yet, so the engine container runs `aa doctor` and exits — M10
 - [M1] `ModelClient.embed` throws `NOT_AVAILABLE` until the in-process transformers embedder lands — M6 (FakeModel embeds deterministically for tests)
-- [M2] Parsing runs in-process with a per-file timeout; isolation in worker threads (security §5) needs a compiled worker entry and is planned with the server/Docker work — M10
+- [M2] The per-file timeout only bounds the async parsers (pdf.js, mammoth, mailparser, Docling); when it fires, the parse is aborted and its partial output is discarded. The synchronous paths — SheetJS read, region detection, CSV and plain text — are **not bounded at all** until parsing moves to worker threads (security §5), which needs a compiled worker entry — M10
+- [M2] The 2M-cells-per-sheet limit is checked after SheetJS has parsed the workbook, so it limits output, not memory; and the ZIP-bomb check trusts the uncompressed sizes declared in the central directory, which a hostile file can falsify. Both are fixed by worker isolation with a memory cap (or reading `<dimension>` and streaming inflate limits first) — M10
+- [M2] Ingestion emits no progress events yet: the event bus and `packages/core/log` arrive with the pipeline in M7, and `ingest()` will report per-file progress through them — M7
 - [M2] Password-protected `.xlsx`/`.xls` map to `password_protected` by SheetJS error message, but there is no encrypted-workbook fixture (only the encrypted PDF is tested) — add one when a real encrypted file is available
 - [M2] Docling runs as a compose profile with a published port for local use; the spec's "no network" for the Docling container (internal-only network) is not configured yet — M10
 - [M1] Sign-vs-wording consistency ("fell" with a negative value) is caught today only by fixture tests; the verifier should check it for model-written claims — M9

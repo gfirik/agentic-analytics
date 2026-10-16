@@ -4,7 +4,7 @@ import { IngestError } from "../errors.ts";
 
 export interface DoclingClient {
   /** Markdown per page. */
-  convertPdf(bytes: Uint8Array, name: string): Promise<string[]>;
+  convertPdf(bytes: Uint8Array, name: string, signal?: AbortSignal): Promise<string[]>;
 }
 
 export const DOCLING_PAGE_BREAK = "<!-- aa-page-break -->";
@@ -12,7 +12,7 @@ export const DOCLING_PAGE_BREAK = "<!-- aa-page-break -->";
 export function createDoclingClient(baseUrl: string, f: typeof fetch = globalThis.fetch, timeoutMs = 120_000): DoclingClient {
   const url = `${baseUrl.replace(/\/+$/, "")}/v1/convert/file`;
   return {
-    async convertPdf(bytes, name) {
+    async convertPdf(bytes, name, signal) {
       const form = new FormData();
       form.append("files", new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/pdf" }), name);
       form.append("to_formats", "md");
@@ -20,7 +20,11 @@ export function createDoclingClient(baseUrl: string, f: typeof fetch = globalThi
       form.append("md_page_break_placeholder", DOCLING_PAGE_BREAK);
       let res: Response;
       try {
-        res = await f(url, { method: "POST", body: form, signal: AbortSignal.timeout(timeoutMs) });
+        res = await f(url, {
+          method: "POST",
+          body: form,
+          signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+        });
       } catch (err) {
         throw new IngestError("DOCLING", `docling-serve is not reachable at ${baseUrl}`, { cause: err });
       }

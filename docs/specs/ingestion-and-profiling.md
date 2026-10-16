@@ -46,7 +46,7 @@ Real business sheets hold titles, notes, several tables, blank spacer rows, merg
 |---|---|---|
 | PDF with text layer | `unpdf` | text per page; tables via heuristics left as text in v0.1 |
 | Scanned PDF or a PDF with complex tables | `docling-serve` (optional container) | markdown per page, tables as markdown |
-| DOCX | `mammoth` → markdown | sections by heading |
+| DOCX | `mammoth` → semantic HTML → text blocks | sections by heading (heading path, char offsets into the block text) |
 | EML | `mailparser` | headers (from, to, date, subject) + body text; attachments re-enter intake |
 | TXT/MD | direct | sections by heading/blank lines |
 

@@ -36,6 +36,19 @@ for (const dir of ["xlsx", "csv"]) {
   });
 }
 
+describe("cells keep type, formula, number format and column letters (spec §2)", () => {
+  it("formulas are kept as text with their cached value; dates are typed with their format", async () => {
+    const formulas = await ingest([{ name: "09.xlsx", bytes: new Uint8Array(readFileSync(join(root, "xlsx", "09-formulas.xlsx"))) }]);
+    const d2 = formulas.tables[0]?.rows[0]?.cells[3];
+    expect(d2).toMatchObject({ v: 20, t: "n", f: "B2*C2" });
+    expect(formulas.tables[0]?.rows[2]?.cells[3]).toMatchObject({ v: null, f: "B4*C4" });
+    const simple = await ingest([{ name: "01.xlsx", bytes: new Uint8Array(readFileSync(join(root, "xlsx", "01-simple.xlsx"))) }]);
+    expect(simple.tables[0]?.rows[0]?.cells[0]).toEqual({ v: "2026-01-01", t: "d", z: "mmm yyyy" });
+    const offset = await ingest([{ name: "14.xlsx", bytes: new Uint8Array(readFileSync(join(root, "xlsx", "14-offset-table.xlsx"))) }]);
+    expect(offset.tables[0]?.columns.map((c) => c.letter)).toEqual(["C", "D", "E"]);
+  });
+});
+
 describe("transposed tables keep cell provenance", () => {
   it("each pivoted row points at its label, period header and value cells", async () => {
     const res = await ingest([{ name: "07.xlsx", bytes: new Uint8Array(readFileSync(join(root, "xlsx", "07-transposed.xlsx"))) }]);
