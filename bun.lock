@@ -162,6 +162,7 @@
       "dependencies": {
         "@agentic-analytics/store": "workspace:*",
         "@huggingface/transformers": "^4.3.1",
+        "zod": "^4.6.7",
       },
       "devDependencies": {
         "@agentic-analytics/eval-datasets": "workspace:*",

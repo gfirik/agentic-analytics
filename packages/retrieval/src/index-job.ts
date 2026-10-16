@@ -1,6 +1,7 @@
 // Indexing (retrieval spec §2): document and email sections of a job → chunks with embeddings in the job's
 // DuckDB file, plus a BM25 index. Rebuilt in full each time: the FTS index is static, and job corpora are small.
 import type { Workspace } from "@agentic-analytics/store";
+import { z } from "zod";
 import { type ChunkOptions, chunkSections } from "./chunk.ts";
 import { clearChunks, createFts, insertChunk, insertMeta, loadFts, type Stemmer, sectionsQuery } from "./retrieval.sql.ts";
 import type { Chunk, Embedder, SectionInput } from "./types.ts";
@@ -37,6 +38,14 @@ export function chooseStemmer(texts: readonly string[]): Stemmer {
   return cyr > lat ? "russian" : "english";
 }
 
+/** `sources.meta` of an email section, as the profile job stores it (untrusted header text). */
+const EmailMeta = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  date: z.string().optional(),
+  subject: z.string().optional(),
+});
+
 export async function readSections(ws: Workspace): Promise<SectionInput[]> {
   const rows = await ws.all<{
     source_id: string;
@@ -50,7 +59,11 @@ export async function readSections(ws: Workspace): Promise<SectionInput[]> {
     meta: string | null;
   }>(sectionsQuery);
   return rows.map((r) => {
-    const meta = r.meta ? (JSON.parse(r.meta) as SectionInput["email"]) : undefined;
+    const parsed = r.meta ? EmailMeta.parse(JSON.parse(r.meta)) : undefined;
+    // Keep only present headers (exact optional properties: absent, never undefined).
+    const meta = parsed
+      ? (Object.fromEntries(Object.entries(parsed).filter(([, v]) => v !== undefined)) as NonNullable<SectionInput["email"]>)
+      : undefined;
     return {
       source_id: r.source_id,
       file: r.file,

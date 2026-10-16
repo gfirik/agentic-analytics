@@ -40,11 +40,11 @@ describe("chunkSpans (spec §1)", () => {
     for (const s of spans) expect(text.slice(s.start, s.end)).toMatch(/^(Intro|Sentence|Outro)/);
   });
 
-  it("never splits a table; an oversize table is its own chunk", () => {
+  it("never splits a table; an oversize table is its own chunk, even with periods in its cells", () => {
     const table = [
       "| Zone | Area | Fee |",
       "| --- | --- | --- |",
-      ...Array.from({ length: 40 }, (_, i) => `| Z${i} | area ${i} | ${i} USD |`),
+      ...Array.from({ length: 40 }, (_, i) => `| Z${i} | area ${i}. North | ${i}.50 USD |`),
     ].join("\n");
     const text = `Fees by zone:\n\n${table}\n\nOrders over 150 USD ship free.`;
     const spans = chunkSpans(text, { maxTokens: 60 });

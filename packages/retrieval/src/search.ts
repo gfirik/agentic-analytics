@@ -2,7 +2,7 @@
 // Without a reranker (or when it fails to load) the fused order stands and the result says `degraded: rerank`.
 // Hits go to the quarantined extractor, never straight to the planner (security spec).
 import type { Workspace } from "@agentic-analytics/store";
-import { bm25Top, chunksById, type Filters, readMeta, vectorTop } from "./retrieval.sql.ts";
+import { bm25Top, chunksById, type Filters, loadFts, readMeta, vectorTop } from "./retrieval.sql.ts";
 import { rrf } from "./rrf.ts";
 import { type Degradation, type Embedder, type Reranker, RetrievalError, type SearchHit, type SearchResult } from "./types.ts";
 
@@ -28,7 +28,12 @@ export async function searchDocuments(ws: Workspace, query: string, options: Sea
       `index was built with ${meta.embedder}; the query embedder is ${options.embedder.id}. Re-index or use the same model.`,
     );
   const degraded: Degradation[] = [];
-  if (meta.chunks === 0) return { hits: [], degraded };
+  const reasons: Partial<Record<Degradation, string>> = {};
+  const degrade = (d: Degradation, reason: string) => {
+    degraded.push(d);
+    reasons[d] = reason;
+  };
+  if (meta.chunks === 0) return { hits: [], degraded, reasons };
 
   const filters: Filters = {
     ...(options.sources ? { sources: options.sources } : {}),
@@ -36,8 +41,16 @@ export async function searchDocuments(ws: Workspace, query: string, options: Sea
     ...(options.to ? { to: options.to } : {}),
   };
   let bm25: string[] = [];
-  if (meta.fts) bm25 = (await ws.all<{ id: string }>(bm25Top(query, filters, lane))).map((r) => r.id);
-  else degraded.push("bm25");
+  if (!meta.fts) degrade("bm25", "the BM25 index was not built (fts extension unavailable when indexing)");
+  else {
+    try {
+      // A reopened job file has the index tables but not the extension loaded in this connection.
+      for (const q of loadFts) await ws.run(q);
+      bm25 = (await ws.all<{ id: string }>(bm25Top(query, filters, lane))).map((r) => r.id);
+    } catch (err) {
+      degrade("bm25", err instanceof Error ? err.message : String(err));
+    }
+  }
   const [qv] = await options.embedder.embed([query], "query");
   const vector = (await ws.all<{ id: string }>(vectorTop(qv ?? [], filters, lane))).map((r) => r.id);
 
@@ -60,6 +73,7 @@ export async function searchDocuments(ws: Workspace, query: string, options: Sea
     if (!r) return undefined;
     const [b, v] = ranks;
     return {
+      untrusted: true,
       chunk_id: r.id,
       source_id: r.source_id,
       file: r.file,
@@ -83,18 +97,24 @@ export async function searchDocuments(ws: Workspace, query: string, options: Sea
         return r ? `${r.prefix}\n${r.text}` : "";
       });
       const scores = await options.reranker.score(query, texts);
+      if (scores.length !== pool.length || scores.some((x) => !Number.isFinite(x)))
+        throw new RetrievalError(
+          "RERANK_FAILED",
+          `reranker ${options.reranker.id} returned ${scores.length} scores for ${pool.length} documents`,
+        );
       ordered = pool
-        .map((f, i) => ({ ...f, score: scores[i] ?? Number.NEGATIVE_INFINITY }))
+        .map((f, i) => ({ ...f, score: scores[i] as number }))
         .sort((a, b) => b.score - a.score || pool.indexOf(a) - pool.indexOf(b));
-    } catch {
-      // A reranker that can't load or run must not lose the answer: keep the fused order, flag it (spec §3).
-      degraded.push("rerank");
+    } catch (err) {
+      // A reranker that can't load or run must not lose the answer: keep the fused order, flag it and keep the
+      // reason (spec §3).
+      degrade("rerank", err instanceof Error ? err.message : String(err));
     }
-  } else degraded.push("rerank");
+  } else degrade("rerank", "no reranker configured");
 
   const hits = ordered
     .slice(0, k)
     .map((f) => hit(f.id, f.score, f.ranks))
     .filter((h): h is SearchHit => h !== undefined);
-  return { hits, degraded };
+  return { hits, degraded, reasons };
 }

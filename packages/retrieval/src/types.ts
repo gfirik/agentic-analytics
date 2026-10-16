@@ -1,7 +1,7 @@
 // Shared types of the RAG lane (docs/specs/retrieval.md). Retrieval covers documents and emails only: tables are
 // never retrieved as text, their numbers come from SQL.
 
-export type RetrievalErrorCode = "MODEL_UNAVAILABLE" | "EMBEDDING_MISMATCH" | "NOT_INDEXED" | "BAD_SPAN" | "FTS_UNAVAILABLE";
+export type RetrievalErrorCode = "MODEL_UNAVAILABLE" | "EMBEDDING_MISMATCH" | "NOT_INDEXED" | "BAD_SPAN" | "RERANK_FAILED";
 
 export class RetrievalError extends Error {
   constructor(
@@ -54,6 +54,11 @@ export interface Reranker {
 }
 
 export interface SearchHit {
+  /**
+   * Document text is untrusted (security spec §2): hits go to the quarantined extractor only, never into the
+   * planner prompt. The marker lets M7 code require it at compile time.
+   */
+  readonly untrusted: true;
   readonly chunk_id: string;
   readonly source_id: string;
   readonly file: string;
@@ -75,4 +80,6 @@ export interface SearchResult {
   readonly hits: SearchHit[];
   /** Parts of the query flow that were skipped (spec §3): the hits are still valid, just less well ordered. */
   readonly degraded: Degradation[];
+  /** Why each degraded part was skipped (the error message), for logs and the report's limitations. */
+  readonly reasons: Partial<Record<Degradation, string>>;
 }

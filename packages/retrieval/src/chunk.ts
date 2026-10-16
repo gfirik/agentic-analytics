@@ -24,6 +24,8 @@ interface Unit {
   readonly start: number;
   readonly end: number;
   readonly tokens: number;
+  /** A run of table lines: never split, even when it is over the budget. */
+  readonly table?: boolean;
 }
 
 const TABLE_LINE = /^\s*\|.*\|\s*$|\t/;
@@ -41,7 +43,13 @@ function blocks(text: string): Unit[] {
   const out: Unit[] = [];
   let cur: { start: number; end: number; table: boolean } | undefined;
   const flush = () => {
-    if (cur) out.push({ start: cur.start, end: cur.end, tokens: estimateTokens(text.slice(cur.start, cur.end)) });
+    if (cur)
+      out.push({
+        start: cur.start,
+        end: cur.end,
+        tokens: estimateTokens(text.slice(cur.start, cur.end)),
+        ...(cur.table ? { table: true } : {}),
+      });
     cur = undefined;
   };
   for (const l of lines) {
@@ -82,7 +90,8 @@ export function chunkSpans(text: string, options: ChunkOptions = {}): { start: n
   const trimmedEnd = text.trimEnd().length;
   if (trimmedEnd <= trimmedStart) return [];
   if (estimateTokens(text) <= max) return [{ start: trimmedStart, end: trimmedEnd }];
-  const units = blocks(text).flatMap((b) => (b.tokens > max && !TABLE_LINE.test(text.slice(b.start, b.end)) ? sentences(text, b) : [b]));
+  // The table flag comes from the per-line test in blocks(): a regex over the whole multi-line block would miss it.
+  const units = blocks(text).flatMap((b) => (b.tokens > max && !b.table ? sentences(text, b) : [b]));
   const spans: { start: number; end: number }[] = [];
   let i = 0;
   while (i < units.length) {

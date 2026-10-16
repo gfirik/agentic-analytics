@@ -1,6 +1,7 @@
 // M6 acceptance, offline: BM25 + the hashing embedder (no model download) reach recall@8 ≥ 0.85 on both labelled
 // corpora, and search works without a reranker (degraded flag). Real-model numbers: `eval:retrieval`.
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ingest } from "@agentic-analytics/ingest";
 import { profileJob } from "@agentic-analytics/profile";
@@ -62,6 +63,8 @@ describe("query flow (spec §3)", () => {
     const r = await searchDocuments(ws, "Why was the night shift stopped?", { embedder });
     expect(r.hits).toHaveLength(8);
     expect(r.degraded).toEqual(["rerank"]);
+    expect(r.reasons).toEqual({ rerank: "no reranker configured" });
+    expect(r.hits.every((h) => h.untrusted)).toBe(true);
     const scores = r.hits.map((h) => h.score);
     expect([...scores].sort((a, b) => b - a)).toEqual(scores);
     expect(r.hits.every((h) => h.bm25_rank !== undefined || h.vector_rank !== undefined)).toBe(true);
@@ -89,8 +92,39 @@ describe("query flow (spec §3)", () => {
     const plain = await searchDocuments(ws, "rent increase", { embedder });
     const r = await searchDocuments(ws, "rent increase", { embedder, reranker: broken });
     expect(r.degraded).toEqual(["rerank"]);
+    expect(r.reasons.rerank).toBe("model file missing");
     expect(r.hits.map((h) => h.chunk_id)).toEqual(plain.hits.map((h) => h.chunk_id));
   });
+
+  it("a reranker returning the wrong number of scores is rejected, not padded", async () => {
+    const short: Reranker = { id: "short", score: async () => [1, 2, 3] };
+    const plain = await searchDocuments(ws, "rent increase", { embedder });
+    const r = await searchDocuments(ws, "rent increase", { embedder, reranker: short });
+    expect(r.degraded).toEqual(["rerank"]);
+    expect(r.reasons.rerank).toMatch(/returned 3 scores for \d+ documents/);
+    expect(r.hits.map((h) => h.chunk_id)).toEqual(plain.hits.map((h) => h.chunk_id));
+  });
+
+  it("a reopened job file still has BM25 (the fts extension is loaded per connection)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-retrieval-"));
+    const path = join(dir, "job.duckdb");
+    try {
+      const first = await Workspace.open(path);
+      const files = readdirSync(join(root, shop.dir))
+        .sort()
+        .map((f) => ({ name: f, bytes: new Uint8Array(readFileSync(join(root, shop.dir, f))) }));
+      await profileJob(first, await ingest(files), { today: "2026-07-01" });
+      await indexDocuments(first, embedder);
+      first.close();
+      const again = await Workspace.open(path);
+      const r = await searchDocuments(again, "minimum paper order per delivery", { embedder });
+      again.close();
+      expect(r.degraded).toEqual(["rerank"]);
+      expect(r.hits.some((h) => h.bm25_rank !== undefined)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("filters by file and by email date", async () => {
     const byFile = await searchDocuments(ws, "price increase", { embedder, sources: ["email-paperworks.eml", "pricing-memo.docx"] });
@@ -134,6 +168,7 @@ describe("query flow (spec §3)", () => {
     const r = await searchDocuments(w, "How much will the workshop rent increase?", { embedder });
     w.close();
     expect(r.degraded).toEqual(["bm25", "rerank"]);
+    expect(r.reasons.bm25).toMatch(/not built/);
     expect(r.hits.some((h) => h.file === "email-landlord.eml")).toBe(true);
     expect(r.hits.every((h) => h.bm25_rank === undefined)).toBe(true);
   }, 60_000);

@@ -92,7 +92,7 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | Table | Contents |
 |---|---|
 | `files` | id, name, sha256, mime, size, status |
-| `sources` | every detected table or document section, with provenance (file, sheet, A1 range, page, char span) |
+| `sources` | every detected table or document section, with provenance (file, sheet, A1 range, page, char span); `meta` holds email headers |
 | `t_<id>` | one physical table per detected source table, with normalized columns plus `_row` (original row number) |
 | `profile_columns`, `profile_tables` | profiling results |
 | `quality_issues` | data-quality findings with provenance |
@@ -101,8 +101,9 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | `facts` | every computed number: id, value, unit, sql, params, input row refs, definition id |
 | `insights` | detected changes and anomalies (templates output), referencing facts |
 | `decompositions` | driver breakdowns, referencing facts |
-| `chunks` | document chunks: text, source span, `embedding FLOAT[1024]` |
-| `chunks_fts` | DuckDB FTS index over chunks |
+| `chunks` | document chunks: exact source text, source span, heading path, contextual prefix, `embedding FLOAT[]` (dimension follows the model) |
+| `fts_main_chunks` | DuckDB FTS (BM25) index over chunk prefix and text |
+| `retrieval_meta` | the embedder, dimension and stemmer that built the chunk index |
 | `extracts` | quarantined-extractor outputs (structured, typed), with source refs |
 | `web_results` | URL, title, fetched_at, extract refs. Always `external = true`. |
 | `claims` | every sentence-level claim in the draft report, with fact and citation refs |
