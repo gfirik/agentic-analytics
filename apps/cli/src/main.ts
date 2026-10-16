@@ -56,6 +56,22 @@ const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
 
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
+/**
+ * The standalone binary (scripts/build-binary.ts) can't load the in-process ONNX embedder (Transformers.js needs the
+ * sharp and onnxruntime native libraries next to it), so by default it uses the offline hash embedder and says so.
+ * An explicit --embedder still wins; Docker and the Node CLI keep the ONNX default.
+ */
+function pickEmbedder(arg: string | undefined, configured: string, cacheDir: string) {
+  if (arg === "hash") return hashEmbedder();
+  if (!arg && process.env.AA_STANDALONE === "1") {
+    process.stderr.write(
+      "Standalone binary: documents are indexed with the offline hash embedder (lexical). For semantic retrieval use the Docker image or the Node CLI.\n",
+    );
+    return hashEmbedder();
+  }
+  return transformersEmbedder({ model: arg ?? configured, cacheDir });
+}
+
 function runtime(embedderArg?: string) {
   const config = resolveModelConfig(process.env, configFile());
   // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
@@ -63,8 +79,7 @@ function runtime(embedderArg?: string) {
   if (scripted) process.stderr.write("Scripted demo model (no LLM): a deterministic replay for examples/coffee-roaster.\n");
   const model: ModelClient = scripted ? coffeePlanner() : createModelClient(config, { env: process.env });
   const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-  const embedder =
-    embedderArg === "hash" ? hashEmbedder() : transformersEmbedder({ model: embedderArg ?? config.models.embedder.model, cacheDir });
+  const embedder = pickEmbedder(embedderArg, config.models.embedder.model, cacheDir);
   const planner = config.models.planner;
   const plannerProfile = profileFor(
     planner.provider === "openai-compatible"
@@ -302,6 +317,7 @@ const evalCmd = defineCommand({
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
+    "results-dir": { type: "string", description: "Where results files and RESULTS.md go (default evals/results)" },
   },
   async run({ args }) {
     const suite = args.suite === "full" ? "full" : "smoke";
@@ -313,7 +329,7 @@ const evalCmd = defineCommand({
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
-        resultsDir: fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+        resultsDir: args["results-dir"] ?? fileURLToPath(new URL("../../../evals/results", import.meta.url)),
       },
       {
         embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
@@ -406,8 +422,7 @@ const run = defineCommand({
     );
     const model = createModelClient(config, { env: process.env });
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const embedder =
-      args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder ?? config.models.embedder.model, cacheDir });
+    const embedder = pickEmbedder(args.embedder, config.models.embedder.model, cacheDir);
     const dir =
       resume ??
       args.dir ??
