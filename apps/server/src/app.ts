@@ -111,7 +111,9 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
   app.use("*", async (c, next) => {
     const host = c.req.header("host") ?? new URL(c.req.url).host;
     const origin = c.req.header("origin");
-    if (!hosts.has(hostOf(host)) || (origin !== undefined && origin !== "null" && !hosts.has(hostOf(origin))))
+    // An opaque origin ("null": sandboxed frames, data: pages) may read nothing and change nothing.
+    const opaque = origin === "null" && c.req.method !== "GET" && c.req.method !== "HEAD";
+    if (!hosts.has(hostOf(host)) || opaque || (origin !== undefined && origin !== "null" && !hosts.has(hostOf(origin))))
       return c.json({ error: { code: "FORBIDDEN_HOST", message: "this host or origin is not allowed (set AA_ALLOWED_HOSTS)" } }, 403);
     await next();
   });

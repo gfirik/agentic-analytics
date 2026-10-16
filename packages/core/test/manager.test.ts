@@ -40,6 +40,11 @@ describe("JobManager", () => {
     await expect(manager.confirm(id, "metrics:\n  - id: broken\n    label: Broken\n")).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect((await manager.status(id)).status).toBe("awaiting_confirmation");
     await manager.confirm(id, m.yaml);
+    // A subscriber joining the resumed run still sees the stages before the pause.
+    const late: JobEvent[] = [];
+    const stop = await manager.subscribe(id, (e) => late.push(e));
+    expect(late.some((e) => e.type === "stage_completed" && e.stage === "INGEST")).toBe(true);
+    stop();
     const done = await manager.wait(id);
     expect(done.status).toBe("done");
     expect(done.progress).toBe(100);

@@ -166,6 +166,7 @@ describe("HTTP API", () => {
       expect(r.status, path).toBe(403);
     }
     expect((await app.request("/v1/jobs", { headers: { origin: "http://evil.example" } })).status).toBe(403);
+    expect((await app.request("/v1/jobs", { method: "POST", headers: { origin: "null" }, body: new FormData() })).status).toBe(403);
     expect((await app.request("http://127.0.0.1:8080/v1/jobs", { headers: { origin: "http://localhost:5173" } })).status).toBe(200);
     expect((await createApp(manager, { allowedHosts: ["aa.lan"] }).request("http://aa.lan/v1/jobs")).status).toBe(200);
     const dir = join(root, "viewer-dist");

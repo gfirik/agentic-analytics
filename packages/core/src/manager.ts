@@ -141,9 +141,10 @@ export class JobManager {
     return s;
   }
 
-  private enqueue(id: string): void {
+  /** `history`: events the job already has (a resumed job), so a late subscriber still sees its earlier stages. */
+  private enqueue(id: string, history: JobEvent[] = []): void {
     this.active.add(id);
-    this.live.set(id, this.live.get(id) ?? []);
+    this.live.set(id, this.live.get(id) ?? history);
     // execute never rejects, so one broken job can't stall the queue.
     this.queue = this.queue.then(() => this.execute(id));
   }
@@ -290,8 +291,9 @@ export class JobManager {
       if (err instanceof JobError) throw new ManagerError("BAD_REQUEST", err.message);
       throw err;
     }
+    const history = await this.events(id);
     const s = this.write(id, { status: "queued" });
-    this.enqueue(id);
+    this.enqueue(id, history);
     return s;
   }
 
@@ -299,8 +301,9 @@ export class JobManager {
   async resume(id: string): Promise<JobStatus> {
     this.dir(id);
     if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    const history = await this.events(id);
     const s = this.write(id, { status: "queued" });
-    this.enqueue(id);
+    this.enqueue(id, history);
     return s;
   }
 
