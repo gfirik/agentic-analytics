@@ -4,10 +4,10 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Report } from "@agentic-analytics/schema";
-import { rescore, resultsPage, type SuiteResult } from "../src/index.ts";
+import { EvalRunError, rescore, resultsPage, type SuiteResult } from "../src/index.ts";
 
 const [file, dir, note] = process.argv.slice(2);
-if (!file || !dir) throw new Error("usage: rescore.ts <results.json> <reports dir> [note]");
+if (!file || !dir) throw new EvalRunError("USAGE", "usage: rescore.ts <results.json> <reports dir> [note]");
 const reports = new Map<string, Report>(
   existsSync(dir)
     ? readdirSync(dir)

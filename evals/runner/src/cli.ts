@@ -9,7 +9,7 @@ import { resultsMarkdown, runSuite, type Suite, type SuiteResult } from "./run.t
 
 export class EvalRunError extends Error {
   constructor(
-    readonly code: "NO_MODEL",
+    readonly code: "NO_MODEL" | "USAGE",
     message: string,
   ) {
     super(message);

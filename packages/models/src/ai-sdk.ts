@@ -97,8 +97,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
               prompt,
               output: Output.object({ schema: args.schema }),
               maxRetries: 0,
-              // Each HTTP request has its own timeout (providerFetch); this bounds a whole call, rate-limit waits included.
-              abortSignal: AbortSignal.timeout(timeoutMs * 20),
+              // One request with its own timeout (providerFetch); this bounds the call, rate-limit waits included.
+              abortSignal: AbortSignal.timeout(callCap(1)),
             });
             return { value: res.output as unknown, usage: usageOf(res.usage, performance.now() - started) };
           } catch (err) {
@@ -141,8 +141,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           tools,
           stopWhen: stepCountIs(args.maxSteps),
           maxRetries: 0,
-          // Each HTTP request has its own timeout (providerFetch); this bounds the call, rate-limit waits included.
-          abortSignal: AbortSignal.timeout(callCap(1)),
+          // Each step is one request with its own timeout (providerFetch); this bounds the loop, waits included.
+          abortSignal: AbortSignal.timeout(callCap(args.maxSteps)),
         });
         const steps: Step[] = res.steps.map((s) => ({
           text: s.text,

@@ -72,11 +72,15 @@ export function canonicalMetrics(report: Report): Map<string, string> {
       .filter((x) => (x.type === "count" || x.type === "count_distinct") && /order/i.test(`${x.expression ?? ""} ${x.id}`))
       .flatMap((x) => (x.table ? [x.table] : [])),
   );
-  const costly = (t: string) => /cost|expense|suppl|rent|staff|salar|wage|payroll|spend/i.test(t);
+  // Whole words only (ids split on "_"): "rent" is a cost, "current" and "rental" are not.
+  const words = (t: string) => t.toLowerCase().split(/[^a-z]+/);
+  const costly = (t: string) =>
+    words(t).some((w) => /^(costs?|expenses?|supplies|supply|rent|staff|salary|salaries|wages?|payroll|spend|spending)$/.test(w));
+  const salesLike = (t: string) => words(t).some((w) => /^(amount|sales|revenue|turnover|price|gross|net|income|total)$/.test(w));
   const isSales = (x: (typeof metrics)[number]) => {
     const text = `${x.id} ${x.label} ${x.expression ?? ""}`;
     if (costly(text)) return false;
-    return (x.table !== undefined && orderTables.has(x.table)) || /amount|sales|revenue|turnover|price|gross|net/i.test(x.expression ?? "");
+    return (x.table !== undefined && orderTables.has(x.table)) || salesLike(`${x.expression ?? ""} ${x.id}`);
   };
   for (const m of metrics) {
     const filters = m.filters ?? [];

@@ -230,6 +230,9 @@ describe("scoring", () => {
         // A Costs sheet: never revenue, with or without a filter.
         sum("supplies", [], "coalesce(supplies,0)"),
         { ...sum("staff_costs", ["category = 'kitchen'"], "coalesce(amount,0)"), table: "t_t2", label: "Staff costs" },
+        // Whole words: "rental" and "current" are not "rent".
+        { ...sum("rental_income", [], "coalesce(rental_income,0)"), table: "t_t3", label: "Rental income" },
+        { ...sum("current_revenue", [], "coalesce(current_amount,0)"), table: "t_t3", label: "Revenue (current)" },
       ],
     } as unknown as Report;
     expect(Object.fromEntries(canonicalMetrics(r))).toEqual({
@@ -242,6 +245,8 @@ describe("scoring", () => {
       units: "units",
       supplies: "supplies",
       staff_costs: "staff_costs",
+      rental_income: "revenue",
+      current_revenue: "revenue",
     });
   });
 
