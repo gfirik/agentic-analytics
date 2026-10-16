@@ -390,9 +390,9 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const ranked = measured.top
             .map((i) => analysis.insights.find((x) => x.id === i))
             .filter((x): x is StoredInsight => x !== undefined);
-          // Changes of a whole metric come before changes of one member (a customer, a product): they are what the
-          // headline is about, and a rate tripling must not lose its slot to one customer's good month.
-          const top = [...ranked.filter((i) => !i.member), ...ranked.filter((i) => i.member)];
+          // The ranking's order (analysis-library §6): each metric family's best whole-metric change, then the
+          // strongest single-member change, then the rest. Rates keep their slot through the family rule.
+          const top = ranked;
           const sheet = buildFactSheet({
             objective: objectiveText(opts),
             period: m.range,

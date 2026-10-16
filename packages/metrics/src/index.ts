@@ -13,7 +13,17 @@ export {
 } from "./compile.ts";
 export { describeMetric } from "./describe.ts";
 export { buildDigest, type Digest, type DigestColumn, type DigestOptions, type DigestTable, MAX_SAMPLES, maskSample } from "./digest.ts";
-export { DRAFT_SYSTEM, type DraftResult, draftMetrics, draftPrompt, fallbackMetrics, METRIC_LIBRARY } from "./draft.ts";
+export {
+  DRAFT_SYSTEM,
+  type DraftResult,
+  draftMetrics,
+  draftPrompt,
+  fallbackMetrics,
+  groupingColumns,
+  MAX_GROUPING_VALUES,
+  METRIC_LIBRARY,
+  withGroupingDimensions,
+} from "./draft.ts";
 export { metricsYaml, parseMetricsYaml } from "./file.ts";
 export { describeExpr, describeFilter, type MetricLangCode, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 export { saveMetricDefs } from "./persist.ts";

@@ -79,7 +79,9 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(values[1]).toBeCloseTo(36200, 6);
     expect(values[2]).toBeCloseTo(-7900, 6);
     expect(values[3]).toBeCloseTo(-17.913832, 5);
-    expect(p1.drivers?.[0]?.label).toBe("“Hotel Group LLC”");
+    // The answer key's driver (channel wholesale, 108% of the drop): the channel split is the most concentrated
+    // explanation (−8,500 of 9,100 absolute movement); the hotel group's email gives the cause.
+    expect(p1.drivers?.[0]?.label).toBe("“wholesale”");
   });
 
   it("drops what the planner got wrong and downgrades unsupported causal grades", () => {

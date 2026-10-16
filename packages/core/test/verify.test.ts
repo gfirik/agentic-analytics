@@ -182,7 +182,10 @@ describe("seeded bad drafts (M9 acceptance)", () => {
   it("other causal phrasings are reworded too, and so is a causal title without a document (V6)", async () => {
     const d = clone(draft);
     f1(d).claims.push(claim("Revenue fell because Hotel Group paused orders.", []), claim("The drop was driven by wholesale.", []));
-    const other = d.findings.find((f) => f.title.startsWith("A change in retail")) as Report["findings"][number];
+    // Any finding with no document-supported claim: its causal title must be reworded.
+    const other = d.findings.find(
+      (f) => f.id !== "F1" && !f.claims.some((c) => c.causal_grade === "document_supported"),
+    ) as Report["findings"][number];
     other.title = "Retail revenue rose because of the spring campaign";
     const r = await verify(d);
     const texts = f1(r.report).claims.map((c) => c.text);

@@ -134,7 +134,8 @@ describe("ranking (spec §6)", () => {
       score,
     });
     // Three restatements of one revenue drop outscore the refund rate tripling (0.012); with max = 3 the rate still
-    // gets a slot, ahead of the wholesale slice and the year-on-year restatement.
+    // gets a slot, then the strongest single-member change (Key Co), ahead of the wholesale slice and the
+    // year-on-year restatement.
     const top = topForExplain(
       [
         mk("revenue", "2026-06", 0.27),
@@ -148,7 +149,7 @@ describe("ranking (spec §6)", () => {
     expect(top.map((r) => [r.insight.series, r.insight.period])).toEqual([
       ["revenue", "2026-06"],
       ["refund_rate", "2026-05"],
-      ["wholesale_revenue", "2026-04"],
+      ["revenue|customer=Key Co", "2026-04"],
     ]);
   });
 

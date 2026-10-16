@@ -80,10 +80,29 @@ export const TEMPLATE_PRIORITY: readonly string[] = [
 /**
  * The findings that go to EXPLAIN (spec §6: top 3–7). Several templates often detect one event (April's drop is
  * a trend break, an anomaly and a lost customer), so insights are grouped by series and period; each group is
- * represented by its highest-priority template and scored by its best score. The rest stay as supporting
- * insights in the workspace.
+ * represented by its highest-priority template among those that carry at least half of the group's best score,
+ * and scored by that best score. (A weak higher-priority template — June's small anomaly next to the rate shift
+ * that makes the group material — must not speak for it.) The rest stay as supporting insights in the workspace.
  */
-export function topForExplain(ranked: readonly Ranked[], max = 7): Ranked[] {
+/** A group's representative must carry at least this share of the group's best score. */
+export const REPRESENTATIVE_SHARE = 0.5;
+/** A member change competes for the member slot when it is at least this share of its metric's period total. */
+export const MEMBER_MIN_SHARE = 0.02;
+
+/** The insight's relative change (its `change_pct` calc, in percent), or 0 when it has none. */
+function relativeChange(r: Ranked): number {
+  return r.insight.calcs.find((c) => c.name === "change_pct")?.value ?? 0;
+}
+
+export interface TopOptions {
+  /**
+   * Per insight, the members its decompositions name as the top driver (`dimension=value`). A member change that is
+   * already the driver of a whole-metric change chosen above it restates that story and doesn't take the member slot.
+   */
+  readonly drivers?: ReadonlyMap<Insight, ReadonlySet<string>>;
+}
+
+export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions = {}): Ranked[] {
   const groups = new Map<string, Ranked[]>();
   for (const r of ranked) {
     const key = `${r.insight.series}@${r.insight.period}`;
@@ -95,21 +114,51 @@ export function topForExplain(ranked: readonly Ranked[], max = 7): Ranked[] {
   };
   const reps = [...groups.values()]
     .map((g) => {
-      const rep = [...g].sort((a, b) => priority(a.insight.template) - priority(b.insight.template))[0] as Ranked;
-      return { ...rep, score: Math.max(...g.map((x) => x.score)) };
+      const best = Math.max(...g.map((x) => x.score));
+      const strong = g.filter((x) => x.score >= REPRESENTATIVE_SHARE * best);
+      const rep = [...strong].sort((a, b) => priority(a.insight.template) - priority(b.insight.template))[0] as Ranked;
+      return { ...rep, score: best };
     })
-    .sort((a, b) => b.score - a.score || a.insight.series.localeCompare(b.insight.series));
+    // On a tie, the earlier period first: two groups of one series that score the same are the onset of a change
+    // and a later restatement of it, and the onset is the finding (eval suite, M13a).
+    .sort(
+      (a, b) => b.score - a.score || a.insight.period.localeCompare(b.insight.period) || a.insight.series.localeCompare(b.insight.series),
+    );
   // One slot per metric family first: the best whole-metric change of each family (a channel slice such as
   // `wholesale_revenue` belongs to `revenue`), in score order, then everything else in score order. A rate's
   // materiality is a small share of its own total, so without this a refund rate tripling loses every slot to
   // restatements of one revenue drop (spec §6; found by the eval suite in M11). EXPLAIN keeps this order.
   const metrics = [...new Set(reps.map((r) => r.insight.metric))];
-  const seen = new Set<string>();
-  const firsts = reps.filter((r) => {
+  // Each family's slot goes to its parent metric's best change when that carries at least REPRESENTATIVE_SHARE of
+  // the family's best score: the parent is the headline (and its decomposition names the driver), a channel slice
+  // only restates it. Families keep the order of their best score.
+  const families = new Map<string, Ranked[]>();
+  for (const r of reps.filter((x) => !x.insight.member)) {
     const f = metricFamily(r.insight.metric, metrics);
-    return !r.insight.member && !seen.has(f) && seen.add(f);
+    families.set(f, [...(families.get(f) ?? []), r]);
+  }
+  const firsts = [...families.entries()].map(([family, rs]) => {
+    const best = rs[0] as Ranked;
+    const parent = rs.find((r) => r.insight.metric === family);
+    return parent && parent.score >= REPRESENTATIVE_SHARE * best.score ? parent : best;
   });
-  return [...firsts, ...reps.filter((r) => !firsts.includes(r))].slice(0, max);
+  // Then one slot for the most dramatic change of a single member (a product, a customer): the largest relative
+  // change among members that matter (≥ MEMBER_MIN_SHARE of the metric's change). A product cannibalized by a
+  // launch falls by most of its value; a member that only restates a whole-metric drop falls by that drop's share.
+  // Without the slot such a story always ranks below the whole-metric restatements (eval suite, M13a).
+  const groupOf = (r: Ranked) => groups.get(`${r.insight.series}@${r.insight.period}`) ?? [r];
+  const told = new Set(firsts.flatMap((f) => groupOf(f).flatMap((x) => [...(o.drivers?.get(x.insight) ?? [])])));
+  const member = reps
+    .filter(
+      (r) =>
+        r.insight.member &&
+        !firsts.includes(r) &&
+        r.impactShare >= MEMBER_MIN_SHARE &&
+        !told.has(`${r.insight.member.dimension}=${r.insight.member.value}`),
+    )
+    .sort((a, b) => Math.abs(relativeChange(b)) - Math.abs(relativeChange(a)) || b.score - a.score)[0];
+  const lead = member ? [...firsts, member] : firsts;
+  return [...lead, ...reps.filter((r) => !lead.includes(r))].slice(0, max);
 }
 
 /**
