@@ -3,7 +3,7 @@
 import type { ModelClient } from "@agentic-analytics/models";
 import { type Finding, findFreeNumerals, placeholders } from "@agentic-analytics/schema";
 import { z } from "zod";
-import { renderPrompt } from "./prompts.ts";
+import { data, renderPrompt } from "./prompts.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 
@@ -24,7 +24,7 @@ export async function writeHeadline(model: ModelClient, findings: readonly Findi
     role: "planner",
     schema: Headline,
     system: renderPrompt("summary", {
-      findings: JSON.stringify(findings.map((f) => ({ id: f.id, title: f.title, claims: f.claims.map((c) => c.text) }))),
+      findings: data(findings.map((f) => ({ id: f.id, title: f.title, claims: f.claims.map((c) => c.text) }))),
     }),
     prompt: "Write the headline.",
   });

@@ -105,7 +105,9 @@ function explanation(r: FakeRequest, small: boolean): unknown {
             ? "Revenue fell as a hotel paused its wholesale order"
             : `A change in ${metric.replace(/_/g, " ")}`,
       links: [
-        ...(paused && !metric.includes("refund") ? [{ extract_id: paused.id, causal_grade: "document_supported" }] : []),
+        ...(paused && (metric === "revenue" || metric === "wholesale_revenue")
+          ? [{ extract_id: paused.id, causal_grade: "document_supported" }]
+          : []),
         ...(packaging && metric.includes("refund") ? [{ extract_id: packaging.id, causal_grade: "correlated" }] : []),
       ],
       confidence: "medium",
@@ -129,7 +131,7 @@ function explanation(r: FakeRequest, small: boolean): unknown {
     };
   if (metric === "revenue" || metric === "wholesale_revenue")
     return {
-      title: "Revenue fell after March, driven by wholesale",
+      title: metric === "revenue" ? "Revenue fell after March, driven by wholesale" : "Wholesale revenue fell sharply after March",
       explanations: [
         ...(paused
           ? [
@@ -175,7 +177,7 @@ function generic(metric: string): unknown {
 
 function candidates(r: FakeRequest): unknown {
   const sheet = json<Sheet>(between(r.system, "<facts>", "</facts>"), { insights: [], decompositions: [] });
-  const findings = json<{ id: string; claims: string[] }[]>(between(r.system, "Findings:", "<facts>"), []);
+  const findings = json<{ id: string; claims: string[] }[]>(between(r.system, "<findings>", "</findings>"), []);
   const findingFor = (metric: string) =>
     findings.find((f) => {
       const ids = new Set(f.claims.flatMap((c) => [...c.matchAll(/\{\{(N\d+)\}\}/g)].map((m) => m[1])));
@@ -239,10 +241,7 @@ function candidates(r: FakeRequest): unknown {
 }
 
 function headline(r: FakeRequest): unknown {
-  const findings = json<{ title: string; claims: string[] }[]>(
-    r.system.slice(r.system.indexOf("Findings:") + "Findings:".length).trim(),
-    [],
-  );
+  const findings = json<{ title: string; claims: string[] }[]>(between(r.system, "<findings>", "</findings>"), []);
   const first = findings[0];
   const id = first?.claims.flatMap((c) => [...c.matchAll(/\{\{(N\d+)\}\}/g)].map((m) => m[1]))[2];
   return { headline: `${first?.title ?? "Revenue fell"}${id ? ` (a change of {{${id}}})` : ""}.` };

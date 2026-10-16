@@ -10,6 +10,7 @@ import {
   findFreeNumerals,
   type MetricDef,
   type OpenQuestion,
+  placeholders,
   type QualityIssue,
   REPORT_SCHEMA_ID,
   type Recommendation,
@@ -230,7 +231,13 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       r.check.threshold,
     ]),
   ];
-  const facts = closure(referenced, input.facts);
+  // Any placeholder in any text (the headline included) must resolve in the report: its fact goes in too.
+  const texts = [
+    input.headline,
+    ...findings.flatMap((f) => [f.title, ...f.confidence_reasons]),
+    ...input.recommendations.flatMap((r) => [r.action, r.risk, r.impact.horizon, ...(r.not_advised ? [r.not_advised] : [])]),
+  ];
+  const facts = closure([...referenced, ...texts.flatMap(placeholders)], input.facts);
 
   return {
     schema: REPORT_SCHEMA_ID,
@@ -256,8 +263,19 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       definition_violations: 0,
       citations_checked: 0,
       citations_unsupported: 0,
-      claims_dropped: [...input.dropped],
-      claims_downgraded: [...input.downgraded],
+      claims_dropped: unique(input.dropped),
+      claims_downgraded: unique(input.downgraded),
     },
   };
+}
+
+/** The same claim can be judged in two findings (e.g. a metric and its component); list each verdict once. */
+function unique<T>(list: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return list.filter((x) => {
+    const k = JSON.stringify(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }

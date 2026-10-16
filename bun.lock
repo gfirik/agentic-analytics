@@ -122,6 +122,7 @@
       },
       "devDependencies": {
         "@agentic-analytics/eval-datasets": "workspace:*",
+        "tsx": "^4.23.15",
       },
     },
     "packages/ingest": {

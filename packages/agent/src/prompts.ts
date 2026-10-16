@@ -2,7 +2,15 @@
 // header comment, `[[name]]` slots (not `{{…}}`, which is the fact-placeholder syntax the model must write).
 import { readFileSync } from "node:fs";
 
-export type PromptName = "extract" | "explain" | "explain-write" | "decide" | "summary";
+export type PromptName = "extract" | "explain" | "explain-write" | "explain-form" | "decide" | "summary";
+
+/**
+ * Data for a delimited block (<facts>, <evidence>, <findings>): JSON with "<" escaped, so text from the user's
+ * files can never close the block it sits in and appear as instructions.
+ */
+export function data(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
 
 export class PromptError extends Error {
   constructor(

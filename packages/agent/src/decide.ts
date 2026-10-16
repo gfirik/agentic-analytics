@@ -10,11 +10,13 @@ import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
 import type { Dropped } from "./explain.ts";
 import type { Extract } from "./extractor.ts";
-import { renderPrompt } from "./prompts.ts";
+import { data, renderPrompt } from "./prompts.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
 const Text = z.string().min(3).max(400).refine(noNumerals, NUMERALS);
+/** Actions, risks, horizons, not_advised: plain words only; numbers belong in the rationale, where they're checked. */
+const Plain = Text.refine((t) => placeholders(t).length === 0, "no {{N…}} placeholders here; numbers belong in the rationale");
 
 const Scenario = z.discriminatedUnion("type", [
   z.object({ type: z.literal("recover_share"), lost: z.string(), low: z.number(), high: z.number(), discount: z.number().optional() }),
@@ -34,22 +36,22 @@ export const DecideOutput = z.object({
   candidates: z
     .array(
       z.object({
-        action: Text,
+        action: Plain,
         because: z.array(z.string()).min(1).max(5),
         scenario: Scenario,
         justified_by: z.array(z.string()).max(5),
         rationale: z.object({ text: Text, facts: z.array(z.string()).max(8), extract_ids: z.array(z.string()).max(4) }),
         effort: z.enum(["low", "medium", "high"]),
-        risk: Text,
+        risk: Plain,
         confidence: z.enum(["high", "medium", "low"]),
-        horizon: Text,
+        horizon: Plain,
         check: z.object({
           metric_id: z.string(),
           comparator: z.enum([">=", "<=", "between"]),
           threshold: z.string(),
           by: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         }),
-        not_advised: Text.optional(),
+        not_advised: Plain.optional(),
       }),
     )
     .min(1)
@@ -85,9 +87,7 @@ export async function decide(input: DecideInput): Promise<{ recommendations: Rec
     schema: DecideOutput,
     system: renderPrompt("decide", {
       objective: input.objective,
-      findings: JSON.stringify(
-        input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) })),
-      ),
+      findings: data(input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) }))),
       factsheet: input.factsheet,
       period_end: input.periodEnd,
     }),
@@ -130,7 +130,10 @@ export async function decide(input: DecideInput): Promise<{ recommendations: Rec
     try {
       impact = await scenarioFacts(input.ws, input.defs, input.catalog, input.grain, c.scenario as ScenarioRequest, c.justified_by);
     } catch (err) {
-      // A scenario the engine refuses (out-of-range parameter, unknown fact) is the candidate's problem, recorded.
+      // A scenario the engine refuses (unknown fact, parameter out of range) is the candidate's problem and is
+      // recorded; anything else is an engine failure and stops the stage.
+      const code = err instanceof Error && "code" in err ? String(err.code) : "";
+      if (!["UNKNOWN_FACT", "PARAM_OUT_OF_RANGE", "BAD_RANGE", "UNKNOWN_SCENARIO"].includes(code)) throw err;
       drop(`scenario rejected: ${err instanceof Error ? err.message : String(err)}`);
       continue;
     }

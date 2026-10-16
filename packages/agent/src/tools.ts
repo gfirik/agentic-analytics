@@ -80,9 +80,10 @@ function tool<I>(
       try {
         return await run(input);
       } catch (err) {
-        // Tool errors go back to the planner as data (e.g. "unknown fact N99"), so it can correct itself.
-        const code = err instanceof Error && "code" in err && typeof err.code === "string" ? `${err.code}: ` : "";
-        return { error: `${code}${err instanceof Error ? err.message : String(err)}` };
+        // Typed engine errors about the request (unknown fact, bad slice, parameter out of range) go back to the
+        // planner as data so it can correct itself; anything untyped is an engine failure and stops the stage.
+        if (!(err instanceof Error && "code" in err && typeof err.code === "string")) throw err;
+        return { error: `${err.code}: ${err.message}` };
       }
     },
   };
@@ -180,6 +181,9 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
       const x = await extractFromHits(ctx.ws, ctx.model, r.hits, `Find events and statements relevant to: ${query}`);
       ctx.found.extracts.push(...x.extracts);
       for (const q of x.quarantined) if (!ctx.found.quarantined.includes(q)) ctx.found.quarantined.push(q);
+      // A source quarantined now also withdraws what was found from it earlier in the job.
+      for (let i = ctx.found.extracts.length - 1; i >= 0; i--)
+        if (ctx.found.quarantined.includes(ctx.found.extracts[i]?.citation.source_id ?? "")) ctx.found.extracts.splice(i, 1);
       return {
         extracts: x.extracts.map((e) => ({
           id: e.id,

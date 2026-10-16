@@ -70,8 +70,10 @@ async function nextExtract(ws: Workspace): Promise<number> {
 
 /** Extracts for each hit; one extractor call per hit, so one excerpt can never steer the reading of another. */
 export async function extractFromHits(ws: Workspace, model: ModelClient, hits: readonly SearchHit[], task: string): Promise<ExtractResult> {
-  const extracts: Extract[] = [];
-  const quarantined: string[] = [];
+  const kept: { e: Extract; source: string }[] = [];
+  // Quarantine is per source (security §3): one injected chunk excludes every extract of its document, in this
+  // call and in earlier or later ones.
+  const quarantined = new Set(await quarantinedSources(ws));
   let droppedQuotes = 0;
   let n = await nextExtract(ws);
   for (const hit of hits) {
@@ -79,7 +81,8 @@ export async function extractFromHits(ws: Workspace, model: ModelClient, hits: r
       role: "extractor",
       schema: ExtractOutput,
       system: renderPrompt("extract", { task }),
-      prompt: `<document source="${hit.file}">\n${hit.text}\n</document>`,
+      // The data can't close its own block: a literal "</document>" in the text is neutralised.
+      prompt: `<document source="${hit.file.replace(/["<>]/g, "_")}">\n${hit.text.replace(/<\/?document/gi, "‹document")}\n</document>`,
     });
     const suspicious = object.suspicious_instructions || screen(hit.text);
     const items = [
@@ -112,15 +115,31 @@ export async function extractFromHits(ws: Workspace, model: ModelClient, hits: r
       await ws.run(
         sql`INSERT INTO extracts VALUES (${e.id}, ${hit.source_id}, ${hit.chunk_id}, ${JSON.stringify(e)}::JSON, ${suspicious})`,
       );
-      if (!suspicious) extracts.push(e);
+      kept.push({ e, source: hit.source_id });
     }
-    if (suspicious && !quarantined.includes(hit.source_id)) quarantined.push(hit.source_id);
+    if (suspicious) {
+      quarantined.add(hit.source_id);
+      // Mark the source's other extracts too, so later readers (DECIDE, the report) exclude them by row.
+      await ws.run(sql`UPDATE extracts SET suspicious = true WHERE source_id = ${hit.source_id}`);
+    }
   }
-  return { extracts, quarantined, droppedQuotes };
+  const extracts = kept.filter((k) => !quarantined.has(k.source)).map((k) => k.e);
+  const touched = new Set(hits.map((h) => h.source_id));
+  return { extracts, quarantined: [...quarantined].filter((s) => touched.has(s)), droppedQuotes };
+}
+
+/** Sources with at least one suspicious extract. */
+export async function quarantinedSources(ws: Workspace): Promise<string[]> {
+  return (await ws.all<{ source_id: string }>(sql`SELECT DISTINCT source_id FROM extracts WHERE suspicious ORDER BY source_id`)).map(
+    (r) => r.source_id,
+  );
 }
 
 /** Stored, non-suspicious extracts by id (for citing them in claims). */
 export async function readExtracts(ws: Workspace): Promise<Map<string, Extract>> {
-  const rows = await ws.all<{ payload: string }>(sql`SELECT payload::VARCHAR AS payload FROM extracts WHERE NOT suspicious`);
+  const rows = await ws.all<{ payload: string }>(
+    sql`SELECT payload::VARCHAR AS payload FROM extracts
+        WHERE source_id NOT IN (SELECT source_id FROM extracts WHERE suspicious)`,
+  );
   return new Map(rows.map((r) => JSON.parse(r.payload) as Extract).map((e) => [e.id, e]));
 }

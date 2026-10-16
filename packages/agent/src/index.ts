@@ -21,8 +21,8 @@ export {
   explainFindings,
   SmallExplainOutput,
 } from "./explain.ts";
-export { type Extract, ExtractOutput, type ExtractResult, extractFromHits, readExtracts, screen } from "./extractor.ts";
+export { type Extract, ExtractOutput, type ExtractResult, extractFromHits, quarantinedSources, readExtracts, screen } from "./extractor.ts";
 export { buildFactSheet, type FactSheet, type SheetFact, sheetFact } from "./factsheet.ts";
-export { PromptError, type PromptName, promptVersion, renderPrompt } from "./prompts.ts";
+export { data, PromptError, type PromptName, promptVersion, renderPrompt } from "./prompts.ts";
 export { writeHeadline } from "./summary.ts";
 export { Budget, buildTools, type OpenQuestionDraft, type ToolContext } from "./tools.ts";

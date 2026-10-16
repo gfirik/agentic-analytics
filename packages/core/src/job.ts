@@ -10,6 +10,7 @@ import {
   buildDraft,
   buildFactSheet,
   buildTools,
+  data,
   decide,
   type ExplainResult,
   explainFindings,
@@ -298,6 +299,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             small,
             maxFindings: small ? 3 : 5,
             log: ctx.log,
+            onFinding: (done, total) => ctx.progress(Math.round((done / total) * 100), `finding ${done} of ${total} explained`),
           });
           return {
             ...r,
@@ -333,7 +335,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             model: deps.model,
             objective: objectiveText(opts),
             findings: ex.findings,
-            factsheet: JSON.stringify(sheet),
+            factsheet: data(sheet),
             facts: factMap,
             extracts: await readExtracts(ws),
             periodEnd: m.periodEnd,

@@ -4,7 +4,7 @@ import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { createLogger, jsonLines } from "@agentic-analytics/core";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
-import { createModelClient, type ModelClient, resolveModelConfig } from "@agentic-analytics/models";
+import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
 import { duckdbVersion } from "@agentic-analytics/store";
 import { defineCommand, runMain } from "citty";
@@ -134,6 +134,12 @@ const run = defineCommand({
     const paths = (args._ as string[]).flatMap(collect);
     if (!resume && !paths.length) throw new Error("give files or folders (aa run <paths…>), or --resume <job folder>");
     const config = resolveModelConfig(process.env, configFile());
+    const planner = config.models.planner;
+    const plannerProfile = profileFor(
+      planner.provider === "openai-compatible"
+        ? `openai-compatible:${planner.endpoint}:${planner.model}`
+        : `${planner.provider}:${planner.model}`,
+    );
     const model = createModelClient(config, { env: process.env });
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const embedder =
@@ -160,7 +166,8 @@ const run = defineCommand({
                 today: args.today ?? new Date().toISOString().slice(0, 10),
                 ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
                 ...(args.objective ? { objective: args.objective } : {}),
-                ...(args["small-model"] ? { smallModel: true } : {}),
+                // --small-model, or the planner model's profile (models §4, agent-and-verifier §8).
+                ...(args["small-model"] || plannerProfile?.smallModel ? { smallModel: true } : {}),
                 ...(args.web ? { web: true } : {}),
               },
             }),
@@ -178,6 +185,8 @@ const run = defineCommand({
         },
         ...(args.log ? { log: createLogger(jsonLines((l) => process.stderr.write(l))) } : {}),
         out: (l) => process.stdout.write(`${l}\n`),
+        // The resume hint must keep the embedder the job was indexed with.
+        resumeFlags: args.embedder ? ["--embedder", args.embedder] : [],
       },
     );
   },

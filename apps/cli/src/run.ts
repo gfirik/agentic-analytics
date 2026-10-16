@@ -28,7 +28,10 @@ export function formatEvent(e: JobEvent): string | undefined {
   }
 }
 
-export async function runCommand(input: RunCommandInput, deps: JobDeps & { out: (line: string) => void }): Promise<number> {
+export async function runCommand(
+  input: RunCommandInput,
+  deps: JobDeps & { out: (line: string) => void; resumeFlags?: readonly string[] },
+): Promise<number> {
   let out: Awaited<ReturnType<typeof runJob>>;
   try {
     out = await runJob(
@@ -46,7 +49,7 @@ export async function runCommand(input: RunCommandInput, deps: JobDeps & { out: 
     // The stage line (✗ …) is already printed; say how to continue rather than dumping a stack.
     deps.out("");
     deps.out(`The job stopped at ${err.stage}. Completed stages are saved; fix the cause, then continue with:`);
-    deps.out(`  aa run --resume ${input.dir}`);
+    deps.out(`  aa run --resume ${[input.dir, ...(deps.resumeFlags ?? [])].join(" ")}`);
     return 1;
   }
   const r = out.report;

@@ -10,28 +10,37 @@ import { z } from "zod";
 import { contributionDrivers, decompositionClaims, findingType, observedClaim, q, severity } from "./claims.ts";
 import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
-import { renderPrompt } from "./prompts.ts";
+import { data, renderPrompt } from "./prompts.ts";
 import type { Budget, ToolContext } from "./tools.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
 const Text = z.string().min(3).max(600).refine(noNumerals, NUMERALS);
+const NO_PLACEHOLDERS = "no numbers or {{N…}} placeholders here; numbers belong in the explanations";
+/** Titles, alternatives and reasons: plain words only. Numbers live in claims, where they are checked. */
+const Plain = (max: number) =>
+  z
+    .string()
+    .min(3)
+    .max(max)
+    .refine(noNumerals, NUMERALS)
+    .refine((t) => placeholders(t).length === 0, NO_PLACEHOLDERS);
 const Grade = z.enum(["observed", "correlated", "document_supported", "intervention_supported"]);
 
 export const ExplainOutput = z.object({
-  title: z.string().min(3).max(160).refine(noNumerals, NUMERALS),
+  title: Plain(160),
   explanations: z
     .array(z.object({ text: Text, facts: z.array(z.string()).max(12), extract_ids: z.array(z.string()).max(5), causal_grade: Grade }))
     .max(4),
-  alternatives_rejected: z.array(z.object({ explanation: Text, reason: Text })).max(4),
+  alternatives_rejected: z.array(z.object({ explanation: Plain(600), reason: Plain(600) })).max(4),
   confidence: z.enum(["high", "medium", "low"]),
-  confidence_reasons: z.array(Text).max(4),
+  confidence_reasons: z.array(Plain(600)).max(4),
 });
 export type ExplainOutput = z.infer<typeof ExplainOutput>;
 
 /** Small-model form: pick, don't write. Code turns the picks into sentences. */
 export const SmallExplainOutput = z.object({
-  title: z.string().min(3).max(160).refine(noNumerals, NUMERALS),
+  title: Plain(160),
   links: z.array(z.object({ extract_id: z.string(), causal_grade: z.enum(["correlated", "document_supported"]) })).max(3),
   confidence: z.enum(["high", "medium", "low"]),
 });
@@ -61,6 +70,8 @@ export interface ExplainOptions {
   /** At most this many findings (5, or 3 in small-model mode). */
   readonly maxFindings: number;
   readonly log?: { info(msg: string, fields?: Record<string, unknown>): void; warn(msg: string, fields?: Record<string, unknown>): void };
+  /** Called after each finding (done, total), e.g. to emit stage progress. */
+  readonly onFinding?: (done: number, total: number) => Promise<void>;
 }
 
 const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
@@ -134,7 +145,7 @@ export async function explainFindings(
       insights: sheet.insights.filter((i) => i.id === insight.id),
       decompositions: sheet.decompositions.filter((d) => d.insight === insight.id),
     };
-    const brief = JSON.stringify({
+    const brief = data({
       id: insight.id,
       template: insight.template,
       metric: insight.metric,
@@ -147,7 +158,7 @@ export async function explainFindings(
     if (!options.small) {
       const run = await model.generateWithTools({
         role: "planner",
-        system: renderPrompt("explain", { finding: brief, factsheet: JSON.stringify(findingSheet), budget: String(budget.perFinding) }),
+        system: renderPrompt("explain", { finding: brief, factsheet: data(findingSheet), budget: String(budget.perFinding) }),
         messages: [
           { role: "user", content: `Investigate finding ${insight.id} (${insight.template}, ${insight.metric}, ${insight.period}).` },
         ],
@@ -172,7 +183,7 @@ export async function explainFindings(
     const extracts = new Map(evidence.map((e) => [e.id, e]));
     const after = await facts();
     const newFacts = [...after.values()].filter((f) => !before.has(f.id)).map(sheetFact);
-    const evidenceText = JSON.stringify({
+    const evidenceText = data({
       extracts: evidence.map((e) => ({ id: e.id, kind: e.kind, file: e.file, date: e.date, actor: e.actor, text: e.text, quote: e.quote })),
       new_facts: newFacts,
     });
@@ -185,7 +196,7 @@ export async function explainFindings(
       const { object } = await model.generateObject({
         role: "planner",
         schema: ExplainOutput,
-        system: renderPrompt("explain-write", { finding: brief, factsheet: JSON.stringify(findingSheet), evidence: evidenceText }),
+        system: renderPrompt("explain-write", { finding: brief, factsheet: data(findingSheet), evidence: evidenceText }),
         prompt: `Write the explanation for finding ${insight.id}.`,
       });
       title = object.title;
@@ -200,13 +211,13 @@ export async function explainFindings(
       const { object } = await model.generateObject({
         role: "planner",
         schema: SmallExplainOutput,
-        system: renderPrompt("explain-write", { finding: brief, factsheet: JSON.stringify(findingSheet), evidence: evidenceText }),
+        system: renderPrompt("explain-form", { finding: brief, factsheet: data(findingSheet), evidence: evidenceText }),
         prompt: `Fill the form for finding ${insight.id}: a title, and which extracts (by id) relate to the change.`,
       });
       title = object.title;
       for (const l of object.links) {
         const e = extracts.get(l.extract_id);
-        const text = e ? `${q(e.file)} says: ${q(e.quote)}.` : l.extract_id;
+        const text = e ? `${q(e.file)} says: ${q(e.quote)}` : l.extract_id;
         const c = checkClaim(
           { text, facts: [], extract_ids: [l.extract_id], causal_grade: l.causal_grade },
           after,
@@ -239,6 +250,7 @@ export async function explainFindings(
     };
     findings.push(finding);
     insightOf[id] = insight.id;
+    await options.onFinding?.(findings.length, Math.min(top.length, options.maxFindings));
     options.log?.info("finding explained", { finding: id, insight: insight.id, claims: claims.length, extracts: evidence.length });
   }
   return { findings, dropped, downgraded, insightOf };

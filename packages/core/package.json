@@ -24,6 +24,7 @@
     "@agentic-analytics/store": "workspace:*"
   },
   "devDependencies": {
-    "@agentic-analytics/eval-datasets": "workspace:*"
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "tsx": "^4.23.15"
   }
 }

@@ -14,7 +14,7 @@ The model layer: one `ModelClient` interface over the Vercel AI SDK, free provid
 | `resolveModelConfig(env, file?)` | Defaults < config file < env (`PLANNER_MODEL=ollama:qwen3.5:9b`, `openai-compatible:groq:<model>`) |
 | `OPENAI_COMPATIBLE_PRESETS` | Free endpoints: groq, openrouter, cerebras, github-models |
 | `ModelError` | Typed errors: `CONFIG`, `MISSING_KEY`, `INVALID_OUTPUT`, `PROVIDER`, `TIMEOUT`, `NOT_AVAILABLE`, `FAKE_NO_SCRIPT` |
-| `@agentic-analytics/models/testing` → `FakeModel`, `promptHash` | Scripted responses by role and prompt substring/hash; runs scripted tool calls against the real tools; deterministic embeddings |
+| `@agentic-analytics/models/testing` → `FakeModel`, `FakeRequest`, `promptHash` | Scripted responses by role and prompt substring/hash; runs scripted tool calls against the real tools; deterministic embeddings. An entry's `object` or `steps` may be a function of the `FakeRequest` (`{ role, system, prompt }`), for scripts that must name ids only known at run time (see `packages/core/testing/coffee-planner.ts`) |
 
 ## Example
 

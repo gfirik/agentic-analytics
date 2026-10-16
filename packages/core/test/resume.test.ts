@@ -9,7 +9,7 @@ import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import type { GenerateObjectArgs, ModelClient } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import type { JobEvent, Report } from "@agentic-analytics/schema";
-import { Workspace } from "@agentic-analytics/store";
+import { sql, Workspace } from "@agentic-analytics/store";
 import { afterAll, describe, expect, it } from "vitest";
 import { EventBus, runJob } from "../src/index.ts";
 import { coffeePlanner } from "../testing/coffee-planner.ts";
@@ -52,10 +52,9 @@ function runAndKill(dir: string, stage: string): Promise<{ killed: boolean; seen
         nl = buf.indexOf("\n");
         if (!line.startsWith("{")) continue;
         const e = JSON.parse(line) as JobEvent;
-        if (e.type === "stage_started") {
-          seen.push(e.stage);
-          if (e.stage === stage) child.kill("SIGKILL");
-        }
+        if (e.type === "stage_started") seen.push(e.stage);
+        // Kill once the stage has done part of its work (its first progress event), so the reset is exercised.
+        if (e.type === "progress" && e.stage === stage) child.kill("SIGKILL");
       }
     });
     child.on("error", reject);
@@ -73,6 +72,19 @@ describe("resume after the process is killed mid-job (M7 acceptance)", () => {
     const killed = await runAndKill(dir, "EXPLAIN");
     expect(killed.killed).toBe(true);
     expect(killed.seen.at(-1)).toBe("EXPLAIN");
+    // The killed run left partial work behind: EXPLAIN is still "running", with facts and extracts of its own.
+    const left = await Workspace.open(join(dir, "job.duckdb"));
+    const stage = await left.one<{ status: string; first_fact: number }>(
+      sql`SELECT status, first_fact FROM job_stages WHERE stage = 'EXPLAIN'`,
+    );
+    const partialFacts = await left.one<{ n: number }>(
+      sql`SELECT count(*) AS n FROM facts WHERE CAST(substr(id, 2) AS INTEGER) >= ${stage?.first_fact ?? 0}`,
+    );
+    const partialExtracts = await left.one<{ n: number }>(sql`SELECT count(*) AS n FROM extracts`);
+    left.close();
+    expect(stage?.status).toBe("running");
+    expect(partialFacts?.n).toBeGreaterThan(0);
+    expect(partialExtracts?.n).toBeGreaterThan(0);
 
     // Resume: no files, no options, just the folder.
     const resumed = await runJob({ dir }, { model: coffeePlanner(), embedder: hashEmbedder() });
