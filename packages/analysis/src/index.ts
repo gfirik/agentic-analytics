@@ -28,6 +28,7 @@ export {
   CONFIDENCE_WEIGHT,
   impactShare,
   insightChange,
+  metricFamily,
   type RankContext,
   type Ranked,
   RECENCY_DECAY,

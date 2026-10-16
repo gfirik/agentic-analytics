@@ -3,7 +3,7 @@
 import type { AnswerKey } from "@agentic-analytics/eval-generator";
 import type { Fact, Finding, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { matches, scoreReport, subjectOf, summarize } from "../src/index.ts";
+import { matchesDistractor, matchesPlanted, scoreReport, subjectOf, summarize } from "../src/index.ts";
 
 const fact = (id: string, label: string): Fact => ({
   id,
@@ -119,9 +119,9 @@ function report(): Report {
 }
 
 describe("scoring", () => {
-  it("reads a finding's subject from its change fact (the after period), member included", () => {
+  it("reads a finding's subject from its first claim: metric, member, before and after periods", () => {
     const r = report();
-    expect(subjectOf(r.findings[0] as Finding, r)).toEqual({ metric: "revenue", period: "2026-04" });
+    expect(subjectOf(r.findings[0] as Finding, r)).toEqual({ metric: "revenue", before: "2026-03", period: "2026-04" });
     expect(subjectOf(r.findings[1] as Finding, r)).toEqual({
       metric: "revenue",
       member: { dimension: "customer", member: "Web" },
@@ -129,25 +129,56 @@ describe("scoring", () => {
     });
   });
 
-  it("matches the same metric or its channel slice, ±1 period, and later periods for a lasting change", () => {
-    const t = { metric: "revenue", period: "2026-04" };
-    expect(matches({ metric: "revenue", period: "2026-05" }, t)).toBe(true);
-    expect(matches({ metric: "wholesale_revenue", period: "2026-04" }, t)).toBe(true);
-    expect(matches({ metric: "revenue", period: "2026-06" }, t)).toBe(false);
-    expect(matches({ metric: "revenue", period: "2026-06" }, { ...t, persists: true })).toBe(true);
-    expect(matches({ metric: "revenue", period: "2026-02" }, { ...t, persists: true })).toBe(false);
-    expect(matches({ metric: "revenue", member: { dimension: "customer", member: "X" }, period: "2026-04" }, t)).toBe(false);
+  it("credits a planted event only to a comparison that spans it (before < event ≤ after)", () => {
+    const p = { metric: "refund_rate", period: "2026-05" };
+    expect(matchesPlanted({ metric: "refund_rate", before: "2026-04", period: "2026-05" }, p)).toBe(true);
+    expect(matchesPlanted({ metric: "refund_rate", before: "2025-06", period: "2026-06" }, p)).toBe(true); // year on year
+    // Entirely before the switch (pre-event noise), or entirely after it: not the event.
+    expect(matchesPlanted({ metric: "refund_rate", before: "2026-03", period: "2026-04" }, p)).toBe(false);
+    expect(matchesPlanted({ metric: "refund_rate", before: "2026-05", period: "2026-06" }, p)).toBe(false);
+  });
+
+  it("accepts the slice of the event's channel only, and the member must match", () => {
+    const p = { metric: "revenue", period: "2026-04", driver_alternatives: [{ dimension: "channel", member: "self-serve" }] };
+    expect(matchesPlanted({ metric: "self_serve_revenue", before: "2026-03", period: "2026-04" }, p)).toBe(true);
+    expect(matchesPlanted({ metric: "retail_revenue", before: "2026-03", period: "2026-04" }, p)).toBe(false);
+    const m = { metric: "revenue", member: { dimension: "customer", member: "X" }, before: "2026-03", period: "2026-04" };
+    expect(matchesPlanted(m, p)).toBe(false);
+  });
+
+  it("reports a distractor at its period on its metric, on a metric it also moves, or a slice", () => {
+    const d = { metric: "revenue", also: ["orders"], period: "2025-12" };
+    expect(matchesDistractor({ metric: "orders", before: "2025-11", period: "2025-12" }, d)).toBe(true);
+    expect(matchesDistractor({ metric: "retail_revenue", before: "2025-11", period: "2025-12" }, d)).toBe(true);
+    expect(matchesDistractor({ metric: "revenue", before: "2025-06", period: "2026-06" }, d)).toBe(false);
   });
 
   it("scores detection, driver, cause, action relevance, distractors and quality", () => {
     const s = scoreReport(report(), key, { seconds: 2, tokens: { input: 10, output: 5 } });
     expect(s.planted).toEqual([
-      { id: "P1", detected: true, rank: 1, driver: true, cause: true, relevantAction: true },
+      { id: "P1", detected: true, rank: 1, driver: true, cause: true },
       { id: "P2", detected: false },
     ]);
     expect(s.distractorsReported).toEqual(["D1"]);
     expect(s.qualityFound).toEqual(["Q1"]);
     expect(s.groundedRecommendations).toBe(1);
+    expect(s.actionRelevant).toBe(true);
+  });
+
+  it("a top recommendation about something else is a relevance miss; a wrong driver is a recall miss", () => {
+    const r = report();
+    const other = {
+      ...r,
+      recommendations: [{ ...(r.recommendations[0] as Report["recommendations"][number]), because: ["F2"] }],
+    } as Report;
+    expect(scoreReport(other, key, { seconds: 1, tokens: { input: 0, output: 0 } }).actionRelevant).toBe(false);
+    const wrongDriver = {
+      ...r,
+      findings: r.findings.map((f, i) => (i === 0 ? { ...f, drivers: [{ label: "“Somebody”", fact: "N3", share_of_change: "N3" }] } : f)),
+    } as Report;
+    const s = scoreReport(wrongDriver, key, { seconds: 1, tokens: { input: 0, output: 0 } });
+    expect(s.planted[0]).toMatchObject({ detected: true, driver: false });
+    expect(summarize([s]).find((b) => b.metric === "Planted recall@5")?.value).toBe(0); // 0 of 2: P1's driver is wrong
   });
 
   it("summarizes with the EVALS bars (hand-computed)", () => {

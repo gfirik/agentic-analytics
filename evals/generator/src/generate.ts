@@ -48,6 +48,8 @@ export interface Distractor {
   readonly id: string;
   readonly description: string;
   readonly metric: string;
+  /** Other metrics the same non-event moves (orders rise with revenue in a seasonal peak). */
+  readonly also?: readonly string[];
   readonly period: string;
   readonly member?: Member;
   readonly must_not_appear_as_finding: true;
@@ -339,16 +341,17 @@ export function generateDataset(a: Archetype, variant: 0 | 1 | 2, seed?: number)
       must_not_appear_as_finding: true,
     },
   ];
-  if (variant === 2) {
-    const dec = ms.filter((m) => m.endsWith("-12")).at(-1) as string;
-    distractors.push({
-      id: "D2",
-      description: "the December peak is seasonal (it happens every year)",
-      metric: "revenue",
-      period: dec,
-      must_not_appear_as_finding: true,
-    });
-  }
+  if (variant === 2)
+    // Every December is inflated, so each is a distractor, for revenue and for orders (the peak moves both).
+    for (const [k, dec] of ms.filter((m) => m.endsWith("-12")).entries())
+      distractors.push({
+        id: `D${2 + k}`,
+        description: `the ${dec} peak is seasonal (every December is 25% higher)`,
+        metric: "revenue",
+        also: ["orders"],
+        period: dec,
+        must_not_appear_as_finding: true,
+      });
   const quality: QualityKey[] = [
     {
       id: "Q1",

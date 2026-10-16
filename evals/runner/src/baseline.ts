@@ -1,6 +1,7 @@
-// The "baseline" scripted model (no LLM): a dataset-agnostic heuristic planner, extractor and judge, so the whole
-// harness runs end to end with FakeModel (docs/EVALS.md §3 smoke suite). It is a floor, not a model result:
-// RESULTS.md labels it as such. It reads only what a model would see in its prompts.
+// The "baseline" scripted model (no LLM): a heuristic planner, extractor and judge that work on any generated
+// dataset, so the whole harness runs end to end with FakeModel (docs/EVALS.md §3 smoke suite). It reads only what a
+// model would see in its prompts, but its keyword rules were written knowing the generator's document templates,
+// so its cause and action scores are optimistic. It checks plumbing, not model quality; RESULTS.md says so.
 import { FakeModel, type FakeRequest } from "@agentic-analytics/models/testing";
 
 interface SheetFact {

@@ -7,6 +7,16 @@ import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
 import { resultsMarkdown, runSuite, type Suite, type SuiteResult } from "./run.ts";
 
+export class EvalRunError extends Error {
+  constructor(
+    readonly code: "NO_MODEL",
+    message: string,
+  ) {
+    super(message);
+    this.name = "EvalRunError";
+  }
+}
+
 export interface EvalArgs {
   readonly suite: Suite;
   /** "baseline" (the scripted heuristic, no LLM) or a model name used for every role. */
@@ -25,11 +35,11 @@ export interface EvalDeps {
 }
 
 const BASELINE_NOTE =
-  "Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-overlap judge), not a language model. It is the floor every real model is compared with.";
+  'Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-overlap judge), not a language model. Its rules were written knowing the generator\'s document templates (e.g. it treats a sentence with "after" and "pausing" as a stated cause), so its cause-grade and action scores are optimistic. It checks the harness end to end; it is not evidence of model quality.';
 
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
-  if (!baseline && !d.modelFor) throw new Error(`no model client for ${a.model}`);
+  if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
   const make = baseline ? () => baselineModel({ small: a.smallModel === true }) : () => (d.modelFor as (n: string) => ModelClient)(a.model);
   const r = await runSuite({
     suite: a.suite,

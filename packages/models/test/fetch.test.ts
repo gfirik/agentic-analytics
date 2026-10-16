@@ -1,0 +1,51 @@
+// The provider HTTP layer: reasoning is not sent back, and a 429 waits as long as the endpoint asks (Groq's free
+// tier: "Please try again in 24.735s"), within a cap. No network: a scripted fetch.
+import { describe, expect, it } from "vitest";
+import { providerFetch, retryAfterMs } from "../src/index.ts";
+
+const limited = (body: string, headers: Record<string, string> = {}) => new Response(body, { status: 429, headers });
+
+describe("providerFetch", () => {
+  it("reads the wait from Retry-After or from the message", () => {
+    expect(retryAfterMs(new Headers({ "retry-after": "7" }), "")).toBe(7000);
+    expect(retryAfterMs(new Headers(), "Please try again in 24.735s. Need more tokens?")).toBeCloseTo(24735, 6);
+    expect(retryAfterMs(new Headers(), "try again in 1m2.5s")).toBe(62500);
+    expect(retryAfterMs(new Headers(), "try again in 640ms")).toBe(640);
+    expect(retryAfterMs(new Headers(), "slow down")).toBeUndefined();
+  });
+
+  it("retries a 429 after the requested wait, and gives up past the cap", async () => {
+    const waits: number[] = [];
+    const calls: string[] = [];
+    let n = 0;
+    const base = (async (_u: unknown, init?: RequestInit) => {
+      calls.push(String(init?.body));
+      return n++ < 2 ? limited("Rate limit reached. Please try again in 1.5s.") : new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const f = providerFetch(base, { sleep: async (ms) => void waits.push(ms) });
+    expect((await f("https://x/v1/chat/completions", { method: "POST", body: "{}" })).status).toBe(200);
+    expect(waits).toEqual([1750, 1750]);
+    const tooLong = providerFetch((async () => limited("try again in 10m0s")) as typeof fetch, {
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect((await tooLong("https://x", {})).status).toBe(429);
+    expect(waits).toHaveLength(2);
+  });
+
+  it("drops reasoning_content from the messages it sends", async () => {
+    let sent = "";
+    const f = providerFetch((async (_u: unknown, init?: RequestInit) => {
+      sent = String(init?.body);
+      return new Response("{}");
+    }) as typeof fetch);
+    const body = {
+      model: "m",
+      messages: [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "", reasoning_content: "thinking", tool_calls: [] },
+      ],
+    };
+    await f("https://x", { method: "POST", body: JSON.stringify(body) });
+    expect(JSON.parse(sent).messages[1]).toEqual({ role: "assistant", content: "", tool_calls: [] });
+  });
+});

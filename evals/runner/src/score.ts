@@ -1,51 +1,77 @@
 // Scoring one report against its answer key (docs/EVALS.md §2). A finding's subject is the change its first
-// (code-written) claim states: the metric, the member if any, and the period, read from the fact labels. Matching
+// (code-written) claim states: the metric, the member if any, and the compared periods, read from fact labels. Matching
 // is by subject, never by wording, so a model can't score by writing the right words.
-import type { AnswerKey, Member, Planted } from "@agentic-analytics/eval-generator";
+import type { AnswerKey, Distractor, Member, Planted } from "@agentic-analytics/eval-generator";
 import type { Finding, Report } from "@agentic-analytics/schema";
 
 export interface Subject {
   readonly metric: string;
   readonly member?: Member;
+  /** The comparison's earlier side, when the claim has one. */
+  readonly before?: string;
+  /** The period the change is at (the comparison's later side). */
   readonly period: string;
 }
 
 const GRADES = ["observed", "correlated", "document_supported", "intervention_supported"] as const;
-const MEASURED = /^([a-z][a-z0-9_]*)(?:\[([^=\]]+)=(.+)\])?_(\d{4}-\d{2}(?:-\d{2})?|\d{4}-[QW]\d{1,2})$/;
-const DERIVED = /^I\d+ \S+ ([a-z][a-z0-9_]*)(?:\|([^=]+)=(.+))? (\d{4}-\d{2}(?:-\d{2})?|\d{4}-[QW]\d{1,2}):/;
+const PERIOD = String.raw`(\d{4}-\d{2}(?:-\d{2})?|\d{4}-[QW]\d{1,2})`;
+const MEASURED = new RegExp(String.raw`^([a-z][a-z0-9_]*)(?:\[([^=\]]+)=(.+)\])?_${PERIOD}$`);
+const DERIVED = new RegExp(String.raw`^I\d+ \S+ ([a-z][a-z0-9_]*)(?:\|([^=]+)=(.+))? ${PERIOD}:`);
 
-/** What a finding is about, from the facts of its first claim. */
+/**
+ * What a finding is about, from the facts of its first claim (written by code, not the model): the metric, the
+ * member, and the compared periods. The change's own fact gives the "after" period; the measured points give the
+ * "before" side.
+ */
 export function subjectOf(f: Finding, report: Report): Subject | undefined {
   const labels = new Map(report.facts.map((x) => [x.id, x.label]));
   const ids = f.claims[0]?.facts ?? [];
-  // The change's own fact (its period is the "after" side) first; a measured point only when there is none.
-  const ordered = [...ids.filter((id) => DERIVED.test(labels.get(id) ?? "")), ...ids];
-  for (const id of ordered) {
-    const label = labels.get(id) ?? "";
-    const m = DERIVED.exec(label) ?? MEASURED.exec(label);
-    if (m)
-      return {
-        metric: m[1] as string,
-        ...(m[2] && m[3] ? { member: { dimension: m[2], member: m[3] } } : {}),
-        period: (m[4] as string).slice(0, 7),
-      };
-  }
-  return undefined;
+  const measured = ids.flatMap((id) => {
+    const m = MEASURED.exec(labels.get(id) ?? "");
+    return m ? [m] : [];
+  });
+  const derived = ids.map((id) => DERIVED.exec(labels.get(id) ?? "")).find((m) => m !== null);
+  const head = derived ?? measured[0];
+  if (!head) return undefined;
+  const periods = measured
+    .filter((m) => m[1] === head[1])
+    .map((m) => (m[4] as string).slice(0, 7))
+    .sort();
+  const after = derived ? (derived[4] as string).slice(0, 7) : (periods.at(-1) as string);
+  const before = periods.find((p) => p < after);
+  return {
+    metric: head[1] as string,
+    ...(head[2] && head[3] ? { member: { dimension: head[2], member: head[3] } } : {}),
+    ...(before ? { before } : {}),
+    period: after,
+  };
 }
 
-const monthIndex = (p: string) => Number(p.slice(0, 4)) * 12 + Number(p.slice(5, 7));
+/** A metric id as the deterministic metric drafts name a channel's slice ("self-serve" → `self_serve_revenue`). */
+export const sliceOf = (channel: string, metric: string) => `${channel.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_${metric}`;
 
 /**
- * Same metric (or a channel slice of it, e.g. `wholesale_revenue` for revenue), same member, and the period within
- * ±1 of the target's, or any later period for a lasting change (a lost client still shows in a June-on-June drop).
+ * A planted event is found by a finding on the same metric (or the slice of a channel the event is in) and the same
+ * member, whose comparison spans the event: before < event ≤ after. A lost client therefore also counts in a
+ * June-on-June drop, but a comparison entirely before or entirely after the event does not.
  */
-export function matches(s: Subject, target: { metric: string; member?: Member; period: string; persists?: boolean }, window = 1): boolean {
-  const metricOk = s.metric === target.metric || (!target.member && s.metric.endsWith(`_${target.metric}`));
-  const memberOk = target.member
-    ? s.member?.dimension === target.member.dimension && s.member.member.toLowerCase() === target.member.member.toLowerCase()
-    : s.member === undefined;
-  const d = monthIndex(s.period) - monthIndex(target.period);
-  return metricOk && memberOk && (Math.abs(d) <= window || (target.persists === true && d > 0));
+export function matchesPlanted(s: Subject, p: Pick<Planted, "metric" | "member" | "period" | "driver_alternatives">): boolean {
+  const slices = (p.driver_alternatives ?? []).filter((a) => a.dimension === "channel").map((a) => sliceOf(a.member, p.metric));
+  if (s.metric !== p.metric && !(p.member === undefined && slices.includes(s.metric))) return false;
+  if (!sameMember(s.member, p.member)) return false;
+  return s.before !== undefined ? s.before < p.period && p.period <= s.period : s.period === p.period;
+}
+
+/** A distractor is reported by any finding at its period on its metric (or one it also moves, or a slice of either). */
+export function matchesDistractor(s: Subject, d: Pick<Distractor, "metric" | "also" | "member" | "period">): boolean {
+  const metrics = [d.metric, ...(d.also ?? [])];
+  const metricOk = metrics.includes(s.metric) || (d.member === undefined && metrics.some((m) => s.metric.endsWith(`_${m}`)));
+  return metricOk && sameMember(s.member, d.member) && s.period === d.period;
+}
+
+function sameMember(a: Member | undefined, b: Member | undefined): boolean {
+  if (!b) return a === undefined;
+  return a?.dimension === b.dimension && a.member.toLowerCase() === b.member.toLowerCase();
 }
 
 export interface PlantedScore {
@@ -55,8 +81,6 @@ export interface PlantedScore {
   readonly rank?: number;
   readonly driver?: boolean;
   readonly cause?: boolean;
-  /** The top recommendation's scenario is one of the good actions (only for P-events that have good actions). */
-  readonly relevantAction?: boolean;
 }
 
 export interface DatasetScore {
@@ -76,16 +100,22 @@ export interface DatasetScore {
   readonly recommendations: number;
   readonly groundedRecommendations: number;
   readonly findings: number;
+  /**
+   * For a completed job whose key has events with good actions: the top recommendation is about one of them and
+   * uses one of its good scenario types. A top recommendation about anything else is a miss.
+   */
+  readonly actionRelevant?: boolean;
   readonly seconds: number;
   readonly tokens: { readonly input: number; readonly output: number };
 }
 
-/** The finding's top driver is the expected member (or an accepted alternative, e.g. the client's channel). */
+/**
+ * The finding's top driver (the structured `drivers` list code builds from the decomposition, never claim wording)
+ * is the expected member or an accepted alternative (the key client's channel).
+ */
 function driverOk(f: Finding, accepted: readonly Member[]): boolean {
-  const clean = (s: string) => s.replace(/[“”"]/g, "").trim().toLowerCase();
-  const top = f.drivers?.[0]?.label;
-  if (top) return accepted.some((d) => clean(top) === d.member.toLowerCase());
-  return f.claims.some((c) => accepted.some((d) => c.text.toLowerCase().includes(`by ${d.dimension}, “${d.member.toLowerCase()}”`)));
+  const top = f.drivers?.[0]?.label.replace(/[“”"]/g, "").trim().toLowerCase();
+  return top !== undefined && accepted.some((d) => top === d.member.toLowerCase());
 }
 
 export function scoreReport(
@@ -122,7 +152,7 @@ export function scoreReport(
   // Every top-5 finding about the planted event: the first gives the rank; the driver, cause and action may come
   // from any of them (one engine finding states the change, a sibling on a channel metric may hold the cause).
   const findingsFor = (p: Planted) =>
-    top.flatMap((f, i) => (subjects[i] !== undefined && matches(subjects[i] as Subject, p) ? [{ finding: f, rank: i + 1 }] : []));
+    top.flatMap((f, i) => (subjects[i] !== undefined && matchesPlanted(subjects[i] as Subject, p) ? [{ finding: f, rank: i + 1 }] : []));
   const topRec = report.recommendations[0];
   const scenario = topRec?.impact.method.replace(/^impact\.v1:/, "");
   const planted = key.planted.map((p): PlantedScore => {
@@ -130,7 +160,6 @@ export function scoreReport(
     const first = hits[0];
     if (!first) return { id: p.id, detected: false };
     const cause = p.cause;
-    const ids = new Set(hits.map((h) => h.finding.id));
     return {
       id: p.id,
       detected: true,
@@ -147,10 +176,12 @@ export function scoreReport(
             ),
           }
         : {}),
-      ...(p.good_actions.length && topRec?.because.some((b) => ids.has(b))
-        ? { relevantAction: scenario !== undefined && p.good_actions.includes(scenario) }
-        : {}),
     };
+  });
+  const withActions = key.planted.filter((p) => p.good_actions.length);
+  const actionRelevant = withActions.some((p) => {
+    const ids = new Set(findingsFor(p).map((h) => h.finding.id));
+    return topRec?.because.some((b) => ids.has(b)) && scenario !== undefined && p.good_actions.includes(scenario);
   });
   const findingIds = new Set(report.findings.map((f) => f.id));
   const allSubjects = report.findings.map((f) => subjectOf(f, report));
@@ -159,7 +190,9 @@ export function scoreReport(
     completed: true,
     numberMismatch: false,
     planted,
-    distractorsReported: key.distractors.filter((d) => allSubjects.some((s) => s !== undefined && matches(s, d, 0))).map((d) => d.id),
+    distractorsReported: key.distractors
+      .filter((d) => allSubjects.some((s) => s !== undefined && matchesDistractor(s, d)))
+      .map((d) => d.id),
     qualityFound: key.quality
       .filter((q) => report.data_quality.some((i) => i.kind === q.kind && i.citations.some((c) => files.get(c.source_id) === q.file)))
       .map((q) => q.id),
@@ -169,6 +202,7 @@ export function scoreReport(
     recommendations: report.recommendations.length,
     groundedRecommendations: report.recommendations.filter((r) => r.because.length > 0 && r.because.every((b) => findingIds.has(b))).length,
     findings: report.findings.length,
+    ...(withActions.length ? { actionRelevant } : {}),
   };
 }
 
@@ -185,9 +219,11 @@ const share = (n: number, d: number) => (d === 0 ? undefined : n / d);
 export function summarize(scores: readonly DatasetScore[]): Bar[] {
   const planted = scores.flatMap((s) => s.planted);
   const detected = planted.filter((p) => p.detected);
+  // EVALS §2: found among the top 5 *with the correct driver* (events without an expected driver need none).
+  const found = detected.filter((p) => p.driver !== false);
   const withDriver = detected.filter((p) => p.driver !== undefined);
   const withCause = detected.filter((p) => p.cause !== undefined);
-  const withAction = detected.filter((p) => p.relevantAction !== undefined);
+  const withAction = scores.filter((s) => s.actionRelevant !== undefined);
   const sum = (f: (s: DatasetScore) => number) => scores.reduce((a, s) => a + f(s), 0);
   const checked = sum((s) => s.citationsChecked);
   const completed = scores.filter((s) => s.completed);
@@ -200,7 +236,7 @@ export function summarize(scores: readonly DatasetScore[]): Bar[] {
   return [
     bar("Jobs completed", share(completed.length, scores.length), "100%", (v) => v === 1),
     bar("Number mismatches", scores.filter((s) => s.numberMismatch).length, "0", (v) => v === 0),
-    bar("Planted recall@5", share(detected.length, planted.length), "≥ 80%", (v) => v >= 0.8),
+    bar("Planted recall@5", share(found.length, planted.length), "≥ 80%", (v) => v >= 0.8),
     bar("Driver accuracy", share(withDriver.filter((p) => p.driver).length, withDriver.length), "≥ 90%", (v) => v >= 0.9),
     bar("Cause grade accuracy", share(withCause.filter((p) => p.cause).length, withCause.length), "≥ 80%", (v) => v >= 0.8),
     bar(
@@ -237,6 +273,6 @@ export function summarize(scores: readonly DatasetScore[]): Bar[] {
       "100%",
       (v) => v === 1,
     ),
-    bar("Recommendation relevance", share(withAction.filter((p) => p.relevantAction).length, withAction.length), "≥ 70%", (v) => v >= 0.7),
+    bar("Recommendation relevance", share(withAction.filter((s) => s.actionRelevant).length, withAction.length), "≥ 70%", (v) => v >= 0.7),
   ];
 }

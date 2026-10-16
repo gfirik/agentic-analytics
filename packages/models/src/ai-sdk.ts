@@ -8,6 +8,7 @@ import { generateText, type LanguageModel, NoObjectGeneratedError, Output, stepC
 import { z } from "zod";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
+import { providerFetch } from "./fetch.ts";
 import { generateValidated } from "./retry.ts";
 import {
   addUsage,
@@ -37,7 +38,10 @@ export function supportsStructuredOutputs(m: RoleModel, config: Config): boolean
 }
 
 export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps): LanguageModel {
-  const common = { supportsStructuredOutputs: supportsStructuredOutputs(m, config), ...(deps.fetch ? { fetch: deps.fetch } : {}) };
+  const common = {
+    supportsStructuredOutputs: supportsStructuredOutputs(m, config),
+    fetch: providerFetch(deps.fetch ?? fetch, { timeoutMs: config.timeouts.model_ms }),
+  };
   if (m.provider === "ollama") {
     const base = config.providers.ollama?.base_url;
     if (!base) throw new ModelError("CONFIG", "ollama is used but providers.ollama.base_url is not set");
@@ -90,7 +94,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
               prompt,
               output: Output.object({ schema: args.schema }),
               maxRetries: 0,
-              abortSignal: AbortSignal.timeout(timeoutMs),
+              // Each HTTP request has its own timeout (providerFetch); this bounds a whole call, rate-limit waits included.
+              abortSignal: AbortSignal.timeout(timeoutMs * 20),
             });
             return { value: res.output as unknown, usage: usageOf(res.usage, performance.now() - started) };
           } catch (err) {
@@ -124,7 +129,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           tools,
           stopWhen: stepCountIs(args.maxSteps),
           maxRetries: 0,
-          abortSignal: AbortSignal.timeout(timeoutMs),
+          // Each HTTP request has its own timeout (providerFetch); this bounds a whole call, rate-limit waits included.
+          abortSignal: AbortSignal.timeout(timeoutMs * 20),
         });
         const steps: Step[] = res.steps.map((s) => ({
           text: s.text,
