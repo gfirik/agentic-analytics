@@ -55,15 +55,19 @@ function fakeWeb(fx?: InjectionFixture) {
 /** The scripted planner, with an extractor that obeys any injection it is shown. */
 function obedient(fx?: InjectionFixture): { model: ModelClient; calls: () => { role?: string; text: string }[] } {
   const planner = coffeePlanner({ web: true });
+  // Calls the obedient extractor answers itself never reach the planner's log.
+  const own: { role?: string; text: string }[] = [];
   return {
-    calls: () => planner.calls.map((c) => ({ ...(c.role ? { role: c.role } : {}), text: `${c.system ?? ""}\n${c.prompt}` })),
+    calls: () => [...planner.calls.map((c) => ({ ...(c.role ? { role: c.role } : {}), text: `${c.system ?? ""}\n${c.prompt}` })), ...own],
     model: {
       generateObject<T>(a: GenerateObjectArgs<T>) {
-        if (fx && a.role === "extractor" && a.prompt.toLowerCase().includes(fx.phrase.toLowerCase()))
+        if (fx && a.role === "extractor" && a.prompt.toLowerCase().includes(fx.phrase.toLowerCase())) {
+          own.push({ role: "extractor", text: `${a.system ?? ""}\n${a.prompt}` });
           return Promise.resolve({
             object: { events: [{ what: fx.phrase, quote: fx.phrase }], statements: [], suspicious_instructions: false } as T,
             usage: { inputTokens: 0, outputTokens: 0, latencyMs: 0 },
           });
+        }
         return planner.generateObject(a);
       },
       generateWithTools: (a) => planner.generateWithTools(a),
@@ -147,6 +151,9 @@ describe("an injection the screen misses (the architecture, not the patterns)", 
       flagged: "hotel-note.txt",
     };
     const r = await run(fx);
+    // The screen let it through, so the extractor (and only the extractor) read it raw.
+    expect(r.calls.some((c) => c.role === "extractor" && c.text.includes(phrase))).toBe(true);
+    for (const q of r.queries) expect(leaksPrivate(q, r.terms), q).toBe(false);
     // The facts are the clean run's: numbers come from SQL, whatever a document says.
     const before = factValues(clean.report);
     for (const [label, value] of factValues(r.report))

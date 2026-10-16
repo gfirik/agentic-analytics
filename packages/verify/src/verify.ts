@@ -221,7 +221,10 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     // Quoted text may hold digits only when it really is quoted: from a cited source, or a name from the data.
     for (const span of quotedSpans(c.text).filter((q) => /\p{Nd}/u.test(q))) {
       const fromSource = c.citations.some((x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span));
-      const fromData = [...all.values()].some((f) => f.label.includes(span));
+      // A name from the data: a whole member value (`[dim=value]`) or label, never a fragment like a period's "04".
+      const names = (l: string) => [l, ...[...l.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] ?? "")];
+      const fromData =
+        /\p{L}/u.test(span) && [...all.values()].some((f) => names(f.label).some((n) => n.toLowerCase() === span.toLowerCase()));
       if (!fromSource && !fromData) return drop("V1", `quoted “${span}” is not from a cited source or the data`);
     }
     // A decline is stated as a magnitude (report-schema §5a): "fell {{N}}" with a negative N reads as a double

@@ -74,7 +74,8 @@ const RULES: Record<string, Rule> = {
     const period = /(\d{4}-\d{2}(?:-\d{2})?|\d{4}-[QW]\d{1,2})(?::robust_z)?$/.exec(f.label.replace(/:robust_z$/, ""))?.[1];
     const at = (f.computation.inputs ?? []).findIndex((id) => (byId.get(id)?.label ?? "").endsWith(`_${period}`));
     if (at >= 1) return { value: z(at - 1), how: `robust z of the change into ${period}` };
-    return { value: res.map((_, i) => z(i)), how: "robust z of a change vs the other changes (period not found: any)" };
+    // Fail closed: every anomaly label ends with its period, so a missing one is an engine bug.
+    return { value: [], how: "robust z: the fact's period is not in its label or inputs" };
   },
   // The largest member share shift: one of the members' (after ÷ Σafter − before ÷ Σbefore) × 100.
   share_shift: (_f, x) => {

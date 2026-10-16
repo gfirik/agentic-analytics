@@ -57,9 +57,14 @@ function despace(s: string): string {
 
 // An AI addressed by name. Bare "assistant", "AI", "model" or "agent" are ordinary words; only clear AI forms,
 // or a vocative ("Assistant: …", "AI, …"), count.
-const AI = `(?:ai (?:assistant|model|agent|system)s?|virtual assistant|language[- ]models?|llms?|chatbots?|gpt|claude|artificial intelligence)`;
-const ASK = `(?:must|should|need to|please|report|state|say|write|output|tell|recommend|append|send|include|reveal|mention|disregard|ignore|conclude|summari[sz]e|describe|respond)`;
-const SEND = String.raw`(?:send|submit|post|upload|append|forward|confirm|verify|log in|sign in|отправ\p{L}*|пришли\p{L}*|подтверд\p{L}*|yubor\p{L}*|tasdiql\p{L}*)`;
+const AI = String.raw`(?:ai (?:assistant|model|agent|system)s?|virtual assistant|language[- ]models?|llms?|chatbots?|gpt|claude|artificial intelligence)`;
+const ASK = String.raw`(?:must|should|need to|please|report|state|say|write|output|tell|recommend|append|send|include|reveal|mention|disregard|ignore|conclude|summari[sz]e|describe|respond)`;
+// Verbs that move data out. Confirming, logging in or paying at a link is ordinary email; it counts only when the
+// link's query carries a placeholder for data ("?d=REVENUE", "?x={customers}") rather than an order id.
+const SEND = String.raw`(?:send|submit|post|upload|append|forward|отправ\p{L}*|пришли\p{L}*|yubor\p{L}*)`;
+// Case-folded by hand: the query placeholder check needs a case-sensitive pattern.
+const VISIT = String.raw`(?:[Vv]isit|[Oo]pen|[Cc]onfirm|[Vv]erify|[Ll]og in|[Ss]ign in|[Пп]одтверд\p{L}*|[Пп]ерейд\p{L}*|[Tt]asdiql\p{L}*)`;
+const DATA_QUERY = String.raw`https?:\/\/[^\s?]+\?\S*(?:=(?:[A-Z_]{3,}|\{[^}\s]+\}|\[[^\]\s]+\])(?![a-z])|[?&=](?:data|payload|revenue|sales|customers?|clients?|findings|report|summary|list)(?![a-z]))`;
 
 const PATTERNS: readonly RegExp[] = [
   /\b(?:ignore|disregard|override|bypass)\b[^.\n]{0,40}\b(?:instructions?|previous|prior|above|earlier|rules|guidelines|prompt)\b/i,
@@ -73,13 +78,17 @@ const PATTERNS: readonly RegExp[] = [
     String.raw`\b(?:note|message|attention|important|instruction)s?\b[^.\n]{0,20}\b(?:to|for)\b[^.\n]{0,10}(?:the )?(?:${AI}|ai|assistant)\b`,
     "iu",
   ),
-  new RegExp(String.raw`\b${AI}\s+readers?\b|(?:^|\n|[.!?]\s)\s*(?:ai|assistant|bot)\s*[,:]`, "iu"),
+  new RegExp(String.raw`\b${AI}\s+readers?\b|(?:^|\n|[.!?]\s)\s*(?:ai|assistant|bot)\s*[,:][^.\n]{0,40}\b${ASK}\b`, "iu"),
   /\bact as\b[^.\n]{0,40}\b(?:assistant|ai|model|agent|admin)\b/i,
   /\bdo not (?:mention|report|include|disclose)\b[^.\n]{0,60}\b(?:your|the) (?:report|summary|answer|analysis|findings)\b/i,
   // Data exfiltration: sending or confirming something at a URL, or a spreadsheet formula that calls one.
   new RegExp(
     String.raw`(?<![\p{L}])${SEND}(?![\p{L}])[^\n]{0,80}https?:\/\/|https?:\/\/[^\s?]+\?[^\s]*=[^\n]{0,60}(?<![\p{L}])${SEND}(?![\p{L}])|https?:\/\/\S+[^\n]{0,30}(?<![\p{L}])${SEND}(?![\p{L}])`,
     "iu",
+  ),
+  new RegExp(
+    String.raw`(?<![\p{L}])${VISIT}(?![\p{L}])[^\n]{0,80}${DATA_QUERY}|${DATA_QUERY}[^\n]{0,60}(?<![\p{L}])${VISIT}(?![\p{L}])`,
+    "u",
   ),
   /=\s*(?:hyperlink|image|webservice|importxml|importdata|importhtml)\s*\(\s*"https?:\/\//i,
   // Russian.

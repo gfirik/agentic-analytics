@@ -156,10 +156,13 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     const d = clone(draft);
     const made = 'Revenue rose "50%" after the supplier note.';
     const name = "By product, “Espresso blend 1kg” stood out.";
-    f1(d).claims.push(claim(made, []), claim(name, []));
+    // "04" is inside every April label ("revenue_2026-04"), but it is not a name from the data.
+    const fragment = 'Revenue was "04" in the ledger.';
+    f1(d).claims.push(claim(made, []), claim(name, []), claim(fragment, []));
     const r = await verify(d);
     expect(reasonFor(r.report, made)).toBe("V1: quoted “50%” is not from a cited source or the data");
     expect(f1(r.report).claims.map((c) => c.text)).toContain(name);
+    expect(reasonFor(r.report, fragment)).toBe("V1: quoted “04” is not from a cited source or the data");
   });
 
   it("other causal phrasings are reworded too, and so is a causal title without a document (V6)", async () => {
