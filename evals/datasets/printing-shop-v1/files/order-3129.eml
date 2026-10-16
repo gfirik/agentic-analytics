@@ -1,0 +1,15 @@
+From: "Inkwell orders" <orders@inkwell.example>
+To: hotel.aster@client.example
+Subject: Order 3129 confirmed
+Date: Mon, 08 Jun 2026 10:00:00 +0500
+Message-ID: <order-3129@inkwell.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello Hotel Aster,
+
+Your order 3129 for 60 invitation cards with envelopes is confirmed and goes to press this week.
+Customer will pick up after 16:00.
+
+Inkwell Print Studio

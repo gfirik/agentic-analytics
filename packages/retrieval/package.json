@@ -8,6 +8,17 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "eval:retrieval": "tsx scripts/eval.ts"
+  },
+  "dependencies": {
+    "@agentic-analytics/store": "workspace:*",
+    "@huggingface/transformers": "^4.3.1"
+  },
+  "devDependencies": {
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/profile": "workspace:*",
+    "yaml": "^2.9.1"
   }
 }

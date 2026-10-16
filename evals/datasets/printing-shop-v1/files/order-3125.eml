@@ -1,0 +1,15 @@
+From: "Inkwell orders" <orders@inkwell.example>
+To: studio.nova@client.example
+Subject: Order 3125 confirmed
+Date: Mon, 08 May 2026 10:00:00 +0500
+Message-ID: <order-3125@inkwell.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello Studio Nova,
+
+Your order 3125 for 40 posters A2 is confirmed and goes to press this week.
+Reprint of last month's job with new dates.
+
+Inkwell Print Studio

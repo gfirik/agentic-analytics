@@ -10,7 +10,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:coffee-roaster": "tsx coffee-roaster-v1/build.ts",
-    "build:golden-report": "tsx coffee-roaster-v1/build-report.ts"
+    "build:golden-report": "tsx coffee-roaster-v1/build-report.ts",
+    "build:printing-shop": "tsx printing-shop-v1/build.ts"
   },
   "dependencies": {
     "@agentic-analytics/schema": "workspace:*",

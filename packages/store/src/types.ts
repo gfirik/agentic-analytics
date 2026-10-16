@@ -69,6 +69,8 @@ export interface SectionRow {
   readonly char_start: number;
   readonly char_end: number;
   readonly text: string;
+  /** Email headers for email sections. */
+  readonly meta?: { readonly from?: string; readonly to?: string; readonly date?: string; readonly subject?: string };
 }
 
 export interface IssueRow {

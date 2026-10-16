@@ -1,0 +1,15 @@
+From: "Inkwell orders" <orders@inkwell.example>
+To: city.gym@client.example
+Subject: Order 3120 confirmed
+Date: Mon, 01 Jun 2026 10:00:00 +0500
+Message-ID: <order-3120@inkwell.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello City Gym,
+
+Your order 3120 for a 24-page catalogue, 300 copies is confirmed and goes to press this week.
+Paid in advance by bank transfer.
+
+Inkwell Print Studio

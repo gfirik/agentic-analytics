@@ -1,0 +1,15 @@
+From: "Inkwell orders" <orders@inkwell.example>
+To: brightads@client.example
+Subject: Order 3126 confirmed
+Date: Mon, 15 Jun 2026 10:00:00 +0500
+Message-ID: <order-3126@inkwell.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello BrightAds,
+
+Your order 3126 for 1000 leaflets A6 is confirmed and goes to press this week.
+Deliver to zone A with the next van.
+
+Inkwell Print Studio

@@ -52,16 +52,22 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
   }
   for (const n of normalized) for (const ci of n.issues) issues.push(columnIssue(nextId(), n.table, ci));
 
-  const sections: SectionRow[] = ingested.documents.map((d) => ({
-    id: d.id,
-    file_id: d.file_id,
-    kind: d.kind === "eml" ? "email" : "document",
-    ...(d.page !== undefined ? { page: d.page } : {}),
-    heading_path: d.heading_path,
-    char_start: d.char_start,
-    char_end: d.char_end,
-    text: d.text,
-  }));
+  const emailOf = new Map(ingested.documents_meta.flatMap((m) => (m.email ? [[m.file_id, m.email] as const] : [])));
+  const sections: SectionRow[] = ingested.documents.map((d) => {
+    const meta = emailOf.get(d.file_id);
+    return {
+      id: d.id,
+      file_id: d.file_id,
+      kind: d.kind === "eml" ? "email" : "document",
+      ...(d.page !== undefined ? { page: d.page } : {}),
+      heading_path: d.heading_path,
+      char_start: d.char_start,
+      char_end: d.char_end,
+      text: d.text,
+      // Email headers feed the retrieval chunk prefix (retrieval spec §1).
+      ...(meta ? { meta } : {}),
+    };
+  });
   await loadJob(ws, {
     files: ingested.files.map((f) => ({ ...f, mime: f.mime })),
     tables: normalized.map((n) => n.table),
