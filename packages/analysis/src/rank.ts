@@ -53,7 +53,41 @@ export function rankInsights(insights: readonly Insight[], ctx: RankContext): Ra
     );
 }
 
-/** The findings that go to EXPLAIN: the top 7 by score, and at least 3 when there are that many. */
+/** Which template speaks for an event when several detect it (same series, same period). */
+export const TEMPLATE_PRIORITY: readonly string[] = [
+  "trend_break.v1",
+  "anomaly.v1",
+  "period_change.v1",
+  "ratio_shift.v1",
+  "trend.v1",
+  "new_lost.v1",
+  "mix_shift.v1",
+  "concentration.v1",
+  "top_contributors.v1",
+  "benchmark_gap.v1",
+];
+
+/**
+ * The findings that go to EXPLAIN (spec §6: top 3–7). Several templates often detect one event (April's drop is
+ * a trend break, an anomaly and a lost customer), so insights are grouped by series and period; each group is
+ * represented by its highest-priority template and scored by its best score. The rest stay as supporting
+ * insights in the workspace.
+ */
 export function topForExplain(ranked: readonly Ranked[], max = 7): Ranked[] {
-  return ranked.slice(0, max);
+  const groups = new Map<string, Ranked[]>();
+  for (const r of ranked) {
+    const key = `${r.insight.series}@${r.insight.period}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const priority = (t: string) => {
+    const i = TEMPLATE_PRIORITY.indexOf(t);
+    return i < 0 ? TEMPLATE_PRIORITY.length : i;
+  };
+  return [...groups.values()]
+    .map((g) => {
+      const rep = [...g].sort((a, b) => priority(a.insight.template) - priority(b.insight.template))[0] as Ranked;
+      return { ...rep, score: Math.max(...g.map((x) => x.score)) };
+    })
+    .sort((a, b) => b.score - a.score || a.insight.series.localeCompare(b.insight.series))
+    .slice(0, max);
 }

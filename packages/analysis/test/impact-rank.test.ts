@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ImpactError, impactRange } from "../src/impact.ts";
-import { rankInsights } from "../src/rank.ts";
+import { rankInsights, topForExplain } from "../src/rank.ts";
 import { type Insight, periodChange, trendBreak } from "../src/templates.ts";
 import type { Series } from "../src/types.ts";
 
@@ -86,6 +86,24 @@ describe("ranking (spec §6)", () => {
     expect(ranked.map((r) => [r.insight.metric, Number(r.score.toFixed(5))])).toEqual([
       ["revenue", 0.0838],
       ["refund_rate", 0.00845],
+    ]);
+  });
+
+  it("EXPLAIN gets one finding per event: the highest-priority template, scored by the best score in the group", () => {
+    const mk = (template: string, series: string, period: string, score: number) => ({
+      insight: { template, series, period } as unknown as Insight,
+      impactShare: score,
+      score,
+    });
+    const top = topForExplain([
+      mk("new_lost.v1", "revenue", "2026-04", 0.15),
+      mk("anomaly.v1", "revenue", "2026-04", 0.14),
+      mk("trend_break.v1", "revenue", "2026-04", 0.08),
+      mk("trend_break.v1", "refund_rate", "2026-04", 0.01),
+    ]);
+    expect(top.map((r) => [r.insight.template, r.insight.series, r.score])).toEqual([
+      ["trend_break.v1", "revenue", 0.15],
+      ["trend_break.v1", "refund_rate", 0.01],
     ]);
   });
 });

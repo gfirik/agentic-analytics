@@ -1,0 +1,472 @@
+// MEASURE → DETECT → DECOMPOSE (ARCHITECTURE §2; docs/specs/analysis-library.md §1–6). Reads every metric
+// through the metric compiler (SQL in DuckDB), runs the templates and decomposers, ranks the findings and
+// records every number as a fact with its computation and citations (AGENTS.md §2.1–2.2).
+import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics";
+import type { Fact, MetricDef } from "@agentic-analytics/schema";
+import { sql, type Workspace } from "@agentic-analytics/store";
+import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
+import { FactBook, type SeriesInfo } from "./factbook.ts";
+import { type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
+import {
+  anomalies,
+  concentration,
+  type Insight,
+  mixShift,
+  newLost,
+  periodChange,
+  ratioShift,
+  topContributors,
+  trend,
+  trendBreak,
+} from "./templates.ts";
+import { point, type Series, type Unit } from "./types.ts";
+
+export interface AnalyzeOptions {
+  readonly from: string;
+  readonly to: string;
+  readonly grain?: Grain;
+  /** The metric the objective is measured in (ranking); defaults to `revenue`, else the first money metric. */
+  readonly objectiveMetric?: string;
+  /** Members per dimension before the rest is folded into "other" (spec §1: 50). */
+  readonly maxMembers?: number;
+  /** Dimensions with more members than this get member-level series but no per-member templates. */
+  readonly maxTemplateMembers?: number;
+}
+
+export interface StoredInsight {
+  readonly id: string; // "I1"
+  readonly template: string;
+  readonly metric: string;
+  readonly series: string;
+  readonly member?: Series["member"];
+  readonly period: string;
+  readonly direction: Insight["direction"];
+  readonly material: boolean;
+  readonly confidence: Insight["confidence"];
+  readonly score: number;
+  /** role → fact id */
+  readonly facts: Readonly<Record<string, string>>;
+  readonly details: Readonly<Record<string, unknown>>;
+  readonly notes: readonly string[];
+}
+
+export interface StoredDecomposition {
+  readonly id: string; // "X1"
+  readonly method: "contribution.v1" | "pvm.v1" | "ratemix.v1";
+  readonly insight: string;
+  readonly dimension: string;
+  readonly facts: Readonly<Record<string, string>>;
+  readonly details: Readonly<Record<string, unknown>>;
+}
+
+export interface AnalysisResult {
+  readonly facts: Fact[];
+  readonly insights: StoredInsight[];
+  readonly decompositions: StoredDecomposition[];
+  /** Ids of the insights that go to EXPLAIN (top 3–7, spec §6). */
+  readonly top: string[];
+  /** Tests skipped for lack of data and other open questions. */
+  readonly openQuestions: string[];
+}
+
+const DIM_UNIT: Record<string, Unit> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
+const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
+const memberFilter = (dimension: string, value: string | null) =>
+  value === null ? `${dimension} IS NULL` : `${dimension} = ${quote(value)}`;
+const QTY = /qty|quantity|units|pcs|pieces|количество|шт|soni|dona/i;
+const ITEM = /product|item|sku|товар|продукт|mahsulot/i;
+
+export async function analyzeJob(
+  ws: Workspace,
+  defs: readonly MetricDef[],
+  catalog: Catalog,
+  options: AnalyzeOptions,
+): Promise<AnalysisResult> {
+  const grain = options.grain ?? "month";
+  const maxMembers = options.maxMembers ?? 50;
+  const maxTemplateMembers = options.maxTemplateMembers ?? 20;
+  const range = { from: options.from, to: options.to, grain };
+  const series = new Map<string, SeriesInfo>();
+  const openQuestions: string[] = [];
+  // Helper metrics (PVM quantities, ratio terms) are registered here so the fact book can compile their points.
+  const allDefs: MetricDef[] = [...defs];
+  const register = (d: MetricDef) => {
+    if (!allDefs.some((x) => x.id === d.id)) allDefs.push(d);
+  };
+
+  // MEASURE (spec §1): every metric per period, and per dimension member (top N + "other").
+  const totals: Series[] = [];
+  const members = new Map<string, { dimension: string; series: Series[] }[]>();
+  for (const def of defs) {
+    const unit = DIM_UNIT[def.unit] ?? "other";
+    const rows = await runMetric(ws, def.id, defs, catalog, range);
+    const total: Series = {
+      id: def.id,
+      metric: def.id,
+      unit,
+      points: rows.filter((r) => r.value !== null).map((r) => ({ period: r.period, value: Number(r.value) })),
+    };
+    series.set(total.id, { series: total, def });
+    totals.push(total);
+    const additive = def.type === "sum" || def.type === "count";
+    for (const dimension of additive ? (def.dimensions ?? []) : []) {
+      const grouped = await runMetric(ws, def.id, defs, catalog, { ...range, groupBy: [dimension] });
+      const byMember = new Map<string | null, { period: string; value: number }[]>();
+      for (const r of grouped) {
+        const key = (r[dimension] as string | null) ?? null;
+        byMember.set(key, [...(byMember.get(key) ?? []), { period: r.period, value: Number(r.value ?? 0) }]);
+      }
+      const ranked = [...byMember.entries()].sort((a, b) => sumAbs(b[1]) - sumAbs(a[1]) || String(a[0]).localeCompare(String(b[0])));
+      const kept = ranked.slice(0, maxMembers);
+      const list: Series[] = kept.map(([value, points]) => {
+        const s: Series = { id: `${def.id}|${dimension}=${value ?? "(none)"}`, metric: def.id, unit, member: { dimension, value }, points };
+        series.set(s.id, { series: s, def, where: memberFilter(dimension, value) });
+        return s;
+      });
+      if (ranked.length > maxMembers) {
+        openQuestions.push(
+          `${def.id} has ${ranked.length} ${dimension} members; the top ${maxMembers} are analysed and the rest are grouped as "other".`,
+        );
+      }
+      members.set(def.id, [...(members.get(def.id) ?? []), { dimension, series: list }]);
+    }
+  }
+
+  // DETECT (spec §3).
+  const found: Insight[] = [];
+  for (const s of totals) {
+    const def = series.get(s.id)?.def;
+    const change = def?.type === "ratio" ? ratioShift(s, undefined, grain) : periodChange(s, grain);
+    if (change) found.push(change);
+    for (const r of [trend(s), trendBreak(s)]) {
+      if ("skipped" in r) openQuestions.push(r.skipped);
+      else found.push(r);
+    }
+    const a = anomalies(s);
+    if ("skipped" in a) openQuestions.push(a.skipped);
+    else found.push(...a);
+  }
+  for (const [metric, dims] of members) {
+    const total = series.get(metric)?.series;
+    if (!total) continue;
+    const periods = total.points.map((p) => p.period);
+    const latest = periods[periods.length - 1];
+    const previous = periods[periods.length - 2];
+    for (const { dimension, series: list } of dims) {
+      if (latest) {
+        const c = concentration(metric, total, list, latest, dimension);
+        if (c) found.push(c);
+      }
+      if (latest && previous) {
+        const nl = newLost(metric, total, list, previous, latest, dimension);
+        if (nl) found.push(nl);
+        const mx = mixShift(metric, total, list, previous, latest, dimension);
+        if (mx) found.push(mx);
+      }
+      if (list.length <= maxTemplateMembers) {
+        for (const m of list) {
+          const pc = periodChange(m, grain);
+          if (pc?.material) found.push(pc);
+        }
+      }
+    }
+  }
+
+  // DECOMPOSE (spec §4): every material change of an additive total is split over each dimension;
+  // a break also gets the new/lost and mix checks across it.
+  const decompositions: {
+    insight: Insight;
+    method: StoredDecomposition["method"];
+    dimension: string;
+    contribution?: Insight;
+    pvm?: Pvm;
+    ratemix?: RateMix;
+  }[] = [];
+  // One decomposition per (series, before, after): several templates often detect the same change, and the
+  // highest-priority one (trend break, then anomaly, …) carries it.
+  const decomposed = new Set<string>();
+  const byPriority = [...found].sort((a, b) => TEMPLATE_PRIORITY.indexOf(a.template) - TEMPLATE_PRIORITY.indexOf(b.template));
+  for (const insight of byPriority) {
+    if (
+      !insight.material ||
+      insight.member ||
+      !["period_change.v1", "trend_break.v1", "anomaly.v1", "ratio_shift.v1"].includes(insight.template)
+    )
+      continue;
+    const before = periodOf(insight.roles.before);
+    const after = periodOf(insight.roles.after);
+    if (!before || !after) continue;
+    const once = `${insight.series}:${before}:${after}`;
+    if (decomposed.has(once)) continue;
+    decomposed.add(once);
+    const def = series.get(insight.series)?.def;
+    if (!def) continue;
+    if (def.type === "sum" || def.type === "count") {
+      for (const { dimension, series: list } of members.get(def.id) ?? []) {
+        const changes = list
+          .map((m) => ({
+            key: String(m.member?.value ?? "(none)"),
+            series: m.id,
+            before: { period: before, value: valueAt(m, before) },
+            after: { period: after, value: valueAt(m, after) },
+          }))
+          .filter((c) => Number.isFinite(c.before.value) && Number.isFinite(c.after.value));
+        if (changes.length < 2) continue;
+        const total = series.get(def.id)?.series as Series;
+        decompositions.push({
+          insight,
+          method: "contribution.v1",
+          dimension,
+          contribution: topContributors(total, changes, total.unit, after, dimension),
+        });
+        if (insight.template === "trend_break.v1") {
+          const nl = newLost(def.id, total, list, before, after, dimension);
+          if (nl) found.push(nl);
+          const mx = mixShift(def.id, total, list, before, after, dimension);
+          if (mx) found.push(mx);
+        }
+        const p = await pvmFor(ws, allDefs, register, catalog, def, dimension, list, before, after, range, series);
+        if (p) decompositions.push({ insight, method: "pvm.v1", dimension, pvm: p });
+      }
+    }
+    if (def.type === "ratio") {
+      const r = await rateMixFor(ws, allDefs, register, catalog, def, before, after, range, series);
+      if (r) decompositions.push({ insight, method: "ratemix.v1", dimension: r.dimension, ratemix: r.result });
+    }
+  }
+
+  // RANK (spec §6).
+  const objective =
+    options.objectiveMetric ?? (defs.find((d) => d.id === "revenue") ?? defs.find((d) => d.unit === "currency"))?.id ?? defs[0]?.id ?? "";
+  const objectiveSeries = series.get(objective)?.series;
+  const ranked = rankInsights(found, {
+    objectiveMetric: objective,
+    objectiveTotals: new Map((objectiveSeries?.points ?? []).map((p) => [p.period, p.value])),
+    periods: objectiveSeries?.points.map((p) => p.period) ?? [],
+    changeOf: (i) => {
+      const name = i.roles.change_since ? "change_since" : i.roles.change ? "change" : i.roles.lost_value ? "lost_value" : undefined;
+      const c = name ? i.calcs.find((x) => x.name === name) : undefined;
+      return c ? { value: c.value, unit: c.unit } : undefined;
+    },
+  });
+
+  // FACTS: record the numbers of every material insight and its decompositions.
+  const book = new FactBook(ws, allDefs, catalog, grain, series);
+  const stored: StoredInsight[] = [];
+  const scoreOf = new Map<Insight, Ranked>(ranked.map((r) => [r.insight, r]));
+  const material = found.filter((i) => i.material).sort((a, b) => (scoreOf.get(b)?.score ?? 0) - (scoreOf.get(a)?.score ?? 0));
+  const idOf = new Map<Insight, string>();
+  for (const insight of material) {
+    const id = `I${stored.length + 1}`;
+    const context = `${insight.template} ${insight.series} ${insight.period}`;
+    const scope = await book.calcs(insight.calcs, context, insight.metric);
+    const facts: Record<string, string> = {};
+    for (const [role, ref] of Object.entries(insight.roles)) facts[role] = await book.resolve(ref, scope);
+    stored.push({
+      id,
+      template: insight.template,
+      metric: insight.metric,
+      series: insight.series,
+      ...(insight.member ? { member: insight.member } : {}),
+      period: insight.period,
+      direction: insight.direction,
+      material: insight.material,
+      confidence: insight.confidence,
+      score: scoreOf.get(insight)?.score ?? 0,
+      facts,
+      details: insight.details,
+      notes: insight.notes,
+    });
+    idOf.set(insight, id);
+  }
+  const storedDecomp: StoredDecomposition[] = [];
+  for (const d of decompositions) {
+    const insightId = idOf.get(d.insight);
+    if (!insightId) continue;
+    const id = `X${storedDecomp.length + 1}`;
+    const context = `${d.method} ${d.insight.series} ${d.insight.period} by ${d.dimension}`;
+    const facts: Record<string, string> = {};
+    let details: Record<string, unknown> = {};
+    if (d.contribution) {
+      const scope = await book.calcs(d.contribution.calcs, context, d.insight.metric);
+      for (const c of d.contribution.contribution?.contributors ?? []) {
+        facts[`change:${c.key}`] = scope.get(c.delta.name) ?? "";
+        facts[`share:${c.key}`] = scope.get(c.share.name) ?? "";
+      }
+      facts.total = scope.get("delta:total") ?? "";
+      details = { ...d.contribution.details };
+    } else if (d.pvm) {
+      const p = d.pvm;
+      const scope = await book.calcs([p.volume, p.mix, p.price, p.newItems, p.lostItems, p.total], context, d.insight.metric);
+      for (const k of ["volume", "mix", "price", "new", "lost", "total"]) facts[k] = scope.get(`pvm:${k}`) ?? "";
+    } else if (d.ratemix) {
+      const r = d.ratemix;
+      const scope = await book.calcs([r.mix, r.rate], context);
+      facts.mix = scope.get("ratemix:mix") ?? "";
+      facts.rate = scope.get("ratemix:rate") ?? "";
+      details = { simpson_risk: r.simpsonRisk, segments: r.segments };
+    }
+    storedDecomp.push({ id, method: d.method, insight: insightId, dimension: d.dimension, facts, details });
+  }
+
+  const top = topForExplain(ranked)
+    .map((r) => idOf.get(r.insight))
+    .filter((x): x is string => x !== undefined);
+  const result: AnalysisResult = {
+    facts: book.facts,
+    insights: stored,
+    decompositions: storedDecomp,
+    top,
+    openQuestions: [...new Set(openQuestions)],
+  };
+  await persist(ws, result);
+  return result;
+}
+
+const sumAbs = (pts: readonly { value: number }[]) => pts.reduce((a, p) => a + Math.abs(p.value), 0);
+const valueAt = (s: Series, period: string) => s.points.find((p) => p.period === period)?.value ?? 0;
+const periodOf = (r: Insight["roles"][string] | undefined) => (r?.kind === "point" ? r.period : undefined);
+
+/**
+ * PVM (spec §4.2) when the metric is a sum over a table with a quantity column and the dimension names items.
+ * Quantity per item comes from the same SQL path: a sum of the quantity column with the metric's filters.
+ */
+async function pvmFor(
+  ws: Workspace,
+  defs: readonly MetricDef[],
+  register: (d: MetricDef) => void,
+  catalog: Catalog,
+  def: MetricDef,
+  dimension: string,
+  items: readonly Series[],
+  before: string,
+  after: string,
+  range: { from: string; to: string; grain: Grain },
+  series: Map<string, SeriesInfo>,
+): Promise<Pvm | undefined> {
+  const table = catalog.get(def.table ?? "");
+  const dimCol = table?.columns.get(dimension);
+  const qtyCol = [...(table?.columns.values() ?? [])].find((c) => (c.type === "integer" || c.type === "decimal") && QTY.test(c.label));
+  if (def.type !== "sum" || !table || !dimCol || !qtyCol || !ITEM.test(dimCol.label)) return undefined;
+  // The quantity metric is registered with the runner's defs so the fact book can compile its points.
+  const qtyDef: MetricDef = {
+    ...def,
+    id: `${def.id}__qty`,
+    label: `${def.label} quantity`,
+    expression: qtyCol.name,
+    unit: "count",
+    dimensions: [dimension],
+  };
+  register(qtyDef);
+  const rows = await runMetric(ws, qtyDef.id, defs, catalog, { ...range, groupBy: [dimension] });
+  const pvmItems: PvmItem[] = items.map((m) => {
+    const key = m.member?.value ?? null;
+    const qty = (p: string) => Number(rows.find((r) => r.period === p && (r[dimension] ?? null) === key)?.value ?? 0);
+    const qSeries: Series = {
+      id: `${qtyDef.id}|${dimension}=${key ?? "(none)"}`,
+      metric: qtyDef.id,
+      unit: "count",
+      member: { dimension, value: key },
+      points: [before, after].map((p) => ({ period: p, value: qty(p) })),
+    };
+    series.set(qSeries.id, { series: qSeries, def: qtyDef, where: memberFilter(dimension, key) });
+    const r0 = valueAt(m, before);
+    const r1 = valueAt(m, after);
+    return {
+      key: String(key),
+      ...(r0 ? { r0, q0: qty(before) } : {}),
+      ...(r1 ? { r1, q1: qty(after) } : {}),
+      refs: {
+        ...(r0 ? { r0: point(m.id, before), q0: point(qSeries.id, before) } : {}),
+        ...(r1 ? { r1: point(m.id, after), q1: point(qSeries.id, after) } : {}),
+      },
+    };
+  });
+  return pvm(pvmItems);
+}
+
+/** Rate vs mix (spec §4.3) for a ratio metric over the first dimension of its denominator metric. */
+async function rateMixFor(
+  ws: Workspace,
+  defs: readonly MetricDef[],
+  register: (d: MetricDef) => void,
+  catalog: Catalog,
+  def: MetricDef,
+  before: string,
+  after: string,
+  range: { from: string; to: string; grain: Grain },
+  series: Map<string, SeriesInfo>,
+): Promise<{ dimension: string; result: RateMix } | undefined> {
+  const num = def.numerator as { metric: string } | { table: string; expression: string; filters?: string[] } | undefined;
+  const den = def.denominator as { metric: string } | { table: string; expression: string; filters?: string[] } | undefined;
+  if (!num || !den) return undefined;
+  const asDef = (t: typeof num, suffix: string): MetricDef | undefined =>
+    "metric" in t
+      ? defs.find((d) => d.id === t.metric)
+      : {
+          id: `${def.id}__${suffix}`,
+          label: `${def.label} ${suffix}`,
+          type: "sum",
+          table: t.table,
+          expression: t.expression,
+          ...(t.filters ? { filters: t.filters } : {}),
+          unit: "other",
+          status: def.status,
+        };
+  const n = asDef(num, "num");
+  const d = asDef(den, "den");
+  const dimension = (d?.dimensions ?? [])[0];
+  if (!n || !d || !dimension || n.table !== d.table) return undefined;
+  register(n);
+  register(d);
+  const by = async (m: MetricDef) => runMetric(ws, m.id, defs, catalog, { ...range, groupBy: [dimension] });
+  const [nRows, dRows] = [await by(n), await by(d)];
+  const keys = [...new Set([...nRows, ...dRows].map((r) => (r[dimension] as string | null) ?? null))];
+  const v = (rows: typeof nRows, key: string | null, p: string) =>
+    Number(rows.find((r) => r.period === p && ((r[dimension] as string | null) ?? null) === key)?.value ?? 0);
+  // Each segment's numerator and denominator become measured points, so the mix and rate facts cite them.
+  const segmentSeries = (m: MetricDef, rows: typeof nRows, key: string | null): Series => {
+    const s: Series = {
+      // Own id namespace: never overwrite the member series measured for the dimension analysis.
+      id: `ratemix:${m.id}|${dimension}=${key ?? "(none)"}`,
+      metric: m.id,
+      unit: "other",
+      member: { dimension, value: key },
+      points: [before, after].map((p) => ({ period: p, value: v(rows, key, p) })),
+    };
+    series.set(s.id, { series: s, def: m, where: memberFilter(dimension, key) });
+    return s;
+  };
+  const segments = keys.map((key) => {
+    const ns = segmentSeries(n, nRows, key);
+    const ds = segmentSeries(d, dRows, key);
+    return {
+      key: String(key),
+      num0: v(nRows, key, before),
+      den0: v(dRows, key, before),
+      num1: v(nRows, key, after),
+      den1: v(dRows, key, after),
+      refs: [point(ns.id, before), point(ds.id, before), point(ns.id, after), point(ds.id, after)],
+    };
+  });
+  return { dimension, result: rateMix(segments, "ratio") };
+}
+
+async function persist(ws: Workspace, r: AnalysisResult): Promise<void> {
+  for (const f of r.facts) {
+    const c = f.computation;
+    await ws.run(sql`INSERT INTO facts (id, label, value, unit, currency, metric_id, kind, sql, params, fn, inputs, input_rows, definition_id)
+      VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
+        ${c.params ? JSON.stringify(c.params) : null}::JSON, ${c.fn ?? null}, ${JSON.stringify(c.inputs ?? [])}::VARCHAR[], ${JSON.stringify(f.citations)}::JSON, ${f.metric_id ?? null})`);
+  }
+  for (const i of r.insights) {
+    await ws.run(
+      sql`INSERT INTO insights VALUES (${i.id}, ${i.template}, ${i.metric}, ${i.period}, ${JSON.stringify(i)}::JSON, ${JSON.stringify(Object.values(i.facts))}::VARCHAR[])`,
+    );
+  }
+  for (const d of r.decompositions) {
+    await ws.run(
+      sql`INSERT INTO decompositions VALUES (${d.id}, ${d.method}, ${d.insight}, ${JSON.stringify(d)}::JSON, ${JSON.stringify(Object.values(d.facts))}::VARCHAR[])`,
+    );
+  }
+}

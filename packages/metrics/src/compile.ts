@@ -250,3 +250,84 @@ export async function runMetric(
 ): Promise<MetricRow[]> {
   return ws.all<MetricRow>(compileMetric(id, defs, catalog, query));
 }
+
+export interface RowsQuery {
+  /** The source table the rows come from (e.g. "t_t1"). */
+  readonly table: string;
+  /** `SELECT _row … ORDER BY _row LIMIT n` for the period. */
+  readonly rows: Sql;
+  /** `SELECT count(*) AS n …` for the period. */
+  readonly count: Sql;
+}
+
+/**
+ * The input rows behind one metric value (its citations): for every table the metric reads — following ratio
+ * terms and derived references — the `_row` numbers of the detail rows that fall in the period and pass the
+ * metric's filters (and an optional extra filter, e.g. a dimension member).
+ */
+export function compileMetricRows(
+  id: string,
+  defs: readonly MetricDef[],
+  catalog: Catalog,
+  query: { period: string; grain?: Grain; where?: string; limit?: number },
+): RowsQuery[] {
+  const byId = new Map(defs.map((d) => [d.id, d]));
+  const grain = query.grain ?? "month";
+  const out: RowsQuery[] = [];
+  const seen = new Set<string>();
+  const term = (table: string, time: string, filters: readonly string[]) => {
+    const t = catalog.get(table);
+    if (!t) throw new MetricCompileError("UNKNOWN_TABLE", `unknown table ${table}`);
+    const col = (n: string) => {
+      if (!t.columns.has(n)) throw new MetricCompileError("UNKNOWN_COLUMN", `column "${n}" does not exist in ${table}`);
+      return q(n);
+    };
+    const build = (select: string, tail: string, limit?: number) => {
+      const b = builder();
+      const where = [
+        "NOT _is_total",
+        `${q(time)} IS NOT NULL`,
+        ...filters.map((f) => compileFilter(parseFilter(f), b, col)),
+        ...(query.where ? [compileFilter(parseFilter(query.where), b, col)] : []),
+        `${periodExpr(time, grain)} = ${b.param(query.period)}`,
+      ];
+      const lim = limit !== undefined ? ` LIMIT ${b.param(limit)}` : "";
+      return { text: `SELECT ${select} FROM ${q(table)} WHERE ${where.join(" AND ")}${tail}${lim}`, params: b.params };
+    };
+    const key = JSON.stringify([table, time, filters]);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ table, rows: build("_row", " ORDER BY _row", query.limit ?? 50), count: build("count(*) AS n", "") });
+  };
+  const walk = (def: MetricDef, depth: number) => {
+    if (depth > 20) throw new MetricCompileError("UNSUPPORTED_TYPE", "metric references are too deep");
+    if (def.type === "ratio") {
+      for (const t of [def.numerator, def.denominator] as unknown[]) {
+        const x = t as { metric: string } | { table: string; expression: string; filters?: string[] };
+        if ("metric" in x) {
+          const ref = byId.get(x.metric);
+          if (!ref) throw new MetricCompileError("UNKNOWN_METRIC", `unknown metric ${x.metric}`);
+          walk(ref, depth + 1);
+        } else {
+          const time = catalog.get(x.table)?.dateColumn;
+          if (!time) throw new MetricCompileError("NO_TIME_COLUMN", `table ${x.table} has no date column`);
+          term(x.table, time, x.filters ?? []);
+        }
+      }
+    } else if (def.type === "derived") {
+      for (const r of new Set(exprColumns(parseExpression(def.expression ?? "")))) {
+        const ref = byId.get(r);
+        if (!ref) throw new MetricCompileError("UNKNOWN_METRIC", `unknown metric ${r}`);
+        walk(ref, depth + 1);
+      }
+    } else {
+      const time = def.time_column ?? catalog.get(def.table ?? "")?.dateColumn;
+      if (!def.table || !time) throw new MetricCompileError("NO_TIME_COLUMN", `metric ${def.id} has no table or time column`);
+      term(def.table, time, def.filters ?? []);
+    }
+  };
+  const def = byId.get(id);
+  if (!def) throw new MetricCompileError("UNKNOWN_METRIC", `unknown metric ${id}`);
+  walk(def, 0);
+  return out;
+}

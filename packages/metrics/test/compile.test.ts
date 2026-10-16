@@ -3,7 +3,7 @@ import { profileTable } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { loadTable, type NormalizedTable, Workspace } from "@agentic-analytics/store";
 import { afterEach, describe, expect, it } from "vitest";
-import { compileMetric, loadCatalog, type MetricQuery, runMetric, validateMetrics } from "../src/index.ts";
+import { compileMetric, compileMetricRows, loadCatalog, type MetricQuery, runMetric, validateMetrics } from "../src/index.ts";
 
 const open: Workspace[] = [];
 afterEach(() => {
@@ -154,5 +154,30 @@ describe("compiled metric SQL (hand-computed)", () => {
     expect(q.text).not.toContain("refunded");
     expect(q.text).not.toContain("DROP");
     expect(q.params).toEqual(["refunded", "O'Brien; DROP TABLE x", "2026-01", "2026-06"]);
+  });
+});
+
+describe("input rows behind a metric value (citations)", () => {
+  it("lists the detail rows in the period that pass the filters, following ratio terms", async () => {
+    const { ws, catalog, defs } = await setup();
+    const rowsOf = async (id: string, period: string, where?: string) => {
+      const qs = compileMetricRows(id, defs, catalog, { period, ...(where ? { where } : {}) });
+      return Promise.all(
+        qs.map(async (q) => ({
+          table: q.table,
+          rows: (await ws.all<{ _row: number }>(q.rows)).map((r) => r._row),
+          n: (await ws.one<{ n: number }>(q.count))?.n,
+        })),
+      );
+    };
+    // Jan revenue = paid rows only → row 2 (row 3 is refunded; row 7 is the total)
+    expect(await rowsOf("revenue", "2026-01")).toEqual([{ table: "t_t1", rows: [2], n: 1 }]);
+    // Feb revenue for channel b → row 5
+    expect(await rowsOf("revenue", "2026-02", "channel = 'b'")).toEqual([{ table: "t_t1", rows: [5], n: 1 }]);
+    // refund rate Jan: numerator = refunded rows (3), denominator = revenue rows (2)
+    expect(await rowsOf("refund_rate", "2026-01")).toEqual([
+      { table: "t_t1", rows: [3], n: 1 },
+      { table: "t_t1", rows: [2], n: 1 },
+    ]);
   });
 });

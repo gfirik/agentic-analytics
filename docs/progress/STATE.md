@@ -117,6 +117,16 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M4] Review: accept → confirmed; edit → YAML re-validated (up to 3 tries, then kept as assumed); drop → removed, and a final re-validation drops metrics that depended on it. `--yes` keeps new drafts as assumed but never downgrades definitions already confirmed in a saved metrics file — metric-layer §3
 - [M4] `aa metrics` is the M4 CLI confirm flow (`aa analyze` in M10 reuses `reviewMetrics`); it prints each metric in plain words, its compiled SQL with parameters and recent values — ROADMAP M4
 
+- [M5] `packages/analysis` has two layers: pure templates/decomposers that return `Calc`s (value, unit, function id, input refs), and a runner that reads series through the M4 metric compiler and turns every referenced number into a fact (SQL + params + cited `_row`s for measured points; function + input fact ids for derived ones). Only numbers an insight or decomposition uses become facts — analysis-library §1, report-schema §3, D9
+- [M5] The noise band leaves out the change being tested (it can't widen its own band) and needs 6+ periods in the series; below that only the % and absolute thresholds apply and confidence is capped at medium — analysis-library §2
+- [M5] `trend_break.v1` reports the change across the break (last point before → first after) and from the last point before to the latest point; that is how the golden −17.9% (Apr vs Mar) and 1.2% → 3.4% (Mar → Jun) are produced. A break on exactly 6 points (the minimum) has medium confidence — analysis-library §3, §7
+- [M5] `anomaly.v1` scores each period's change against the other changes (robust z > 3.5) and also requires the % and absolute materiality thresholds, so a −1% wobble in an otherwise steady series is not an anomaly — analysis-library §2–3
+- [M5] Ranking maps each insight to an impact share of the objective metric: money changes ÷ the objective's period total, rate changes in points ÷ 100, other units 0. EXPLAIN gets one finding per event (series + period), represented by the highest-priority template (trend break > anomaly > period change > …) and scored by the group's best score; decompositions are computed once per series and period pair — analysis-library §6
+- [M5] Fact citations list at most 50 `_row`s per source table; the total input row count is kept in the computation params (`input_rows`). An additive metric with no rows in a period is a 0-valued fact that cites nothing — report-schema §2–3
+- [M5] PVM runs when the metric is a sum over a table with a quantity column and the dimension names items; quantities come through the same metric compiler (a sum of the quantity column with the metric's filters). Rate/mix runs for ratio metrics over the first dimension of the denominator metric, with per-segment numerator/denominator facts — analysis-library §4.2–4.3
+- [M5] Mann–Kendall uses the normal approximation with tie correction (no exact small-n tables); Theil–Sen uses all pairwise slopes — analysis-library §3
+- [M5] Root script `bun run analyze <paths…> [--today] [--currency]` is the M5 demo (fallback metrics, assumed) — ROADMAP M5
+
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
@@ -132,6 +142,9 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M3] The PROFILE stage emits no progress events until the event bus and `packages/core/log` land — M7
 - [M3] `profile.json` (the summary) is returned and printed by the demo but not yet persisted to the job folder; the job runner writes it next to `workspace.duckdb` — M7
 - [M3] The profile summary carries raw spreadsheet text (top values, entity spellings, assumption text, ingest messages). Cell text is untrusted (security §2): before any of it reaches a model prompt it must be screened, masked and passed only as delimited data. M4's metric-drafting digest does this (masking + `<DATA>` delimiters); the planner path is still open — M7
+- [M5] `shapley.v1` (non-additive attribution) is P1 per the spec and not built — after v0.1
+- [M5] Built and tested as library functions but not yet wired into the runner: `diff.v1` (needs event-level attribute groups for anomalous periods — the M7 `drill_down` tool), `impactRange` (the M7 `propose_scenario` tool), `benchmarkGap` (needs external facts — M8), and `ratioShift` with known counts (the runner uses the noise band until counts are wired) — M7/M8
+- [M5] Dimension members are raw values, so one customer under two spellings appears as two members (e.g. "OOO Hotel Group" and "Hotel Group LLC"); grouping by the M3 entity links is not applied yet — M7
 - [M4] Asking the user for the objective up front (metric-layer §5) and carrying assumed definitions into the report as `Assumption`s attached to findings (§3), plus API and MCP confirmation, land with the pipeline and doors — M7/M9/M10
 - [M4] Metric labels and descriptions proposed by a model (or built from cell text by the fallback) are untrusted while `assumed`: the planner must receive them only as delimited data until the user confirms them — M7
 - [M3] Profile and ingest issue messages are developer-facing and contain numbers; the report's `QualityIssue.description` must be rendered without free numerals (placeholders/facts) when issues reach the report — M7/M9
