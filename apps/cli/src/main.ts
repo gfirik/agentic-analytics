@@ -33,7 +33,7 @@ const doctor = defineCommand({
   async run() {
     const file = configFile();
     const results = await runDoctor({
-      nodeVersion: process.version,
+      nodeVersion: runtimeVersion(process.env, process.versions, process.version),
       duckdbVersion,
       fetch: globalThis.fetch,
       env: process.env,
