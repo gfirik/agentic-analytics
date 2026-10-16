@@ -15,7 +15,8 @@ import { PIPELINE_FPS, PIPELINE_SCALE, pipelineInputsHash, ROOT } from "./pipeli
 
 const OUT = join(ROOT, "docs/assets/readme");
 const data = JSON.parse(readFileSync(join(OUT, "pipeline.json"), "utf8")) as PipelineData;
-const work = mkdtempSync(join(tmpdir(), "aa-pipeline-gif-"));
+// Frames are a few hundred MB of PNGs; AA_FRAMES_DIR moves them off a small /tmp.
+const work = mkdtempSync(join(process.env.AA_FRAMES_DIR ?? tmpdir(), "aa-pipeline-gif-"));
 const frames = Math.round(LOOP_SECONDS * PIPELINE_FPS);
 const sizes: Record<string, number> = {};
 

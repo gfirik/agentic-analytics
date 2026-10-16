@@ -183,7 +183,8 @@ function chip(x: number, y: number, id: string, local: number, at: number, cls =
 }
 
 const RAIL_Y = 40;
-const railX = (i: number) => 46 + i * ((WIDTH - 92) / (RAIL.length - 1));
+// Inset so the bold active label stays off the edge even with wider fallback fonts (DejaVu on CI).
+const railX = (i: number) => 60 + i * ((WIDTH - 120) / (RAIL.length - 1));
 
 function rail(scene: Scene, local: number): string {
   const lines = RAIL.slice(1).map((_, i) => {
