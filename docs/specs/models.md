@@ -61,7 +61,7 @@ Model profiles (`packages/models/src/profiles.ts`) record per-model facts: conte
 
 ## 6. Testing
 
-- `FakeModel` (`packages/models/testing`) returns scripted responses keyed by role and prompt hash.
+- `FakeModel` (`packages/models/testing`) returns scripted responses keyed by role and prompt hash (or substring). A response can be a function of the request, for scripts that must name ids only known at run time. Example: `packages/core/testing/coffee-planner.ts` reads fact and extract ids from the prompt, as a model would.
 - All unit and integration tests use `FakeModel`. CI never needs a network model or a key.
 - Real-model evals run on demand: `aa eval --model <profile>`.
 

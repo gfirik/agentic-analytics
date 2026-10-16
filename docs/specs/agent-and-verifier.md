@@ -70,6 +70,17 @@ For each top finding, the planner:
 
 The planner must also record **alternatives considered and rejected**, with the reason. These appear in the report's confidence reasons.
 
+**Who writes what.** The observed change and its decomposition are stated by code, not by the planner. Examples: "Revenue went from {{N12}} in 2026-03 to {{N11}} in 2026-04", "“wholesale” accounted for {{N144}} of the change". These claims carry grade `observed`, and their numbers are always the right facts. The planner adds explanations, alternatives and a title.
+
+**What reaches the draft.** Before planner text enters the draft:
+- a claim naming an unknown fact or extract id is dropped;
+- placeholders missing from `claim.facts` are added;
+- a grade of `document_supported` or higher with no cited document is downgraded to `correlated`.
+
+Drops and downgrades go to `verification.claims_dropped/claims_downgraded` already in the draft. The verifier (§7) re-checks everything.
+
+**Which findings are explained.** EXPLAIN takes the ranked top (analysis-library §6) with whole-metric changes first and single-member changes (one customer, one product) after, up to 5 findings (3 in small-model mode). Rate metrics have small impact shares, and a refund rate tripling must not lose its slot to one customer's good month.
+
 ## 6. DECIDE
 
 1. Generate 3–6 candidate actions linked to findings.
@@ -79,7 +90,13 @@ The planner must also record **alternatives considered and rejected**, with the 
    - the `check` (metric, threshold, date);
    - `not_advised` when there is a tempting wrong move, e.g. "Don't cut retail prices; retail is growing".
 
-Any recommendation without at least one verified finding is invalid.
+Any recommendation without at least one verified finding is invalid. In the draft, code also drops a candidate when:
+- its `because` names no finding;
+- its scenario is rejected (unknown fact, parameter out of range);
+- its check threshold is an unknown fact or measures a different metric;
+- its check date is not after the data, or its rationale names unknown ids.
+
+Candidates are ranked by |impact midpoint| × confidence (1 / 0.6 / 0.3) ÷ effort (1 / 1.5 / 2).
 
 ## 7. Verifier passes (`packages/verify`)
 
@@ -112,12 +129,12 @@ Selected automatically from the model profile, or with `--small-model`:
 
 - tool budgets are halved;
 - findings are capped at 3 and recommendations at 2;
-- the explanation template is stricter, a fill-in-the-blanks structured output;
+- the explanation template is stricter, a fill-in-the-blanks structured output: code runs one document search per finding (no tool loop), and the model only picks a title and which extracts relate to the change (with `correlated` or `document_supported`), which code turns into sentences that quote the source;
 - web is off unless explicitly enabled.
 
 The engine stays fully correct in this mode because all numbers and decompositions are deterministic.
 
 ## 9. Prompts
 
-- Prompts live in `packages/agent/prompts/*.md` with typed variables. They are versioned and covered by snapshot tests.
+- Prompts live in `packages/agent/prompts/*.md` with typed variables. They are versioned and covered by snapshot tests. Each file starts with `<!-- prompt: <name> · version <n> · variables: a, b -->`. Slots are written `[[name]]`, because `{{…}}` is the fact-placeholder syntax the model must write. A missing or undeclared variable is an error, and values are inserted in one pass, so document text containing `[[x]]` is never expanded.
 - Each prompt states the facts-only rule and the placeholder rule, and includes a worked example from the coffee-roaster fixture.
