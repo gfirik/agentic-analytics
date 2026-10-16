@@ -68,3 +68,11 @@ It gives maximum adoption, a patent grant, and compatibility with a future hoste
 ## D13. Repo name `agentic-analytics` (2026-10-15)
 
 The repo name is self-explanatory and uses the 2026 category term (Gartner), with an almost empty GitHub topic we can own. The product or brand name is decided before launch.
+
+## D14. Bun is the package manager; Node 22 stays the runtime (2026-10-16)
+
+Bun is the package manager (maintainer preference, faster installs). The repo uses Bun workspaces with `bun.lock`; scripts run with `bun run` and one-off tools with `bunx`. Turborepo and Vitest stay.
+
+The runtime stays Node 22 until DuckDB is verified under Bun (see D7). `scripts/check-bun-runtime.sh` runs a DuckDB query under Bun and records the result in `docs/progress/STATE.md`, so the switch can be decided on evidence.
+
+**Supersedes:** the "pnpm workspaces" row of the AGENTS.md stack table.

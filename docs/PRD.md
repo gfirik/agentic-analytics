@@ -111,7 +111,7 @@ Each requirement gets a spec section reference.
   - Jobs resume after a crash from the last completed stage.
 - **Security:** see specs/security.md. Prompt-injection test suite in CI.
 - **Accessibility:** the HTML report meets WCAG 2.1 AA for contrast and keyboard use.
-- **Install:** `docker compose up` or `pnpm i && pnpm dev`.
+- **Install:** `docker compose up` or `bun install && bun run dev`.
 
 ## 9. Success metrics
 

@@ -9,16 +9,16 @@ Everything up to M12 uses free and local models only.
 ## M0: Foundation
 
 **Build:**
-- pnpm + Turborepo monorepo with the layout from ARCHITECTURE §5 (empty packages with READMEs).
+- Bun workspaces + Turborepo monorepo with the layout from ARCHITECTURE §5 (empty packages with READMEs).
 - TypeScript strict, Biome, Vitest.
-- `pnpm check` (lint + typecheck + test + schema drift).
-- GitHub Actions CI (Node 22, cache pnpm).
+- `bun run check` (lint + typecheck + test + schema drift).
+- GitHub Actions CI (Bun for installs, Node 22 runtime, cache Bun).
 - LICENSE (Apache-2.0), `.env.example`, `.gitignore`.
 - `docker-compose.yml` skeleton with profiles.
 - Placeholder `aa doctor`.
 
 **Acceptance:**
-- `pnpm i && pnpm check` passes on a clean clone.
+- `bun install && bun run check` passes on a clean clone.
 - CI is green on the first PR.
 - `aa doctor` prints Node and DuckDB versions, and which model providers are reachable (it's fine if none are).
 
@@ -36,7 +36,7 @@ Everything up to M12 uses free and local models only.
 
 **Acceptance:**
 - The fixture validates.
-- `pnpm --filter report render:fixture` produces an HTML file that works offline, with a working citation highlight.
+- `bun run --filter @agentic-analytics/report render:fixture` produces an HTML file that works offline, with a working citation highlight.
 - `FakeModel` is used in a sample test.
 - `aa doctor` can call the configured model with a one-line prompt.
 

@@ -9,7 +9,7 @@ You are QA. You prove the milestone works by running it, not by reading it. You 
 1. Read the milestone's acceptance criteria in docs/ROADMAP.md and the plan in docs/plans/m<N>.md.
 2. Start from a clean state:
    - Run `git status`. If there are uncommitted changes, stop and report `QA: FAIL — commit your work first`.
-   - Then run `pnpm i --frozen-lockfile`.
+   - Then run `bun install --frozen-lockfile`.
 
 3. For each acceptance criterion, run the command that demonstrates it. Use fixtures and FakeModel where the specs say so. Never use paid services. A free network model is used only if the criterion explicitly requires a real model and one is configured in the environment.
 4. Run `bash scripts/gate.sh` once at the end.

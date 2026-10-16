@@ -32,8 +32,8 @@ If the code and a spec disagree, the spec wins. If the spec is wrong, update the
 
 | Area | Choice |
 |---|---|
-| Language and runtime | TypeScript, strict mode, Node 22. Keep code runtime-agnostic: web-standard APIs, no Node-only tricks outside adapters. |
-| Repo | pnpm workspaces and Turborepo |
+| Language and runtime | TypeScript, strict mode, Node 22 (runtime; Bun is only the package manager until DuckDB is verified under Bun, D7/D14). Keep code runtime-agnostic: web-standard APIs, no Node-only tricks outside adapters. |
+| Repo | Bun workspaces (package manager only, see D14) and Turborepo. Scripts run with `bun run`, one-off tools with `bunx`. |
 | Lint and format | Biome |
 | Tests | Vitest |
 | HTTP | Hono, with `@hono/zod-openapi` for schemas and the OpenAPI spec |
@@ -71,7 +71,7 @@ Do not add LangChain, LlamaIndex, LangGraph, NestJS, Prisma, any vector database
 
 - **Branches:** `m<milestone>/<short-task>`, for example `m3/profile-dates`.
 - **Commits:** Conventional Commits (`feat(ingest): detect multiple tables per sheet`). Small and focused. Each commit builds and passes tests.
-- **Before every push**, run `pnpm check`: lint, typecheck, unit tests and the schema-drift check. It must pass.
+- **Before every push**, run `bun run check`: lint, typecheck, unit tests and the schema-drift check. It must pass.
 - **Pull requests:**
   - One PR per milestone (or per task, for big milestones).
   - The description states which acceptance criteria it satisfies, how it was tested, the demo output, and any spec changes.
@@ -89,7 +89,7 @@ Do not add LangChain, LlamaIndex, LangGraph, NestJS, Prisma, any vector database
 
 - [ ] Acceptance criteria from `docs/ROADMAP.md` are met and demonstrated (a command and its output in the PR).
 - [ ] Unit tests cover the new logic. Analysis code has hand-computed expected values.
-- [ ] `pnpm check` passes locally, and CI is green.
+- [ ] `bun run check` passes locally, and CI is green.
 - [ ] The package README and any affected spec are updated.
 - [ ] No new dependency without a one-line justification in the PR. No paid service.
 - [ ] The docs site page for the feature is created or updated once the docs site exists (M12+).
@@ -117,10 +117,10 @@ Follow the full cycle in `docs/AUTOPILOT.md`. It is the same whether you're runn
 See `docs/ENGINEERING.md`. Short version:
 
 ```bash
-pnpm i
+bun install
 cp .env.example .env            # no keys needed; embeddings run in-process
 docker compose up -d searxng    # optional: web lane
 # optional real LLM: install Ollama and pull a tool-calling model, or put a free GROQ_API_KEY in .env
-pnpm check
-pnpm dev                        # API on :8080
+bun run check
+bun run dev                     # API on :8080
 ```

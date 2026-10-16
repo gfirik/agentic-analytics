@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+.turbo
+**/.turbo
+dist
+data
+.env
+.env.*
+!.env.example
+.git
+.autopilot

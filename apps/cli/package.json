@@ -1,0 +1,22 @@
+{
+  "name": "@agentic-analytics/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "bin": {
+    "aa": "./bin/aa.js",
+    "agentic-analytics": "./bin/aa.js"
+  },
+  "dependencies": {
+    "@agentic-analytics/store": "workspace:*",
+    "citty": "^0.2.2",
+    "tsx": "^4.23.15"
+  }
+}

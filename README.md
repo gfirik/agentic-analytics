@@ -53,7 +53,12 @@ An interactive walkthrough lives in [docs/assets/blueprint.html](docs/assets/blu
 
 ## Stack
 
-TypeScript (Node 22) and Hono, with DuckDB for all SQL and all search (full-text and vector) in one file per analysis. The Vercel AI SDK provides a provider-neutral model layer, with Ollama and OpenAI-compatible free endpoints by default. Hard PDFs and scans can go through an optional Docling container. Embeddings and reranking run locally. Everything is packaged with Docker Compose.
+TypeScript (Node 22) and Hono, with DuckDB for all SQL and all search (full-text and vector) in one file per analysis. The Vercel AI SDK provides a provider-neutral model layer, with Ollama and OpenAI-compatible free endpoints by default. Hard PDFs and scans can go through an optional Docling container. Embeddings and reranking run locally. Everything is packaged with Docker Compose. Bun is the package manager and Node 22 is the runtime.
+
+```bash
+bun install && bun run check   # build and test, no model or key needed
+bun run aa doctor              # what's available on this machine
+```
 
 The reasoning behind each choice is in [docs/DECISIONS.md](docs/DECISIONS.md).
 
