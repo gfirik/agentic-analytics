@@ -17,7 +17,7 @@ Human gate values:
 | M3 Workspace & profiling | DONE | no | [#5](https://github.com/gfirik/agentic-analytics/pull/5) | `bun run profile evals/datasets/coffee-roaster-v1/files --today 2026-07-01` | DuckDB workspace + migrations; normalization, profiling, rules, entities; typo, date ambiguity and Hotel Group link found |
 | M4 Metric layer | DONE | no | [#6](https://github.com/gfirik/agentic-analytics/pull/6) | `bun run aa metrics evals/datasets/coffee-roaster-v1/files --yes --currency USD --today 2026-07-01` | Metric language, validation with reasons, SQL compiler, drafting + fallback, `aa metrics` confirm flow; real-model drafting DEFERRED |
 | M5 Analysis library | DONE | no | [#7](https://github.com/gfirik/agentic-analytics/pull/7) | `bun run analyze evals/datasets/coffee-roaster-v1/files --today 2026-07-01 --currency USD` | Stats, baselines + noise band, 10 templates, contribution/PVM/ratemix (+Simpson guard)/diff, impact scenarios, ranking, fact book with SQL provenance; goldens −17.9%, 107.6%, 1.2→3.4 exact |
-| M6 Retrieval | TODO | no | | | |
+| M6 Retrieval | IN_PROGRESS | no | | | |
 | M7 Agent | TODO | no | | | |
 | M8 Web lane | TODO | no | | | |
 | M9 Verifier | TODO | no | | | |
@@ -42,6 +42,8 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M2] Docling path for PDFs without a text layer against a real docling-serve — DEFERRED (service not running; client tested with a stub) — `docker compose --profile docling up -d && DOCLING_URL=http://localhost:5001 bun run ingest fixtures/docs/scanned.pdf`
 
 - [M4] Drafting coffee-roaster metrics with a real free model — DEFERRED (no model configured; the model path is tested with FakeModel and the fallback produced revenue, orders, refund_rate and the channel revenues) — `EXTRACTOR_MODEL=ollama:qwen3.5:9b bun run aa metrics evals/datasets/coffee-roaster-v1/files --currency USD` (or `EXTRACTOR_MODEL=openai-compatible:groq:<model> GROQ_API_KEY=…`); expect revenue, wholesale_revenue and refund_rate among the accepted drafts with values 41,200…37,000 / 14,800…7,300 / 1.1…3.4
+
+- [M6] Retrieval eval with the default models (`Xenova/bge-m3` embedder + `bge-reranker-v2-m3` ONNX reranker) — DEFERRED (≈1.1 GB download at ~130 KB/s here; the offline hash embedder reaches recall@8 1.0 on both corpora and is asserted in the unit tests) — `bun run --filter @agentic-analytics/retrieval eval:retrieval -- --embedder Xenova/bge-m3 --reranker onnx-community/bge-reranker-v2-m3-ONNX`; expect recall@8 ≥ 0.85 on coffee-roaster-v1 and printing-shop-v1 and no `degraded` line
 
 <!-- Format: - [M<N>] <criterion> — <reason> — `<exact command to run>` -->
 
@@ -133,6 +135,12 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M5] PVM: an item with revenue in both periods but zero quantity in one is an "unpriced" effect; effects with no items (and the new/lost sides of `new_lost.v1` with no members) are left out instead of becoming 0-valued facts that cite nothing (spec §4.2 updated) — AGENTS.md §2.2
 - [M5] Facts of helper metrics (`<metric>__qty`, `<ratio>__num/__den`) carry no `metric_id`; only ids from the metric list do, as report integrity requires — report-schema §3
 - [M5] Scenario parameters may carry `justifiedBy` refs (e.g. a quoted discount), which become the inputs of their `scenario_param` facts — analysis-library §5
+- [M6] Sections from ingest are chunk units and are never merged (merging would blur citations); only sections over 600 estimated tokens (words × 1.3) are split, on paragraphs then sentences, with 15% overlap; tables stay whole. Chunk text is the exact source slice; the contextual prefix is embedded and BM25-indexed but never cited — retrieval §1
+- [M6] One BM25 index, one stemmer: Russian when most corpus letters are Cyrillic, else English (`none` on request for Uzbek). If the DuckDB `fts` extension can't be loaded, search runs vector-only with `degraded: bm25` and the index summary carries the reason — retrieval §2
+- [M6] `chunks.embedding` stays `FLOAT[]` from migration 1 and search uses exact `list_cosine_similarity`; migration 3 adds `retrieval_meta` (embedder id, dims, stemmer) so a query embedded by another model is refused (`EMBEDDING_MISMATCH`), and `sources.meta` (email headers) for the email chunk prefix — retrieval §1–2
+- [M6] `hashEmbedder` (hashed words + character 3–5-grams, 1024 dims) is the offline embedder: tests use it and it needs no download. Default real models: `Xenova/bge-m3` (q8) and `onnx-community/bge-reranker-v2-m3-ONNX` (q8); models cache in `$AA_MODELS_DIR` or `~/.cache/agentic-analytics/models` — retrieval §2–3
+- [M6] The in-process embedder lives in `packages/retrieval`, not `packages/models`, so the model layer stays free of the ONNX runtime; `ModelClient.embed` takes it by injection — ARCHITECTURE
+- [M6] Retrieval quality labels are (file, text the chunk must contain), so they survive re-chunking; printing-shop-v1 is a new 47-file document corpus (English + Russian, 30 order-email and 60-job-log distractors) kept under ingest's 50-file limit; questions in `evals/retrieval/questions.yaml` — retrieval §5
 
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
@@ -140,7 +148,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 - [M0] docker-compose images for searxng, docling and ollama use `:latest` — pin versions before M10/M12
 - [M0] `aa serve` doesn't exist yet, so the engine container runs `aa doctor` and exits — M10
-- [M1] `ModelClient.embed` throws `NOT_AVAILABLE` until the in-process transformers embedder lands — M6 (FakeModel embeds deterministically for tests)
+- [M1→M6] `ModelClient.embed` still throws `NOT_AVAILABLE` unless an embedder is injected: the in-process `transformersEmbedder` lives in `packages/retrieval` (keeping the ONNX runtime out of `packages/models`), and the M7 pipeline must inject it — M7
 - [M2] The per-file timeout only bounds the async parsers (pdf.js, mammoth, mailparser, Docling); when it fires, Docling is aborted through its AbortSignal, the other async parsers run to completion in the background, and in both cases their output is discarded. The synchronous paths — SheetJS read, region detection, CSV and plain text — are **not bounded at all** until parsing moves to worker threads (security §5), which needs a compiled worker entry — M10
 - [M2] The 2M-cells-per-sheet limit is checked after SheetJS has parsed the workbook, so it limits output, not memory; and the ZIP-bomb check trusts the uncompressed sizes declared in the central directory, which a hostile file can falsify. Both are fixed by worker isolation with a memory cap (or reading `<dimension>` and streaming inflate limits first) — M10
 - [M2] Ingestion emits no progress events yet: the event bus and `packages/core/log` arrive with the pipeline in M7, and `ingest()` will report per-file progress through them — M7
