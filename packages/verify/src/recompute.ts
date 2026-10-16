@@ -83,7 +83,14 @@ const RULES: Record<string, Rule> = {
     const effect = suffix(f);
     if (effect === "new") return { value: x.reduce((a, b) => a + b, 0), how: "Σ revenue of new items" };
     if (effect === "lost") return { value: -x.reduce((a, b) => a + b, 0), how: "−Σ revenue of lost items" };
-    const items = groups(x, 4).map((g, i) => ({ key: String(i), r0: g[0], q0: g[1], r1: g[2], q1: g[3], refs: {} }));
+    const items = groups(x, 4).map((g, i) => ({
+      key: String(i),
+      r0: g[0] as number,
+      q0: g[1] as number,
+      r1: g[2] as number,
+      q1: g[3] as number,
+      refs: {},
+    }));
     if (effect === "unpriced")
       return { value: items.reduce((a, it) => a + (it.r1 ?? 0) - (it.r0 ?? 0), 0), how: "Σ (r1 − r0) of unpriced items" };
     const p = pvm(items, f.unit);
@@ -135,7 +142,7 @@ function impactRule(f: Fact, byId: ReadonlyMap<string, Fact>): { value: number; 
 
 export class VerifyError extends Error {
   constructor(
-    readonly code: "RECOMPUTE_MISMATCH" | "REDERIVE_MISMATCH" | "UNVERIFIABLE",
+    readonly code: "RECOMPUTE_MISMATCH" | "REDERIVE_MISMATCH" | "CITATION_MISMATCH" | "UNVERIFIABLE",
     message: string,
     readonly diagnostic: unknown,
   ) {

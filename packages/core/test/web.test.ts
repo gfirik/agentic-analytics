@@ -5,10 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { privateTerms } from "@agentic-analytics/agent";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
+import { loadCatalog } from "@agentic-analytics/metrics";
 import type { GenerateObjectArgs, ModelClient } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
-import { checkReportIntegrity, type Report } from "@agentic-analytics/schema";
+import { checkReportIntegrity, type MetricDef, type Report } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
+import { verifyReport } from "@agentic-analytics/verify";
 import { leaksPrivate } from "@agentic-analytics/web";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type JobOutcome, runJob } from "../src/index.ts";
@@ -96,6 +98,28 @@ describe("web-enabled run (M8 acceptance)", () => {
   it("the planner sees the web result's site, never its URL path", () => {
     const planner = model.calls.filter((c) => c.role === "planner").map((c) => `${c.system ?? ""}${c.prompt}`);
     expect(planner.some((p) => p.includes("/refunds"))).toBe(false);
+  });
+});
+
+describe("V8: external numbers need their web source", () => {
+  it("the verified report keeps the cited benchmark claim; without its web citation it is dropped", async () => {
+    const claimText = (r: Report) => r.findings.flatMap((f) => f.claims).find((c) => c.text.includes("percentage points above the range"));
+    expect(claimText(out.report)?.verified).toBe(true);
+    const ws = await Workspace.open(join(dir, "job.duckdb"));
+    try {
+      const m = await ws.one<{ output: string }>(sql`SELECT output::VARCHAR AS output FROM job_stages WHERE stage = 'METRICS_DRAFT'`);
+      const defs = (JSON.parse(m?.output ?? "{}") as { defs: MetricDef[] }).defs;
+      const d = JSON.parse(JSON.stringify(out.draft)) as Report;
+      const c = claimText(d) as Report["findings"][number]["claims"][number];
+      c.citations = [];
+      const r = await verifyReport(d, { ws, defs, catalog: await loadCatalog(ws), grain: "month", periodEnd: "2026-06-30" });
+      expect(r.report.verification.claims_dropped).toContainEqual({
+        claim: c.text,
+        reason: "V8: uses an external number without citing its web source",
+      });
+    } finally {
+      ws.close();
+    }
   });
 });
 

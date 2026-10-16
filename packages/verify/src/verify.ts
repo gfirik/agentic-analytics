@@ -1,0 +1,401 @@
+// The verifier (agent-and-verifier §7): passes V1–V8 over the draft, then the failure policy.
+// - V2/V3 mismatches are engine bugs: the job fails with a diagnostic, nothing ships.
+// - A claim failing V1, V4, V5 or V8 is dropped; V6 rewrites causal wording to correlational.
+// - Cascade: a finding with no claims left is dropped, a recommendation without a surviving finding is dropped.
+// - Every check is a row in the `verification` table; drops and downgrades are listed in the report.
+
+import { data, renderPrompt } from "@agentic-analytics/agent";
+import { externalFacts, readFacts } from "@agentic-analytics/analysis";
+import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics";
+import type { ModelClient } from "@agentic-analytics/models";
+import {
+  type Claim,
+  checkReportIntegrity,
+  type Fact,
+  type Finding,
+  findFreeNumerals,
+  type MetricDef,
+  placeholders,
+  type Recommendation,
+  type Report,
+} from "@agentic-analytics/schema";
+import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
+import { z } from "zod";
+import { type Recomputed, recomputeFacts, same, VerifyError } from "./recompute.ts";
+
+export interface VerifyContext {
+  readonly ws: Workspace;
+  readonly defs: readonly MetricDef[];
+  readonly catalog: Catalog;
+  readonly grain: Grain;
+  /** Last day of the data: a recommendation's check date must come after it. */
+  readonly periodEnd: string;
+  /** The judge role (V5 entailment); without it the judge step is skipped and counted as such. */
+  readonly judge?: ModelClient;
+}
+
+export interface CheckRow {
+  readonly check: "V1" | "V2" | "V3" | "V4" | "V5" | "V6" | "V7" | "V8";
+  readonly passed: boolean;
+  readonly fact?: string;
+  readonly claim?: string;
+  readonly detail: string;
+}
+
+export interface VerifyResult {
+  readonly report: Report;
+  readonly checks: CheckRow[];
+}
+
+// ── V6 lexicon (EN/RU/UZ) and its correlational rewrites ────────────────────────────────────────────────────
+
+const CAUSAL: readonly [RegExp, string][] = [
+  [/\bwas caused by\b/gi, "coincided with"],
+  [/\bwere caused by\b/gi, "coincided with"],
+  [/\bcaused by\b/gi, "coinciding with"],
+  [/\bcaused\b/gi, "coincided with"],
+  [/\bcauses\b/gi, "coincides with"],
+  [/\bas a result of\b/gi, "alongside"],
+  [/\bresulted in\b/gi, "was followed by"],
+  [/\bdue to\b/gi, "alongside"],
+  [/\bbecause of\b/gi, "around the time of"],
+  [/\bled to\b/gi, "was followed by"],
+  [/\bleads to\b/gi, "is followed by"],
+  [/из-за/gi, "одновременно с"],
+  [/привел[оаи]? к/gi, "совпало с"],
+  [/вызван[оаы]?/gi, "совпало с"],
+  [/по причине/gi, "одновременно с"],
+  [/в результате/gi, "одновременно с"],
+  [/\bsababli\b/gi, "bilan bir vaqtda"],
+  [/\btufayli\b/gi, "bilan bir vaqtda"],
+  [/\bolib keldi\b/gi, "bilan bir vaqtga to'g'ri keldi"],
+  [/\bnatijasida\b/gi, "bilan bir vaqtda"],
+];
+
+export function isCausal(text: string): boolean {
+  return CAUSAL.some(([re]) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  });
+}
+
+export function rewriteCorrelational(text: string): string {
+  let t = text;
+  for (const [re, to] of CAUSAL) t = t.replace(re, to);
+  return t;
+}
+
+const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
+const UNIT: Record<string, string> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
+
+const Judgement = z.object({ supported: z.boolean() });
+
+export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<VerifyResult> {
+  const checks: CheckRow[] = [];
+  const all = new Map((await readFacts(ctx.ws)).map((f) => [f.id, f]));
+  for (const f of draft.facts) if (!all.has(f.id)) all.set(f.id, f);
+  const factIds = new Set(draft.facts.map((f) => f.id));
+
+  // ── V2 recompute: every fact in the report ─────────────────────────────────────────────────────────────
+  const v2 = await recomputeFacts(ctx.ws, draft.facts, all);
+  for (const r of v2)
+    checks.push({
+      check: "V2",
+      passed: r.ok,
+      fact: r.fact,
+      detail: `${r.how}: stored ${r.stored}, computed ${JSON.stringify(r.computed)}`,
+    });
+  const mismatched = v2.filter((r) => !r.ok);
+  if (mismatched.length)
+    throw new VerifyError(
+      "RECOMPUTE_MISMATCH",
+      `${mismatched.length} fact(s) don't recompute: ${mismatched.map((m) => m.fact).join(", ")}`,
+      { mismatched },
+    );
+
+  // V5 for facts: every cited input row exists in its table (a wrong row is an engine bug, like V2).
+  const rows = await checkFactRows(ctx.ws, draft.facts);
+  checks.push(...rows);
+  const badRows = rows.filter((r) => !r.passed);
+  if (badRows.length)
+    throw new VerifyError("CITATION_MISMATCH", `${badRows.length} fact citation(s) point at rows that don't exist`, { badRows });
+
+  // ── V3 re-derive: headline measures by an alternate path ──────────────────────────────────────────────
+  const headline = new Set([...draft.findings.flatMap((f) => f.claims.flatMap((c) => c.facts)), ...placeholders(draft.summary.headline)]);
+  const rederived: (Recomputed & { path: string })[] = [];
+  for (const id of headline) {
+    const f = all.get(id);
+    if (!f || f.computation.kind !== "sql" || !f.metric_id) continue;
+    const r = await rederive(ctx, f);
+    if (r) rederived.push(r);
+  }
+  for (const r of rederived) checks.push({ check: "V3", passed: r.ok, fact: r.fact, detail: `${r.path}: ${r.stored} vs ${r.computed}` });
+  const rederiveBad = rederived.filter((r) => !r.ok);
+  if (rederiveBad.length)
+    throw new VerifyError("REDERIVE_MISMATCH", `${rederiveBad.length} headline fact(s) differ on an alternate path`, { rederiveBad });
+
+  // ── Claim passes ────────────────────────────────────────────────────────────────────────────────────────
+  const sources = new Map(
+    (
+      await ctx.ws.all<{ id: string; kind: string; text: string | null; external: boolean }>(
+        sql`SELECT id, kind, text, external FROM sources`,
+      )
+    ).map((s) => [s.id, s]),
+  );
+  const external = externalFacts([...all.values()]);
+  const dropped = [...draft.verification.claims_dropped];
+  const downgraded = [...draft.verification.claims_downgraded];
+  let definitionViolations = 0;
+  let citationsChecked = 0;
+  let citationsUnsupported = 0;
+
+  const checkClaim = async (c: Claim, where: string): Promise<Claim | undefined> => {
+    const drop = (check: CheckRow["check"], reason: string) => {
+      checks.push({ check, passed: false, claim: c.text, detail: `${where}: ${reason}` });
+      dropped.push({ claim: c.text, reason: `${check}: ${reason}` });
+      return undefined;
+    };
+    // V1: numbers only as placeholders, each a known fact listed by the claim.
+    const free = findFreeNumerals(c.text);
+    if (free.length) return drop("V1", `free numeral(s) ${free.join(", ")}`);
+    const unknown = placeholders(c.text).find((id) => !factIds.has(id) || !c.facts.includes(id));
+    if (unknown) return drop("V1", `placeholder {{${unknown}}} is not a listed fact`);
+    checks.push({ check: "V1", passed: true, claim: c.text, detail: where });
+
+    // V4: each fact measures a defined metric with its unit/currency, and the claim doesn't name another metric.
+    const named = ctx.defs.filter((d) =>
+      new RegExp(`(?<![\\p{L}])${d.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu").test(c.text),
+    );
+    for (const id of c.facts) {
+      const f = all.get(id);
+      if (!f?.metric_id) continue;
+      const def = ctx.defs.find((d) => d.id === f.metric_id);
+      const problem = !def
+        ? `fact ${id} measures unknown metric ${f.metric_id}`
+        : (UNIT[def.unit] ?? "other") !== f.unit && !(def.type === "ratio" && f.unit === "ratio")
+          ? `fact ${id} is in ${f.unit}, ${def.id} is defined in ${def.unit}`
+          : f.unit === "currency" && def.currency && f.currency && f.currency !== def.currency
+            ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
+            : named.length && !named.some((n) => n.id === def.id || def.label.toLowerCase().includes(n.label.toLowerCase()))
+              ? `the claim names ${named.map((n) => n.label).join(", ")} but fact ${id} measures ${def.label}`
+              : undefined;
+      if (problem) {
+        definitionViolations++;
+        return drop("V4", problem);
+      }
+    }
+    checks.push({ check: "V4", passed: true, claim: c.text, detail: where });
+
+    // V8: a number derived from the web needs its web source cited.
+    if (c.facts.some((id) => external.has(id))) {
+      const web = c.citations.some((x) => sources.get(x.source_id)?.kind === "web" && sources.get(x.source_id)?.external);
+      if (!web) return drop("V8", "uses an external number without citing its web source");
+    }
+    checks.push({ check: "V8", passed: true, claim: c.text, detail: where });
+
+    // V5: quotes exist in their sources; the judge confirms the sources support the claim.
+    const quoted = c.citations.filter((x) => x.quote !== undefined);
+    for (const x of quoted) {
+      citationsChecked++;
+      const text = sources.get(x.source_id)?.text ?? "";
+      if (!text.includes(x.quote as string)) {
+        citationsUnsupported++;
+        return drop("V5", `the quote is not in source ${x.source_id}`);
+      }
+    }
+    if (quoted.length && ctx.judge) {
+      const { object } = await ctx.judge.generateObject({
+        role: "judge",
+        schema: Judgement,
+        system: renderPrompt("judge", { claim: data(c.text), sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))) }),
+        prompt: "Do these excerpts support the claim?",
+      });
+      if (!object.supported) {
+        citationsUnsupported++;
+        return drop("V5", "the judge found the cited sources don't support the claim");
+      }
+    }
+    checks.push({
+      check: "V5",
+      passed: true,
+      claim: c.text,
+      detail: `${where}: ${quoted.length} quote(s)${quoted.length && !ctx.judge ? ", judge not configured" : ""}`,
+    });
+
+    // V6: causal wording needs a document; otherwise the claim is reworded to correlational.
+    const docs = c.citations.some((x) => ["document", "email"].includes(sources.get(x.source_id)?.kind ?? ""));
+    let grade = c.causal_grade;
+    if ((RANK[grade ?? "correlated"] ?? 1) >= 2 && !docs) {
+      downgraded.push({ claim: c.text, from: grade ?? "", to: "correlated", reason: "V6: no source document cited" });
+      grade = "correlated";
+    }
+    let text = c.text;
+    if (isCausal(text) && (RANK[grade ?? "correlated"] ?? 1) < 2) {
+      text = rewriteCorrelational(text);
+      downgraded.push({
+        claim: c.text,
+        from: grade ?? "correlated",
+        to: "correlated",
+        reason: `V6: causal wording without a supporting document; reworded to “${text}”`,
+      });
+      checks.push({ check: "V6", passed: false, claim: c.text, detail: `${where}: reworded` });
+    } else checks.push({ check: "V6", passed: true, claim: c.text, detail: where });
+
+    return { ...c, text, ...(grade ? { causal_grade: grade } : {}), verified: true };
+  };
+
+  const findings: Finding[] = [];
+  for (const f of draft.findings) {
+    const claims: Claim[] = [];
+    for (const c of f.claims) {
+      const ok = await checkClaim(c, `finding ${f.id}`);
+      if (ok) claims.push(ok);
+    }
+    // V7 (cascade): a finding needs at least one verified claim.
+    if (!claims.length) {
+      dropped.push({ claim: f.title, reason: `V7: finding ${f.id} has no verified claim left` });
+      checks.push({ check: "V7", passed: false, detail: `finding ${f.id} dropped` });
+      continue;
+    }
+    findings.push({ ...f, claims });
+  }
+  const kept = new Set(findings.map((f) => f.id));
+
+  const recommendations: Recommendation[] = [];
+  for (const r of draft.recommendations) {
+    const because = r.because.filter((b) => kept.has(b));
+    const problem = !because.length
+      ? "no verified finding supports it"
+      : !factIds.has(r.impact.low) || !factIds.has(r.impact.high)
+        ? "its impact facts are missing"
+        : !(r.check.by > ctx.periodEnd)
+          ? `its check date ${r.check.by} is not after the data (${ctx.periodEnd})`
+          : !factIds.has(r.check.threshold)
+            ? "its check threshold is not a fact"
+            : undefined;
+    if (problem) {
+      dropped.push({ claim: r.action, reason: `V7: ${problem}` });
+      checks.push({ check: "V7", passed: false, detail: `recommendation ${r.id}: ${problem}` });
+      continue;
+    }
+    const rationale: Claim[] = [];
+    for (const c of r.rationale) {
+      const ok = await checkClaim(c, `recommendation ${r.id}`);
+      if (ok) rationale.push(ok);
+    }
+    checks.push({ check: "V7", passed: true, detail: `recommendation ${r.id}` });
+    recommendations.push({ ...r, because, rationale });
+  }
+
+  // Summary after the cascade: bullets from the surviving findings; a headline that no longer holds falls back.
+  const bullets = findings.flatMap((f) => f.claims.slice(0, 1)).slice(0, 5);
+  const surviving = new Set(findings.flatMap((f) => f.claims.flatMap((c) => c.facts)));
+  const headlineOk =
+    findFreeNumerals(draft.summary.headline).length === 0 && placeholders(draft.summary.headline).every((id) => surviving.has(id));
+  const headlineText = headlineOk ? draft.summary.headline : (findings[0]?.title ?? "No verified findings for this period.");
+  checks.push({ check: "V1", passed: headlineOk, detail: headlineOk ? "headline" : "headline replaced by the first finding's title" });
+
+  const verifiedFacts = new Set(v2.filter((r) => r.ok).map((r) => r.fact));
+  // References to dropped findings and recommendations go too (assumptions, open questions).
+  const live = new Set([...findings.map((f) => f.id), ...recommendations.map((r) => r.id), ...draft.metrics.map((m) => m.id)]);
+  const assumptions = draft.assumptions.map((a) => ({ ...a, affects: a.affects.filter((x) => live.has(x)) }));
+  const openQuestions = draft.open_questions.map((q) => ({ ...q, would_change: q.would_change.filter((x) => live.has(x)) }));
+  const report: Report = {
+    ...draft,
+    summary: { headline: headlineText, bullets },
+    findings,
+    recommendations,
+    assumptions,
+    open_questions: openQuestions,
+    facts: draft.facts.map((f) => ({ ...f, verified: verifiedFacts.has(f.id) })),
+    verification: {
+      numbers_checked: v2.length,
+      numbers_mismatched: 0,
+      rederived_metrics: rederived.length,
+      rederivation_mismatches: 0,
+      definition_violations: definitionViolations,
+      citations_checked: citationsChecked,
+      citations_unsupported: citationsUnsupported,
+      claims_dropped: dedupe(dropped),
+      claims_downgraded: dedupe(downgraded),
+    },
+  };
+  const integrity = checkReportIntegrity(report);
+  if (integrity.length)
+    throw new VerifyError("UNVERIFIABLE", `the verified report breaks integrity: ${integrity[0]?.path} ${integrity[0]?.message}`, {
+      integrity,
+    });
+  return { report, checks };
+}
+
+/** V3: a total measure of a sum/count (or ratio) metric, recomputed grouped by a dimension and summed in code. */
+async function rederive(ctx: VerifyContext, f: Fact): Promise<(Recomputed & { path: string }) | undefined> {
+  const def = ctx.defs.find((d) => d.id === f.metric_id);
+  const period = new RegExp(`^${f.metric_id}_(.+)$`).exec(f.label)?.[1];
+  if (!def || !period) return undefined; // member facts carry a filter in their label: only totals are re-derived
+  const q = { from: period, to: period, grain: ctx.grain };
+  const grouped = async (d: MetricDef): Promise<number | undefined> => {
+    const dim = d.dimensions?.[0];
+    if (!dim || !(d.type === "sum" || d.type === "count")) return undefined;
+    const rows = await runMetric(ctx.ws, d.id, ctx.defs, ctx.catalog, { ...q, groupBy: [dim] });
+    return rows.reduce((a, r) => a + Number(r.value ?? 0), 0);
+  };
+  if (def.type === "sum" || def.type === "count") {
+    const v = await grouped(def);
+    if (v === undefined) return undefined;
+    return { fact: f.id, stored: f.value, computed: v, ok: same(f.value, v), how: "V3", path: `Σ of ${def.id} by ${def.dimensions?.[0]}` };
+  }
+  if (def.type === "ratio") {
+    const term = (t: unknown) =>
+      t && typeof t === "object" && "metric" in t ? ctx.defs.find((d) => d.id === (t as { metric: string }).metric) : undefined;
+    const num = term(def.numerator);
+    const den = term(def.denominator);
+    if (!num || !den) return undefined;
+    const [n, d] = [await grouped(num), await grouped(den)];
+    if (n === undefined || d === undefined || d === 0) return undefined;
+    const v = (n / d) * (def.unit === "percent" ? 100 : 1);
+    return { fact: f.id, stored: f.value, computed: v, ok: same(f.value, v), how: "V3", path: `Σ ${num.id} ÷ Σ ${den.id} by dimension` };
+  }
+  return undefined;
+}
+
+/** Cited table rows must exist in the cited table (part of V5 for facts). */
+export async function checkFactRows(ws: Workspace, facts: readonly Fact[]): Promise<CheckRow[]> {
+  const out: CheckRow[] = [];
+  for (const f of facts) {
+    for (const c of f.citations) {
+      if (!c.rows?.length) continue;
+      const tableIdOk = /^T\d+$/.test(c.source_id);
+      if (!tableIdOk) continue;
+      const n = await ws.one<{ n: number }>(
+        sql`SELECT count(*) AS n FROM ${ident(tableName(c.source_id))} WHERE list_contains(${JSON.stringify(c.rows)}::INTEGER[], _row)`,
+      );
+      const ok = (n?.n ?? 0) === c.rows.length;
+      out.push({
+        check: "V5",
+        passed: ok,
+        fact: f.id,
+        detail: ok ? `${c.rows.length} cited row(s) exist in ${c.source_id}` : `cited rows missing from ${c.source_id}`,
+      });
+    }
+  }
+  return out;
+}
+
+function dedupe<T>(xs: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return xs.filter((x) => {
+    const k = JSON.stringify(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+export async function persistChecks(ws: Workspace, checks: readonly CheckRow[]): Promise<void> {
+  await ws.run(sql`DELETE FROM verification`);
+  for (const [i, c] of checks.entries())
+    await ws.run(
+      sql`INSERT INTO verification VALUES (${`V${i + 1}`}, ${c.claim ?? null}, ${c.fact ?? null}, ${c.check}, ${c.passed}, ${c.detail})`,
+    );
+}

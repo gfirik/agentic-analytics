@@ -307,6 +307,16 @@ function headline(r: FakeRequest): unknown {
   return { headline: `${first?.title ?? "Revenue fell"}${id ? ` (a change of {{${id}}})` : ""}.` };
 }
 
+/** The judge (V5): supported when the claim and its excerpts share at least two content words. */
+function judge(r: FakeRequest): unknown {
+  const claim = between(r.system, "<claim>", "</claim>").toLowerCase();
+  const sources = between(r.system, "<sources>", "</sources>").toLowerCase();
+  const words = (t: string) => new Set(t.match(/\p{L}{5,}/gu) ?? []);
+  const a = words(claim);
+  const shared = [...words(sources)].filter((w) => a.has(w) || a.has(w.replace(/s$/, "")) || a.has(`${w}s`));
+  return { supported: shared.length >= 2 };
+}
+
 /** The scripted model for a full coffee-roaster job (normal or small-model mode). */
 export function coffeePlanner(options: { small?: boolean; web?: boolean } = {}): FakeModel {
   const small = options.small === true;
@@ -317,6 +327,7 @@ export function coffeePlanner(options: { small?: boolean; web?: boolean } = {}):
     { role: "planner", match: /Write the explanation|Fill the form/, repeat: true, object: (r: FakeRequest) => explanation(r, small) },
     { role: "planner", match: "Propose the candidate actions", repeat: true, object: candidates },
     { role: "planner", match: "Write the headline", repeat: true, object: headline },
+    { role: "judge", repeat: true, object: judge },
   ]);
 }
 

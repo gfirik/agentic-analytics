@@ -30,6 +30,7 @@ import { type ProfileSummary, periodOf, profileJob } from "@agentic-analytics/pr
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
+import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
 import { type Logger, silentLogger } from "./log.ts";
@@ -85,7 +86,11 @@ export interface RunJobInput {
 export interface JobOutcome {
   readonly jobId: string;
   readonly draftPath: string;
+  /** The verified report (report.json). */
+  readonly reportPath: string;
   readonly report: Report;
+  /** The unverified draft (report.draft.json), as EXPLAIN/DECIDE wrote it. */
+  readonly draft: Report;
   readonly run: RunResult;
 }
 
@@ -426,14 +431,49 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           return { findings: report.findings.length, recommendations: report.recommendations.length, facts: report.facts.length };
         },
       },
-      { stage: "VERIFY", skip: () => "the verifier is built in M9", run: async () => null },
+      {
+        stage: "VERIFY",
+        run: async (ctx) => {
+          const m = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
+          const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
+          try {
+            const r = await verifyReport(draft, {
+              ws,
+              defs: m.defs,
+              catalog: await loadCatalog(ws),
+              grain: m.range.grain,
+              periodEnd: m.periodEnd,
+              judge: deps.model,
+            });
+            await persistChecks(ws, r.checks);
+            writeFileSync(join(dir, "report.json"), `${JSON.stringify(r.report, null, 2)}\n`);
+            const v = r.report.verification;
+            return {
+              numbers_checked: v.numbers_checked,
+              rederived: v.rederived_metrics,
+              dropped: v.claims_dropped.length,
+              downgraded: v.claims_downgraded.length,
+            };
+          } catch (err) {
+            // V2/V3 mismatches are engine bugs (§7): nothing ships; the evidence goes to a diagnostic bundle.
+            if (err instanceof VerifyError)
+              writeFileSync(
+                join(dir, "diagnostics.json"),
+                `${JSON.stringify({ code: err.code, message: err.message, detail: err.diagnostic }, null, 2)}\n`,
+              );
+            throw err;
+          }
+        },
+      },
       { stage: "RENDER", skip: () => "the final renderer is built in M10", run: async () => null },
     ];
 
     const run = await runPipeline(ws, bus, log, stages);
-    await bus.emit({ type: "done", report_path: join(dir, "report.draft.json") });
-    const report = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
-    return { jobId: id, draftPath: join(dir, "report.draft.json"), report, run };
+    const reportPath = join(dir, "report.json");
+    await bus.emit({ type: "done", report_path: reportPath });
+    const report = JSON.parse(readFileSync(reportPath, "utf8")) as Report;
+    const draft = JSON.parse(readFileSync(join(dir, "report.draft.json"), "utf8")) as Report;
+    return { jobId: id, draftPath: join(dir, "report.draft.json"), reportPath, report, draft, run };
   } finally {
     ws.close();
   }

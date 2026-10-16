@@ -9,5 +9,19 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@agentic-analytics/agent": "workspace:*",
+    "@agentic-analytics/analysis": "workspace:*",
+    "@agentic-analytics/metrics": "workspace:*",
+    "@agentic-analytics/models": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
+    "@agentic-analytics/store": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/profile": "workspace:*"
   }
 }
