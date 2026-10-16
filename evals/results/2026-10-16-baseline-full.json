@@ -9,7 +9,7 @@
       "dataset": "coffee_roaster-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.384,
+      "seconds": 4.912,
       "tokens": {
         "input": 470,
         "output": 235
@@ -43,7 +43,7 @@
       "dataset": "coffee_roaster-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.513,
+      "seconds": 5.426,
       "tokens": {
         "input": 530,
         "output": 265
@@ -82,7 +82,7 @@
       "dataset": "coffee_roaster-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.624,
+      "seconds": 7.646,
       "tokens": {
         "input": 560,
         "output": 280
@@ -121,7 +121,7 @@
       "dataset": "printing_shop-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.372,
+      "seconds": 2.205,
       "tokens": {
         "input": 290,
         "output": 145
@@ -155,7 +155,7 @@
       "dataset": "printing_shop-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 3.826,
+      "seconds": 3.722,
       "tokens": {
         "input": 530,
         "output": 265
@@ -194,7 +194,7 @@
       "dataset": "printing_shop-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.531,
+      "seconds": 4.258,
       "tokens": {
         "input": 570,
         "output": 285
@@ -233,7 +233,7 @@
       "dataset": "clinic-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.161,
+      "seconds": 3.13,
       "tokens": {
         "input": 470,
         "output": 235
@@ -267,7 +267,7 @@
       "dataset": "clinic-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.74,
+      "seconds": 4.076,
       "tokens": {
         "input": 530,
         "output": 265
@@ -306,7 +306,7 @@
       "dataset": "clinic-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.357,
+      "seconds": 4.056,
       "tokens": {
         "input": 570,
         "output": 285
@@ -345,7 +345,7 @@
       "dataset": "online_store-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.431,
+      "seconds": 3.08,
       "tokens": {
         "input": 380,
         "output": 190
@@ -379,7 +379,7 @@
       "dataset": "online_store-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.776,
+      "seconds": 4.351,
       "tokens": {
         "input": 530,
         "output": 265
@@ -418,7 +418,7 @@
       "dataset": "online_store-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 6.008,
+      "seconds": 5.493,
       "tokens": {
         "input": 570,
         "output": 285
@@ -457,7 +457,7 @@
       "dataset": "distributor-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.496,
+      "seconds": 2.334,
       "tokens": {
         "input": 470,
         "output": 235
@@ -491,7 +491,7 @@
       "dataset": "distributor-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 3.664,
+      "seconds": 3.236,
       "tokens": {
         "input": 530,
         "output": 265
@@ -528,7 +528,7 @@
       "dataset": "distributor-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 6.091,
+      "seconds": 4.122,
       "tokens": {
         "input": 560,
         "output": 280
@@ -567,7 +567,7 @@
       "dataset": "restaurant-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 5.427,
+      "seconds": 3.852,
       "tokens": {
         "input": 470,
         "output": 235
@@ -601,7 +601,7 @@
       "dataset": "restaurant-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.645,
+      "seconds": 5.631,
       "tokens": {
         "input": 530,
         "output": 265
@@ -640,7 +640,7 @@
       "dataset": "restaurant-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.037,
+      "seconds": 7.386,
       "tokens": {
         "input": 570,
         "output": 285
@@ -679,7 +679,7 @@
       "dataset": "saas-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.948,
+      "seconds": 3.563,
       "tokens": {
         "input": 470,
         "output": 235
@@ -713,7 +713,7 @@
       "dataset": "saas-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.908,
+      "seconds": 4.737,
       "tokens": {
         "input": 530,
         "output": 265
@@ -752,7 +752,7 @@
       "dataset": "saas-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.521,
+      "seconds": 6.34,
       "tokens": {
         "input": 570,
         "output": 285
@@ -791,7 +791,7 @@
       "dataset": "logistics-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.269,
+      "seconds": 3.664,
       "tokens": {
         "input": 470,
         "output": 235
@@ -825,7 +825,7 @@
       "dataset": "logistics-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.694,
+      "seconds": 4.538,
       "tokens": {
         "input": 530,
         "output": 265
@@ -864,7 +864,7 @@
       "dataset": "logistics-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 6.423,
+      "seconds": 5.79,
       "tokens": {
         "input": 570,
         "output": 285
@@ -903,7 +903,7 @@
       "dataset": "construction_supplier-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.534,
+      "seconds": 3.027,
       "tokens": {
         "input": 470,
         "output": 235
@@ -937,7 +937,7 @@
       "dataset": "construction_supplier-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 3.706,
+      "seconds": 3.62,
       "tokens": {
         "input": 530,
         "output": 265
@@ -976,7 +976,7 @@
       "dataset": "construction_supplier-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.645,
+      "seconds": 4.382,
       "tokens": {
         "input": 570,
         "output": 285
@@ -1015,7 +1015,7 @@
       "dataset": "agency-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.102,
+      "seconds": 2.191,
       "tokens": {
         "input": 470,
         "output": 235
@@ -1049,7 +1049,7 @@
       "dataset": "agency-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 2.801,
+      "seconds": 2.372,
       "tokens": {
         "input": 520,
         "output": 260
@@ -1086,7 +1086,7 @@
       "dataset": "agency-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 3.593,
+      "seconds": 3.385,
       "tokens": {
         "input": 560,
         "output": 280
@@ -1191,7 +1191,7 @@
     }
   ],
   "routes": [],
-  "seconds": 134.352,
+  "seconds": 126.639,
   "tokens": {
     "input": 15390,
     "output": 7695

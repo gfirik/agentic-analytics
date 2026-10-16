@@ -147,7 +147,7 @@ Insights that detect one event (same series and period) are grouped. A group is 
 The order that goes to EXPLAIN:
 
 1. **One slot per metric family**, in the order of each family's best score. A channel slice such as `wholesale_revenue` is in the `revenue` family. The slot goes to the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without the per-family slot a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
-2. **One slot for the most dramatic single-member change.** This is the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and never takes this slot. excluding a member that is already the top driver of a change chosen above. A product cannibalized by a launch otherwise never reaches the top (M13a).
+2. **One slot for the most dramatic single-member change.** This is the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and never takes this slot. A member already named as the top driver of a change chosen above is excluded. A product cannibalized by a launch otherwise never reaches the top (M13a).
 3. Everything else, by score.
 
 ## 7. Tests

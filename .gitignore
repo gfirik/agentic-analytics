@@ -5,6 +5,10 @@ coverage/
 .env
 .env.*
 !.env.example
+# Editor swap and backup files (a swap of .env holds its keys)
+*.swp
+*.swo
+*~
 data/
 *.duckdb
 *.duckdb.wal

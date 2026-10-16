@@ -76,7 +76,8 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
 export function resultsPage(dir: string): string {
   const all = existsSync(dir)
     ? readdirSync(dir)
-        .filter((f) => f.endsWith(".json"))
+        // Baseline smoke runs are local (gitignored), so the page leaves them out and rebuilds the same from a clone.
+        .filter((f) => f.endsWith(".json") && !f.endsWith("-baseline-smoke.json"))
         .sort()
         .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as SuiteResult)
     : [];

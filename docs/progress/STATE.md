@@ -289,6 +289,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M13a] canonicalModel matches routes by the id after the last "/" (lower-cased, `:free`/`:latest` dropped); it refuses different names but would merge two quantizations served under one id; an explicit alias map is the follow-up — next release
 - [M13a] Driver concentration (|Δ top| / Σ|Δ|) favours low-cardinality splits (2 channels vs 50 customers + "(other)"); a customer that explains nearly all of a channel's drop loses to the channel unless it carries more of the total movement — next release
 - [M13a] The member slot takes the largest relative change among members at ≥ 2% impact share without a confidence floor, so a volatile small member's swing could take it — next release
+- [M13a] The seasonal spike test takes a point's neighbours by position; with a missing period they aren't adjacent periods (the runner measures every period, so this doesn't arise today) — next release
 - [M13a] Week-grain seasonality matches the same ISO week label a year apart; week 53 has no match in 52-week years — next release
 - [M11] Groq free tier: 8k tokens/min and 200k tokens/day per model; one small-mode job uses tens of thousands of tokens, so the full 30-dataset suite needs about a day per model, or a paid/dev tier. Only smoke-suite results are published
 - [M11] A real model's EXPLAIN form still fails a whole job when its output never validates (DECIDE now degrades to no recommendations); EXPLAIN should drop that finding's explanation instead — M12
