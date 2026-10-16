@@ -90,6 +90,8 @@ export function resultsPage(dir: string): string {
     "",
     "Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variants) with planted events, distractors and data-quality issues. Retrieval recall@8 and the injection suite run separately (`bun run --filter @agentic-analytics/retrieval eval:retrieval`, `bunx vitest run packages/core/test/injection.test.ts`).",
     "",
+    "No held-out set: the engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every score here is optimistic for unseen data. The Groq tables below were run before the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions); the M13a real-model reruns will replace them.",
+    "",
     ...(ordered.length ? ordered.map(resultsMarkdown) : ["No results yet."]),
   ].join("\n");
 }

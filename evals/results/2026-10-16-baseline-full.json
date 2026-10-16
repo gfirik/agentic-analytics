@@ -9,7 +9,7 @@
       "dataset": "coffee_roaster-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.631,
+      "seconds": 4.384,
       "tokens": {
         "input": 470,
         "output": 235
@@ -43,7 +43,7 @@
       "dataset": "coffee_roaster-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.815,
+      "seconds": 5.513,
       "tokens": {
         "input": 530,
         "output": 265
@@ -82,7 +82,7 @@
       "dataset": "coffee_roaster-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.771,
+      "seconds": 7.624,
       "tokens": {
         "input": 560,
         "output": 280
@@ -121,7 +121,7 @@
       "dataset": "printing_shop-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.47,
+      "seconds": 2.372,
       "tokens": {
         "input": 290,
         "output": 145
@@ -155,7 +155,7 @@
       "dataset": "printing_shop-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.459,
+      "seconds": 3.826,
       "tokens": {
         "input": 530,
         "output": 265
@@ -194,7 +194,7 @@
       "dataset": "printing_shop-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.722,
+      "seconds": 4.531,
       "tokens": {
         "input": 570,
         "output": 285
@@ -233,7 +233,7 @@
       "dataset": "clinic-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.683,
+      "seconds": 3.161,
       "tokens": {
         "input": 470,
         "output": 235
@@ -267,7 +267,7 @@
       "dataset": "clinic-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.457,
+      "seconds": 4.74,
       "tokens": {
         "input": 530,
         "output": 265
@@ -306,7 +306,7 @@
       "dataset": "clinic-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.878,
+      "seconds": 4.357,
       "tokens": {
         "input": 570,
         "output": 285
@@ -323,7 +323,9 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
       "distractorsReported": [],
@@ -343,7 +345,7 @@
       "dataset": "online_store-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.992,
+      "seconds": 3.431,
       "tokens": {
         "input": 380,
         "output": 190
@@ -377,7 +379,7 @@
       "dataset": "online_store-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.893,
+      "seconds": 4.776,
       "tokens": {
         "input": 530,
         "output": 265
@@ -416,7 +418,7 @@
       "dataset": "online_store-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 6.624,
+      "seconds": 6.008,
       "tokens": {
         "input": 570,
         "output": 285
@@ -455,7 +457,7 @@
       "dataset": "distributor-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.09,
+      "seconds": 2.496,
       "tokens": {
         "input": 470,
         "output": 235
@@ -489,7 +491,7 @@
       "dataset": "distributor-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.288,
+      "seconds": 3.664,
       "tokens": {
         "input": 530,
         "output": 265
@@ -526,7 +528,7 @@
       "dataset": "distributor-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.295,
+      "seconds": 6.091,
       "tokens": {
         "input": 560,
         "output": 280
@@ -543,7 +545,9 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 4,
+          "cause": true
         }
       ],
       "distractorsReported": [],
@@ -563,7 +567,7 @@
       "dataset": "restaurant-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.455,
+      "seconds": 5.427,
       "tokens": {
         "input": 470,
         "output": 235
@@ -597,7 +601,7 @@
       "dataset": "restaurant-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.94,
+      "seconds": 5.645,
       "tokens": {
         "input": 530,
         "output": 265
@@ -636,7 +640,7 @@
       "dataset": "restaurant-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.761,
+      "seconds": 7.037,
       "tokens": {
         "input": 570,
         "output": 285
@@ -653,7 +657,9 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
       "distractorsReported": [],
@@ -673,7 +679,7 @@
       "dataset": "saas-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.452,
+      "seconds": 3.948,
       "tokens": {
         "input": 470,
         "output": 235
@@ -707,7 +713,7 @@
       "dataset": "saas-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.38,
+      "seconds": 4.908,
       "tokens": {
         "input": 530,
         "output": 265
@@ -746,7 +752,7 @@
       "dataset": "saas-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 6.173,
+      "seconds": 5.521,
       "tokens": {
         "input": 570,
         "output": 285
@@ -785,7 +791,7 @@
       "dataset": "logistics-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.741,
+      "seconds": 3.269,
       "tokens": {
         "input": 470,
         "output": 235
@@ -819,7 +825,7 @@
       "dataset": "logistics-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.497,
+      "seconds": 4.694,
       "tokens": {
         "input": 530,
         "output": 265
@@ -858,7 +864,7 @@
       "dataset": "logistics-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.137,
+      "seconds": 6.423,
       "tokens": {
         "input": 570,
         "output": 285
@@ -897,7 +903,7 @@
       "dataset": "construction_supplier-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.784,
+      "seconds": 3.534,
       "tokens": {
         "input": 470,
         "output": 235
@@ -931,7 +937,7 @@
       "dataset": "construction_supplier-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.844,
+      "seconds": 3.706,
       "tokens": {
         "input": 530,
         "output": 265
@@ -970,7 +976,7 @@
       "dataset": "construction_supplier-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.118,
+      "seconds": 4.645,
       "tokens": {
         "input": 570,
         "output": 285
@@ -1009,7 +1015,7 @@
       "dataset": "agency-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.358,
+      "seconds": 2.102,
       "tokens": {
         "input": 470,
         "output": 235
@@ -1043,7 +1049,7 @@
       "dataset": "agency-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 3.236,
+      "seconds": 2.801,
       "tokens": {
         "input": 520,
         "output": 260
@@ -1070,8 +1076,8 @@
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
       "actionRelevant": true,
       "routes": []
@@ -1080,7 +1086,7 @@
       "dataset": "agency-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.024,
+      "seconds": 3.593,
       "tokens": {
         "input": 560,
         "output": 280
@@ -1131,7 +1137,7 @@
     },
     {
       "metric": "Planted recall@5",
-      "value": 0.9,
+      "value": 0.96,
       "bar": "≥ 80%",
       "pass": true
     },
@@ -1185,7 +1191,7 @@
     }
   ],
   "routes": [],
-  "seconds": 146.101,
+  "seconds": 134.352,
   "tokens": {
     "input": 15390,
     "output": 7695

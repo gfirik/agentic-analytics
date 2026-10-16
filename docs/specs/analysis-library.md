@@ -36,10 +36,10 @@ The method used is recorded.
 
 **Seasonality** (M13a). A one-period spike or dip is **seasonal**, not a finding, when the same calendar period in another year (±1 or ±2 years, at month, quarter or week grain) moved the same way:
 
-- The period stands out from both of its neighbours by ≥ 8%.
-- The other year's period moves in the same direction by at least half as much.
+- The period stands out from both of its neighbours by ≥ 8%, and both neighbours are on the same side.
+- The other year's period (matched by calendar label, not by position) moves in the same direction by between 0.5× and 2× as much. A +25% December against a +100% one is a seasonal shortfall, not the season.
 
-A change measured against a seasonal period (January against a seasonal December peak) is seasonal too. A level shift is never seasonal: its next period stays shifted, so it isn't a spike. Withheld changes are listed in the open questions. The eval suite found this: every December peak was reported as a change.
+The newest period has no next neighbour, so it is never judged seasonal: a drop there may be the start of a shift. A change measured against a seasonal period (January against a seasonal December peak) is seasonal only when it hasn't moved against the level outside the peak (November): a January that fell below November's level by ≥ 8% is a real change and stays a finding. A level shift is never seasonal: its next period stays shifted, so it isn't a spike. Withheld changes are listed in the open questions. The eval suite found this: every December peak was reported as a change.
 
 **Minimum data.** These tests are skipped when there isn't enough data. Each skip is logged as an open question.
 
@@ -147,7 +147,7 @@ Insights that detect one event (same series and period) are grouped. A group is 
 The order that goes to EXPLAIN:
 
 1. **One slot per metric family**, in the order of each family's best score. A channel slice such as `wholesale_revenue` is in the `revenue` family. The slot goes to the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without the per-family slot a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
-2. **One slot for the most dramatic single-member change.** This is the largest relative change among members with ≥ 2% of the metric's change, excluding a member that is already the top driver of a change chosen above. A product cannibalized by a launch otherwise never reaches the top (M13a).
+2. **One slot for the most dramatic single-member change.** This is the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and never takes this slot. excluding a member that is already the top driver of a change chosen above. A product cannibalized by a launch otherwise never reaches the top (M13a).
 3. Everything else, by score.
 
 ## 7. Tests
