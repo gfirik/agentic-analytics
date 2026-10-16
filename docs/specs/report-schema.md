@@ -1,6 +1,6 @@
 # Spec: report schema `agentic-analytics.report/v1`
 
-The report is the product's contract. It is defined in Zod in `packages/schema/src/report.ts`. JSON Schema is generated into `packages/schema/dist/report.schema.json` and published with every release. Field names are stable within v1. Fields can only be added, never removed or renamed.
+The report is the product's contract. It is defined in Zod in `packages/schema/src/report.ts`. JSON Schema is generated into `packages/schema/json/report.schema.json` (committed, guarded by the drift check) and published with every release. Field names are stable within v1. Fields can only be added, never removed or renamed.
 
 ## 1. Top level
 
@@ -21,7 +21,8 @@ Report = {
   recommendations: Recommendation[],
   open_questions: OpenQuestion[],
   facts: Fact[],                 // every number referenced anywhere
-  verification: VerificationSummary
+  verification: VerificationSummary,
+  evidence?: Evidence[]         // additive (M1): source excerpts the HTML shows offline, see §6
 }
 ```
 
@@ -115,6 +116,19 @@ VerificationSummary = {
 }
 ```
 
+## 5a. Metric definitions and evidence (additive in M1)
+
+```ts
+// report.metrics: the metric YAML definition (metric-layer.md §1) plus what the user saw and the compiled SQL
+ReportMetric = MetricDef & { plain: string /* plain-language rendering */, sql: string }
+
+// report.evidence (optional): excerpts of cited sources, copied verbatim, never computed
+Evidence = { source_id: string, kind: "table", columns: { letter: string, name: string }[], rows: { row: number, cells: (string|number|null)[] }[] }
+         | { source_id: string, kind: "text", page?: number, section?: string, char_start: number, text: string }
+```
+
+Integrity rules beyond the JSON Schema (`checkReportIntegrity`): ids are unique; every `{{N…}}` placeholder and every fact-id field points at an existing fact; placeholders in a claim are listed in `claim.facts`; citations, metric ids, assumption ids, `because` and `would_change` ids resolve; model-written text (headline, titles, claims, actions, `not_advised`) has no numerals except placeholders, dates and quoted source text.
+
 ## 6. HTML report requirements
 
 - **One self-contained file.** Inline CSS and JS, no external requests, works offline.
@@ -129,5 +143,5 @@ VerificationSummary = {
 
 ## 7. Fixtures
 
-- `packages/schema/test/fixtures/report.coffee-roaster.json` is a full valid example that mirrors the blueprint. It is used by renderer tests and docs.
+- `packages/schema/test/fixtures/report.coffee-roaster.json` is a full valid example that mirrors the blueprint. It is used by renderer tests and docs. It is generated from the `evals/datasets/coffee-roaster-v1` ground truth (`build:golden-report`), so every number in it is computed, not typed.
 - Schema drift: `bun run check` regenerates the JSON Schema and fails if it differs from the committed file without a schema-version note.
