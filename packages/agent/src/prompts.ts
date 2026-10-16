@@ -1,6 +1,6 @@
 // Prompts live in packages/agent/prompts/*.md (agent-and-verifier §9): versioned, typed variables declared in the
 // header comment, `[[name]]` slots (not `{{…}}`, which is the fact-placeholder syntax the model must write).
-import { readFileSync } from "node:fs";
+import { PROMPTS } from "./prompts.gen.ts";
 
 export type PromptName = "extract" | "explain" | "explain-write" | "explain-form" | "decide" | "summary" | "judge" | "ask";
 
@@ -31,11 +31,12 @@ interface Template {
 const HEADER = /^<!-- prompt: ([\w-]+) · version (\d+) · variables: ([\w, ]*) -->\n/;
 const cache = new Map<PromptName, Template>();
 
-/** Reads a prompt file shipped with the package (read once; a bundler can inline the folder). */
+/** A prompt from prompts/*.md, inlined in prompts.gen.ts so it ships inside any bundle or compiled binary. */
 function load(name: PromptName): Template {
   const known = cache.get(name);
   if (known) return known;
-  const raw = readFileSync(new URL(`../prompts/${name}.md`, import.meta.url), "utf8");
+  const raw = PROMPTS[name];
+  if (raw === undefined) throw new PromptError("BAD_HEADER", `prompts/${name}.md is missing (run \`bun run prompts:write\`)`);
   const m = HEADER.exec(raw);
   if (!m || m[1] !== name) throw new PromptError("BAD_HEADER", `prompts/${name}.md must start with its prompt header`);
   const t: Template = {
