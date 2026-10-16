@@ -88,7 +88,7 @@ describe("resume after the process is killed mid-job (M7 acceptance)", () => {
 
     // Resume: no files, no options, just the folder.
     const resumed = await runJob({ dir }, { model: coffeePlanner(), embedder: hashEmbedder() });
-    expect(resumed.run.ran).toEqual(["EXPLAIN", "DECIDE", "VERIFY"]);
+    expect(resumed.run.ran).toEqual(["EXPLAIN", "DECIDE", "VERIFY", "RENDER"]);
     expect(resumed.run.resumed).toEqual(["EXPLAIN"]);
 
     const fresh = await runJob(
@@ -125,7 +125,7 @@ describe("resume after the process is killed mid-job (M7 acceptance)", () => {
       stage: "DECIDE",
     });
     const again = await runJob({ dir }, { model: coffeePlanner(), embedder: hashEmbedder() });
-    expect(again.run.ran).toEqual(["DECIDE", "VERIFY"]);
+    expect(again.run.ran).toEqual(["DECIDE", "VERIFY", "RENDER"]);
     expect(again.run.resumed).toEqual(["DECIDE"]);
     expect(again.report.recommendations.length).toBeGreaterThan(0);
   }, 180_000);

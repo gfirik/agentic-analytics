@@ -25,7 +25,15 @@ export function formatValue(value: number, unit: Fact["unit"]): string {
   }
 }
 
+/**
+ * Functions whose result, on percentages, is a difference of percentages: percentage points, not a percent change.
+ * ("Refunds went from 1.2% to 3.4%": a change of 2.2 pp; "−17.9%" stays a percent change from `pct_change`.)
+ */
+const POINTS = new Set(["delta", "benchmark_gap.v1", "share_shift"]);
+
 export function formatFact(f: Fact): string {
+  if (f.unit === "percent" && f.computation.kind === "function" && POINTS.has(f.computation.fn ?? ""))
+    return `${sign(f.value)}${grouped(f.value, 1)} pp`;
   return formatValue(f.value, f.unit);
 }
 

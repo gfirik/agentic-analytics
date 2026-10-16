@@ -8,6 +8,24 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@agentic-analytics/schema": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@agentic-analytics/core": "workspace:*",
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "@agentic-analytics/retrieval": "workspace:*",
+    "@agentic-analytics/server": "workspace:*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "happy-dom": "^21.0.3",
+    "vite": "^8.3.4"
   }
 }

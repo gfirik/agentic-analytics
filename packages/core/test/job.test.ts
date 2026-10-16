@@ -104,7 +104,7 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(report.recommendations.every((r) => r.because.every((b) => report.findings.some((f) => f.id === b)))).toBe(true);
   });
 
-  it("runs every stage once, skips the ones not built yet, and logs events", () => {
+  it("runs every stage once, skips the optional ones, renders report.html, and logs events", () => {
     expect(out.run.ran).toEqual([
       "INGEST",
       "PROFILE",
@@ -116,8 +116,11 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
       "EXPLAIN",
       "DECIDE",
       "VERIFY",
+      "RENDER",
     ]);
-    expect(out.run.skipped).toEqual(["AWAIT_CONFIRM", "WEB_CONTEXT", "RENDER"]);
+    expect(out.htmlPath).toMatch(/report\.html$/);
+    expect(readFileSync(out.htmlPath, "utf8")).toContain(out.report.findings[0]?.title.slice(0, 20) ?? "");
+    expect(out.run.skipped).toEqual(["AWAIT_CONFIRM", "WEB_CONTEXT"]);
     // the extractor saw document text; the planner never did
     const planner = model.calls.filter((c) => c.role === "planner").map((c) => `${c.system ?? ""}${c.prompt}`);
     expect(planner.some((p) => p.includes("we are pausing our standing order while we compare suppliers"))).toBe(true); // only as an extract quote

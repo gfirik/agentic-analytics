@@ -28,6 +28,7 @@ describe("prompts (agent-and-verifier §9)", () => {
     decide: { objective: "Grow profit", findings: "[]", factsheet: "{}", period_end: "2026-06-30" },
     summary: { findings: "[]" },
     judge: { claim: '"The hotel paused its order."', sources: "[]" },
+    ask: { question: '"Why did revenue drop?"', report: "{}" },
   };
   for (const name of Object.keys(vars) as PromptName[]) {
     it(`${name} renders and matches its snapshot`, () => {
@@ -36,7 +37,7 @@ describe("prompts (agent-and-verifier §9)", () => {
   }
 
   it("planner prompts state the facts-only and placeholder rules; the extractor prompt states the data rule", () => {
-    for (const name of ["explain", "explain-write", "decide", "summary"] as const)
+    for (const name of ["explain", "explain-write", "decide", "summary", "ask"] as const)
       expect(renderPrompt(name, vars[name])).toMatch(/\{\{N12\}\}/);
     // Every prompt states the facts-only rule, the placeholder rule and the data rule (security §3).
     for (const name of Object.keys(vars) as PromptName[]) {

@@ -1,4 +1,5 @@
 // Public API of @agentic-analytics/agent (docs/specs/agent-and-verifier.md §2–§9).
+export { type AskDraft, answerQuestion, reportClaims } from "./ask.ts";
 export {
   contributionDrivers,
   decompositionClaims,

@@ -1,4 +1,4 @@
-# Skeleton (M0). `docker compose up` starts the engine; profiles add optional free services:
+# `docker compose up` starts the engine (API, viewer and MCP on :8080); profiles add optional free services:
 #   --profile web      SearXNG on :8888
 #   --profile docling  docling-serve on :5001
 #   --profile ollama   Ollama on :11434 (skip if Ollama is installed natively)
@@ -8,7 +8,8 @@ services:
       context: .
       dockerfile: docker/engine.Dockerfile
     ports:
-      - "${PORT:-8080}:8080"
+      # Localhost only: the API has no auth unless API_TOKEN is set.
+      - "127.0.0.1:${PORT:-8080}:8080"
     env_file:
       - path: .env
         required: false

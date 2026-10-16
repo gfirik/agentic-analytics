@@ -17,11 +17,14 @@
   "dependencies": {
     "@agentic-analytics/core": "workspace:*",
     "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/mcp": "workspace:*",
     "@agentic-analytics/metrics": "workspace:*",
     "@agentic-analytics/models": "workspace:*",
     "@agentic-analytics/profile": "workspace:*",
+    "@agentic-analytics/report": "workspace:*",
     "@agentic-analytics/retrieval": "workspace:*",
     "@agentic-analytics/schema": "workspace:*",
+    "@agentic-analytics/server": "workspace:*",
     "@agentic-analytics/store": "workspace:*",
     "@agentic-analytics/web": "workspace:*",
     "citty": "^0.2.2",
@@ -30,6 +33,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@agentic-analytics/eval-datasets": "workspace:*"
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.1"
   }
 }

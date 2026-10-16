@@ -1,20 +1,25 @@
 # @agentic-analytics/core
 
-The job runner: the pipeline state machine with checkpoints, the event bus and structured logging.
+The job runner: the pipeline state machine with checkpoints, the event bus, structured logging, and the job manager every door uses.
 
 - **Spec:** docs/ARCHITECTURE.md §2
-- **Status:** built in M7. The VERIFY stage arrives in M9 and RENDER in M10; until then they are recorded as skipped.
+- **Status:** built in M7; VERIFY since M9; RENDER, the metric-confirmation pause, the job manager and follow-ups since M10.
 
 ## Public API
 
-- `runJob({ dir, jobId?, files?, options? }, deps)` runs a job in a folder: `input/`, `job.duckdb` and `report.draft.json`.
+- `runJob({ dir, jobId?, files?, options? }, deps)` runs a job in a folder: `input/`, `job.duckdb`, `report.draft.json`, `report.json` (verified) and `report.html`.
   - Re-running the same folder resumes it. Completed stages are skipped, and the interrupted stage is reset and re-run.
   - `deps`: `{ model, embedder, reranker?, log?, engine?, now?, onEvent? }`.
-  - `options`: `{ today, currency?, objective?, smallModel?, web?, budget? }`.
+  - `options`: `{ today, currency?, objective?, smallModel?, web?, autoConfirm?, budget? }`. With `autoConfirm: false` the job pauses at AWAIT_CONFIRM (an `awaiting_confirmation` event; `runJob` throws `JobError("AWAITING_CONFIRMATION")`) until `confirmJobMetrics(dir, yaml)` stores validated definitions; the next run continues with them.
 - `runPipeline(ws, bus, log, stages)` is the generic checkpointed stage runner. `stageRecords(ws)` lists stage statuses.
 - `EventBus` validates events against the schema, numbers them, stores them in `events` and pushes them to subscribers. A resumed job continues the sequence.
 - `createLogger(sink, { level, fields })`, `jsonLines(write)`, `silentLogger`: structured JSON logs, never `console.log`.
-- `PipelineError` (`STAGE_FAILED`, with the stage) and `JobError` (`NO_INPUT`, `INVALID_DRAFT`, `BAD_OPTIONS`).
+- `PipelineError` (`STAGE_FAILED`, with the stage), `StagePause`, and `JobError` (`NO_INPUT`, `INVALID_DRAFT`, `BAD_OPTIONS`, `AWAITING_CONFIRMATION`, `BAD_METRICS`).
+- `JobManager({ root, deps, model })`: jobs in `<root>/<jobId>/`, run one at a time.
+  - `create`, `status`, `wait`, `subscribe` (history, then live), `events`, `metrics`, `confirm`, `resume`, `report`, `reportHtml`, `ask`, `explain`, `delete`, `list`.
+  - Typed `ManagerError` codes: `NOT_FOUND`, `BUSY`, `NOT_READY`, `BAD_REQUEST`.
+- `askJob(dir, question, model)`: the planner answers from the report and names the report claims each answer rests on. Code copies their citations, and the claims are verified with the report's passes.
+- `explainFact(dir, factId)`: a number's SQL and parameters (or function and inputs), its definition and input rows.
 - `@agentic-analytics/core/testing` exports `coffeePlanner()`: a scripted FakeModel for coffee-roaster-v1.
 
 ## Example
@@ -27,7 +32,7 @@ const out = await runJob(
   { dir: "data/jobs/demo", files, options: { today: "2026-07-01", currency: "USD" } },
   { model, embedder: transformersEmbedder() },
 );
-// out.report: the draft (report v1, unverified); out.run: { ran, resumed, skipped }
+// out.report: the verified report; out.htmlPath: report.html; out.run: { ran, resumed, skipped }
 ```
 
 Demo with the scripted model (no network): `bun run --filter @agentic-analytics/core job:coffee -- --dir data/jobs/coffee-demo`.
