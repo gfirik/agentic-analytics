@@ -417,7 +417,9 @@ async function pvmFor(
       metric: qtyDef.id,
       unit: "count",
       member: { dimension, value: key },
-      points: [before, after].map((p) => ({ period: p, value: qty(p) })),
+      // Every period of the range, not just this pair: the same series id is reused by other decompositions,
+      // and a point missing here would become a 0-valued fact for them.
+      points: allPeriods(rows, before, after).map((p) => ({ period: p, value: qty(p) })),
     };
     series.set(qSeries.id, { series: qSeries, def: qtyDef, where: memberFilter(dimension, key) });
     const r0 = valueAt(m, before);
@@ -482,7 +484,8 @@ async function rateMixFor(
       metric: m.id,
       unit: "other",
       member: { dimension, value: key },
-      points: [before, after].map((p) => ({ period: p, value: v(rows, key, p) })),
+      // Every period (see pvmFor): a later decomposition over other periods reuses this series id.
+      points: allPeriods([...nRows, ...dRows], before, after).map((p) => ({ period: p, value: v(rows, key, p) })),
     };
     series.set(s.id, { series: s, def: m, where: memberFilter(dimension, key) });
     return s;
@@ -525,4 +528,9 @@ export async function persistFacts(ws: Workspace, facts: readonly Fact[]): Promi
       VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
         ${c.params ? JSON.stringify(c.params) : null}::JSON, ${c.fn ?? null}, ${JSON.stringify(c.inputs ?? [])}::VARCHAR[], ${JSON.stringify(f.citations)}::JSON, ${f.metric_id ?? null})`);
   }
+}
+
+/** The sorted periods of grouped metric rows, always including the pair being decomposed. */
+function allPeriods(rows: readonly { period: string }[], before: string, after: string): string[] {
+  return [...new Set([...rows.map((r) => r.period), before, after])].sort();
 }

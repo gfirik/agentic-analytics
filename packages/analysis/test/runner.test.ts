@@ -165,6 +165,23 @@ describe("one template on several dimensions keeps its own numbers", () => {
   });
 });
 
+describe("every measured fact equals its own SQL re-run", () => {
+  it("value = the stored SQL with its stored parameters (catches a fact built from the wrong point)", async () => {
+    let checked = 0;
+    for (const f of result.facts.filter((x) => x.computation.kind === "sql")) {
+      const params = Object.entries(f.computation.params ?? {})
+        .filter(([k]) => k.startsWith("$"))
+        .sort((a, b) => Number(a[0].slice(1)) - Number(b[0].slice(1)))
+        .map(([, v]) => v as string | number);
+      const rows = await ws.all<{ value: number | null }>({ text: f.computation.sql ?? "", params });
+      const value = Number(rows[0]?.value ?? 0);
+      expect(value, `${f.id} ${f.label}`).toBeCloseTo(f.value, 6);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(100);
+  });
+});
+
 describe("open questions", () => {
   it("says year-over-year needs 13+ months, per metric", () => {
     expect(result.openQuestions).toContain("Year-over-year for revenue needs 13+ months; only 6 available.");

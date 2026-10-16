@@ -16,6 +16,7 @@ The engine's deterministic numbers core. It measures metrics, detects changes, d
 | Impact (§5) | `impactRange(scenario)`: `recover_share`, `price_change`, `remove_excess_rate`, `retain_at_risk`. Parameters are bounded, results are net of cost, and each is labelled "scenario estimate" with its formula. |
 | Ranking (§6) | `rankInsights` (impact share × confidence × recency) and `topForExplain` (one finding per event, top 7) |
 | Runner | `analyzeJob(ws, defs, catalog, { from, to, grain? })` runs MEASURE → DETECT → DECOMPOSE → RANK. Every number becomes a fact: SQL with params plus cited `_row`s, or a function with input fact ids. Facts, insights and decompositions are written to the workspace. |
+| Agent tool entry points | `drillDown(ws, defs, catalog, { metric, period, dimension, range })` (contribution.v1 on one slice, the period vs the one before), `scenarioFacts(ws, defs, catalog, grain, request, justifiedBy)` (impact.v1 over existing facts, by fact id). New facts continue the job's numbering (`nextFactNumber`) and are stored with `persistFacts`. `readFacts` and `loadAnalysis` read a job's stored facts, insights and decompositions back (resume). `AnalysisError` codes: `UNKNOWN_SERIES`, `NO_VALUE`, `CALC_UNDEFINED`, `CIRCULAR_CALCS`, `BAD_SLICE`, `UNKNOWN_FACT`. |
 
 ## Example
 
