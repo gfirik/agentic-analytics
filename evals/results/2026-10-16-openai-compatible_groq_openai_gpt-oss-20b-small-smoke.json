@@ -113,37 +113,37 @@
     {
       "metric": "Planted recall@5",
       "value": 0,
-      "bar": "\u2265 80%",
+      "bar": "≥ 80%",
       "pass": false
     },
     {
       "metric": "Driver accuracy",
       "value": 0,
-      "bar": "\u2265 90%",
+      "bar": "≥ 90%",
       "pass": false
     },
     {
       "metric": "Cause grade accuracy",
       "value": 1,
-      "bar": "\u2265 80%",
+      "bar": "≥ 80%",
       "pass": true
     },
     {
       "metric": "Distractor FP rate",
       "value": 0,
-      "bar": "\u2264 10%",
+      "bar": "≤ 10%",
       "pass": true
     },
     {
       "metric": "Quality-issue recall",
       "value": 0.5,
-      "bar": "\u2265 90%",
+      "bar": "≥ 90%",
       "pass": false
     },
     {
       "metric": "Citation precision",
       "value": 1,
-      "bar": "\u2265 95%",
+      "bar": "≥ 95%",
       "pass": true
     },
     {
@@ -159,7 +159,7 @@
     {
       "metric": "Recommendation relevance",
       "value": 0,
-      "bar": "\u2265 70%",
+      "bar": "≥ 70%",
       "pass": false
     }
   ],
@@ -168,5 +168,5 @@
     "input": 64522,
     "output": 26565
   },
-  "note": "Groq free tier. Run before DECIDE degraded gracefully on invalid output: two jobs failed at DECIDE on Groq's own JSON validation (fixed since; rerun pending quota)."
+  "note": "Groq free tier. Run before DECIDE degraded gracefully on invalid output: two jobs failed at DECIDE on Groq's own JSON validation (fixed since; rerun pending quota). Rescored from the kept report with the final scoring."
 }

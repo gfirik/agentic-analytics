@@ -3,7 +3,7 @@
 import type { AnswerKey } from "@agentic-analytics/eval-generator";
 import type { Fact, Finding, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { canonicalMetrics, matchesDistractor, matchesPlanted, scoreReport, subjectOf, summarize } from "../src/index.ts";
+import { canonicalMetrics, matchesDistractor, matchesPlanted, rescore, scoreReport, subjectOf, summarize } from "../src/index.ts";
 
 const fact = (id: string, label: string): Fact => ({
   id,
@@ -218,6 +218,9 @@ describe("scoring", () => {
           unit: "percent",
         },
         { id: "units", label: "x", type: "sum", table: "t_t1", expression: "qty", filters: [], unit: "count" },
+        // A Costs sheet: never revenue, with or without a filter.
+        sum("supplies", [], "coalesce(supplies,0)"),
+        { ...sum("staff_costs", ["category = 'kitchen'"], "coalesce(amount,0)"), table: "t_t2", label: "Staff costs" },
       ],
     } as unknown as Report;
     expect(Object.fromEntries(canonicalMetrics(r))).toEqual({
@@ -228,6 +231,26 @@ describe("scoring", () => {
       paid_orders: "orders",
       refund_rate_amount: "refund_rate",
       units: "units",
+      supplies: "supplies",
+      staff_costs: "staff_costs",
     });
+  });
+
+  it("rescore re-scores completed datasets from kept reports and keeps timings", () => {
+    const old = scoreReport(report(), { ...key, planted: [] }, { seconds: 9, tokens: { input: 1, output: 2 } });
+    const result = {
+      suite: "smoke",
+      model: "m",
+      date: "2026-10-16",
+      datasets: 1,
+      scores: [old],
+      bars: summarize([old]),
+      seconds: 9,
+      tokens: { input: 1, output: 2 },
+    } as const;
+    const r = rescore(result, new Map([["t-v1", report()]]), [{ id: "t-v1", answers: key, files: {} }]);
+    expect(r.scores[0]?.planted.map((p) => p.id)).toEqual(["P1", "P2"]);
+    expect(r.scores[0]?.seconds).toBe(9);
+    expect(r.bars.find((b) => b.metric === "Planted recall@5")?.value).toBe(0.5);
   });
 });

@@ -58,7 +58,7 @@
           "detected": false
         }
       ],
-      "distractorsReported": ["D3"],
+      "distractorsReported": [],
       "qualityFound": ["Q1"],
       "citationsChecked": 2,
       "citationsUnsupported": 0,
@@ -116,37 +116,37 @@
     {
       "metric": "Planted recall@5",
       "value": 0,
-      "bar": "\u2265 80%",
+      "bar": "≥ 80%",
       "pass": false
     },
     {
       "metric": "Driver accuracy",
       "value": 0,
-      "bar": "\u2265 90%",
+      "bar": "≥ 90%",
       "pass": false
     },
     {
       "metric": "Cause grade accuracy",
       "value": 0.5,
-      "bar": "\u2265 80%",
+      "bar": "≥ 80%",
       "pass": false
     },
     {
       "metric": "Distractor FP rate",
-      "value": 0.2,
-      "bar": "\u2264 10%",
-      "pass": false
+      "value": 0,
+      "bar": "≤ 10%",
+      "pass": true
     },
     {
       "metric": "Quality-issue recall",
       "value": 1,
-      "bar": "\u2265 90%",
+      "bar": "≥ 90%",
       "pass": true
     },
     {
       "metric": "Citation precision",
       "value": 1,
-      "bar": "\u2265 95%",
+      "bar": "≥ 95%",
       "pass": true
     },
     {
@@ -164,7 +164,7 @@
     {
       "metric": "Recommendation relevance",
       "value": 0,
-      "bar": "\u2265 70%",
+      "bar": "≥ 70%",
       "pass": false
     }
   ],
@@ -173,5 +173,5 @@
     "input": 85213,
     "output": 15346
   },
-  "note": "Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, so the planted \u00d71000 cost typo surfaced as the top finding (an engine gap recorded in STATE)."
+  "note": "Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, so the planted ×1000 cost typo surfaced as the top finding (an engine gap recorded in STATE). Rescored from the kept reports after the review fix that stopped Costs-sheet sums counting as revenue."
 }

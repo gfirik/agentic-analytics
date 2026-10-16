@@ -582,7 +582,6 @@ export function parseMeasured(label: string): { metric: string; where: string | 
   return { metric: metric as string, where, period: period as string };
 }
 
-/** Text inside quotation marks (“…” or "…"). */
 /**
  * The names a fact label carries from the data (V1's quoted-digits rule): the whole label, member values of
  * `metric[dim=value]_period`, and the member of a decomposition fact `… by dim:kind:value`.
@@ -595,6 +594,7 @@ export function dataNames(label: string): string[] {
   ];
 }
 
+/** Text inside quotation marks (“…” or "…"). */
 export function quotedSpans(text: string): string[] {
   return [...text.matchAll(/“([^”]*)”|"([^"]*)"/g)].map((m) => m[1] ?? m[2] ?? "");
 }

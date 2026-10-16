@@ -68,6 +68,9 @@ export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps):
 
 export function createModelClient(config: Config, deps: ProviderDeps): ModelClient {
   const timeoutMs = config.timeouts.model_ms;
+  // The longest a call may take: each request's timeout, plus the most rate-limit waiting providerFetch allows
+  // (4 waits of at most 90 s) per request.
+  const callCap = (requests: number) => requests * (timeoutMs + 4 * 90_000);
   const model = (role: Role) => languageModel(config.models[role], config, deps);
   const usageOf = (u: { inputTokens?: number | undefined; outputTokens?: number | undefined } | undefined, latencyMs: number): Usage => ({
     inputTokens: u?.inputTokens ?? 0,
@@ -138,8 +141,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           tools,
           stopWhen: stepCountIs(args.maxSteps),
           maxRetries: 0,
-          // Each HTTP request has its own timeout (providerFetch); this bounds a whole call, rate-limit waits included.
-          abortSignal: AbortSignal.timeout(timeoutMs * 20),
+          // Each HTTP request has its own timeout (providerFetch); this bounds the call, rate-limit waits included.
+          abortSignal: AbortSignal.timeout(callCap(1)),
         });
         const steps: Step[] = res.steps.map((s) => ({
           text: s.text,

@@ -161,5 +161,5 @@
     "input": 19074,
     "output": 11678
   },
-  "note": "Groq free tier. The daily token quota (200k/day) ran out after the first job, so two jobs failed with a rate-limit error; rerun when the quota resets."
+  "note": "Groq free tier. The daily token quota (200k/day) ran out after the first job, so two jobs failed with a rate-limit error; rerun when the quota resets. Its one completed job was scored before the metric-concept mapping and its report was not kept, so that row may undercount (the run predates --keep-reports)."
 }

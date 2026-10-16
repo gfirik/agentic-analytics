@@ -34,7 +34,8 @@ export function subjectOf(f: Finding, report: Report): Subject | undefined {
   const head = derived ?? measured[0];
   if (!head) return undefined;
   const periods = measured
-    .filter((m) => m[1] === head[1])
+    // Same metric and same member as the change (derived labels write the member as `|dim=value`).
+    .filter((m) => m[1] === head[1] && (m[2] ?? "") === (head[2] ?? "") && (m[3] ?? "") === (head[3] ?? ""))
     .map((m) => (m[4] as string).slice(0, 7))
     .sort();
   const after = derived ? (derived[4] as string).slice(0, 7) : (periods.at(-1) as string);
@@ -51,8 +52,9 @@ export function subjectOf(f: Finding, report: Report): Subject | undefined {
  * The answer key's concept for each report metric, read from its definition (never its id or label wording, which
  * a real model chooses freely: `total_revenue`, `monthly_revenue`, `refund_rate_amount`):
  * - a ratio whose numerator is about refunds → `refund_rate`;
- * - a currency sum that keeps paid rows and filters on one value of another column (`channel = 'wholesale'`) → that
- *   channel's revenue slice; with no such filter → `revenue`;
+ * - a currency sum of sales (over the table orders are counted in, or of a sales-like column, never a cost) that
+ *   filters on one value of another column (`channel = 'wholesale'`) → that channel's revenue slice; with no such
+ *   filter → `revenue`;
  * - a count of order ids → `orders`.
  * Anything else keeps its id.
  */
@@ -63,6 +65,19 @@ export function canonicalMetrics(report: Report): Map<string, string> {
   const refundish = (t: string) => /refund|return/i.test(t);
   // A filter that keeps refunded rows (`status = 'refunded'`), not one that excludes them (`status != 'refunded'`).
   const selectsRefunds = (f: string) => /(?<![!<>])=\s*'[^']*refund/i.test(f);
+  // Revenue is money from sales: a sum over the table orders are counted in, or of a sales-like column. A cost
+  // (supplies, rent, staff on a Costs sheet) is never revenue, whatever its filters.
+  const orderTables = new Set(
+    metrics
+      .filter((x) => (x.type === "count" || x.type === "count_distinct") && /order/i.test(`${x.expression ?? ""} ${x.id}`))
+      .flatMap((x) => (x.table ? [x.table] : [])),
+  );
+  const costly = (t: string) => /cost|expense|suppl|rent|staff|salar|wage|payroll|spend/i.test(t);
+  const isSales = (x: (typeof metrics)[number]) => {
+    const text = `${x.id} ${x.label} ${x.expression ?? ""}`;
+    if (costly(text)) return false;
+    return (x.table !== undefined && orderTables.has(x.table)) || /amount|sales|revenue|turnover|price|gross|net/i.test(x.expression ?? "");
+  };
   for (const m of metrics) {
     const filters = m.filters ?? [];
     let concept = m.id;
@@ -74,7 +89,7 @@ export function canonicalMetrics(report: Report): Map<string, string> {
           : `${num.expression} ${(num.filters ?? []).join(" ")}`
         : "";
       if (refundish(numText)) concept = "refund_rate";
-    } else if (m.type === "sum" && m.unit === "currency" && !filters.some(selectsRefunds)) {
+    } else if (m.type === "sum" && m.unit === "currency" && !filters.some(selectsRefunds) && isSales(m)) {
       const slice = filters
         .map((f) => /^\s*"?([A-Za-z_][\w ]*)"?\s*=\s*'([^']+)'\s*$/.exec(f))
         .find((x) => x && !/status/i.test(x[1] as string));

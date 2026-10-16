@@ -8,6 +8,7 @@ import { type JobOptions, runJob } from "@agentic-analytics/core";
 import { type Dataset, generatedDatasets } from "@agentic-analytics/eval-generator";
 import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
+import type { Report } from "@agentic-analytics/schema";
 import { type Bar, type DatasetScore, scoreReport, summarize } from "./score.ts";
 
 export type Suite = "smoke" | "full";
@@ -153,4 +154,17 @@ export function resultsMarkdown(r: SuiteResult): string {
     "</details>",
   ];
   return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Scores a published run again from its kept reports (`--keep-reports`), e.g. after a scoring fix, without calling
+ * the model again. Datasets without a kept report keep their original score; timings and tokens are unchanged.
+ */
+export function rescore(r: SuiteResult, reports: ReadonlyMap<string, Report>, keys: readonly Dataset[] = generatedDatasets()): SuiteResult {
+  const scores = r.scores.map((s) => {
+    const report = reports.get(s.dataset);
+    const key = keys.find((d) => d.id === s.dataset)?.answers;
+    return report && key && s.completed ? scoreReport(report, key, { seconds: s.seconds, tokens: s.tokens }) : s;
+  });
+  return { ...r, scores, bars: summarize(scores) };
 }
