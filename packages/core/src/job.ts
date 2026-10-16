@@ -349,7 +349,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               message: `${screened.quarantined.length} source(s) quarantined for text addressed to a model`,
             });
           // The first run of an in-process embedder downloads and loads its model, which can take minutes.
-          await ctx.progress(0, "indexing documents (an in-process embedding model is downloaded on its first use)");
+          await ctx.progress(0, "indexing documents (an in-process embedding model, if used, is downloaded on its first use)");
           return { ...(await indexDocuments(ws, deps.embedder)), quarantined: screened.quarantined };
         },
       },

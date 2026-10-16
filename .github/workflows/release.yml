@@ -1,7 +1,10 @@
 name: release
 
-# On a v* tag: build and push the engine image to GHCR, and publish the GitHub release with its notes from
-# docs/releases/<tag>.md. Tags are pushed by the maintainer (docs/LAUNCH.md), never by an agent.
+# On a v* tag: build and push the engine image to GHCR, build the standalone `aa` CLI binaries (one native runner per
+# target, `bun build --compile`, DuckDB's library embedded) with SHA256 checksums, and publish the GitHub release with
+# its notes from docs/releases/<tag>.md and the binaries attached. Release tags are pushed by the maintainer
+# (docs/LAUNCH.md); a pre-release tag (v0.1.0-rc.1) may be pushed to test this workflow: it is published as a
+# pre-release, never tagged `latest`, and doesn't need a notes file.
 on:
   push:
     tags: ["v*"]
@@ -29,7 +32,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -38,11 +41,35 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  binaries:
+    uses: ./.github/workflows/binaries.yml
+
   github-release:
-    needs: image
+    needs: [image, binaries]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md"
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/bin
+          pattern: aa-*
+          merge-multiple: true
+      - name: checksums
+        run: |
+          cd dist/bin
+          sha256sum -c *.sha256
+          cat *.sha256 > SHA256SUMS
+          cat SHA256SUMS
+      - name: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes="docs/releases/$TAG.md"
+          flags=()
+          if [[ "$TAG" == *-* ]]; then
+            flags+=(--prerelease)
+            [ -f "$notes" ] || { printf 'Pre-release %s for testing the release workflow. Not for use.\n' "$TAG" > "$RUNNER_TEMP/notes.md"; notes="$RUNNER_TEMP/notes.md"; }
+          fi
+          gh release create "$TAG" --title "$TAG" --notes-file "$notes" "${flags[@]}" \
+            dist/bin/aa-linux-x64 dist/bin/aa-linux-arm64 dist/bin/aa-macos-arm64 dist/bin/aa-windows-x64.exe dist/bin/SHA256SUMS

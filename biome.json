@@ -15,7 +15,8 @@
       "!packages/schema/json",
       "!packages/schema/test/fixtures",
       "!evals/injection/fixtures",
-      "!evals/results"
+      "!evals/results",
+      "!packages/agent/src/prompts.gen.ts"
     ]
   },
   "formatter": {

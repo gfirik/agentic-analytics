@@ -19,5 +19,6 @@ const before = JSON.parse(readFileSync(file, "utf8")) as SuiteResult;
 const after = rescore(before, reports);
 const withNote = note ? { ...after, note: [after.note, note].filter(Boolean).join(" ") } : after;
 writeFileSync(file, `${JSON.stringify(withNote, null, 2)}\n`);
+// Checkout-only tooling: results live in evals/results, so the page is evals/RESULTS.md (the runner default).
 writeFileSync(join(dirname(file), "..", "RESULTS.md"), resultsPage(dirname(file)));
 process.stdout.write(`rescored ${reports.size} report(s) in ${file}\n`);
