@@ -59,7 +59,8 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
         .filter((f) => f.endsWith(".json"))
         .sort()
         .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as ResultFile)
-        .filter((r) => !r.model.startsWith("baseline"))
+        // The real-data tier has its own table (realDataTable).
+        .filter((r) => !r.model.startsWith("baseline") && r.suite !== "real")
     : [];
   const head = [
     "| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware |",
@@ -81,6 +82,48 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
   ].join("\n");
 }
 
+interface RealResultFile {
+  readonly suite: "real";
+  readonly model: string;
+  readonly date: string;
+  readonly datasets: {
+    readonly title: string;
+    readonly publisher: string;
+    readonly licence: string;
+    readonly citation: string;
+    readonly completed: boolean;
+    readonly checks: { readonly id: string; readonly about: string; readonly pass: boolean }[];
+  }[];
+}
+
+/**
+ * The real-data demo (evals/real): the latest committed run, one row per check, with each dataset's credit (CC BY
+ * 4.0 requires it wherever numbers derived from the data appear). Nothing here needs the downloaded files.
+ */
+export function realDataTable(dir = join(ROOT, "evals/results")): string {
+  const runs = existsSync(dir)
+    ? readdirSync(dir)
+        .filter((f) => f.endsWith("-real.json"))
+        .sort()
+        .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as RealResultFile)
+    : [];
+  const r = runs.filter((x) => x.model === "baseline").at(-1) ?? runs.at(-1);
+  if (!r) return "_No real-data run yet: `bun run eval:real:fetch && bun run eval:real`._";
+  const cell = (s: string) => s.replace(/\|/g, "\\|");
+  const rows = r.datasets.flatMap((d) => d.checks.map((c) => `| ${cell(d.title)} | ${cell(c.about)} | ${c.pass ? "pass" : "**fail**"} |`));
+  const passed = r.datasets.flatMap((d) => d.checks).filter((c) => c.pass).length;
+  const total = r.datasets.flatMap((d) => d.checks).length;
+  return [
+    `${passed} of ${total} checks pass (${r.model === "baseline" ? "offline baseline, no language model" : r.model}, ${r.date}). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).`,
+    "",
+    "| Dataset | Check | Result |",
+    "|---|---|---|",
+    ...rows,
+    "",
+    ...r.datasets.map((d) => `- ${cell(d.title)} (${cell(d.publisher)}, ${d.licence}): ${cell(d.citation)}`),
+  ].join("\n");
+}
+
 /** Every generated file, as it must be on disk. */
 export function expected(): Map<string, string> {
   const out = new Map<string, string>();
@@ -91,6 +134,7 @@ export function expected(): Map<string, string> {
   readme = inject(readme, "diagram:pipeline", mermaid("pipeline.mmd"));
   readme = inject(readme, "table:problems", problemsTable());
   readme = inject(readme, "table:evals", evalsTable());
+  readme = inject(readme, "table:real-data", realDataTable());
   out.set("README.md", readme);
   let arch = readFileSync(join(ROOT, "docs/ARCHITECTURE.md"), "utf8");
   arch = inject(arch, "diagram:architecture", mermaid("architecture.mmd"));

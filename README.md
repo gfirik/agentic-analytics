@@ -149,6 +149,32 @@ Thirty generated businesses with planted events, distractors and data-quality is
 | groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) |
 <!-- table:evals:end -->
 
+### Real public data
+
+The same engine on two public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines) and New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities and suppressed values are reported, whether the seasonal peak lands in the right month, and whether a part-month or the regular January fall is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
+
+<!-- table:real-data:start -->
+11 of 12 checks pass (offline baseline, no language model, 2026-10-16). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
+
+| Dataset | Check | Result |
+|---|---|---|
+| Electronic card transactions, September 2026 | The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | pass |
+| Electronic card transactions, September 2026 | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
+| Electronic card transactions, September 2026 | The December peak: December is the top month of 2023, 2024 and 2025 (G1) | pass |
+| Electronic card transactions, September 2026 | The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | **fail** |
+| Electronic card transactions, September 2026 | Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | pass |
+| Online Retail II | The job completes on a real 105,797-line file | pass |
+| Online Retail II | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
+| Online Retail II | Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | pass |
+| Online Retail II | Negative quantities (G1: 2,431 lines) | pass |
+| Online Retail II | Missing customer IDs (G1: 21,051 lines) | pass |
+| Online Retail II | The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | pass |
+| Online Retail II | No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | pass |
+
+- Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0): This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.
+- Online Retail II (UCI Machine Learning Repository, CC BY 4.0): Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.
+<!-- table:real-data:end -->
+
 ## Stack
 
 TypeScript on Node 22, Hono, and DuckDB for all SQL and all search (full-text and vector), in one file per job. The model layer is the Vercel AI SDK with Ollama and OpenAI-compatible free endpoints. Embeddings and reranking run in-process. Docling is optional for hard PDFs. Bun is the package manager. The reasoning behind each choice is in [docs/DECISIONS.md](docs/DECISIONS.md).
