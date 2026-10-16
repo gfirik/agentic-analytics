@@ -163,6 +163,20 @@ describe("derivations", () => {
     );
   });
 
+  it("refuses a workbook whose header is not Online Retail II's", () => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([
+        ["Invoice", "Amount"],
+        [489440, 5],
+      ]),
+      "Sheet1",
+    );
+    const bytes = new Uint8Array(XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer);
+    expect(() => deriveOnlineRetailSample(bytes)).toThrow(expect.objectContaining({ name: "RealDataError", code: "UNEXPECTED_LAYOUT" }));
+  });
+
   it("keeps only the monthly actual industry-group series, lines unchanged", () => {
     const csv =
       "Series_reference,Period,Data_value\nECTA.S1GA1,2002.03,1\nECTM.S1GA1,2002.10,2182.6\nECTM.S1GS1,2002.10,5\nECTM.S1GA8,2002.11,7\n";

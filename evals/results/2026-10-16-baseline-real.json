@@ -14,7 +14,7 @@
       "file": "nz-card-spend-by-industry.csv",
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
       "completed": true,
-      "seconds": 14.856,
+      "seconds": 5.628,
       "metrics": [
         "card_spend"
       ],
@@ -76,7 +76,7 @@
       "file": "online_retail_II.sample10.csv",
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
       "completed": true,
-      "seconds": 32.424,
+      "seconds": 11.93,
       "metrics": [
         "revenue",
         "orders"
@@ -117,14 +117,14 @@
           "kind": "quality_issue",
           "about": "Negative quantities (G1: 2,431 lines)",
           "pass": true,
-          "detail": "Q10 negative_quantity cites rows 58, 117, 118…"
+          "detail": "Q2 negative_quantity cites rows 58, 117, 118…"
         },
         {
           "id": "C5",
           "kind": "quality_issue",
           "about": "Missing customer IDs (G1: 21,051 lines)",
           "pass": true,
-          "detail": "Q2433 missing_id cites rows 156, 157, 158…"
+          "detail": "Q3 missing_id cites rows 156, 157, 158…"
         },
         {
           "id": "C6",
@@ -143,5 +143,5 @@
       ]
     }
   ],
-  "seconds": 47.29
+  "seconds": 17.562
 }

@@ -5,18 +5,11 @@ import { join } from "node:path";
 import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
+import { EvalRunError } from "./errors.ts";
 import { missingRealData, type RealSuiteResult, realResultsMarkdown, runRealSuite } from "./real.ts";
 import { resultsMarkdown, runSuite, type Suite, type SuiteResult } from "./run.ts";
 
-export class EvalRunError extends Error {
-  constructor(
-    readonly code: "NO_MODEL" | "USAGE" | "NO_DATA",
-    message: string,
-  ) {
-    super(message);
-    this.name = "EvalRunError";
-  }
-}
+export { EvalRunError };
 
 export interface EvalArgs {
   readonly suite: Suite;

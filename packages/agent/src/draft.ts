@@ -146,7 +146,7 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     column_name: string | null;
   }>(
     sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name
-        FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY i.id`,
+        FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY TRY_CAST(substr(i.id, 2) AS INTEGER), i.id`,
   );
   // One report item per kind of issue in one column of one table: a real file can have thousands of negative
   // quantities, and a list of thousands of identical items hides every other issue. The item cites the first rows.
@@ -156,14 +156,16 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
   const rank = { high: 0, medium: 1, low: 2 } as const;
-  const issues: QualityIssue[] = [...groups.values()].map((g) => {
+  // Grouped items are numbered Q1, Q2, … in order. Nothing in the report refers to a quality item by id (claims cite
+  // facts, assumptions and questions cite findings), so the workspace ids (one per flagged row) need not survive.
+  const issues: QualityIssue[] = [...groups.values()].map((g, i) => {
     const r = g[0] as (typeof rows)[number];
     const what = ISSUE_WORDING[r.kind] ?? `Data issue: ${r.kind.replace(/_/g, " ")}`;
     const where = [r.column_name ? `column ${q(r.column_name)}` : "", r.file ? `in ${q(r.file)}` : ""].filter(Boolean).join(" ");
     const cited = [...new Set(g.flatMap((x) => x.rows ?? []))].sort((a, b) => a - b).slice(0, MAX_CITED_ROWS);
     const severity = g.map((x) => x.severity).sort((a, b) => rank[a] - rank[b])[0] ?? r.severity;
     return {
-      id: r.id,
+      id: `Q${i + 1}`,
       kind: r.kind,
       severity,
       description: `${what}${where ? ` (${where})` : ""}.`,

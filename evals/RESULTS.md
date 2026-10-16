@@ -161,7 +161,7 @@ Baseline: the scripted heuristic, no language model. On real files it drafts met
 
 #### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
 
-This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 14.9 s · 4/5 checks pass.
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 5.6 s · 4/5 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -175,15 +175,15 @@ Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 32.4 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 11.9 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on a real 105,797-line file | yes | report with 2 findings, 3 data-quality items |
 | C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 28 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
 | C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id cites rows 58, 117, 118… |
-| C4: Negative quantities (G1: 2,431 lines) | yes | Q10 negative_quantity cites rows 58, 117, 118… |
-| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q2433 missing_id cites rows 156, 157, 158… |
+| C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity cites rows 58, 117, 118… |
+| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id cites rows 156, 157, 158… |
 | C6: The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | yes | 2010 peak 2010-11; 2011 peak 2011-11; 3/3 values equal SQL |
 | C7: No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | yes | no finding at 2011-12 |
 

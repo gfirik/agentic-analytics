@@ -14,6 +14,7 @@ import {
   loadRealAnswers,
   missingRealData,
   type RealSuiteResult,
+  realEvalCommand,
   resultsPage,
   runRealSuite,
   scoreCheck,
@@ -199,10 +200,10 @@ describe("a job on invoice lines", () => {
       expect(report.assumptions.map((a) => a.text)).toContain(
         "The data stops early in its last month, so that part-month is left out: comparing it with whole months would read as a fall.",
       );
-      expect(report.data_quality.map((q) => [q.kind, q.citations[0]?.rows])).toEqual([
-        ["prefixed_id", [5]],
-        ["negative_quantity", [5, 11]],
-        ["missing_id", [6, 9]],
+      expect(report.data_quality.map((q) => [q.id, q.kind, q.citations[0]?.rows])).toEqual([
+        ["Q1", "prefixed_id", [5]],
+        ["Q2", "negative_quantity", [5, 11]],
+        ["Q3", "missing_id", [6, 9]],
       ]);
       expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders"]);
     } finally {
@@ -213,6 +214,38 @@ describe("a job on invoice lines", () => {
 
 const REAL = join(import.meta.dirname, "..", "..", "real");
 const fetched = missingRealData(join(REAL, "answers"), join(REAL, "data")).length === 0;
+
+describe("typed errors", () => {
+  it("an answer file for a dataset the manifest doesn't know is UNKNOWN_DATASET", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-real-answers-"));
+    try {
+      writeFileSync(
+        join(dir, "toy.yaml"),
+        'dataset: toy\nfile: toy.csv\noptions: { today: "2026-10-16" }\nground_truth: []\nchecks: [{ id: C1, kind: completes, about: x }]\n',
+      );
+      await expect(
+        runRealSuite({ model: () => baselineModel(), modelName: "baseline", embedder: hashEmbedder(), dataDir: dir, answersDir: dir }),
+      ).rejects.toMatchObject({ name: "EvalRunError", code: "UNKNOWN_DATASET" });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("a real-data run with a file not fetched is NO_DATA, and writes nothing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-real-nodata-"));
+    try {
+      await expect(
+        realEvalCommand(
+          { model: "baseline", resultsDir: join(dir, "results"), dataDir: join(dir, "data"), answersDir: join(REAL, "answers") },
+          { embedder: hashEmbedder(), print: () => {} },
+        ),
+      ).rejects.toMatchObject({ name: "EvalRunError", code: "NO_DATA" });
+      expect(readdirSync(dir)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("the published real-data results", () => {
   it("parses every answer file", () => {

@@ -120,9 +120,12 @@ export function realDataTable(dir = join(ROOT, "evals/results")): string {
     "|---|---|---|",
     ...rows,
     "",
-    ...r.datasets.map((d) => `- ${cell(d.title)} (${cell(d.publisher)}, ${d.licence}): ${cell(d.citation)}`),
+    ...r.datasets.map((d) => `- ${cell(d.title)} (${cell(d.publisher)}, ${licenceLink(d.licence)}): ${cell(d.citation)}`),
   ].join("\n");
 }
+
+const LICENCES: Record<string, string> = { "CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/" };
+const licenceLink = (name: string) => (LICENCES[name] ? `[${name}](${LICENCES[name]})` : name);
 
 /** Every generated file, as it must be on disk. */
 export function expected(): Map<string, string> {

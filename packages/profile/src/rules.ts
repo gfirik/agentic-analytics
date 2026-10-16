@@ -1,7 +1,7 @@
 // Implausibility rules (ingestion spec §5): each finding becomes a quality issue with cell provenance.
 import type { NormalizedTable, Workspace } from "@agentic-analytics/store";
 import { tableName } from "@agentic-analytics/store";
-import { ID_HEADER } from "./normalize.ts";
+import { COUNT_NAME, ID_HEADER } from "./normalize.ts";
 import {
   aboveHundredRows,
   aboveOneRows,
@@ -31,7 +31,6 @@ export interface RuleIssue {
 /** Column-level issues list at most this many rows; `details` carries the full count. */
 const MAX_ROWS = 20;
 
-const COUNT_NAME = /qty|quantity|count|units|pcs|pieces|orders|кол|шт|количество|soni|dona/i;
 const RATE_NAME = /\b(rate|ratio|share|percent|pct)\b|%|доля|ставка|процент|ulush|foiz/i;
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
 const FACTOR = { 1: "10", 2: "100", 3: "1,000" } as const;

@@ -1,6 +1,7 @@
 // Deterministic derivations from the downloaded public files (evals/real/README.md). Each is a pure function from
 // the verified download's bytes to the file the engine reads, so the derived file has a fixed SHA-256 too.
 import * as XLSX from "xlsx";
+import { RealDataError } from "./errors.ts";
 
 /** RFC 4180 field: quoted only when it has to be. */
 function csvField(v: string): string {
@@ -38,7 +39,8 @@ export function deriveOnlineRetailSample(xlsx: Uint8Array, every = 10): string {
     if (!sheet) continue;
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: null, blankrows: false });
     const header = (rows[0] ?? []).map((h) => String(h ?? "").trim());
-    if (header.join("|") !== ONLINE_RETAIL_COLUMNS.join("|")) throw new Error(`unexpected header in sheet ${name}: ${header.join(", ")}`);
+    if (header.join("|") !== ONLINE_RETAIL_COLUMNS.join("|"))
+      throw new RealDataError("UNEXPECTED_LAYOUT", `unexpected header in sheet ${name}: ${header.join(", ")}`);
     for (const row of rows.slice(1)) {
       const invoice = String(row[0] ?? "");
       if (!keepInvoice(invoice, every)) continue;

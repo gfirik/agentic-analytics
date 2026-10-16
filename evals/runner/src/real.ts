@@ -10,6 +10,7 @@ import { parseRealAnswers, REAL_DATASETS, type RealAnswers, type RealCheck } fro
 import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import type { Report } from "@agentic-analytics/schema";
+import { EvalRunError } from "./errors.ts";
 import { canonicalMetrics, subjectOf } from "./score.ts";
 
 export interface RealCheckResult {
@@ -221,7 +222,7 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
   const t0 = Date.now();
   for (const [i, { answers, dir: answersDir }] of all.entries()) {
     const meta = REAL_DATASETS.find((d) => d.id === answers.dataset);
-    if (!meta) throw new Error(`answer file for unknown dataset ${answers.dataset}`);
+    if (!meta) throw new EvalRunError("UNKNOWN_DATASET", `answer file for unknown dataset ${answers.dataset}`);
     const dir = mkdtempSync(join(tmpdir(), `aa-real-${answers.dataset}-`));
     const started = Date.now();
     const options: JobOptions = {

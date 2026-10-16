@@ -88,6 +88,14 @@ describe("invoice lines", () => {
     expect(summary.issues.filter((i) => i.kind === "negative_quantity").map((i) => i.rows)).toEqual([[5], [11]]);
   });
 
+  it("types prefixed numbers as ids only in a column that doesn't name a count", () => {
+    // 9 whole numbers and one "x2": 90% numeric, the prefixed value a minority
+    const cells = [...[3, 1, 4, 1, 5, 9, 2, 6, 5].map((v) => ({ v, t: "n" as const })), { v: "x2", t: "s" as const }];
+    expect(inferColumn("Units", cells).type).toBe("integer");
+    expect(inferColumn("Qty", cells).type).toBe("integer");
+    expect(inferColumn("Invoice", cells).type).toBe("id");
+  });
+
   it("does not report an optional identifier that is mostly empty", async () => {
     const { summary } = await profiled("refs.csv", "Date,Amount,Ref ID\n2026-01-01,5,\n2026-01-02,6,\n2026-01-03,7,R1\n");
     expect(summary.issues.filter((i) => i.kind === "missing_id")).toEqual([]);

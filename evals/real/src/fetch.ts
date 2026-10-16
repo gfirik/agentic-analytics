@@ -3,17 +3,10 @@
 // silently change every number in the real-data results.
 import { createHash } from "node:crypto";
 import * as XLSX from "xlsx";
+import { RealDataError } from "./errors.ts";
 import type { RealDataset } from "./manifest.ts";
 
-export class RealDataError extends Error {
-  constructor(
-    readonly code: "DOWNLOAD_FAILED" | "CHECKSUM_MISMATCH" | "ENTRY_MISSING",
-    message: string,
-  ) {
-    super(message);
-    this.name = "RealDataError";
-  }
-}
+export { RealDataError };
 
 export const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
 

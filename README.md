@@ -171,8 +171,8 @@ The same engine on two public datasets with their real mess left in: a UK online
 | Online Retail II | The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | pass |
 | Online Retail II | No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | pass |
 
-- Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0): This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.
-- Online Retail II (UCI Machine Learning Repository, CC BY 4.0): Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.
+- Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.
+- Online Retail II (UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.
 <!-- table:real-data:end -->
 
 ## Stack

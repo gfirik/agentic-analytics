@@ -34,7 +34,7 @@ ground_truth:
   - id: G3
     about: Last invoice date
     sql: SELECT max(InvoiceDate) AS last_invoice FROM read_csv('FILE', all_varchar = true)
-    result: "2011-12-09 12:50:00"
+    result: "2011-12-09 12:20:00"
 
 checks:
   - id: C1

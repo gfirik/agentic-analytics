@@ -48,6 +48,8 @@ interface Inferred {
 
 /** A document number behind a short letter prefix: "C489434", "CN-1021". */
 const PREFIXED_ID = /^[A-Za-z]{1,3}-?\d+$/;
+/** Headers that name a count (quantity, units): a few "x2" cells in one are typos, not document numbers. */
+export const COUNT_NAME = /qty|quantity|count|units|pcs|pieces|orders|кол|шт|количество|soni|dona/i;
 
 /**
  * `year.month` as a number → the month's first day ("2002-10-01"), or undefined. The month is the two decimals:
@@ -127,7 +129,13 @@ export function inferColumn(label: string, cells: readonly (Cell | undefined)[])
     // prefix marks a kind of document (a cancellation, a credit note). Read as numbers, every prefixed cell would be
     // emptied as unparseable.
     const others = filled.flatMap((c, i) => (parsed[i] === undefined ? [String(c.v).trim()] : []));
-    if (others.length && values.every((v) => Number.isInteger(v) && v >= 0) && others.every((v) => PREFIXED_ID.test(v)))
+    if (
+      others.length &&
+      others.length < values.length &&
+      !COUNT_NAME.test(label) &&
+      values.every((v) => Number.isInteger(v) && v >= 0) &&
+      others.every((v) => PREFIXED_ID.test(v))
+    )
       return { type: "id", decimal, issues: [] };
     const formatPercent = filled.some((c) => typeof c.z === "string" && c.z.includes("%"));
     if (formatPercent || numeric.some((p) => p.percent)) return { type: "percent", decimal, issues: [] };
