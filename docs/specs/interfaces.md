@@ -61,7 +61,7 @@ Resources: `report://{job_id}` (JSON), `report-html://{job_id}`.
 
 Tool descriptions must tell the calling model that numbers in results are verified and must be quoted, never recalculated.
 
-The MCP server runs in the engine's process, either through `aa mcp` (stdio) or at `/mcp` in `aa serve` (stateless streamable HTTP). It reads local paths. Uploading by URL to a remote API is not in v0.1; a remote client uses the HTTP API instead.
+The MCP server runs in the engine's process, either through `aa mcp` (stdio) or at `/mcp` in `aa serve` (stateless streamable HTTP). Over stdio it reads local paths. Over HTTP, `analyze_files` reads only inside the folders in `AA_MCP_ROOTS` (comma-separated; checked after resolving symlinks), and none by default: an HTTP caller uploads through `POST /v1/jobs` instead. Uploading by URL to a remote API is not in v0.1; a remote client uses the HTTP API instead.
 
 ## 4. Telegram demo (`apps/telegram`, grammY)
 
