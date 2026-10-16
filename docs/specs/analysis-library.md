@@ -135,6 +135,8 @@ Each material insight is scored as:
 
 The top 3–7 findings go to EXPLAIN. The rest stay in the appendix.
 
+Insights that detect one event (same series and period) are grouped, and the group is represented by its highest-priority template. Each metric family first gets one slot for its best whole-metric change, before any family gets a second. A channel slice such as `wholesale_revenue` is in the `revenue` family. A rate's materiality is a small share of its own total, so without the per-family slot a refund rate tripling would lose every slot to restatements of one revenue drop. The eval suite found this in M11.
+
 ## 7. Tests
 
 - Every template and decomposer has fixtures with hand-computed expected values, written by hand in the test file with the arithmetic shown in comments.

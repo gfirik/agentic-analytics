@@ -391,7 +391,16 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             .filter((x): x is StoredInsight => x !== undefined);
           // Changes of a whole metric come before changes of one member (a customer, a product): they are what the
           // headline is about, and a rate tripling must not lose its slot to one customer's good month.
-          const top = [...ranked.filter((i) => !i.member), ...ranked.filter((i) => i.member)];
+          // Within each group, one finding per metric family comes first: a channel slice (`wholesale_revenue`) or a
+          // second change of the same metric repeats its parent's story, and must not push a different problem (a
+          // refund rate rising) out of the explained top (eval suite, M11).
+          const family = (metric: string) => m.defs.find((d) => d.id !== metric && metric.endsWith(`_${d.id}`))?.id ?? metric;
+          const diverse = (xs: readonly StoredInsight[]) => {
+            const seen = new Set<string>();
+            const first = xs.filter((x) => !seen.has(family(x.metric)) && seen.add(family(x.metric)));
+            return [...first, ...xs.filter((x) => !first.includes(x))];
+          };
+          const top = [...diverse(ranked.filter((i) => !i.member)), ...diverse(ranked.filter((i) => i.member))];
           const sheet = buildFactSheet({
             objective: objectiveText(opts),
             period: m.range,
