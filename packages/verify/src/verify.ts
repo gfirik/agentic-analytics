@@ -222,7 +222,12 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     for (const span of quotedSpans(c.text).filter((q) => /\p{Nd}/u.test(q))) {
       const fromSource = c.citations.some((x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span));
       // A name from the data: a whole member value (`[dim=value]`) or label, never a fragment like a period's "04".
-      const names = (l: string) => [l, ...[...l.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] ?? "")];
+      // Member values appear as `metric[dim=value]_period` or as a decomposition's `…by dim:kind:value`.
+      const names = (l: string) => [
+        l,
+        ...[...l.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] ?? ""),
+        ...[...l.matchAll(/ by [^:]+:[a-z_]+:(.+)$/g)].map((m) => m[1] ?? ""),
+      ];
       const fromData =
         /\p{L}/u.test(span) && [...all.values()].some((f) => names(f.label).some((n) => n.toLowerCase() === span.toLowerCase()));
       if (!fromSource && !fromData) return drop("V1", `quoted “${span}” is not from a cited source or the data`);
