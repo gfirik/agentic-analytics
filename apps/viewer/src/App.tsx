@@ -132,6 +132,7 @@ function JobPage({ api, jobId }: { api: Api; jobId: string }) {
   const [view, dispatch] = useReducer(reduce, undefined, initialView);
   const [html, setHtml] = useState<string>();
   const [round, setRound] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `round` re-opens the event stream after a confirmation resumes the job
   useEffect(() => {
     const ctl = new AbortController();
     api.follow(jobId, (e: JobEvent) => dispatch(e), ctl.signal).catch(() => undefined);

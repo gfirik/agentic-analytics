@@ -22,3 +22,23 @@ describe("plain-text report views", () => {
     expect((t.match(/^• /gm) ?? []).length).toBe(Math.min(3, report.findings.length) + Math.min(2, report.recommendations.length));
   });
 });
+
+describe("percentage points", () => {
+  const fact = (fn: string, value: number) =>
+    ({
+      id: "N1",
+      label: "x",
+      value,
+      unit: "percent",
+      computation: { kind: "function", fn, inputs: [] },
+      citations: [],
+      verified: true,
+    }) as const;
+  it("a difference of percentages reads as points; a percent change stays a percent", async () => {
+    const { formatFact } = await import("../src/index.ts");
+    expect(formatFact(fact("delta", 2.2))).toBe("2.2 pp");
+    expect(formatFact(fact("benchmark_gap.v1", 1.4))).toBe("1.4 pp");
+    expect(formatFact(fact("share_shift", -10))).toBe("−10.0 pp");
+    expect(formatFact(fact("pct_change", -17.913832199546484))).toBe("−17.9%");
+  });
+});

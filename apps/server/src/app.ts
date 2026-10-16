@@ -319,6 +319,17 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
 
   app.openapi(
     createRoute({
+      method: "post",
+      path: "/v1/jobs/{id}/resume",
+      summary: "Continue a failed or interrupted job from its last completed stage",
+      request: { params: z.object({ id: JobId }) },
+      responses: { 202: json(Status, "Resumed"), ...problems },
+    }),
+    async (c) => c.json(await manager.resume(c.req.valid("param").id), 202),
+  );
+
+  app.openapi(
+    createRoute({
       method: "delete",
       path: "/v1/jobs/{id}",
       summary: "Delete a job and its data",

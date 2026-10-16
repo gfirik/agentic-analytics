@@ -153,6 +153,13 @@ describe("HTTP API", () => {
     expect(await (await app.request("/")).text()).toContain("The viewer is not built");
   });
 
+  it("POST /resume re-queues a finished job (completed stages are kept) and 404s an unknown one", async () => {
+    const r = await app.request(`/v1/jobs/${id}/resume`, { method: "POST" });
+    expect(r.status).toBe(202);
+    expect((await manager.wait(id)).status).toBe("done");
+    expect((await app.request("/v1/jobs/nope/resume", { method: "POST" })).status).toBe(404);
+  }, 60_000);
+
   it("DELETE removes the job", async () => {
     expect((await app.request(`/v1/jobs/${id}`, { method: "DELETE" })).status).toBe(204);
     expect((await app.request(`/v1/jobs/${id}`)).status).toBe(404);
