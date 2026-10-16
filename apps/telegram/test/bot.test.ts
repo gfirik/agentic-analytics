@@ -15,7 +15,7 @@ import { ApiClient, createBot } from "../src/index.ts";
 const root = mkdtempSync(join(tmpdir(), "aa-tg-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 const manager = new JobManager({ root, model: coffeePlanner(), deps: () => ({ model: coffeePlanner(), embedder: hashEmbedder() }) });
-const app = createApp(manager, { today: () => "2026-07-01", token: "t0k" });
+const app = createApp(manager, { today: () => "2026-07-01", token: "t0k", allowedHosts: ["engine.local"] });
 const api = new ApiClient({ baseUrl: "http://engine.local", token: "t0k", fetch: async (url, init) => app.request(url, init) });
 const files = coffeeRoasterFiles();
 const names = Object.keys(files);
@@ -50,6 +50,7 @@ describe("Telegram bot (long polling)", () => {
         has_main_web_app: false,
       } as never,
       download: async (path) => files[path] as Uint8Array,
+      allowedChats: [42],
     });
     bot.api.config.use(async (_prev, method, payload) => {
       const p = payload as Record<string, unknown>;
@@ -92,4 +93,18 @@ describe("Telegram bot (long polling)", () => {
     expect(job?.status).toBe("done");
     expect((await manager.report(job?.job_id as string)).objective.text).toBe("Why did revenue fall?");
   }, 180_000);
+
+  it("answers only allowed chats", async () => {
+    const replies: string[] = [];
+    const bot = createBot("123:fake", api, {
+      botInfo: { id: 1, is_bot: true, first_name: "AA", username: "aa_bot" } as never,
+      allowedChats: [7],
+    });
+    bot.api.config.use(async (_prev, method, payload) => {
+      if (method === "sendMessage") replies.push(String((payload as { text: string }).text));
+      return { ok: true as const, result: { message_id: 1, date: 0, chat } } as never;
+    });
+    await bot.handleUpdate(message({ text: "Why did revenue fall?" }) as never);
+    expect(replies).toEqual(["This bot is private. Its owner can allow chat 42 in TELEGRAM_ALLOWED_CHATS."]);
+  });
 });

@@ -12,6 +12,8 @@ export interface BotOptions {
   readonly download?: (filePath: string) => Promise<Uint8Array>;
   /** For tests: skip `getMe`. */
   readonly botInfo?: UserFromGetMe;
+  /** Chats allowed to use the bot (TELEGRAM_ALLOWED_CHATS); empty or absent means anyone who finds it. */
+  readonly allowedChats?: readonly number[];
   /** Most files per job (default 20); Telegram itself caps each at 20 MB for bots. */
   readonly maxFiles?: number;
 }
@@ -81,6 +83,14 @@ export function createBot(token: string, api: ApiClient, o: BotOptions = {}): Bo
     }
   };
 
+  // Jobs use the owner's engine and model: only allowed chats get past this point.
+  if (o.allowedChats?.length) {
+    const allowed = new Set(o.allowedChats);
+    bot.use(async (ctx, next) => {
+      if (ctx.chat && allowed.has(ctx.chat.id)) return next();
+      if (ctx.chat) await ctx.reply(`This bot is private. Its owner can allow chat ${ctx.chat.id} in TELEGRAM_ALLOWED_CHATS.`);
+    });
+  }
   bot.command(["start", "help"], (ctx) => ctx.reply(HELP));
   bot.command("analyze", (ctx) => run(ctx, ctx.match.trim() || undefined));
   bot.on("message:document", async (ctx) => {
@@ -102,6 +112,10 @@ export function createBot(token: string, api: ApiClient, o: BotOptions = {}): Bo
     if (ctx.message.caption) return run(ctx, ctx.message.caption);
     await ctx.reply(`Got ${doc.file_name ?? "the file"} (${list.length} file(s)). Send more, or your question / /analyze to start.`);
   });
-  bot.on("message:text", (ctx) => run(ctx, ctx.message.text));
+  bot.on("message:text", (ctx) => {
+    // An unknown command is not a question.
+    if (ctx.message.text.startsWith("/")) return ctx.reply(HELP);
+    return run(ctx, ctx.message.text);
+  });
   return bot;
 }

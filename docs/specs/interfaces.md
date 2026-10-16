@@ -26,6 +26,9 @@ The core engine is shared: every door calls `@agentic-analytics/core`.
 - **Errors:** `{ error: { code, message } }`, with 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 409 `BUSY`/`NOT_READY`, and 401 `UNAUTHORIZED`.
 - **Ask:** the answer is claims that went through the report's verifier (agent-and-verifier §7). The planner names the report claims an answer rests on, and code copies their citations.
 - **Auth:** none by default (localhost; the Docker port is published on 127.0.0.1). An optional `API_TOKEN` env var enables bearer auth on `/v1/jobs*` and `/mcp`. `/v1/health` and `/openapi.json` stay open.
+- **Hosts:** every route refuses (403 `FORBIDDEN_HOST`) a request whose `Host` or `Origin` names a host other than localhost, 127.0.0.1, ::1, the `--host` given, or `AA_ALLOWED_HOSTS`. A web page that DNS-rebinds its name to 127.0.0.1 therefore can't read jobs or call `/mcp`, token or not.
+- **Uploads:** file names keep their base name only. `.`, `..` and empty names become `file-<n>`, and a duplicate gets ` (2)`, so no upload overwrites another. MCP `analyze_files` skips symlinks and reads at most 500 files.
+- **Defaults:** option defaults (small-model mode from the planner's model profile) are applied by the job manager, so every door runs the same job for the same files.
 - **CORS:** off by default.
 
 ## 2. CLI (`apps/cli`, citty)

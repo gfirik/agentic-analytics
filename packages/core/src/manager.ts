@@ -43,6 +43,8 @@ export interface ManagerOptions {
   readonly deps: (options: JobOptions) => JobDeps;
   /** The model for follow-up questions (the planner and judge roles). */
   readonly model: ModelClient;
+  /** Option defaults for every new job, whichever door creates it (e.g. small-model mode from the model profile). */
+  readonly defaults?: Partial<JobOptions>;
   readonly now?: () => Date;
 }
 
@@ -122,12 +124,18 @@ export class JobManager {
     const dir = join(this.opts.root, id);
     if (existsSync(dir)) throw new ManagerError("BAD_REQUEST", `job ${id} exists`);
     mkdirSync(join(dir, "input"), { recursive: true });
-    for (const f of files) {
-      // File names come from uploads: keep the base name only.
-      const name = f.name.split(/[\\/]/).pop() || "file";
+    const used = new Set<string>();
+    for (const [i, f] of files.entries()) {
+      // File names come from uploads: keep the base name only, never "." or "..", and never overwrite another file.
+      let name = f.name.split(/[\\/]/).pop() ?? "";
+      if (!name || name === "." || name === "..") name = `file-${i + 1}`;
+      const dot = name.lastIndexOf(".");
+      const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+      for (let n = 2; used.has(name.toLowerCase()); n++) name = `${stem} (${n})${ext}`;
+      used.add(name.toLowerCase());
       writeFileSync(join(dir, "input", name), f.bytes);
     }
-    writeFileSync(join(dir, "options.json"), `${JSON.stringify(options, null, 2)}\n`);
+    writeFileSync(join(dir, "options.json"), `${JSON.stringify({ ...this.opts.defaults, ...options }, null, 2)}\n`);
     const s = this.write(id, { status: "queued" });
     this.enqueue(id);
     return s;
@@ -136,17 +144,18 @@ export class JobManager {
   private enqueue(id: string): void {
     this.active.add(id);
     this.live.set(id, this.live.get(id) ?? []);
+    // execute never rejects, so one broken job can't stall the queue.
     this.queue = this.queue.then(() => this.execute(id));
   }
 
   private async execute(id: string): Promise<void> {
     const dir = join(this.opts.root, id);
-    const options = JSON.parse(readFileSync(join(dir, "options.json"), "utf8")) as JobOptions;
-    const started = new Map<Stage, number>();
-    const timings: Record<string, number> = { ...(this.readStatus(id)?.timings ?? {}) };
-    this.write(id, { status: "running" });
-    const deps = this.opts.deps(options);
+    const timings: Record<string, number> = {};
     try {
+      const options = JSON.parse(readFileSync(join(dir, "options.json"), "utf8")) as JobOptions;
+      Object.assign(timings, this.readStatus(id)?.timings ?? {});
+      this.write(id, { status: "running" });
+      const deps = this.opts.deps(options);
       await runJob(
         { dir, jobId: id, options },
         {
@@ -154,10 +163,7 @@ export class JobManager {
           onEvent: (e) => {
             deps.onEvent?.(e);
             this.live.get(id)?.push(e);
-            if (e.type === "stage_started") {
-              started.set(e.stage, Date.now());
-              this.write(id, { stage: e.stage });
-            }
+            if (e.type === "stage_started") this.write(id, { stage: e.stage });
             if (e.type === "stage_completed") {
               timings[e.stage] = e.duration_ms;
               this.write(id, { stage: e.stage, timings, progress: Math.round(((STAGES.indexOf(e.stage) + 1) / STAGES.length) * 100) });
@@ -171,13 +177,22 @@ export class JobManager {
       if (err instanceof JobError && err.code === "AWAITING_CONFIRMATION")
         this.write(id, { status: "awaiting_confirmation", stage: "AWAIT_CONFIRM" });
       else {
-        const code = err instanceof Error && "code" in err && typeof err.code === "string" ? err.code : "FAILED";
+        // A stage failure carries the stage's own error as its cause (e.g. PROVIDER when no model answers).
+        const cause = err instanceof Error && err.cause instanceof Error ? err.cause : undefined;
+        const codeOf = (e: unknown) => (e instanceof Error && "code" in e && typeof e.code === "string" ? e.code : undefined);
+        const code = codeOf(cause) ?? codeOf(err) ?? "FAILED";
         const stage = err instanceof Error && "stage" in err ? (err.stage as Stage | undefined) : undefined;
         const message = err instanceof Error ? err.message : String(err);
-        this.write(id, { status: "failed", error: { code, message, ...(stage ? { stage } : {}) } });
+        try {
+          this.write(id, { status: "failed", error: { code, message, ...(stage ? { stage } : {}) } });
+        } catch {
+          // The job folder is gone (deleted mid-run): nothing to record.
+        }
       }
     } finally {
       this.active.delete(id);
+      // The events are in the job's DuckDB file; keep memory for running jobs only.
+      this.live.delete(id);
     }
   }
 

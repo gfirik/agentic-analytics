@@ -17,7 +17,7 @@ import { createApi, initialView, reduce } from "../src/index.ts";
 const root = mkdtempSync(join(tmpdir(), "aa-viewer-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 const manager = new JobManager({ root, model: coffeePlanner(), deps: () => ({ model: coffeePlanner(), embedder: hashEmbedder() }) });
-const app = createApp(manager, { today: () => "2026-07-01" });
+const app = createApp(manager, { today: () => "2026-07-01", allowedHosts: ["viewer.local"] });
 const api = createApi("http://viewer.local", undefined, (async (u: string | URL | Request, i?: RequestInit) =>
   app.request(String(u), i)) as typeof fetch);
 

@@ -87,8 +87,11 @@ function runtime(embedderArg?: string) {
     ...(o.web ? { web: web() } : {}),
     ...(log ? { log: createLogger(jsonLines((l) => process.stderr.write(l))) } : {}),
   });
-  const manager = (log?: boolean) => new JobManager({ root: jobsRoot(), model, deps: (o) => deps(o, log) });
-  return { config, model, embedder, engine, web, smallModel: plannerProfile?.smallModel === true, manager };
+  const smallModel = plannerProfile?.smallModel === true;
+  // Defaults live in the manager so every door (CLI, API, MCP, Telegram) runs the same job for the same files.
+  const manager = (log?: boolean) =>
+    new JobManager({ root: jobsRoot(), model, deps: (o) => deps(o, log), ...(smallModel ? { defaults: { smallModel: true } } : {}) });
+  return { config, model, embedder, engine, web, manager };
 }
 
 /** Terminal review: one letter per choice; edits are YAML typed or pasted, ended by an empty line. */
@@ -155,7 +158,7 @@ const analyze = defineCommand({
             today: today(args.today),
             ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
             ...(args.objective ? { objective: args.objective } : {}),
-            ...(args["small-model"] || rt.smallModel ? { smallModel: true } : {}),
+            ...(args["small-model"] ? { smallModel: true } : {}),
             ...(args.web ? { web: true } : {}),
           },
           out: args.out ?? ".",
@@ -221,6 +224,14 @@ const serveCmd = defineCommand({
       port: Number(args.port ?? process.env.PORT ?? 8080),
       ...(args.host ? { hostname: args.host } : {}),
       ...(process.env.API_TOKEN ? { token: process.env.API_TOKEN } : {}),
+      // Names this server may be reached by besides localhost (a LAN name, a Docker service name).
+      allowedHosts: [
+        ...(args.host && args.host !== "0.0.0.0" ? [args.host] : []),
+        ...(process.env.AA_ALLOWED_HOSTS ?? "")
+          .split(",")
+          .map((h) => h.trim())
+          .filter(Boolean),
+      ],
       health,
       mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
       viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),

@@ -1,6 +1,6 @@
 // The MCP door (interfaces §3): five tools and two resources over the job manager. A calling model gets verified
 // numbers with their provenance; every tool description tells it to quote them, never recalculate them.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import type { JobManager, JobStatus } from "@agentic-analytics/core";
 import { fillPlaceholders, reportSummaryText } from "@agentic-analytics/report";
@@ -23,12 +23,16 @@ const fail = (err: unknown) => ({
   isError: true,
 });
 
-function collect(p: string): string[] {
-  return statSync(p).isDirectory()
-    ? readdirSync(p)
-        .sort()
-        .flatMap((n) => collect(join(p, n)))
-    : [p];
+const MAX_FILES = 500;
+
+/** Files under the given paths: symlinks are skipped (no cycles, no escaping the folder), at most MAX_FILES. */
+function collect(p: string, out: string[] = []): string[] {
+  const st = lstatSync(p);
+  if (st.isSymbolicLink()) return out;
+  if (st.isDirectory()) for (const n of readdirSync(p).sort()) collect(join(p, n), out);
+  else if (st.isFile()) out.push(p);
+  if (out.length > MAX_FILES) throw new Error(`more than ${MAX_FILES} files under the given paths; point at a smaller folder`);
+  return out;
 }
 
 export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpServer {

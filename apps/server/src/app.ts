@@ -1,5 +1,6 @@
 // The HTTP door (interfaces §1): Hono with zod-openapi, so `/openapi.json` is generated from the same schemas that
 // validate requests. Every route is a thin call into the job manager; no engine logic lives here.
+import { timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { type JobManager, ManagerError } from "@agentic-analytics/core";
@@ -19,6 +20,11 @@ export interface ServerOptions {
   readonly mcp?: (req: Request) => Promise<Response>;
   /** The built viewer (apps/viewer/dist), served at `/`. */
   readonly viewerDir?: string;
+  /**
+   * Host names the API answers to (default: localhost, 127.0.0.1, ::1). A request whose Host or Origin names
+   * another host is refused (403), so a web page rebound to 127.0.0.1 by DNS can't read jobs or call /mcp.
+   */
+  readonly allowedHosts?: readonly string[];
   /** Upload limit in bytes (default 200 MB). */
   readonly maxUpload?: number;
   readonly version?: string;
@@ -93,10 +99,28 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
     return c.json({ error: { code: "INTERNAL", message: err.message } }, 500);
   });
 
+  // DNS-rebinding guard (security §4): only the hosts this server is meant to be reached by.
+  const hosts = new Set(["localhost", "127.0.0.1", "[::1]", "::1", ...(o.allowedHosts ?? []).map((h) => h.toLowerCase())]);
+  const hostOf = (v: string) => {
+    try {
+      return new URL(v.includes("://") ? v : `http://${v}`).hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  };
+  app.use("*", async (c, next) => {
+    const host = c.req.header("host") ?? new URL(c.req.url).host;
+    const origin = c.req.header("origin");
+    if (!hosts.has(hostOf(host)) || (origin !== undefined && origin !== "null" && !hosts.has(hostOf(origin))))
+      return c.json({ error: { code: "FORBIDDEN_HOST", message: "this host or origin is not allowed (set AA_ALLOWED_HOSTS)" } }, 403);
+    await next();
+  });
+
   if (o.token) {
-    const expected = `Bearer ${o.token}`;
+    const expected = new TextEncoder().encode(`Bearer ${o.token}`);
     const guard = async (c: Context, next: () => Promise<void>) => {
-      if (c.req.header("authorization") !== expected)
+      const got = new TextEncoder().encode(c.req.header("authorization") ?? "");
+      if (got.length !== expected.length || !timingSafeEqual(got, expected))
         return c.json({ error: { code: "UNAUTHORIZED", message: "a bearer token is required" } }, 401);
       await next();
     };
@@ -361,7 +385,7 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
     async (c) => {
       const checks: Record<string, { ok: boolean; detail?: string }> = {
         engine: { ok: true },
-        duckdb: { ok: true },
+        duckdb: { ok: true, detail: "in-process (the jobs use it; not probed here)" },
         ...(o.health ? await o.health() : {}),
       };
       return c.json({ ok: checks.engine?.ok === true && checks.duckdb?.ok === true, version: o.version ?? "0.0.0", checks }, 200);
@@ -387,7 +411,13 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
         '<!doctype html><title>agentic-analytics</title><p>The API is running. The viewer is not built: run <code>bun run --filter @agentic-analytics/viewer build</code>. API spec: <a href="/openapi.json">/openapi.json</a>.</p>',
         200,
       );
-    const rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^([/\\])+/, "");
+    let path: string;
+    try {
+      path = decodeURIComponent(new URL(c.req.url).pathname);
+    } catch {
+      return c.json({ error: { code: "BAD_REQUEST", message: "malformed path" } }, 400);
+    }
+    const rel = normalize(path).replace(/^([/\\])+/, "");
     const file = join(dir, rel);
     if (rel && !rel.startsWith("..") && existsSync(file) && extname(file))
       return c.body(readFileSync(file), 200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });

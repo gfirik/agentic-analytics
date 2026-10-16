@@ -1,6 +1,6 @@
 // M10: the job manager every door uses. A job paused for metric review resumes once definitions are confirmed,
 // RENDER writes report.html, follow-up answers are verified claims, and a number can be explained.
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
@@ -75,6 +75,34 @@ describe("JobManager", () => {
     expect((await manager.explain(id, fn?.id as string)).inputs.length).toBeGreaterThan(0);
     await expect(manager.explain(id, "N999999")).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+
+  it("keeps every uploaded file (no overwrite, no '..'), and one broken job doesn't stall the queue", async () => {
+    const m = new JobManager({
+      root: join(root, "edge"),
+      model,
+      deps: (o) => {
+        if (o.objective === "boom") throw new Error("deps failed");
+        return { model: coffeePlanner(), embedder: hashEmbedder() };
+      },
+    });
+    const bytes = new TextEncoder().encode("a,b\n1,2\n");
+    await m.create(
+      [
+        { name: "x/sales.csv", bytes },
+        { name: "y\\sales.csv", bytes },
+        { name: "..", bytes },
+      ],
+      { today: "2026-07-01" },
+      "names",
+    );
+    expect(readdirSync(join(root, "edge", "names", "input")).sort()).toEqual(["file-3", "sales (2).csv", "sales.csv"]);
+    // A job that throws before it starts fails on its own; the job queued after it still runs.
+    await m.create(files.slice(0, 1), { today: "2026-07-01", objective: "boom" }, "broken");
+    await m.create(files.slice(0, 1), { today: "2026-07-01" }, "next");
+    expect((await m.wait("broken")).error?.message).toBe("deps failed");
+    expect(["done", "failed"]).toContain((await m.wait("next")).status);
+    expect((await m.status("next")).error?.message).not.toBe("deps failed");
+  }, 180_000);
 
   it("lists, refuses unknown ids and deletes", async () => {
     expect((await manager.list()).map((s) => s.job_id)).toEqual(["coffee-review"]);

@@ -23,11 +23,13 @@ The HTTP API (Hono + `@hono/zod-openapi`). The OpenAPI spec is generated from th
 | * | `/mcp` | MCP over streamable HTTP |
 | GET | `/` | the viewer (`apps/viewer/dist`) |
 
+Only localhost names (plus `--host` and `AA_ALLOWED_HOSTS`) are answered; any other `Host` or `Origin` gets 403 (a DNS-rebinding guard). The bearer token is compared in constant time.
+
 Errors are `{ error: { code, message } }`: 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 409 `BUSY` / `NOT_READY`, and 401 when `API_TOKEN` is set and the bearer token is missing. CORS is off. The server listens on 127.0.0.1 unless `--host` says otherwise.
 
 ## Public API
 
-- `createApp(manager, options)`: the Hono app (`token`, `health`, `mcp`, `viewerDir`, `maxUpload`, `today`).
+- `createApp(manager, options)`: the Hono app (`token`, `allowedHosts`, `health`, `mcp`, `viewerDir`, `maxUpload`, `today`).
 - `startServer(manager, options & { port, hostname })`: serves it on Node.
 
 ## Example

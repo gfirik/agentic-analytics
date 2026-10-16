@@ -160,6 +160,21 @@ describe("HTTP API", () => {
     expect((await app.request("/v1/jobs/nope/resume", { method: "POST" })).status).toBe(404);
   }, 60_000);
 
+  it("refuses other hosts and origins (DNS rebinding) and malformed or traversing paths", async () => {
+    for (const path of ["/v1/jobs", "/mcp", "/v1/health"]) {
+      const r = await app.request(`http://evil.example${path}`, { method: path === "/mcp" ? "POST" : "GET" });
+      expect(r.status, path).toBe(403);
+    }
+    expect((await app.request("/v1/jobs", { headers: { origin: "http://evil.example" } })).status).toBe(403);
+    expect((await app.request("http://127.0.0.1:8080/v1/jobs", { headers: { origin: "http://localhost:5173" } })).status).toBe(200);
+    expect((await createApp(manager, { allowedHosts: ["aa.lan"] }).request("http://aa.lan/v1/jobs")).status).toBe(200);
+    const dir = join(root, "viewer-dist");
+    const withViewer = createApp(manager, { viewerDir: dir });
+    for (const p of ["/%2e%2e/%2e%2e/etc/passwd", "/assets/..%2f..%2f..%2fetc/passwd"])
+      expect(await (await withViewer.request(p)).text(), p).toContain("<div id=root>");
+    expect((await withViewer.request("/%E0%A4%A")).status).toBe(400);
+  });
+
   it("DELETE removes the job", async () => {
     expect((await app.request(`/v1/jobs/${id}`, { method: "DELETE" })).status).toBe(204);
     expect((await app.request(`/v1/jobs/${id}`)).status).toBe(404);
