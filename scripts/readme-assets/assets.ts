@@ -128,7 +128,7 @@ export function gifSeconds(b: Uint8Array): number {
   let cs = 0;
   while (p < b.length) {
     const block = at(p);
-    if (block === 0x3b) break; // trailer
+    if (block === 0x3b) return cs / 100; // trailer
     if (block === 0x21) {
       if (at(p + 1) === 0xf9 && at(p + 2) === 4) cs += at(p + 4) | (at(p + 5) << 8);
       p = skipSubBlocks(p + 2);
@@ -139,7 +139,8 @@ export function gifSeconds(b: Uint8Array): number {
       p = skipSubBlocks(p + 1); // LZW minimum code size, then the image data
     } else break;
   }
-  return cs / 100;
+  // No trailer: a truncated or malformed file can't be measured, so it fails the limit rather than under-counting.
+  return Number.POSITIVE_INFINITY;
 }
 
 export function tapeProblems(tape: string): string[] {

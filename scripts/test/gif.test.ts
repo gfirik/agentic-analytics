@@ -35,4 +35,8 @@ describe("gifSeconds", () => {
     const gif = new Uint8Array([...header, ...frame(150, [0x21, 0xf9, 0x04, 0x00, 0xe8, 0xfd]), ...frame(250, [0x44, 0x01]), 0x3b]);
     expect(gifSeconds(gif)).toBe(4);
   });
+
+  it("a file that never reaches its trailer can't be measured and fails the limit", () => {
+    expect(gifSeconds(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0, 0, 0, 0, 0x99]))).toBe(Number.POSITIVE_INFINITY);
+  });
 });
