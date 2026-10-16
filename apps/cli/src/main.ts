@@ -201,7 +201,7 @@ const run = defineCommand({
         ...(args.log ? { log: createLogger(jsonLines((l) => process.stderr.write(l))) } : {}),
         out: (l) => process.stdout.write(`${l}\n`),
         // The resume hint must keep the embedder the job was indexed with.
-        resumeFlags: args.embedder ? ["--embedder", args.embedder] : [],
+        resumeFlags: [...(args.embedder ? ["--embedder", args.embedder] : []), ...(args.web ? ["--web"] : [])],
       },
     );
   },

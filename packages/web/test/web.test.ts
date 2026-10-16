@@ -71,6 +71,24 @@ describe("query sanitizer (agent-and-verifier §4): no private value reaches a q
     expect(sanitizeQuery("account ACC99812 coffee prices", shops).query).toBe("account coffee prices");
     expect(sanitizeQuery("Hotel Group's coffee prices", shops).query).toBe("coffee prices");
     expect(sanitizeQuery("call +1 (555) 010-2030 coffee", shops).query).toBe("call coffee");
+    // Joiners and hiding places (QA): invisible characters, & and +, ’, no spaces, bare and defanged domains.
+    for (const variant of [
+      "Hotel\u200bGroup",
+      "Hotel\u00adGroup",
+      "Hotel&Group",
+      "Hotel+Group",
+      "HotelGroup",
+      "hotelgroup",
+      "see hotelgroup.uz",
+      "hxxp://hotelgroup[.]uz",
+      "hotelgroup[.]uz",
+    ]) {
+      const q = sanitizeQuery(`${variant} coffee prices 2026`, shops).query;
+      expect(oracle(q.replace(/\s+/g, "")), `${variant} → ${q}`).not.toContain("hotelgroup");
+      expect(q, variant).toContain("coffee prices 2026");
+    }
+    const obrien: PrivateTerms = { names: ["O'Brien Supplies"] };
+    expect(sanitizeQuery("O’Brien Supplies coffee", obrien).query).toBe("coffee");
     // Fragments of other numbers that look like years go too; real years stay.
     expect(sanitizeQuery("ratio 0.2025 coffee", shops).query).toBe("ratio coffee");
     expect(sanitizeQuery("12.1999 coffee", shops).query).toBe("coffee");
@@ -343,6 +361,11 @@ describe("SearXNG provider and the lane", () => {
     await expect(searxngProvider({ baseUrl: "http://localhost:1", fetch: down }).search("q")).rejects.toMatchObject({ code: "PROVIDER" });
     const html = (async () => new Response("<html>error</html>", { status: 200 })) as typeof fetch;
     await expect(searxngProvider({ baseUrl: "http://x", fetch: html }).search("q")).rejects.toMatchObject({ code: "PROVIDER" });
+    const allDown = (async () =>
+      new Response(JSON.stringify({ results: [], unresponsive_engines: [["duckduckgo", "CAPTCHA"]] }), {
+        headers: { "content-type": "application/json" },
+      })) as typeof fetch;
+    await expect(searxngProvider({ baseUrl: "http://x", fetch: allDown }).search("q")).rejects.toThrow(/duckduckgo: CAPTCHA/);
     const forbidden = (async () => new Response("", { status: 403 })) as typeof fetch;
     await expect(searxngProvider({ baseUrl: "http://x", fetch: forbidden }).search("q")).rejects.toThrow(/json format/);
   });

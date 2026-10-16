@@ -320,6 +320,14 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               : {}),
             found: { extracts: [], quarantined: [], questions: [], scenarios: [] },
           };
+          if (opts.web && !deps.web)
+            // The job asked for the web lane but this run has no search provider (e.g. resumed without --web).
+            await ctx.bus.emit({
+              type: "warning",
+              stage: "EXPLAIN",
+              code: "WEB_UNAVAILABLE",
+              message: "the job has web on, but no search provider is configured for this run",
+            });
           const tools = buildTools(toolCtx, budget);
           const r = await explainFindings(toolCtx, tools, budget, deps.model, top, analysis.decompositions, sheet, factMap, {
             small,

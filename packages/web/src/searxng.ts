@@ -38,7 +38,7 @@ export function searxngProvider(options: SearxngOptions): SearchProvider {
           "PROVIDER",
           `SearXNG answered HTTP ${res.status}${res.status === 403 ? " (enable the json format in settings.yml)" : ""}`,
         );
-      let body: { results?: { url?: unknown; title?: unknown; content?: unknown }[] };
+      let body: { results?: { url?: unknown; title?: unknown; content?: unknown }[]; unresponsive_engines?: unknown[] };
       try {
         body = (await res.json()) as typeof body;
       } catch {
@@ -54,6 +54,10 @@ export function searxngProvider(options: SearxngOptions): SearchProvider {
         });
         if (out.length >= max) break;
       }
+      // No results because every engine failed is not "nothing found": say why.
+      const down = (body.unresponsive_engines ?? []).map((e) => (Array.isArray(e) ? e.join(": ") : String(e)));
+      if (!out.length && down.length)
+        throw new WebError("PROVIDER", `SearXNG engines did not answer (${down.join("; ")}); try SEARXNG_ENGINES`);
       return out;
     },
   };

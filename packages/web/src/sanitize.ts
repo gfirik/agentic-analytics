@@ -22,7 +22,9 @@ export interface Sanitized {
 }
 
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu;
-const URL_RE = /(?:https?:\/\/|www\.)\S+/giu;
+const URL_RE = /(?:h[tx]{2}ps?:\/\/|www\.)\S+/giu;
+/** A bare domain ("hotelgroup.uz", "shop.example.com"): names often hide in it. */
+const DOMAIN = /(?<![\p{L}\p{N}@])(?:[\p{L}\p{N}-]+\.)+\p{L}{2,24}(?![\p{L}\p{N}])/gu;
 const PHONE = /\+?\d[\d\s().-]{6,}\d/g;
 /** Years stay: a period is a public term ("price increase 2026"). */
 const YEAR = /^(?:19|20)\d{2}$/;
@@ -82,13 +84,16 @@ function foldDigits(s: string): string {
 
 /** The matching form: no diacritics, lowercase, separators and quotes collapsed to single spaces. */
 export function normalizeText(s: string): string {
-  return foldDigits(s)
-    .normalize("NFKD")
-    .replace(/\p{M}+/gu, "")
-    .toLowerCase()
-    .replace(/[“”„"'`«»‹›()[\]{}<>]/g, " ")
-    .replace(/[\s\-‐‑‒–—_.·/\\,;:]+/gu, " ")
-    .trim();
+  return (
+    foldDigits(s)
+      .normalize("NFKD")
+      // Invisible format characters (zero-width space, soft hyphen, …) and combining marks join nothing.
+      .replace(/[\p{M}\p{Cf}]+/gu, "")
+      .toLowerCase()
+      .replace(/[“”„"'`’‘‚«»‹›()[\]{}<>]/g, " ")
+      .replace(/[\s\-‐‑‒–—_.·/\\,;:&+|]+/gu, " ")
+      .trim()
+  );
 }
 
 /** A normalised name without legal forms at either end; undefined when nothing distinctive is left. */
@@ -118,6 +123,9 @@ function phrases(terms: PrivateTerms): string[] {
     if (full.length >= 2) out.add(full);
     const core = coreName(n);
     if (core) out.add(core);
+    // Written without spaces ("HotelGroup", "hotelgroup.uz").
+    const joined = (core ?? full).replace(/ /g, "");
+    if (joined.length >= 6 && joined !== (core ?? full)) out.add(joined);
     // The leading two words of a longer name are usually its distinctive part ("Green Leaf" of "Green Leaf
     // Bakery"): removed too, erring on the side of removing.
     const words = (core ?? "").split(" ");
@@ -143,9 +151,12 @@ export function sanitizeQuery(query: string, terms: PrivateTerms = { names: [] }
     });
   };
   // Structured pieces first, on the folded text (dots, @ and phone punctuation still intact).
+  // Defanged forms ("hotelgroup[.]uz", "hxxp://") count as the real thing.
+  q = q.replace(/\[\.\]|\(\.\)|\{\.\}/g, ".");
   cut(URL_RE, "url");
   cut(EMAIL, "email");
   for (const v of terms.values ?? []) if (v.trim().length >= 2) cut(new RegExp(escapeRe(foldDigits(v.trim())), "giu"), "value");
+  cut(DOMAIN, "url");
   cut(PHONE, "phone", (m) => YEAR.test(m.trim()));
 
   // Names and values next, on the normalised text and before numbers go, so a name with digits ("Cafe 24") is
