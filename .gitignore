@@ -12,3 +12,4 @@ data/
 evals/results/*.json
 !evals/results/.gitkeep
 .autopilot/
+packages/report/out/
