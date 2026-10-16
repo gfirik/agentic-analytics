@@ -88,6 +88,16 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M2] Root script `bun run ingest <paths…>` is the ingestion demo — ROADMAP M2 demo
 - [M2] New dependencies, all free: `unpdf` (MIT; PDF text, the stack choice), `mammoth` (BSD-2; DOCX, stack), `mailparser` (MIT; EML, stack), `@types/mailparser` (MIT, dev) — AGENTS.md §3
 
+- [M3] `packages/store` owns the load contract (`NormalizedTable`, `FileRow`, `SectionRow`, `IssueRow`); `packages/profile` converts ingestion output into it, so the store depends on nothing above it — ARCHITECTURE §1, §4
+- [M3] Workspace schema v1 creates every ARCHITECTURE §3 table, plus `table_columns` (names, labels, letters, types per `t_<id>`); `chunks.embedding` is a variable-length `FLOAT[]` because the dimension follows the embedding model; the events timestamp column is `occurred_at` (`at` is reserved in DuckDB) — ARCHITECTURE §3, retrieval spec §2
+- [M3] `t_<id>` tables hold typed columns plus `_row`, `_is_total` and `_period`; total rows are kept and flagged, never deleted; names are snake_case with Cyrillic transliterated, and the original header is kept as the label — ingestion spec §3.4, §6
+- [M3] Type inference needs ≥ 90% of a column's filled detail cells to fit. Money-named headers make numeric columns `currency` even without a symbol (needed by the M4 revenue fallback); a `%` number format or `%` text makes `percent`, stored as a fraction; notes-style headers make free text — ingestion spec §5, metric-layer §2.4
+- [M3] Date order: a value like 03/03 is no evidence either way; any ambiguity is a `date_format_ambiguity` issue — low when decided by values above 12, medium plus an assumption (day-first) when nothing decides it; both orders present is a `date_format_conflict` — ingestion spec §6
+- [M3] `_period` comes from the first date column (date-named headers preferred) at the job grain (month by default; day, week (ISO), quarter and year supported); the profile also reports each table's own data grain — ingestion spec §6
+- [M3] Unit-error rule: a value within ±0.15 decades of 10×, 100× or 1000× the column median is flagged only when the column is unimodal (at most two values, or 0.5% of rows, sit half a decade or more from the median), so real segments like wholesale vs retail orders are not flagged — ingestion spec §5
+- [M3] Entity links: confidence 1 for the canonical spelling, 0.99 for a different spelling with the same normalized name, otherwise the Jaro–Winkler score; similar names also need ≥ 50% token overlap and identical number-bearing tokens ("1kg" ≠ "250g"); the canonical name is the most frequent raw spelling; links below 0.97 become assumptions — ingestion spec §7
+- [M3] Root script `bun run profile <paths…> [--json] [--today]` is the M3 demo; `today` is injected so the future-date rule is deterministic — ROADMAP M3
+
 <!-- Format: - [M<N>] <decision> — <why> — <spec reference> -->
 
 ## Known gaps carried forward
@@ -100,5 +110,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [M2] Ingestion emits no progress events yet: the event bus and `packages/core/log` arrive with the pipeline in M7, and `ingest()` will report per-file progress through them — M7
 - [M2] Password-protected `.xlsx`/`.xls` map to `password_protected` by SheetJS error message, but there is no encrypted-workbook fixture (only the encrypted PDF is tested) — add one when a real encrypted file is available
 - [M2] Docling runs as a compose profile with a published port for local use; the spec's "no network" for the Docling container (internal-only network) is not configured yet — M10
+- [M3] Profile and ingest issue messages are developer-facing and contain numbers; the report's `QualityIssue.description` must be rendered without free numerals (placeholders/facts) when issues reach the report — M7/M9
+- [M3] Transposed tables whose period headers are month names without a year get no `_period` (the year is unknown) — revisit with a job-level year hint in M4
 - [M1] Sign-vs-wording consistency ("fell" with a negative value) is caught today only by fixture tests; the verifier should check it for model-written claims — M9
 - [M1] The HTML renderer was checked structurally (happy-dom clicks, offline scan) but not reviewed visually in a real browser — review the rendered `packages/report/out/report.coffee-roaster.html` at the M1 notify gate

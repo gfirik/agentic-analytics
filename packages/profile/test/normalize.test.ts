@@ -42,7 +42,14 @@ describe("normalizeTable", () => {
   it("coffee-roaster Monthly: month dates, money by header, percent by number format", async () => {
     const [, monthly, costs] = await tablesOf("evals/datasets/coffee-roaster-v1/files/sales-2026.xlsx");
     if (!monthly || !costs) throw new Error("no table");
-    expect(types(monthly)).toEqual({ month: "date", revenue: "currency", orders: "integer", wholesale: "integer", retail: "integer", refund_rate: "percent" });
+    expect(types(monthly)).toEqual({
+      month: "date",
+      revenue: "currency",
+      orders: "integer",
+      wholesale: "integer",
+      retail: "integer",
+      refund_rate: "percent",
+    });
     const n = normalizeTable(monthly).table;
     // March row: Revenue 44,100 and Refund rate 1.2% stored as the fraction 0.012
     expect(n.rows[2]?.values).toEqual(["2026-03-01", 44100, 1050, 15900, 28200, 0.012]);
@@ -88,7 +95,14 @@ describe("normalizeTable", () => {
         ["Beta", "900 сум"],
         ["Gamma", "$300"],
         ["Delta", "$40"],
-      ].map(([a, b], i) => ({ row: i + 2, is_total: false, cells: [{ v: a ?? "", t: "s" as const }, { v: b ?? "", t: "s" as const }] })),
+      ].map(([a, b], i) => ({
+        row: i + 2,
+        is_total: false,
+        cells: [
+          { v: a ?? "", t: "s" as const },
+          { v: b ?? "", t: "s" as const },
+        ],
+      })),
       transposed: false,
       notes: [],
     };
