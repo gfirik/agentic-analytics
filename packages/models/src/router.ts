@@ -92,6 +92,21 @@ export interface RouterOptions {
 /** What a call gets from the router for one route: the route and the hooks its transport reports to. */
 export interface RouteLease {
   readonly route: RouteModel;
+  /**
+   * True while this lease only probes the cache (every route is limited and no step of the call has been served):
+   * the transport serves a cached answer, and on a miss throws RouteBusyError instead of sending a request.
+   */
+  cacheOnly(): boolean;
+  /**
+   * How long the route stays limited (0 on a route with capacity). A probe that has served a cached step is committed
+   * to its route (tools may have run on that step): the transport waits this long before it sends, or stops if the
+   * wait is too long, instead of handing the call back to the router.
+   */
+  limitedFor(): number;
+  /** The longest the transport may wait for this route before it stops (the router's own cap). */
+  maxWait(): number;
+  /** Waits `ms` on the router's clock. */
+  pause(ms: number): Promise<void>;
   /** Feed response headers into the route's bucket. */
   observe(h: Headers): void;
   /**
@@ -138,7 +153,11 @@ export class Router {
    * next route of the same model; when all are limited it waits for the soonest, up to `maxWaitMs`, then stops
    * with RATE_LIMITED naming every route.
    */
-  async run<T>(routes: readonly RouteModel[], call: (lease: RouteLease) => Promise<T>): Promise<T> {
+  async run<T>(
+    routes: readonly RouteModel[],
+    call: (lease: RouteLease) => Promise<T>,
+    options: { readonly probeCache?: boolean } = {},
+  ): Promise<T> {
     // The waiting a call may do is bounded in total, not per wait: a provider that keeps answering 429 with a short
     // (or no) retry-after would otherwise keep the call looping for ever. The clock starts at the first limit hit.
     let deadline: number | undefined;
@@ -157,6 +176,23 @@ export class Router {
       if (deadline !== undefined && (now > deadline || attempt > MAX_ATTEMPTS_PER_ROUTE * routes.length)) throw stop(waits);
       if (!free.length) {
         const soonest = Math.min(...waits);
+        // A limited route still serves its cached answers: "cached calls are free" holds after a 429 too. Without
+        // this, one job that hit the daily limit failed every later job in the run, finished ones included (M13h).
+        // Only for a transport that honours the lease (providerFetch with a response cache). Every route is tried:
+        // the cache key includes the URL and model id, so an answer cached on a fallback is found there.
+        if (options.probeCache) {
+          // While the router is going to wait anyway, probe only routes it would wait for: a probe that serves a
+          // cached step commits the call to its route, and its next live step must be able to wait there.
+          const budget = Math.min(this.maxWait, deadline === undefined ? this.maxWait : deadline - now);
+          const willWait = soonest <= budget;
+          const probed = [...routes]
+            .filter((r) => !willWait || this.state(r).availableIn(now) <= budget)
+            .sort((a, b) => this.state(a).availableIn(now) - this.state(b).availableIn(now));
+          for (const r of probed) {
+            const probe = await this.probeCache(r, call);
+            if (probe.hit) return probe.value;
+          }
+        }
         deadline ??= now + this.maxWait;
         if (soonest > this.maxWait || now + soonest > deadline) throw stop(waits);
         await this.sleep(soonest + 50);
@@ -167,6 +203,10 @@ export class Router {
       let sent = false;
       const lease: RouteLease = {
         route,
+        cacheOnly: () => false,
+        limitedFor: () => 0,
+        maxWait: () => this.maxWait,
+        pause: (ms) => this.sleep(ms),
         observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
         shouldYield: (waitMs) => !sent && others() && waitMs > 0,
         started: () => {
@@ -190,6 +230,36 @@ export class Router {
         }
         throw err;
       }
+    }
+  }
+
+  /**
+   * Runs `call` on a limited route with a cache-only lease. Its value on a cache hit; no hit when the first step
+   * missed (nothing was sent and no tool ran). Once a step was served the lease is committed: a later miss waits on
+   * this route (see RouteLease.limitedFor) and any error is the call's own, so tools never run twice.
+   */
+  private async probeCache<T>(
+    route: RouteModel,
+    call: (lease: RouteLease) => Promise<T>,
+  ): Promise<{ hit: true; value: T } | { hit: false }> {
+    let committed = false;
+    const lease: RouteLease = {
+      route,
+      cacheOnly: () => !committed,
+      limitedFor: () => this.state(route).availableIn(this.now()),
+      maxWait: () => this.maxWait,
+      pause: (ms) => this.sleep(ms),
+      observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
+      shouldYield: () => false,
+      started: () => {
+        committed = true;
+      },
+    };
+    try {
+      return { hit: true, value: await call(lease) };
+    } catch (err) {
+      if (!committed && causeOf(err, RouteBusyError)) return { hit: false };
+      throw err;
     }
   }
 }

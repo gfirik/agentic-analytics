@@ -76,7 +76,7 @@ docker compose --profile docling up -d   # docling-serve on :5001
 | Workflow | Trigger | Steps |
 |---|---|---|
 | `ci.yml` | PR, push to main | install (`oven-sh/setup-bun`, Bun cache; Node 22 for the runtime) → biome → typecheck → unit tests → schema drift → `eval:smoke` (FakeModel) → injection suite |
-| `docs.yml` | push to main (from M12) | build Starlight → deploy GitHub Pages |
+| `docs.yml` | PR (build only); push to main and `workflow_dispatch` on main (build + deploy) | build Starlight → deploy GitHub Pages (skipped while the repo is private) |
 | `release.yml` | tag `v*` | build → test → Docker image → push to GHCR → GitHub Release with notes |
 
 CI never needs secrets or network models.
@@ -99,4 +99,4 @@ CI never needs secrets or network models.
 
 ## 7. Running several agents in parallel
 
-After M1 locks the contracts, M2, M5 and M6 can run in separate Claude Code sessions. Each one gets its own git worktree (`git worktree add ../aa-m5 -b m5/analysis`), so they never touch the same files. Each session reads AGENTS.md and only its milestone. Merge order follows ROADMAP dependencies.
+After M1 locks the contracts, M2, M5 and M6 can run in separate Claude Code sessions. Each one gets its own git worktree inside the repo at `.claude/worktrees/<name>` (`git worktree add .claude/worktrees/m5-analysis -b m5/analysis origin/main`), never as a sibling folder outside the repo, so they never touch the same files. Run one gate at a time on a machine, and never edit a worktree another agent is testing. After the branch merges, `git worktree remove .claude/worktrees/<name>` and `git worktree prune`. Each session reads AGENTS.md and only its milestone. Merge order follows ROADMAP dependencies.

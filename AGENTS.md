@@ -70,6 +70,7 @@ Do not add LangChain, LlamaIndex, LangGraph, NestJS, Prisma, any vector database
 ## 5. Git workflow
 
 - **Branches:** `m<milestone>/<short-task>`, for example `m3/profile-dates`.
+- **Worktrees:** always inside the repo at `.claude/worktrees/<name>` (`git worktree add .claude/worktrees/<name> -b <branch> origin/main`), never outside it. Remove the worktree and run `git worktree prune` once its branch merges.
 - **Commits:** Conventional Commits (`feat(ingest): detect multiple tables per sheet`). Small and focused. Each commit builds and passes tests.
 - **Before every push**, run `bun run check`: lint, typecheck, unit tests and the schema-drift check. It must pass.
 - **Pull requests:**

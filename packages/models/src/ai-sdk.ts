@@ -103,7 +103,9 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
   const router = deps.router ?? new Router();
   /** Runs one call on a route of the role's model, chosen by the router (same model, any of its providers). */
   const onRoute = <T>(role: Role, f: (lm: LanguageModel, route: RouteModel) => Promise<T>) =>
-    router.run(routesOf(config.models[role]), (lease) => f(languageModel(lease.route, config, deps, { lease, role }), lease.route));
+    router.run(routesOf(config.models[role]), (lease) => f(languageModel(lease.route, config, deps, { lease, role }), lease.route), {
+      probeCache: !!deps.cache,
+    });
   const usageOf = (u: { inputTokens?: number | undefined; outputTokens?: number | undefined } | undefined, latencyMs: number): Usage => ({
     inputTokens: u?.inputTokens ?? 0,
     outputTokens: u?.outputTokens ?? 0,
