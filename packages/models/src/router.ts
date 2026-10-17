@@ -92,6 +92,11 @@ export interface RouterOptions {
 /** What a call gets from the router for one route: the route and the hooks its transport reports to. */
 export interface RouteLease {
   readonly route: RouteModel;
+  /**
+   * 0 on a route with capacity. Above 0, every route is limited and this lease only probes the cache: the transport
+   * serves a cached answer and throws RouteBusyError(waitMs) instead of sending a request.
+   */
+  readonly waitMs: number;
   /** Feed response headers into the route's bucket. */
   observe(h: Headers): void;
   /**
@@ -138,7 +143,11 @@ export class Router {
    * next route of the same model; when all are limited it waits for the soonest, up to `maxWaitMs`, then stops
    * with RATE_LIMITED naming every route.
    */
-  async run<T>(routes: readonly RouteModel[], call: (lease: RouteLease) => Promise<T>): Promise<T> {
+  async run<T>(
+    routes: readonly RouteModel[],
+    call: (lease: RouteLease) => Promise<T>,
+    options: { readonly probeCache?: boolean } = {},
+  ): Promise<T> {
     // The waiting a call may do is bounded in total, not per wait: a provider that keeps answering 429 with a short
     // (or no) retry-after would otherwise keep the call looping for ever. The clock starts at the first limit hit.
     let deadline: number | undefined;
@@ -157,6 +166,13 @@ export class Router {
       if (deadline !== undefined && (now > deadline || attempt > MAX_ATTEMPTS_PER_ROUTE * routes.length)) throw stop(waits);
       if (!free.length) {
         const soonest = Math.min(...waits);
+        // A limited route still serves its cached answers: "cached calls are free" holds after a 429 too. Without
+        // this, one job that hit the daily limit failed every later job in the run, finished ones included (M13h).
+        // Only for a transport that honours the lease (providerFetch with a response cache).
+        if (options.probeCache) {
+          const probe = await this.probeCache(routes[waits.indexOf(soonest)] as RouteModel, soonest, call);
+          if (probe.hit) return probe.value;
+        }
         deadline ??= now + this.maxWait;
         if (soonest > this.maxWait || now + soonest > deadline) throw stop(waits);
         await this.sleep(soonest + 50);
@@ -167,6 +183,7 @@ export class Router {
       let sent = false;
       const lease: RouteLease = {
         route,
+        waitMs: 0,
         observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
         shouldYield: (waitMs) => !sent && others() && waitMs > 0,
         started: () => {
@@ -190,6 +207,27 @@ export class Router {
         }
         throw err;
       }
+    }
+  }
+
+  /** Runs `call` on a limited route with a cache-only lease: its value on a cache hit, else no hit (nothing was sent). */
+  private async probeCache<T>(
+    route: RouteModel,
+    waitMs: number,
+    call: (lease: RouteLease) => Promise<T>,
+  ): Promise<{ hit: true; value: T } | { hit: false }> {
+    const lease: RouteLease = {
+      route,
+      waitMs,
+      observe: () => {},
+      shouldYield: () => true,
+      started: () => {},
+    };
+    try {
+      return { hit: true, value: await call(lease) };
+    } catch (err) {
+      if (causeOf(err, RouteBusyError)) return { hit: false };
+      throw err;
     }
   }
 }

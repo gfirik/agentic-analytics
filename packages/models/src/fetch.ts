@@ -7,7 +7,7 @@
 // 4. With several routes for one model (router.ts), a 429 before the first request went out hands the call back to
 //    the router instead of waiting, and every response's x-ratelimit-* headers feed the route's bucket.
 // 5. Successful responses are cached by hash(URL, body) when a cache is given, and every call is reported with the
-//    provider and model that served it.
+//    provider and model that served it. A cached answer is served even while every route is rate-limited.
 // 3. Some free tiers also cap output tokens per minute and refuse a request whose possible output exceeds it
 //    (HTTP 413 "Request too large … output tokens per minute (OTPM): Limit 1000"). Waiting doesn't help; the request
 //    is retried once with `max_tokens` just under the limit.
@@ -146,6 +146,8 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         return new Response(hit, { status: 200, headers: { "content-type": "application/json" } });
       }
     }
+    // Every route is limited and this lease only probes the cache: a miss sends nothing.
+    if (o.lease && o.lease.waitMs > 0) throw new RouteBusyError(o.lease.waitMs);
     let netRetries = 0;
     for (let attempt = 0; ; attempt++) {
       // The timeout is per request, so the waits between attempts don't count against it.

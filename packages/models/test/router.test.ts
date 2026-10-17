@@ -152,6 +152,41 @@ describe("router", () => {
   });
 });
 
+describe("cache while every route is limited", () => {
+  it("serves a cached call even after a 429 blocked the route; an uncached one stops without a request", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+      maxWaitMs: 60_000,
+    });
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:qwen/qwen3.8-27b", GROQ_API_KEY: "g" };
+    const t = hosts({ "api.groq.com": [() => ok('{"reply":"cached"}'), () => limited("600")] });
+    const calls: CallRecord[] = [];
+    const client = createModelClient(resolveModelConfig(genv), {
+      env: genv,
+      fetch: t.f,
+      router,
+      cache: memoryCache(),
+      onCall: (c) => calls.push(c),
+    });
+    const ask = (prompt: string) => client.generateObject({ role: "planner", schema, system: "s", prompt });
+    await ask("finished yesterday");
+    // A new request hits the daily limit: the route is blocked for 600 s, longer than the router waits.
+    expect(((await ask("new").catch((e: unknown) => e)) as ModelError).code).toBe("RATE_LIMITED");
+    expect(t.seen).toHaveLength(2);
+    // The finished call is still free: it comes from the cache, with no request and no wait.
+    expect((await ask("finished yesterday")).object).toEqual({ reply: "cached" });
+    expect(calls.at(-1)?.cached).toBe(true);
+    // An uncached call still stops with RATE_LIMITED, and sends nothing while the route is blocked.
+    expect(((await ask("another new").catch((e: unknown) => e)) as ModelError).code).toBe("RATE_LIMITED");
+    expect(t.seen).toHaveLength(2);
+    expect(now).toBe(0);
+  });
+});
+
 describe("cache and the two kinds of call", () => {
   it("serves a repeated request from the cache, and says so in the call log", async () => {
     const t = hosts({ "api.groq.com": [() => ok('{"reply":"OK"}')] });
