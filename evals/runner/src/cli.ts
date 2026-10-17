@@ -92,7 +92,10 @@ export async function realEvalCommand(a: RealEvalArgs, d: EvalDeps): Promise<Rea
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
   const missing = missingRealData(a.answersDir, a.dataDir);
   if (missing.length)
-    throw new EvalRunError("NO_DATA", `real-data files missing for ${missing.join(", ")}; run \`bun run eval:real:fetch\` first`);
+    throw new EvalRunError(
+      "NO_DATA",
+      `real-data files missing for ${missing.join(", ")} in ${a.dataDir}; for the public datasets run \`bun run eval:real:fetch\` first`,
+    );
   const r = await runRealSuite({
     model: baseline ? () => baselineModel() : () => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model),
     modelName: a.model,

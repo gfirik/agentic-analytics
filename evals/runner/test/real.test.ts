@@ -1,6 +1,7 @@
 // The real-data tier (evals/real): scoring each kind of check against a hand-built report, the RESULTS.md section,
 // an end-to-end job on a small invoice-line file (grouped quality items, the partial last month left out), and,
 // when the public files have been fetched, a re-run that must reproduce the committed results.
+import { createHash } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +16,7 @@ import {
   missingRealData,
   type RealSuiteResult,
   realEvalCommand,
+  realResultsMarkdown,
   resultsPage,
   runRealSuite,
   scoreCheck,
@@ -232,7 +234,7 @@ const REAL = join(import.meta.dirname, "..", "..", "real");
 const fetched = missingRealData(join(REAL, "answers"), join(REAL, "data")).length === 0;
 
 describe("typed errors", () => {
-  it("an answer file for a dataset the manifest doesn't know is UNKNOWN_DATASET", async () => {
+  it("an answer file for a dataset the manifest doesn't know, with no title, is UNKNOWN_DATASET", async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-real-answers-"));
     try {
       writeFileSync(
@@ -257,6 +259,49 @@ describe("typed errors", () => {
         ),
       ).rejects.toMatchObject({ name: "EvalRunError", code: "NO_DATA" });
       expect(readdirSync(dir)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("your own data (aa eval --suite real --answers <dir> --data <dir>)", () => {
+  const EXAMPLES = join(import.meta.dirname, "..", "..", "..", "examples");
+
+  it("runs an answer file with a title on your file: checksum of the file read, results marked as your data", async () => {
+    const r = await runRealSuite({
+      model: () => baselineModel(),
+      modelName: "baseline",
+      embedder: hashEmbedder(),
+      dataDir: join(EXAMPLES, "coffee-roaster"),
+      answersDir: join(EXAMPLES, "my-evals"),
+    });
+    const [d] = r.datasets;
+    expect(d).toMatchObject({ dataset: "coffee-roaster", own: true, file: "sales-2026.xlsx", completed: true, publisher: "" });
+    expect(d?.title).toMatch(/^Coffee roaster sales/);
+    expect(d?.sha256).toBe(createHash("sha256").update(readFileSync(join(EXAMPLES, "coffee-roaster", "sales-2026.xlsx"))).digest("hex"));
+    expect(d?.checks.map((c) => [c.id, c.pass])).toEqual([
+      ["C1", true],
+      ["C2", true],
+      ["C3", true],
+      ["C4", true],
+      ["C5", true],
+      ["C6", true],
+    ]);
+    const md = realResultsMarkdown(r);
+    expect(md).toMatch(/^### baseline · your data · /);
+    expect(md).toContain("#### Coffee roaster sales, Jan–Jun 2026 (the example workbook) (your data)");
+  }, 120_000);
+
+  it("names the folder it looked in when a file is missing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-own-nodata-"));
+    try {
+      await expect(
+        realEvalCommand(
+          { model: "baseline", resultsDir: join(dir, "results"), dataDir: dir, answersDir: join(EXAMPLES, "my-evals") },
+          { embedder: hashEmbedder(), print: () => {} },
+        ),
+      ).rejects.toThrow(`coffee-roaster in ${dir}`);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

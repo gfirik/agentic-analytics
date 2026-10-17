@@ -64,6 +64,11 @@ export type RealCheck = z.infer<typeof Check>;
 
 export const RealAnswers = z.object({
   dataset: z.string(),
+  /**
+   * Your own data's name (`aa eval --suite real --answers <dir>`): an answer file whose dataset is not one of the
+   * public datasets (REAL_DATASETS) must name it, so a typo in a public id still fails as UNKNOWN_DATASET.
+   */
+  title: z.string().min(1).optional(),
   /** The derived file the engine reads (evals/real/data/<file>). */
   file: z.string(),
   options: z.object({

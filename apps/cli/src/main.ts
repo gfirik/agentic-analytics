@@ -374,16 +374,29 @@ const evalCmd = defineCommand({
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
-    "results-dir": { type: "string", description: "Where results files and RESULTS.md go (default evals/results)" },
+    "results-dir": {
+      type: "string",
+      description: "Where results files and RESULTS.md go (default evals/results; ./eval-results with --answers)",
+    },
+    answers: {
+      type: "string",
+      description: "With --suite real: a folder of your own answer files (<dataset>.yaml) instead of evals/real/answers",
+    },
+    data: {
+      type: "string",
+      description: "With --suite real: the folder holding the files the answer files name (default: the --answers folder)",
+    },
   },
   async run({ args }) {
     const model = args.model ?? "baseline";
+    if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const where = resultsLocation(
       args["results-dir"],
       process.env,
       process.cwd(),
       fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+      Boolean(args.answers),
     );
     const evalRouter = new Router();
     const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
@@ -412,8 +425,8 @@ const evalCmd = defineCommand({
           model,
           resultsDir: where.dir,
           ...(where.page ? { resultsPage: where.page } : {}),
-          dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
-          answersDir: fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
+          dataDir: args.data ?? args.answers ?? fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
+          answersDir: args.answers ?? fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
           ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
         },
         deps,

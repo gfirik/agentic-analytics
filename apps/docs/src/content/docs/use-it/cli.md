@@ -15,7 +15,8 @@ The binary is `agentic-analytics`, alias `aa` (`bun run aa …` from a clone).
 | `aa serve [--port 8080] [--host 127.0.0.1] [--allow-no-auth]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. A non-loopback `--host` needs `API_TOKEN` (or `--allow-no-auth` behind a proxy or a localhost-only port mapping). `AA_MCP_ROOTS` lists the folders MCP over HTTP may read. |
 | `aa mcp` | The MCP server on stdio. |
 | `aa jobs ls \| rm <id> \| resume <id>` | Manage jobs in `AA_JOBS_DIR` (default `data/jobs`). |
-| `aa eval [--suite smoke\|full] [--model …]` | The eval suite; updates `evals/RESULTS.md`. |
+| `aa eval [--suite smoke\|full\|real] [--model …]` | The eval suite; updates `evals/RESULTS.md`. |
+| `aa eval --suite real --answers <dir> [--data <dir>]` | The real-data checks on your own files ([tutorial](../../learn/tutorials/evals-on-your-data/)); results in `./eval-results`. |
 | `aa doctor` | What this machine has, with a fix for each missing piece. |
 | `aa metrics <paths…>` | Draft and review metric definitions only; `--save` writes them for reuse. |
 | `aa run <paths…> --dir <folder>` / `--resume <folder>` | A job in an explicit folder, for scripts. |

@@ -9,17 +9,19 @@ export const isStandalone = (env: Env): boolean => env.AA_STANDALONE === "1";
 
 /**
  * Where `aa eval` writes results, and its RESULTS.md page: the flag's folder (page inside it), else evals/results
- * with evals/RESULTS.md in a source checkout, else ./eval-results (page inside it) in the binary. The page never lands
- * in a folder the user didn't name.
+ * with evals/RESULTS.md in a source checkout, else ./eval-results (page inside it) in the binary or when the run is on
+ * your own answer files (`--answers`), so your data's results never land in the project's published results. The page
+ * never lands in a folder the user didn't name.
  */
 export function resultsLocation(
   arg: string | undefined,
   env: Env,
   cwd: string,
   checkoutDefault: string,
+  ownAnswers = false,
 ): { readonly dir: string; readonly page?: string } {
   if (arg) return { dir: arg, page: join(arg, "RESULTS.md") };
-  if (isStandalone(env)) {
+  if (isStandalone(env) || ownAnswers) {
     const dir = join(cwd, "eval-results");
     return { dir, page: join(dir, "RESULTS.md") };
   }
