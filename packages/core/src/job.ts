@@ -11,7 +11,6 @@ import {
   buildEvidence,
   buildFactSheet,
   buildTools,
-  data,
   decide,
   type ExplainResult,
   explainFindings,
@@ -19,6 +18,7 @@ import {
   privateTerms,
   quarantinedSources,
   readExtracts,
+  SMALL_MODEL_INPUT_BUDGET,
   screen,
   screenDocuments,
   screenTables,
@@ -65,8 +65,11 @@ export interface JobOptions {
    * `confirmJobMetrics` stores the confirmed definitions (metric-layer §3, interfaces §1).
    */
   readonly autoConfirm?: boolean;
-  /** Tool calls per job and per finding (default 25 and 8; halved in small-model mode). */
-  readonly budget?: { readonly total?: number; readonly perFinding?: number };
+  /**
+   * Tool calls per job and per finding (default 25 and 8; halved in small-model mode), and small-model mode's input
+   * budget for the DECIDE request in estimated tokens (default SMALL_MODEL_INPUT_BUDGET, 6,500; agent-and-verifier §8.1).
+   */
+  readonly budget?: { readonly total?: number; readonly perFinding?: number; readonly inputTokens?: number };
 }
 
 export interface JobDeps {
@@ -493,12 +496,20 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             model: deps.model,
             objective: objectiveText(opts),
             findings: ex.findings,
-            factsheet: data(sheet),
+            factsheet: sheet,
             facts: factMap,
             extracts: await readExtracts(ws),
             periodEnd: m.periodEnd,
             maxRecommendations: small ? 2 : 5,
+            // Small-model mode fits the whole request into free tiers' input-token limits (agent-and-verifier §8.1).
+            ...(small ? { maxInputTokens: opts.budget?.inputTokens ?? SMALL_MODEL_INPUT_BUDGET } : {}),
           });
+          if (d.request?.steps.length)
+            ctx.log.info("decide request trimmed to the input budget", {
+              estimate: d.request.estimate,
+              untrimmed: d.request.untrimmed,
+              steps: d.request.steps,
+            });
           const headline = await writeHeadline(deps.model, ex.findings, small);
           const report = await buildDraft(ws, {
             jobId: id,

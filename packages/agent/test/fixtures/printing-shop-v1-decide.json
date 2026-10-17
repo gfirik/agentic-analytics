@@ -1,0 +1,908 @@
+{
+  "_source": "The DECIDE request of printing_shop-v1 in the 2026-10-17 small-model eval (planner openai-compatible:groq:qwen/qwen3.8-27b), replayed offline from the eval response cache. Groq refused it: \"Limit 7000, Requested 7804\" input tokens.",
+  "provider_input_tokens": 7804,
+  "objective": "Grow profit: find what changed, why, and what to do next.",
+  "period_end": "2026-06-30",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "trend_break",
+      "title": "Business revenue dropped after a price increase",
+      "claims": [
+        "Revenue – Business Channel went from {{N9}} in 2026-03 to {{N11}} in 2026-04 (a change of {{N16}}, {{N17}}). It stood at {{N13}} in 2026-06.",
+        "By customer, “Brightline Agency” accounted for {{N406}} of the change ({{N401}}).",
+        "By product, the price effect was {{N421}}, the volume effect {{N419}} and the mix effect {{N420}}.",
+        "“email-brightline-agency.eml” says: “After the price increase announced on 20 March 2026 we are pausing our standing order while we compare suppliers.”",
+        "“price-notice.pdf” says: “Business prices increase 10% from 20 March 2026.”"
+      ]
+    },
+    {
+      "id": "F2",
+      "type": "trend_break",
+      "title": "Revenue dropped as a client paused orders over a price increase",
+      "claims": [
+        "Total Revenue went from {{N27}} in 2026-03 to {{N26}} in 2026-04 (a change of {{N64}}, {{N65}}). It stood at {{N38}} in 2026-06.",
+        "By channel, “business” accounted for {{N330}} of the change ({{N327}}).",
+        "By product, the price effect was {{N351}}, the volume effect {{N349}} and the mix effect {{N350}}.",
+        "“price-notice.pdf” says: “Business prices increase 10% from 20 March 2026.”",
+        "“email-brightline-agency.eml” says: “After the price increase announced on 20 March 2026 we are pausing our standing order while we compare suppliers.”"
+      ]
+    },
+    {
+      "id": "F3",
+      "type": "trend_break",
+      "title": "Business channel sales dropped sharply in April",
+      "claims": [
+        "Total Sales (incl. refunds) went from {{N41}} in 2026-03 to {{N40}} in 2026-04 (a change of {{N57}}, {{N58}}). It stood at {{N52}} in 2026-06.",
+        "By status, “paid” accounted for {{N399}} of the change ({{N394}}).",
+        "By product, the price effect was {{N390}}, the volume effect {{N388}} and the mix effect {{N389}}."
+      ]
+    }
+  ],
+  "factsheet": {
+    "objective": "Grow profit: find what changed, why, and what to do next.",
+    "period": {
+      "from": "2025-07",
+      "to": "2026-06",
+      "grain": "month"
+    },
+    "metrics": [
+      {
+        "id": "total_revenue",
+        "label": "Total Revenue",
+        "unit": "currency",
+        "currency": "USD",
+        "assumed": true
+      },
+      {
+        "id": "total_sales",
+        "label": "Total Sales (incl. refunds)",
+        "unit": "currency",
+        "currency": "USD",
+        "assumed": true
+      },
+      {
+        "id": "total_orders",
+        "label": "Number of Orders",
+        "unit": "count",
+        "assumed": true
+      },
+      {
+        "id": "total_units",
+        "label": "Units Sold",
+        "unit": "count",
+        "assumed": true
+      },
+      {
+        "id": "refund_amount",
+        "label": "Refund Amount",
+        "unit": "currency",
+        "currency": "USD",
+        "assumed": true
+      },
+      {
+        "id": "customer_count",
+        "label": "Number of Customers",
+        "unit": "count",
+        "assumed": true
+      },
+      {
+        "id": "revenue_walk_in",
+        "label": "Revenue – Walk‑In Channel",
+        "unit": "currency",
+        "currency": "USD",
+        "assumed": true
+      },
+      {
+        "id": "revenue_business",
+        "label": "Revenue – Business Channel",
+        "unit": "currency",
+        "currency": "USD",
+        "assumed": true
+      },
+      {
+        "id": "refund_rate",
+        "label": "Refund Rate",
+        "unit": "percent",
+        "assumed": true
+      },
+      {
+        "id": "channel_share_walk_in",
+        "label": "Walk‑In Channel Share",
+        "unit": "percent",
+        "assumed": true
+      },
+      {
+        "id": "channel_share_business",
+        "label": "Business Channel Share",
+        "unit": "percent",
+        "assumed": true
+      }
+    ],
+    "insights": [
+      {
+        "id": "I1",
+        "template": "trend_break.v1",
+        "metric": "revenue_business",
+        "period": "2026-04",
+        "confidence": "high",
+        "score": 0.2367,
+        "facts": {
+          "before": {
+            "id": "N9",
+            "value": 21438.06,
+            "unit": "USD",
+            "label": "revenue_business_2026-03"
+          },
+          "after": {
+            "id": "N11",
+            "value": 12109.07,
+            "unit": "USD",
+            "label": "revenue_business_2026-04"
+          },
+          "latest": {
+            "id": "N13",
+            "value": 11766.59,
+            "unit": "USD",
+            "label": "revenue_business_2026-06"
+          },
+          "change": {
+            "id": "N16",
+            "value": -9328.99,
+            "unit": "USD",
+            "label": "I1 trend_break.v1 revenue_business 2026-04:change"
+          },
+          "change_pct": {
+            "id": "N17",
+            "value": -43.516,
+            "unit": "percent",
+            "label": "I1 trend_break.v1 revenue_business 2026-04:change_pct"
+          },
+          "shift": {
+            "id": "N15",
+            "value": -9187.46,
+            "unit": "USD",
+            "label": "I1 trend_break.v1 revenue_business 2026-04:shift"
+          },
+          "change_since": {
+            "id": "N18",
+            "value": -9671.47,
+            "unit": "USD",
+            "label": "I1 trend_break.v1 revenue_business 2026-04:change_since"
+          },
+          "change_since_pct": {
+            "id": "N19",
+            "value": -45.1136,
+            "unit": "percent",
+            "label": "I1 trend_break.v1 revenue_business 2026-04:change_since_pct"
+          }
+        }
+      },
+      {
+        "id": "I7",
+        "template": "trend_break.v1",
+        "metric": "total_sales",
+        "period": "2026-04",
+        "confidence": "high",
+        "score": 0.2322,
+        "facts": {
+          "before": {
+            "id": "N41",
+            "value": 35925.04,
+            "unit": "USD",
+            "label": "total_sales_2026-03"
+          },
+          "after": {
+            "id": "N40",
+            "value": 26420.32,
+            "unit": "USD",
+            "label": "total_sales_2026-04"
+          },
+          "latest": {
+            "id": "N52",
+            "value": 26437.97,
+            "unit": "USD",
+            "label": "total_sales_2026-06"
+          },
+          "change": {
+            "id": "N57",
+            "value": -9504.72,
+            "unit": "USD",
+            "label": "I7 trend_break.v1 total_sales 2026-04:change"
+          },
+          "change_pct": {
+            "id": "N58",
+            "value": -26.4571,
+            "unit": "percent",
+            "label": "I7 trend_break.v1 total_sales 2026-04:change_pct"
+          },
+          "shift": {
+            "id": "N56",
+            "value": -8988.12,
+            "unit": "USD",
+            "label": "I7 trend_break.v1 total_sales 2026-04:shift"
+          },
+          "change_since": {
+            "id": "N59",
+            "value": -9487.07,
+            "unit": "USD",
+            "label": "I7 trend_break.v1 total_sales 2026-04:change_since"
+          },
+          "change_since_pct": {
+            "id": "N60",
+            "value": -26.408,
+            "unit": "percent",
+            "label": "I7 trend_break.v1 total_sales 2026-04:change_since_pct"
+          }
+        }
+      },
+      {
+        "id": "I8",
+        "template": "trend_break.v1",
+        "metric": "total_revenue",
+        "period": "2026-04",
+        "confidence": "high",
+        "score": 0.2305,
+        "facts": {
+          "before": {
+            "id": "N27",
+            "value": 35681.66,
+            "unit": "USD",
+            "label": "total_revenue_2026-03"
+          },
+          "after": {
+            "id": "N26",
+            "value": 26151.59,
+            "unit": "USD",
+            "label": "total_revenue_2026-04"
+          },
+          "latest": {
+            "id": "N38",
+            "value": 26263.96,
+            "unit": "USD",
+            "label": "total_revenue_2026-06"
+          },
+          "change": {
+            "id": "N64",
+            "value": -9530.07,
+            "unit": "USD",
+            "label": "I8 trend_break.v1 total_revenue 2026-04:change"
+          },
+          "change_pct": {
+            "id": "N65",
+            "value": -26.7086,
+            "unit": "percent",
+            "label": "I8 trend_break.v1 total_revenue 2026-04:change_pct"
+          },
+          "shift": {
+            "id": "N63",
+            "value": -9036.65,
+            "unit": "USD",
+            "label": "I8 trend_break.v1 total_revenue 2026-04:shift"
+          },
+          "change_since": {
+            "id": "N66",
+            "value": -9417.7,
+            "unit": "USD",
+            "label": "I8 trend_break.v1 total_revenue 2026-04:change_since"
+          },
+          "change_since_pct": {
+            "id": "N67",
+            "value": -26.3937,
+            "unit": "percent",
+            "label": "I8 trend_break.v1 total_revenue 2026-04:change_since_pct"
+          }
+        }
+      }
+    ],
+    "decompositions": [
+      {
+        "id": "X1",
+        "insight": "I8",
+        "method": "contribution.v1",
+        "dimension": "customer",
+        "facts": {
+          "change:Brightline Agency": {
+            "id": "N314",
+            "value": -9647.13,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:Brightline Agency"
+          },
+          "share:Brightline Agency": {
+            "id": "N321",
+            "value": 101.23,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:share:Brightline Agency"
+          },
+          "change:Counter": {
+            "id": "N315",
+            "value": -132.38,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:Counter"
+          },
+          "share:Counter": {
+            "id": "N322",
+            "value": 1.38908,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:share:Counter"
+          },
+          "change:City Theatre": {
+            "id": "N316",
+            "value": 121.47,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:City Theatre"
+          },
+          "share:City Theatre": {
+            "id": "N323",
+            "value": -1.2746,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:share:City Theatre"
+          },
+          "change:Northgate School": {
+            "id": "N317",
+            "value": 115.69,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:Northgate School"
+          },
+          "share:Northgate School": {
+            "id": "N324",
+            "value": -1.21395,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:share:Northgate School"
+          },
+          "change:Pine Dental": {
+            "id": "N318",
+            "value": 80.98,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:Pine Dental"
+          },
+          "share:Pine Dental": {
+            "id": "N325",
+            "value": -0.849731,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:share:Pine Dental"
+          },
+          "change:Online orders": {
+            "id": "N319",
+            "value": -68.7,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:Online orders"
+          },
+          "share:Online orders": {
+            "id": "N326",
+            "value": 0.720876,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:share:Online orders"
+          },
+          "total": {
+            "id": "N320",
+            "value": -9530.07,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by customer:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X2",
+        "insight": "I8",
+        "method": "contribution.v1",
+        "dimension": "channel",
+        "facts": {
+          "change:business": {
+            "id": "N327",
+            "value": -9328.99,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by channel:delta:business"
+          },
+          "share:business": {
+            "id": "N330",
+            "value": 97.89,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by channel:share:business"
+          },
+          "change:walk-in": {
+            "id": "N328",
+            "value": -201.08,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by channel:delta:walk-in"
+          },
+          "share:walk-in": {
+            "id": "N331",
+            "value": 2.10995,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by channel:share:walk-in"
+          },
+          "total": {
+            "id": "N329",
+            "value": -9530.07,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by channel:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X3",
+        "insight": "I8",
+        "method": "contribution.v1",
+        "dimension": "product",
+        "facts": {
+          "change:Brochures": {
+            "id": "N332",
+            "value": -6354.73,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by product:delta:Brochures"
+          },
+          "share:Brochures": {
+            "id": "N337",
+            "value": 66.6808,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by product:share:Brochures"
+          },
+          "change:Business cards": {
+            "id": "N333",
+            "value": -2974.26,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by product:delta:Business cards"
+          },
+          "share:Business cards": {
+            "id": "N338",
+            "value": 31.2092,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by product:share:Business cards"
+          },
+          "change:Flyers A5": {
+            "id": "N334",
+            "value": -292.79,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by product:delta:Flyers A5"
+          },
+          "share:Flyers A5": {
+            "id": "N339",
+            "value": 3.07228,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by product:share:Flyers A5"
+          },
+          "change:Posters A2": {
+            "id": "N335",
+            "value": 91.71,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by product:delta:Posters A2"
+          },
+          "share:Posters A2": {
+            "id": "N340",
+            "value": -0.962322,
+            "unit": "percent",
+            "label": "contribution.v1 total_revenue 2026-04 by product:share:Posters A2"
+          },
+          "total": {
+            "id": "N336",
+            "value": -9530.07,
+            "unit": "USD",
+            "label": "contribution.v1 total_revenue 2026-04 by product:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X4",
+        "insight": "I8",
+        "method": "pvm.v1",
+        "dimension": "product",
+        "facts": {
+          "volume": {
+            "id": "N349",
+            "value": -2244.13,
+            "unit": "USD",
+            "label": "pvm.v1 total_revenue 2026-04 by product:pvm:volume"
+          },
+          "mix": {
+            "id": "N350",
+            "value": -3153.03,
+            "unit": "USD",
+            "label": "pvm.v1 total_revenue 2026-04 by product:pvm:mix"
+          },
+          "price": {
+            "id": "N351",
+            "value": -4132.91,
+            "unit": "USD",
+            "label": "pvm.v1 total_revenue 2026-04 by product:pvm:price"
+          },
+          "total": {
+            "id": "N352",
+            "value": -9530.07,
+            "unit": "USD",
+            "label": "pvm.v1 total_revenue 2026-04 by product:pvm:total"
+          }
+        }
+      },
+      {
+        "id": "X5",
+        "insight": "I7",
+        "method": "contribution.v1",
+        "dimension": "customer",
+        "facts": {
+          "change:Brightline Agency": {
+            "id": "N353",
+            "value": -9647.13,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:Brightline Agency"
+          },
+          "share:Brightline Agency": {
+            "id": "N360",
+            "value": 101.5,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by customer:share:Brightline Agency"
+          },
+          "change:City Theatre": {
+            "id": "N354",
+            "value": 121.47,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:City Theatre"
+          },
+          "share:City Theatre": {
+            "id": "N361",
+            "value": -1.278,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by customer:share:City Theatre"
+          },
+          "change:Northgate School": {
+            "id": "N355",
+            "value": 115.69,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:Northgate School"
+          },
+          "share:Northgate School": {
+            "id": "N362",
+            "value": -1.21718,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by customer:share:Northgate School"
+          },
+          "change:Counter": {
+            "id": "N356",
+            "value": -105.44,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:Counter"
+          },
+          "share:Counter": {
+            "id": "N363",
+            "value": 1.10934,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by customer:share:Counter"
+          },
+          "change:Pine Dental": {
+            "id": "N357",
+            "value": 80.98,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:Pine Dental"
+          },
+          "share:Pine Dental": {
+            "id": "N364",
+            "value": -0.851998,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by customer:share:Pine Dental"
+          },
+          "change:Online orders": {
+            "id": "N358",
+            "value": -70.29,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:Online orders"
+          },
+          "share:Online orders": {
+            "id": "N365",
+            "value": 0.739527,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by customer:share:Online orders"
+          },
+          "total": {
+            "id": "N359",
+            "value": -9504.72,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by customer:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X6",
+        "insight": "I7",
+        "method": "contribution.v1",
+        "dimension": "channel",
+        "facts": {
+          "change:business": {
+            "id": "N366",
+            "value": -9328.99,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by channel:delta:business"
+          },
+          "share:business": {
+            "id": "N369",
+            "value": 98.1511,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by channel:share:business"
+          },
+          "change:walk-in": {
+            "id": "N367",
+            "value": -175.73,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by channel:delta:walk-in"
+          },
+          "share:walk-in": {
+            "id": "N370",
+            "value": 1.84887,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by channel:share:walk-in"
+          },
+          "total": {
+            "id": "N368",
+            "value": -9504.72,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by channel:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X7",
+        "insight": "I7",
+        "method": "contribution.v1",
+        "dimension": "product",
+        "facts": {
+          "change:Brochures": {
+            "id": "N371",
+            "value": -6354.73,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by product:delta:Brochures"
+          },
+          "share:Brochures": {
+            "id": "N376",
+            "value": 66.8587,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by product:share:Brochures"
+          },
+          "change:Business cards": {
+            "id": "N372",
+            "value": -2974.26,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by product:delta:Business cards"
+          },
+          "share:Business cards": {
+            "id": "N377",
+            "value": 31.2925,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by product:share:Business cards"
+          },
+          "change:Flyers A5": {
+            "id": "N373",
+            "value": -427.31,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by product:delta:Flyers A5"
+          },
+          "share:Flyers A5": {
+            "id": "N378",
+            "value": 4.49577,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by product:share:Flyers A5"
+          },
+          "change:Posters A2": {
+            "id": "N374",
+            "value": 251.58,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by product:delta:Posters A2"
+          },
+          "share:Posters A2": {
+            "id": "N379",
+            "value": -2.6469,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by product:share:Posters A2"
+          },
+          "total": {
+            "id": "N375",
+            "value": -9504.72,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by product:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X8",
+        "insight": "I7",
+        "method": "pvm.v1",
+        "dimension": "product",
+        "facts": {
+          "volume": {
+            "id": "N388",
+            "value": -2184.03,
+            "unit": "USD",
+            "label": "pvm.v1 total_sales 2026-04 by product:pvm:volume"
+          },
+          "mix": {
+            "id": "N389",
+            "value": -3191.57,
+            "unit": "USD",
+            "label": "pvm.v1 total_sales 2026-04 by product:pvm:mix"
+          },
+          "price": {
+            "id": "N390",
+            "value": -4129.12,
+            "unit": "USD",
+            "label": "pvm.v1 total_sales 2026-04 by product:pvm:price"
+          },
+          "total": {
+            "id": "N391",
+            "value": -9504.72,
+            "unit": "USD",
+            "label": "pvm.v1 total_sales 2026-04 by product:pvm:total"
+          }
+        }
+      },
+      {
+        "id": "X9",
+        "insight": "I7",
+        "method": "contribution.v1",
+        "dimension": "status",
+        "facts": {
+          "change:paid": {
+            "id": "N394",
+            "value": -9530.07,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by status:delta:paid"
+          },
+          "share:paid": {
+            "id": "N399",
+            "value": 100.27,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by status:share:paid"
+          },
+          "change:refunded": {
+            "id": "N397",
+            "value": 25.35,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by status:delta:refunded"
+          },
+          "share:refunded": {
+            "id": "N400",
+            "value": -0.26671,
+            "unit": "percent",
+            "label": "contribution.v1 total_sales 2026-04 by status:share:refunded"
+          },
+          "total": {
+            "id": "N398",
+            "value": -9504.72,
+            "unit": "USD",
+            "label": "contribution.v1 total_sales 2026-04 by status:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X10",
+        "insight": "I1",
+        "method": "contribution.v1",
+        "dimension": "customer",
+        "facts": {
+          "change:Brightline Agency": {
+            "id": "N401",
+            "value": -9647.13,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:delta:Brightline Agency"
+          },
+          "share:Brightline Agency": {
+            "id": "N406",
+            "value": 103.41,
+            "unit": "percent",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:share:Brightline Agency"
+          },
+          "change:City Theatre": {
+            "id": "N402",
+            "value": 121.47,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:delta:City Theatre"
+          },
+          "share:City Theatre": {
+            "id": "N407",
+            "value": -1.30207,
+            "unit": "percent",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:share:City Theatre"
+          },
+          "change:Northgate School": {
+            "id": "N403",
+            "value": 115.69,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:delta:Northgate School"
+          },
+          "share:Northgate School": {
+            "id": "N408",
+            "value": -1.24011,
+            "unit": "percent",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:share:Northgate School"
+          },
+          "change:Pine Dental": {
+            "id": "N404",
+            "value": 80.98,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:delta:Pine Dental"
+          },
+          "share:Pine Dental": {
+            "id": "N409",
+            "value": -0.868047,
+            "unit": "percent",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:share:Pine Dental"
+          },
+          "total": {
+            "id": "N405",
+            "value": -9328.99,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by customer:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X11",
+        "insight": "I1",
+        "method": "contribution.v1",
+        "dimension": "product",
+        "facts": {
+          "change:Brochures": {
+            "id": "N410",
+            "value": -6354.73,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by product:delta:Brochures"
+          },
+          "share:Brochures": {
+            "id": "N413",
+            "value": 68.1181,
+            "unit": "percent",
+            "label": "contribution.v1 revenue_business 2026-04 by product:share:Brochures"
+          },
+          "change:Business cards": {
+            "id": "N411",
+            "value": -2974.26,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by product:delta:Business cards"
+          },
+          "share:Business cards": {
+            "id": "N414",
+            "value": 31.8819,
+            "unit": "percent",
+            "label": "contribution.v1 revenue_business 2026-04 by product:share:Business cards"
+          },
+          "total": {
+            "id": "N412",
+            "value": -9328.99,
+            "unit": "USD",
+            "label": "contribution.v1 revenue_business 2026-04 by product:delta:total"
+          }
+        }
+      },
+      {
+        "id": "X12",
+        "insight": "I1",
+        "method": "pvm.v1",
+        "dimension": "product",
+        "facts": {
+          "volume": {
+            "id": "N419",
+            "value": -5014.75,
+            "unit": "USD",
+            "label": "pvm.v1 revenue_business 2026-04 by product:pvm:volume"
+          },
+          "mix": {
+            "id": "N420",
+            "value": -151.09,
+            "unit": "USD",
+            "label": "pvm.v1 revenue_business 2026-04 by product:pvm:mix"
+          },
+          "price": {
+            "id": "N421",
+            "value": -4163.15,
+            "unit": "USD",
+            "label": "pvm.v1 revenue_business 2026-04 by product:pvm:price"
+          },
+          "total": {
+            "id": "N422",
+            "value": -9328.99,
+            "unit": "USD",
+            "label": "pvm.v1 revenue_business 2026-04 by product:pvm:total"
+          }
+        }
+      }
+    ],
+    "quality": []
+  }
+}

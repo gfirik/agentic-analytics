@@ -3,7 +3,9 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DecideOutput } from "@agentic-analytics/agent";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
+import { estimateObjectRequest } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { checkReportIntegrity, findFreeNumerals, placeholders, type Report, validateReport } from "@agentic-analytics/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -138,6 +140,33 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     // Each finding's title fits its own metric (the hotel story only on revenue findings).
     for (const f of r.report.findings) if (/retail/i.test(f.claims[0]?.text ?? "")) expect(f.title).not.toMatch(/hotel/i);
     expect(checkReportIntegrity(r.report)).toEqual([]);
+  }, 180_000);
+
+  it("small-model mode: a DECIDE request over the input budget is trimmed to fit, and its recommendations still verify (§8.1)", async () => {
+    // The coffee fixture's small-model DECIDE request is about 5,700 estimated tokens; 3,500 takes most trimming steps.
+    const budget = 3500;
+    const run = async (inputTokens?: number) => {
+      const m = coffeePlanner({ small: true });
+      const r = await runJob(
+        { dir: tempDir(), files, options: { ...options, smallModel: true, ...(inputTokens ? { budget: { inputTokens } } : {}) } },
+        { model: m, embedder: hashEmbedder() },
+      );
+      const call = m.calls.find((c) => c.kind === "object" && c.prompt === "Propose the candidate actions.");
+      return { r, size: estimateObjectRequest({ system: call?.system ?? "", prompt: call?.prompt ?? "", schema: DecideOutput }) };
+    };
+    const full = await run();
+    const trimmed = await run(budget);
+    expect(full.size).toBeGreaterThan(budget);
+    expect(trimmed.size).toBeLessThanOrEqual(budget);
+    // VERIFY passed (runJob only returns a verified report) and the recommendations survived it.
+    expect(trimmed.r.report.recommendations.length).toBeGreaterThan(0);
+    expect(trimmed.r.report.recommendations.map((x) => x.action)).toEqual(full.r.report.recommendations.map((x) => x.action));
+    expect(checkReportIntegrity(trimmed.r.report)).toEqual([]);
+    expect(trimmed.r.report.verification.numbers_mismatched).toBe(0);
+    // Every recommendation cites facts that exist in the report (nothing the trimmed sheet left out went missing).
+    const ids = new Set(trimmed.r.report.facts.map((f) => f.id));
+    for (const rec of trimmed.r.report.recommendations)
+      for (const id of [rec.impact.low, rec.impact.high, rec.check.threshold, ...rec.impact.inputs]) expect(ids.has(id), id).toBe(true);
   }, 180_000);
 
   it("report.json carries evidence for what it cites: the cited table rows and the passage around each quote", () => {

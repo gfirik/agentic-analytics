@@ -8,8 +8,10 @@ import type { ModelClient } from "@agentic-analytics/models";
 import { type Fact, type Finding, findFreeNumerals, type MetricDef, placeholders, type Recommendation } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
+import { type BudgetedRequest, type DecideFinding, fitToBudget } from "./budget.ts";
 import type { Dropped } from "./explain.ts";
 import type { Extract } from "./extractor.ts";
+import type { FactSheet } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -67,40 +69,80 @@ export interface DecideInput {
   readonly model: ModelClient;
   readonly objective: string;
   readonly findings: readonly Finding[];
-  readonly factsheet: string;
+  readonly factsheet: FactSheet;
   readonly facts: () => Promise<Map<string, Fact>>;
   readonly extracts: ReadonlyMap<string, Extract>;
   /** Last day covered by the data; a check must be dated after it. */
   readonly periodEnd: string;
   /** Keep at most this many recommendations (5, or 2 in small-model mode). */
   readonly maxRecommendations: number;
+  /** Input budget in estimated tokens (SMALL_MODEL_INPUT_BUDGET in small-model mode, §8.1); none by default. */
+  readonly maxInputTokens?: number;
+}
+
+/** What DECIDE sends, the request's estimated size before and after trimming, and the trimming steps applied. */
+export type DecideRequest = BudgetedRequest;
+
+/**
+ * The DECIDE request (§6), fitted to `maxInputTokens` by trimming the fact sheet and findings (§8.1). Without a
+ * budget it is the full request, byte for byte what DECIDE sent before budgets existed.
+ */
+export function decideRequest(input: {
+  readonly objective: string;
+  readonly findings: readonly DecideFinding[];
+  readonly factsheet: FactSheet;
+  readonly periodEnd: string;
+  readonly maxInputTokens?: number;
+}): DecideRequest {
+  return fitToBudget(
+    (sheet, findings) => ({
+      schema: DecideOutput,
+      system: renderPrompt("decide", {
+        objective: input.objective,
+        findings: data(findings),
+        factsheet: data(sheet),
+        period_end: input.periodEnd,
+      }),
+      prompt: "Propose the candidate actions.",
+    }),
+    input.factsheet,
+    input.findings,
+    input.maxInputTokens,
+  );
 }
 
 const CONF = { high: 1, medium: 0.6, low: 0.3 } as const;
 const EFFORT = { low: 1, medium: 1.5, high: 2 } as const;
 
-export async function decide(input: DecideInput): Promise<{ recommendations: Recommendation[]; dropped: Dropped[] }> {
+export async function decide(
+  input: DecideInput,
+): Promise<{ recommendations: Recommendation[]; dropped: Dropped[]; request?: Pick<DecideRequest, "estimate" | "untrimmed" | "steps"> }> {
   const dropped: Dropped[] = [];
   if (!input.findings.length) return { recommendations: [], dropped };
+  // Over budget after every trimming step, this throws INPUT_TOO_LARGE before anything is sent.
+  const req = decideRequest({
+    objective: input.objective,
+    findings: input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) })),
+    factsheet: input.factsheet,
+    periodEnd: input.periodEnd,
+    ...(input.maxInputTokens !== undefined ? { maxInputTokens: input.maxInputTokens } : {}),
+  });
+  const request = { estimate: req.estimate, untrimmed: req.untrimmed, steps: req.steps };
   let object: DecideOutput;
   try {
     ({ object } = await input.model.generateObject({
       role: "planner",
       schema: DecideOutput,
-      system: renderPrompt("decide", {
-        objective: input.objective,
-        findings: data(input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) }))),
-        factsheet: input.factsheet,
-        period_end: input.periodEnd,
-      }),
-      prompt: "Propose the candidate actions.",
+      system: req.system,
+      prompt: req.prompt,
+      ...(input.maxInputTokens !== undefined ? { maxInputTokens: input.maxInputTokens } : {}),
     }));
   } catch (err) {
     // The model couldn't produce valid candidate actions even after the validation retries (models §5). The
     // findings still stand: the report ships with no recommendations, and the reason is recorded.
     if (!(err instanceof Error && "code" in err && err.code === "INVALID_OUTPUT")) throw err;
     dropped.push({ claim: "(candidate actions)", reason: `the model's candidate actions failed validation: ${err.message.slice(0, 200)}` });
-    return { recommendations: [], dropped };
+    return { recommendations: [], dropped, request };
   }
   const findingIds = new Set(input.findings.map((f) => f.id));
   const scored: { rec: Omit<Recommendation, "id">; score: number }[] = [];
@@ -193,7 +235,7 @@ export async function decide(input: DecideInput): Promise<{ recommendations: Rec
   const recommendations = scored.slice(0, input.maxRecommendations).map((s, i) => ({ id: `R${i + 1}`, ...s.rec }));
   for (const s of scored.slice(input.maxRecommendations))
     dropped.push({ claim: s.rec.action, reason: "ranked below the kept recommendations" });
-  return { recommendations, dropped };
+  return { recommendations, dropped, request };
 }
 
 function scenarioBase(s: z.infer<typeof Scenario>): string {
