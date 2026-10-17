@@ -26,6 +26,7 @@ Its rules were written knowing the generator's document templates: a sentence wi
 - `scoreReport(report, key, run)`, `subjectOf`, `matchesPlanted`, `matchesDistractor`, `sliceOf`, `summarize(scores)`: the bars.
 - `evalCommand(args, deps)` (typed `EvalRunError`), `resultsPage(dir)`, `resultsMarkdown(result)`. Full-suite results are committed in `evals/results/`; smoke runs stay local.
 - Real-data tier (evals/real/README.md): `runRealSuite({ model, modelName, embedder, dataDir, answersDir })`, `scoreCheck(check, report)`, `scoreRealReport`, `loadRealAnswers`, `missingRealData`, `realEvalCommand(args, deps)` (`NO_DATA` when a file has not been fetched) and `realResultsMarkdown(result)`. `resultsPage` adds the "Real public data" section from `*-real.json` results.
+- Your own data (`aa eval --suite real --answers <dir> [--data <dir>]`): an answer file whose `dataset` is not one of the public `REAL_DATASETS` must carry a `title`, or `runRealSuite` throws `UNKNOWN_DATASET` (so a typo in a public id still fails). Its result (`RealDatasetResult`) has `own: true`, the title from the answer file, empty publisher, licence and citation, and the SHA-256 of the file actually read; `realResultsMarkdown` heads such a run "your data" instead of "real public data". The worked example is `examples/my-evals/coffee-roaster.yaml`.
 
 ## Example
 
