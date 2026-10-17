@@ -1,8 +1,11 @@
-// The product site in a real browser (apps/docs/DESIGN.md §10): no request leaves the site, WCAG 2 A/AA has no
+// The product site in a real browser and its build (apps/docs/DESIGN.md §10): no request leaves the site, WCAG 2 A/AA has no
 // violations in light and dark, nothing scrolls sideways at 360 px, the page works without JS and with reduced
 // motion, and the site files (favicons, OG image, sitemap, 404) are served.
+
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 const BASE = "/agentic-analytics";
 const LANDING = `${BASE}/`;
@@ -10,20 +13,52 @@ const DOCS = [`${BASE}/how-it-works/verifier/`, `${BASE}/start/quickstart/`, `${
 const MISSING = `${BASE}/no-such-page/`;
 const PAGES = [LANDING, ...DOCS, MISSING];
 
-test.describe("no third-party requests", () => {
-  for (const path of [LANDING, ...DOCS]) {
-    test(path, async ({ page }) => {
-      const outside: string[] = [];
-      page.on("request", (r) => {
-        const url = new URL(r.url());
-        if (!["127.0.0.1", "localhost"].includes(url.hostname) && !url.protocol.startsWith("data")) outside.push(r.url());
-      });
-      await page.goto(path, { waitUntil: "networkidle" });
-      await page.mouse.wheel(0, 20_000);
-      await page.waitForLoadState("networkidle");
-      expect(outside).toEqual([]);
-    });
+/** Every page the sitemap lists (the landing page and every docs page), as local paths. */
+async function sitemapPaths(request: APIRequestContext): Promise<string[]> {
+  const sitemap = await (await request.get(`${BASE}/sitemap-0.xml`)).text();
+  return [...sitemap.matchAll(/<loc>https:\/\/gfirik\.github\.io([^<]+)<\/loc>/g)].map((m) => m[1] as string);
+}
+
+test("no third-party requests on any page in the sitemap or the 404, scrolled to the end", async ({ page, request }) => {
+  test.setTimeout(300_000);
+  const outside: string[] = [];
+  page.on("request", (r) => {
+    const url = new URL(r.url());
+    if (!["127.0.0.1", "localhost"].includes(url.hostname) && !["data:", "blob:"].includes(url.protocol)) outside.push(r.url());
+  });
+  const paths = [...(await sitemapPaths(request)), MISSING];
+  expect(paths.length).toBeGreaterThan(30);
+  for (const path of paths) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.mouse.wheel(0, 40_000);
+    await page.waitForLoadState("networkidle");
   }
+  expect(outside).toEqual([]);
+});
+
+test("the build references no external script, stylesheet, font or image", () => {
+  const DIST = join(import.meta.dirname, "..", "..", "..", "apps", "docs", "dist");
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/\.(html|css|js|mjs)$/.test(name)) {
+        const text = readFileSync(p, "utf8");
+        const patterns = [
+          /<script[^>]*\bsrc=["']?(?:https?:)?\/\/[^"' >]+/gi,
+          /<link[^>]*\brel=["']?(?:stylesheet|preload|modulepreload|icon|shortcut icon)["']?[^>]*\bhref=["']?(?:https?:)?\/\/[^"' >]+/gi,
+          /<img[^>]*\bsrc=["']?(?:https?:)?\/\/[^"' >]+/gi,
+          /@import\s+(?:url\()?["']?(?:https?:)?\/\//gi,
+          /url\(["']?https?:\/\/[^)]+\)/gi,
+        ];
+        for (const re of patterns) for (const m of text.matchAll(re)) offenders.push(`${p.slice(DIST.length)}: ${m[0].slice(0, 120)}`);
+      }
+    }
+  };
+  walk(DIST);
+  // SVG namespaces (xmlns="http://www.w3.org/2000/svg") are identifiers, not requests; the patterns above don't match them.
+  expect(offenders).toEqual([]);
 });
 
 test.describe("WCAG 2 A/AA (axe)", () => {
@@ -52,8 +87,7 @@ test.describe("no horizontal scroll at 360 px", () => {
 });
 
 test("no horizontal scroll at 360 px on any page in the sitemap", async ({ page, request }) => {
-  const sitemap = await (await request.get(`${BASE}/sitemap-0.xml`)).text();
-  const paths = [...sitemap.matchAll(/<loc>https:\/\/gfirik\.github\.io([^<]+)<\/loc>/g)].map((m) => m[1] as string);
+  const paths = await sitemapPaths(request);
   expect(paths.length).toBeGreaterThan(30);
   await page.setViewportSize({ width: 360, height: 780 });
   const wide: string[] = [];
@@ -67,8 +101,7 @@ test("no horizontal scroll at 360 px on any page in the sitemap", async ({ page,
 
 test("WCAG 2 A/AA (axe) on every page in the sitemap, light and dark", async ({ page, request }) => {
   test.setTimeout(600_000);
-  const sitemap = await (await request.get(`${BASE}/sitemap-0.xml`)).text();
-  const paths = [...sitemap.matchAll(/<loc>https:\/\/gfirik\.github\.io([^<]+)<\/loc>/g)].map((m) => m[1] as string);
+  const paths = [...(await sitemapPaths(request)), MISSING];
   const found: string[] = [];
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
