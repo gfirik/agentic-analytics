@@ -19,7 +19,7 @@ suite="${1:?usage: eval-daily.sh <smoke|full> [args...]}"
 shift
 mkdir -p data/logs
 log="data/logs/eval-${suite}-$(date -u +%F).log"
-echo "[$(date -u +%FT%TZ)] bun run eval -- --suite ${suite} --model configured $*" | tee "$log"
+echo "[$(date -u +%FT%TZ)] bun run eval -- --suite ${suite} --model configured $*" | tee -a "$log"
 bash scripts/heavy.sh bun run eval -- --suite "$suite" --model configured "$@" >>"$log" 2>&1
 status=$?
 # The eval rewrote evals/RESULTS.md; the README table is generated from evals/results: keep it in step with the pass.
@@ -28,7 +28,7 @@ jobs=$(grep -cE '^\[[0-9]+/[0-9]+\]' "$log" || true)
 done_jobs=$(grep -E '^\[[0-9]+/[0-9]+\]' "$log" | grep -vc ': failed' || true)
 limited=$(grep -E '^\[[0-9]+/[0-9]+\]' "$log" | grep -cE 'failed \((RATE_LIMITED|PROVIDER: .*(429|Rate limit|rate limit))' || true)
 other=$((jobs - done_jobs - limited))
-[ "$other" -lt 0 ] && other=0
+if [ "$other" -lt 0 ]; then other=0; fi
 summary="eval ${suite} (daily pass): ${done_jobs} of ${jobs} jobs finished, ${limited} stopped on the rate limit, ${other} failed otherwise (log: ${log})"
 echo "$summary"
 bash scripts/notify.sh "$summary"
