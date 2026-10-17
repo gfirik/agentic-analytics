@@ -47,6 +47,11 @@ export interface GenerateObjectArgs<T> {
   readonly prompt: string;
   /** Extra attempts after a validation failure, with the error fed back (default 2, models.md §5). */
   readonly maxRetries?: number;
+  /**
+   * Input budget in estimated tokens: system, schema, prompt and the longest retry feedback (models §5). Over it the
+   * call fails with INPUT_TOO_LARGE before anything is sent, and retry feedback is shortened so retries fit too.
+   */
+  readonly maxInputTokens?: number;
 }
 
 export interface GenerateWithToolsArgs {
