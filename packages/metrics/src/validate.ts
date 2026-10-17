@@ -2,7 +2,7 @@
 // right: each proposal is accepted (normalized, with defaults filled) or rejected with the reasons why.
 import { MetricDef } from "@agentic-analytics/schema";
 import { type Catalog, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
-import { type Expr, exprColumns, filterColumns, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
+import { describeExpr, type Expr, exprColumns, filterColumns, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 
 export interface Rejected {
   readonly id?: string;
@@ -171,6 +171,9 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
       else if (!byId.has(ref))
         reasons.push(`derived metric references "${ref}", which is not a valid metric in this set (or comes later: no cycles)`);
     }
+    // "revenue / revenue" is always 1, like a ratio of a metric to itself (M13h).
+    if (expr?.k === "bin" && expr.op === "/" && JSON.stringify(expr.left) === JSON.stringify(expr.right))
+      reasons.push(`derived metric "${def.id}" divides "${describeExpr(expr.left)}" by itself (always 1)`);
     return reasons;
   }
 

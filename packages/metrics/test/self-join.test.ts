@@ -159,6 +159,21 @@ describe("validation rejects a ratio that divides a quantity by itself", () => {
     expect(v.rejected.map((r) => r.reasons)).toEqual([['ratio "y" divides "revenue" by itself (always 1)']]);
   });
 
+  it("a derived metric that divides a metric by itself", async () => {
+    const { catalog } = await setup();
+    const derived = (id: string, expression: string) => ({ id, label: id, type: "derived", expression, unit: "ratio" });
+    const v = validateMetrics(
+      [REVENUE, derived("same", "revenue / revenue"), derived("spaced", "(revenue)/revenue"), derived("fine", "revenue / revenue + 1")],
+      catalog,
+    );
+    expect(v.rejected.map((r) => [r.id, r.reasons])).toEqual([
+      ["same", ['derived metric "same" divides "revenue" by itself (always 1)']],
+      ["spaced", ['derived metric "spaced" divides "revenue" by itself (always 1)']],
+    ]);
+    // Only a top-level division is caught: revenue / revenue + 1 is (revenue / revenue) + 1.
+    expect(v.accepted.map((m) => m.id)).toEqual(["revenue", "fine"]);
+  });
+
   it("different filters on the two sides are a real ratio", async () => {
     const { catalog } = await setup();
     const v = validateMetrics(
