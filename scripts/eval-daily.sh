@@ -9,7 +9,8 @@
 #   e.g. bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports
 # Schedule it once a day, at least 24 h after the previous pass (Groq's daily token limit is a rolling window;
 # docs/EVALS.md §4), e.g. with cron. Cron's PATH is minimal, so give it the directories of bun and node:
-#   30 1 * * * cd /path/to/agentic-analytics && PATH="$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin" bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports
+#   0 3 * * * cd /path/to/agentic-analytics && PATH="$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin" bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports
+# Cron uses local time: pick the hour from the last pass's UTC time in data/logs (e.g. 03:00 at UTC+5 is 22:00Z).
 # The pass runs as a heavy job (scripts/heavy.sh: one at a time on the machine, AGENTS.md §9). Results land in
 # evals/results and the README table as a partial run until every job finishes; a maintainer commits them in a PR.
 set -uo pipefail
@@ -25,8 +26,9 @@ status=$?
 bun run readme:assets >/dev/null 2>&1 || true
 jobs=$(grep -cE '^\[[0-9]+/[0-9]+\]' "$log" || true)
 done_jobs=$(grep -E '^\[[0-9]+/[0-9]+\]' "$log" | grep -vc ': failed' || true)
-limited=$(grep -cE 'failed \((RATE_LIMITED|PROVIDER: .*(429|Rate limit|rate limit))' "$log" || true)
+limited=$(grep -E '^\[[0-9]+/[0-9]+\]' "$log" | grep -cE 'failed \((RATE_LIMITED|PROVIDER: .*(429|Rate limit|rate limit))' || true)
 other=$((jobs - done_jobs - limited))
+[ "$other" -lt 0 ] && other=0
 summary="eval ${suite} (daily pass): ${done_jobs} of ${jobs} jobs finished, ${limited} stopped on the rate limit, ${other} failed otherwise (log: ${log})"
 echo "$summary"
 bash scripts/notify.sh "$summary"
