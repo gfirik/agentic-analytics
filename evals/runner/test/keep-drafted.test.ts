@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DRAFTED_METRICS } from "@agentic-analytics/core";
 import { afterAll, describe, expect, it } from "vitest";
-import { keepDraftedMetrics } from "../src/run.ts";
+import { keepDraftedMetrics } from "../src/index.ts";
 
 const dirs: string[] = [];
 const tempDir = () => {
