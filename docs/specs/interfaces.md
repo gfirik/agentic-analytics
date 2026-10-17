@@ -44,7 +44,7 @@ The binary is `agentic-analytics`, with the short alias `aa`.
 | `aa mcp` | Starts the MCP server on stdio |
 | `aa doctor` | Checks Node, DuckDB, model providers, SearXNG and Docling; calls each role's model (planner, extractor, judge) once; `--models` lists every reachable provider's model ids; prints fixes |
 | `aa eval [--suite smoke\|full\|real] [--model baseline\|configured\|<provider:model>]` | Runs the eval suites and updates `evals/RESULTS.md` |
-| `aa eval --suite smoke\|full [--label "<name>"] [--note "<text>"] [--only <id,…> --results-dir <dir>]` | `--label` names the run's model row and results file (a self-hosted run, e.g. the Kaggle vLLM notebook); `--note` is shown above its table; `--only` runs some datasets (a chunk, never written to `evals/results`), joined with `bun run eval:merge` (EVALS.md §3) |
+| `aa eval --suite smoke\|full [--label "<name>"] [--note "<text>"] [--only <id,…> --results-dir <dir>]` | `--label` names the run's model row and results file (a self-hosted run, e.g. the Kaggle vLLM notebook); `--note` is shown above its table; `--only` runs some datasets (a chunk; its `--results-dir` can't be `evals/results`), joined with `bun run eval:merge` (EVALS.md §3) |
 | `aa eval --suite real --answers <dir> [--data <dir>] [--results-dir <dir>]` | The real-data checks on your own files and answer files; results to `./eval-results` by default (EVALS.md §3) |
 | `aa jobs ls\|rm\|resume` | Manages jobs |
 | `aa run <path...>` / `aa run --resume <dir>` | A job in an explicit folder, without the job manager (M7; kept for scripts) |

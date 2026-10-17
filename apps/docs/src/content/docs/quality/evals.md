@@ -42,6 +42,11 @@ The full suite with a 27B model needs no paid API. [evals/kaggle/full-suite-vllm
 
 - **One business at a time.** Each run is `bun run eval -- --suite full --model configured --only <id> --results-dir <dir>`. It resumes across Kaggle's 12-hour sessions.
 - **One row.** `bun run eval:merge -- --label "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ" <part.json>` joins the runs into one model row.
+- **Not yet run on Kaggle.** Four points are unverified until the first run, and the startup probes in the notebook's cell c confirm them before the long run:
+  1. vLLM 0.30's Gated DeltaNet and Triton attention kernels on the T4's sm_75;
+  2. 17.68 GiB of weights plus a 32k context fitting at `--gpu-memory-utilization 0.90`;
+  3. `--tool-call-parser qwen3_coder` parsing this quant's tool calls;
+  4. `--language-model-only` existing in vLLM 0.30.
 - **Steps:** [evals/README.md](https://github.com/gfirik/agentic-analytics/blob/main/evals/README.md#run-the-full-suite-on-kaggle-free-2t4).
 
 ## Real public data

@@ -23,6 +23,14 @@ bun run eval -- --suite full --model configured      # the models in .env / agen
 
 The notebook writes a results file in the same schema as every other run. It is published as its own model row, **`vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ`**, named `evals/results/<date>-vllm-kaggle-2-t4-qwen3.8-27b-awq-full.json`.
 
+> **Not yet run on Kaggle.** The notebook was written and checked without a GPU. Four things are unverified until its first run:
+> 1. vLLM 0.30's Gated DeltaNet (FLA/Triton) and Triton attention kernels run Qwen3.8 on the T4's sm_75;
+> 2. the 17.68 GiB of weights plus a 32k context fit 2× 15 GB at `--gpu-memory-utilization 0.90`;
+> 3. `--tool-call-parser qwen3_coder` parses this quant's tool calls;
+> 4. `--language-model-only` exists in vLLM 0.30.
+>
+> The startup probes in cell c confirm them in the first ~30 min, before the long run: the server must start (1, 2, 4), then answer a structured-output request and a tool-call request (3). If one fails, see Troubleshooting below.
+
 ### Steps
 
 1. **Create the notebook.**
