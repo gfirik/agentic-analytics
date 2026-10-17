@@ -1,0 +1,70 @@
+---
+// The facts behind the numbers on a Learn page, as a ruled ledger (DESIGN.md §6): one row per fact, with its value,
+// what it is, how it was computed (the SQL and parameters, or the function and its inputs) and whether the verifier
+// recomputed it. Every chip on the page links to its row here (`#fact-N30`).
+import "../islands.css";
+import "./learn.css";
+import { fact, factText, flowFacts } from "./data.ts";
+
+interface Props {
+  ids?: string[];
+  /** Also list the facts a <StageFlow flow="…"> on this page shows. */
+  flow?: string;
+}
+const { ids = [], flow } = Astro.props;
+const listed = [...new Set([...ids, ...(flow ? flowFacts(flow) : [])])].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+const here = new Set(listed);
+const rows = listed.map((id) => fact(id));
+const params = (p: unknown) => JSON.stringify(p);
+---
+<div class="aa-ledger-wrap aa-learn-ledger" tabindex="0" role="region" aria-label="Facts on this page">
+  <table class="aa-ledger">
+    <thead>
+      <tr><th scope="col">Fact</th><th scope="col" class="num">Value</th><th scope="col">What it is</th><th scope="col">How it was computed</th><th scope="col">Verified</th></tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((f) => (
+          <tr id={`fact-${f.id}`}>
+            <td class="id">{f.id}</td>
+            <td class="num">{factText(f.id)}</td>
+            <td class="muted"><code>{f.label}</code></td>
+            <td>
+              {f.computation.kind === "sql" ? (
+                <details>
+                  <summary>SQL, run in DuckDB</summary>
+                  <pre class="aa-learn-sql">{f.computation.sql}</pre>
+                  <p class="aa-learn-params">parameters: <code>{params(f.computation.params)}</code></p>
+                </details>
+              ) : (
+                <span class="aa-learn-fn">
+                  <code>{f.computation.fn}</code>
+                  <span aria-hidden="true">(</span>
+                  {(f.computation.inputs ?? []).map((i) =>
+                    here.has(i) ? (
+                      <a class="aa-chip" href={`#fact-${i}`}>
+                        {i}
+                      </a>
+                    ) : (
+                      <code>{i}</code>
+                    ),
+                  )}
+                  <span aria-hidden="true">)</span>
+                </span>
+              )}
+            </td>
+            <td>
+              {f.verified ? (
+                <span class="aa-verified">
+                  <svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg> recomputed
+                </span>
+              ) : (
+                <span class="muted">not in the report</span>
+              )}
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

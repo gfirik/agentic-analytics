@@ -1,0 +1,56 @@
+# An answer file for your own data (docs: Learn → Tutorials → Run evals on your own data), written for the example
+# workbook as if it were yours. `aa eval --suite real --answers examples/my-evals --data examples/coffee-roaster`
+# runs the engine on `file` and scores report.json against `checks`.
+#
+# Write the checks from the data, never from what the engine outputs. Here the ground truth comes from DuckDB over
+# the Orders sheet saved as CSV (orders.csv: File → Save as → CSV in any spreadsheet program; amounts unformatted).
+dataset: coffee-roaster
+title: Coffee roaster sales, Jan–Jun 2026 (the example workbook)
+file: sales-2026.xlsx
+options:
+  today: "2026-07-01"
+  currency: USD
+
+ground_truth:
+  - id: G1
+    about: Monthly revenue (refunded orders left out) and wholesale revenue
+    sql: >-
+      SELECT strftime(strptime("Date", '%d/%m/%Y'), '%Y-%m') AS month,
+             round(sum(Amount::DOUBLE) FILTER (WHERE Status <> 'refunded'), 2) AS revenue,
+             round(sum(Amount::DOUBLE) FILTER (WHERE Status <> 'refunded' AND Channel = 'wholesale'), 2) AS wholesale
+      FROM read_csv('orders.csv', all_varchar = true) GROUP BY 1 ORDER BY 1
+    result: >-
+      2026-01 41200 / 14800; 2026-02 42900 / 15300; 2026-03 44100 / 15900; 2026-04 36200 / 7400;
+      2026-05 35800 / 7100; 2026-06 37000 / 7300
+  - id: G2
+    about: The Monthly sheet's packaging cost in February (cell J3) against the other months
+    sql: "(read in the sheet: J3 is 1,240,000; the other months are between 1,180 and 1,390)"
+    result: "J3 1240000"
+
+checks:
+  - id: C1
+    kind: completes
+    about: The job completes on the workbook
+  - id: C2
+    kind: verified
+    about: Every number re-computes
+  - id: C3
+    kind: finding_at
+    about: "Revenue fell in April (G1: 44,100 → 36,200)"
+    metric: revenue
+    period: "2026-04"
+    direction: down
+  - id: C4
+    kind: no_finding_at
+    about: "March's rise (G1: 42,900 → 44,100, +2.8%) is too small to report"
+    period: "2026-03"
+  - id: C5
+    kind: quality_issue
+    about: "The ×1000 packaging cost in the Monthly sheet (G2)"
+    issue: unit_error
+    column: packaging
+  - id: C6
+    kind: quality_issue
+    about: Dates that read either day-first or month-first
+    issue: date_format_ambiguity
+    column: date

@@ -156,6 +156,44 @@ test("without JS the landing page is complete and chips link into the fact ledge
   await ctx.close();
 });
 
+test("Learn: every fact chip on every Learn page lands on a row of that page's fact ledger", async ({ page, request }) => {
+  const paths = (await sitemapPaths(request)).filter((p) => p.includes("/learn/"));
+  expect(paths.length).toBe(17);
+  const broken: string[] = [];
+  for (const path of paths) {
+    await page.goto(path);
+    const missing = await page.evaluate(() =>
+      [...document.querySelectorAll("a[href^='#fact-']")]
+        .map((a) => a.getAttribute("href") ?? "")
+        .filter((h) => !document.getElementById(h.slice(1))),
+    );
+    for (const m of new Set(missing)) broken.push(`${path} ${m}`);
+  }
+  expect(broken).toEqual([]);
+});
+
+test("Learn: a stage diagram is complete without JS, and a step marks what it produced", async ({ browser, page }) => {
+  const path = `${BASE}/learn/stages/analysis/`;
+  const ctx = await browser.newContext({ javaScriptEnabled: false });
+  const off = await ctx.newPage();
+  await off.goto(path);
+  const flow = off.locator(".aa-flow").first();
+  await expect(flow.locator(".aa-flow-col").nth(2).locator("li")).not.toHaveCount(0);
+  await expect(flow.locator("li.is-current")).toHaveCount(0);
+  await ctx.close();
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(path, { waitUntil: "networkidle" });
+  const live = page.locator(".aa-flow").first();
+  // The island hydrates when it scrolls into view (client:visible); Astro drops the `ssr` attribute when it has.
+  await live.scrollIntoViewIfNeeded();
+  await expect(page.locator("astro-island", { has: live })).not.toHaveAttribute("ssr", /.*/);
+  await expect(live.locator("button", { hasText: "Play" })).toHaveCount(0);
+  await live.locator("button", { hasText: "3 · Split the change" }).click();
+  await expect(live.locator("button", { hasText: "3 · Split the change" })).toHaveAttribute("aria-pressed", "true");
+  await expect(live.locator(".aa-flow-col").nth(2).locator("li.is-current")).not.toHaveCount(0);
+});
+
 test("reduced motion: the pipeline does not play", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(LANDING, { waitUntil: "networkidle" });

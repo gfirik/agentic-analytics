@@ -16,7 +16,7 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 | Landing page (`/`) | The one-liner and the pipeline animation (the README GIF scene); the coffee-roaster report with clickable fact IDs (`LedgerReport`); the real-data checks (Online Retail II, Stats NZ); why it's different (with V1–V8 from the pipeline run); eval numbers with their caveats; quickstart and binaries; the four doors |
 | Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / Bun / Ollama / free endpoint), Your first report (coffee-roaster walkthrough), Running on free models (the Models page, listed here since M13f) |
 | How it works | Pipeline overview (interactive, ported from `docs/assets/blueprint.html`); Ingest & table detection; Profiling & data quality; Metric layer; Detecting changes; Finding drivers (PVM, contribution, rate/mix, Simpson, DIFF), with worked examples and animated bar breakdowns; Documents lane (RAG: chunking, BM25, vectors, RRF, rerank, with a step-through visual); Web lane & privacy; Explain & causal grades; Decisions & impact ranges; The verifier (V1–V8 with a before/after draft example); Security & prompt injection |
-| *(Learn, later)* | Concept guides per stage and tutorials: slots in between "How it works" and "Use it" |
+| Learn (M13g) | The beginner path, all on the coffee-roaster example: the big-picture overview (the pipeline animation and a map of every stage with its real in/out); ten stage guides (ingestion & profiling, metric layer, analysis, retrieval, web lane, planner, verifier, report & fact IDs, model router & free providers, security), each with the problem it solves, a step-through diagram, the ideas behind it, a try-it command, repo links and further reading; five tutorials (first file, confirm metrics, documents as evidence, Claude via MCP, evals on your own data); a glossary. Each guide links "Go deeper" to its How it works page |
 | Use it | One engine, four doors (overview), CLI, HTTP API (generated from OpenAPI), MCP (Claude Desktop / Cursor setup), Telegram demo, Viewer |
 | Reference | Report schema (generated from JSON Schema), Metric YAML, Config, Insight templates list, Decomposers list |
 | Quality | Evals: method, datasets, results table (from `evals/RESULTS.md`), how to reproduce |
@@ -31,6 +31,7 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 - **`<VerifierDiff />`:** shows a draft report vs the verified report, with dropped and downgraded claims highlighted.
 - **Mermaid** for architecture and state diagrams.
 - **`<LedgerReport />`** (landing page): the first finding of the real coffee-roaster run, each number followed by its fact-ID chip. A chip links to the fact's row in a static fact ledger, so it works without JS. With JS it opens the fact in place: its SQL and parameters, or its function and input facts (which open in turn), the rows it cites, and its verification state.
+- **Learn components** (`src/components/learn/`): `StageFlow` (in → stage → out, stepped through, final state server-rendered), `Transcript` (a recorded terminal session), `Fact` and `FactLedger` (a figure with its chip, and the page's fact ledger the chips link to), `Claim` (placeholders filled with chips), `LearnMap` (the overview). All read `docs/assets/learn/learn.json`.
 - **Accessibility:** every component respects `prefers-reduced-motion`, works in light and dark, and renders its final state on the server.
 - **Theme:** every component uses the site tokens (`src/styles/tokens.css`). The pipeline scene keeps its own colours for the README GIF; the site re-themes it through its `--pp-*` custom properties, so `pipeline-scene.ts` (hash-checked against the GIFs) is unchanged.
 
@@ -91,14 +92,16 @@ The README is the first thing people see on GitHub. It carries five visuals, and
   - `public/favicon.svg`, plus `public/favicon.ico` and `public/og.png` (1200×630). The last two are rendered by `bun run --filter @agentic-analytics/docs assets` with Playwright; the OG headline number is read from `pipeline.json`.
   - `sitemap.xml` is an index pointing at Starlight's `sitemap-0.xml`, which lists the landing page and every docs page.
   - The custom 404 is `src/pages/404.astro` (Starlight's is turned off).
-- **Commands.** `scripts/test/site-commands.test.ts` (in `bun run check`) extracts every `aa …`, `bun run …` and `./aa-<os>-<arch> …` command from the site's sources and checks it against the citty definitions in `apps/cli/src/main.ts` and the package.json scripts.
+- **Learn data.** `apps/docs/scripts/learn-data.ts --write` records `docs/assets/learn/learn.json` (checked in) from real runs: the web-enabled coffee-roaster run with the planner's tool calls and the workspace tables after each stage; the CLI's own output for each tutorial command (spawned with a clean environment; durations, job ids and temp paths replaced and named); the MCP server through the SDK's in-memory client; the model router on a scripted transport; one injection fixture through a full job and the URL checks. `scripts/test/learn.test.ts` re-records it and fails on drift, checks it is the same run as `pipeline.json`, checks hand-computed values, and checks every repo link on the Learn pages exists and every glossary link has an entry.
+- **Commands.** `scripts/test/site-commands.test.ts` (in `bun run check`) extracts every `aa …`, `bun run …` and `./aa-<os>-<arch> …` command from the site's sources and checks it against the citty definitions in `apps/cli/src/main.ts` and the package.json scripts, plus the command of every recorded Learn transcript.
 - **Browser** (`bun run site:check:browser`, the `site-browser` CI job, after a site build):
   - no request to any origin but the site's own;
   - axe WCAG 2 A/AA with no violations on every page in the sitemap and on the 404, in light and in dark;
   - no horizontal scroll at 360 px on every page;
   - the fact panel opens and Escape closes it; the page is complete without JS; the pipeline doesn't play under reduced motion; the mobile menu sets aria-expanded and Escape closes it;
-  - the favicons, OG image and sitemaps are served, with an absolute og:image.
-- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` (with `--compare <url>` for a side-by-side) writes `docs/assets/site/`.
+  - the favicons, OG image and sitemaps are served, with an absolute og:image;
+  - on every Learn page each fact chip lands on a row of that page's ledger, and a stage diagram is complete without JS and marks a step's outputs.
+- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` (with `--compare <url>` for a side-by-side) writes `docs/assets/site/`; `--learn` shoots the Learn overview, a stage guide and a tutorial into `docs/assets/site/learn/`.
 
 ## 5. Rules
 

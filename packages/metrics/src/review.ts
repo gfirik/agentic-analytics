@@ -62,9 +62,12 @@ export async function reviewMetrics(
         kept.push({ ...current, status: "assumed" });
         break;
       }
+      // Read outside the try: only a parse error is "not valid YAML". An input failure (the terminal's input ended)
+      // propagates to the caller instead of being reported as a bad edit.
+      const text = await io.edit(forEdit(current));
       let edited: unknown;
       try {
-        edited = parse(await io.edit(forEdit(current)));
+        edited = parse(text);
       } catch (err) {
         io.show(`That isn't valid YAML: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
         continue;

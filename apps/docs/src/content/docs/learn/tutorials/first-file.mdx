@@ -1,0 +1,71 @@
+---
+title: Analyse your first file
+description: Run a whole job on the example, offline, read the summary, open the report and trace a number back to its rows.
+---
+
+import Transcript from "../../../../components/learn/Transcript.astro";
+
+**Tutorial 1 of 5.** About ten minutes. No model, no API key, no internet after installing.
+
+You will run the engine on the example files, read what it found, and check one number all the way down to the spreadsheet rows.
+
+## 1. Install
+
+You need [Bun](https://bun.sh) (the package manager) and Node 22. From a clone of the repository:
+
+```bash title="Terminal"
+bun install
+bun run aa doctor
+```
+
+`aa doctor` lists what is configured. It will say no model is reachable, which is fine for this tutorial.
+
+## 2. Run the job
+
+```bash title="Terminal"
+AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash --today 2026-07-01 --currency USD
+```
+
+What the parts mean:
+
+- `AA_DEMO_MODEL=scripted` replaces the language model with the **scripted planner**, a replay of a model's decisions for this example. Leave it out once you have a model configured.
+- `examples/coffee-roaster` is a folder; every file in it goes in.
+- `--yes` keeps the drafted metric definitions as assumptions instead of asking you (the [next tutorial](../confirm-metrics/) does the asking).
+- `--embedder hash` uses the offline embedder, so nothing is downloaded.
+- `--today` fixes the date, so “future dates” and check dates come out the same as here. `--currency` says what the unmarked money columns are in.
+
+This is what it printed:
+
+<Transcript id="analyze" />
+
+The `▸`/`✓` lines are the stages, in order: the same ones the [Learn overview](../../) walks through. Then the summary: the headline, the findings, the recommendations with their impact ranges, and a reminder that the metrics were assumed.
+
+## 3. Open the report
+
+The job wrote `agentic-analytics/report.json` and `agentic-analytics/report.html` in the current folder. Open the HTML file in a browser (or add `--open` to the command). Every number in it is followed by a fact ID; click one to see how it was computed.
+
+## 4. Trace a number from the terminal
+
+Take the headline percentage from the summary. Ask where it came from, using the job ID the run printed (`bun run aa jobs ls` lists them):
+
+<Transcript id="explainPct" />
+
+It is a function, `pct_change`, of two other facts. Open one of them:
+
+<Transcript id="explainSql" lines={12} />
+
+That is the whole chain: a percentage, from two monthly totals, from one SQL query with its parameters, from these rows of the `Orders` sheet. Nothing in between was written by a model.
+
+## 5. Ask a follow-up
+
+<Transcript id="ask" />
+
+The answer is made of claims that went through the same verifier as the report, and a statement that failed verification was left out (it says so).
+
+## What you learned
+
+- One command runs the whole pipeline; the stages print as they go.
+- Every number has an ID, and `aa explain` opens its computation.
+- The scripted planner makes this reproducible; a real model changes the wording, not the numbers.
+
+**Next:** [Confirm your metrics](../confirm-metrics/), so the numbers mean what you mean.

@@ -1,0 +1,89 @@
+---
+title: Metric layer
+description: Why "revenue" is written down as a definition you can read and confirm, and compiled to one SQL query, before any number is computed.
+---
+
+import Fact from "../../../../components/learn/Fact.astro";
+import FactLedger from "../../../../components/learn/FactLedger.astro";
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import Transcript from "../../../../components/learn/Transcript.astro";
+import { flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const m = learn.metrics;
+export const apr = m.revenue.series.find((s) => s.period === "2026-04").fact;
+
+**Stage 2 of 10.** `METRICS_DRAFT` writes down what each business number means; `AWAIT_CONFIRM` lets you check it before anything is measured.
+
+## The problem it solves
+
+The most common way an AI analyst goes wrong is not bad arithmetic. It is the right arithmetic on the wrong thing: gross sales instead of net, refunds counted as revenue, the neighbouring column, the wrong month. The answer looks confident and is quietly about something else.
+
+So the engine never computes "revenue" from a question. It first writes a **metric definition**: which table, which column, which rows are left out, which date. You can read it in one sentence, and every number in the report is computed from it.
+
+## What happens on the example
+
+<StageFlow client:visible {...flowProps("metrics")} title="The metric layer on the coffee-roaster workbook" />
+
+The run drafted {m.defs.length} metrics: {m.defs.map((d) => `${d.id} (${d.status})`).join(", ")}. "Assumed" means nobody has confirmed them yet; the report says so at the top. Here is the definition of revenue, exactly as it was stored:
+
+<pre class="aa-learn-yaml" tabindex="0" aria-label="The revenue definition">{m.defs[0].yaml}</pre>
+
+In words: *revenue is the sum of `amount` over orders whose status is not "refunded", by month of `date`, in USD*. The refunded orders are the line that a careless analysis gets wrong.
+
+**Validation.** Before it is accepted, code checks every part against the profiled table: the column exists and holds numbers, the filters name real columns, the time column is a date. A definition that fails is refused with a reason, so a model that invents a column name gets nowhere.
+
+**Compilation.** Each definition becomes exactly one SQL query, with its values passed as parameters (never pasted into the text):
+
+<pre class="aa-learn-yaml" tabindex="0" aria-label="The compiled revenue query">{m.revenue.sql}</pre>
+
+with parameters <code>{JSON.stringify(m.revenue.params)}</code>. Run for one month, it gives one [fact](../../glossary/#fact): April's revenue is <Fact id={apr} />. All six months:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Monthly revenue facts">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Month</th><th scope="col" class="num">Revenue</th></tr></thead>
+<tbody>
+{m.revenue.series.map((s) => <tr><td class="id">{s.period}</td><td class="num"><Fact id={s.fact} /></td></tr>)}
+</tbody>
+</table>
+</div>
+
+## The ideas behind it
+
+### A semantic layer
+
+Analysts call this a *semantic layer* or *metric layer*: the meaning of each business number is written once, in one place, and every query uses it. It is why the engine can say "revenue fell" and you can check what "revenue" meant.
+
+### The model drafts, code decides
+
+When a model is configured, it drafts the definitions from the column names and profile, because naming things is what language models are good at. The output is [structured](../../glossary/#structured-output): YAML that must parse and pass validation. With no model, deterministic rules draft the same kind of definitions (that is what happened in the [tutorial](../../tutorials/confirm-metrics/)). Either way, a person can confirm, edit or drop each one.
+
+### Parameterised SQL
+
+Values such as `'refunded'` travel as parameters (`$1`), not as text glued into the query. That rules out SQL injection from a cell value, and it means the verifier can re-run the exact query later.
+
+## Try it
+
+Draft the metrics, see their SQL and values, and save them to a file you can edit and reuse:
+
+<Transcript id="metrics" lines={12} />
+
+Then review them interactively during a job: [Confirm your metrics](../../tutorials/confirm-metrics/).
+
+## In the code
+
+- [`packages/metrics/src/draft.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/metrics/src/draft.ts): drafting, with the model or the fallback rules.
+- [`packages/metrics/src/validate.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/metrics/src/validate.ts): every check a definition must pass.
+- [`packages/metrics/src/compile.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/metrics/src/compile.ts): definition to parameterised SQL.
+- [`packages/metrics/src/describe.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/metrics/src/describe.ts): the plain-words sentence.
+- The spec: [`docs/specs/metric-layer.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/metric-layer.md); the format: [Metric YAML](../../../reference/metric-yaml/).
+
+Go deeper: [Metric layer](../../../how-it-works/metrics/).
+
+## Further reading
+
+- OWASP, [SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html): why queries take parameters.
+- [DuckDB documentation](https://duckdb.org/docs/).
+
+## Facts on this page
+
+<FactLedger flow="metrics" ids={m.revenue.series.map((s) => s.fact)} />

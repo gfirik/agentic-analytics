@@ -54,6 +54,7 @@ function files(dir: string, out: string[] = []): string[] {
   }
   return out;
 }
+// The Learn pages (src/content/docs/learn) are under src/content; their recorded transcripts are checked separately.
 const sources = [...files(join(DOCS, "src", "pages")), ...files(join(DOCS, "src", "components")), ...files(join(DOCS, "src", "content"))];
 
 /** Code spans: fenced blocks, <pre> blocks and inline `code`, with `\` line continuations joined. */
@@ -125,10 +126,10 @@ function checkBunRun(args: string[]): string | undefined {
 const words = (line: string) =>
   (line.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((w) => w.replace(/^\[|\]$/g, "")).filter((w) => w && w !== "\\");
 
-function problemsIn(file: string): { checked: number; problems: Problem[] } {
+function problemsIn(file: string, lines: readonly string[] = codeOf(readFileSync(file, "utf8"))): { checked: number; problems: Problem[] } {
   const problems: Problem[] = [];
   let checked = 0;
-  for (const line of codeOf(readFileSync(file, "utf8"))) {
+  for (const line of lines) {
     // A line can hold alternatives ("aa jobs ls | rm <id>") or several commands joined by && or ;.
     for (const part of line.split(/\s*(?:&&|;|\s\\?\|\s)\s*/)) {
       const w = words(part);
@@ -176,5 +177,36 @@ describe("commands on the site", () => {
     }
     expect(problems).toEqual([]);
     expect(checked).toBeGreaterThan(20);
+  });
+
+  it("every MCP client config on the site launches an aa command that exists (the `args` of each server)", () => {
+    let checked = 0;
+    const problems: Problem[] = [];
+    for (const f of sources) {
+      for (const m of readFileSync(f, "utf8").matchAll(/```json[^\n]*\n([\s\S]*?)```/g)) {
+        const config = JSON.parse(m[1] ?? "{}") as { mcpServers?: Record<string, { args?: string[] }> };
+        for (const server of Object.values(config.mcpServers ?? {})) {
+          const args = server.args ?? [];
+          const at = args.findIndex((a) => /(^|\/)aa\.js$/.test(a));
+          if (at < 0) continue;
+          checked++;
+          const why = checkAa(args.slice(at + 1));
+          if (why) problems.push({ file: relative(ROOT, f), command: args.join(" "), why });
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+    // use-it/mcp and the Learn MCP tutorial.
+    expect(checked).toBeGreaterThanOrEqual(2);
+    expect(checkAa(["mcp", "--embeder", "hash"])).toMatch(/no --embeder/);
+  });
+
+  it("every command of a recorded Learn transcript exists (docs/assets/learn/learn.json)", () => {
+    const file = join(ROOT, "docs", "assets", "learn", "learn.json");
+    const learn = JSON.parse(readFileSync(file, "utf8")) as { transcripts: Record<string, { command: string }> };
+    const commands = Object.values(learn.transcripts).map((t) => t.command);
+    const r = problemsIn(file, commands);
+    expect(r.problems).toEqual([]);
+    expect(r.checked).toBe(commands.length);
   });
 });

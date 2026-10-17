@@ -51,3 +51,5 @@ bun run eval:real         # run the engine, score, update evals/RESULTS.md
 ```
 
 Results are in the "Real public data" section of [Eval results](../results/).
+
+The same checks run on your own files with `aa eval --suite real --answers <folder>`: see the tutorial [Run evals on your own data](../../learn/tutorials/evals-on-your-data/).

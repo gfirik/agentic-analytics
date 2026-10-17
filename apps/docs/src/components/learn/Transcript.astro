@@ -1,0 +1,30 @@
+---
+// A recorded terminal session: the command as you type it and what the CLI printed, from a real offline run
+// (learn.json, recorded by scripts/learn-data.ts). What varies per machine (durations, job ids, paths) is replaced,
+// and the caption says what.
+import "../islands.css";
+import "./learn.css";
+import { learn } from "./data.ts";
+
+interface Props {
+  id: string;
+  /** Show at most this many lines (the caption says how many were left out). */
+  lines?: number;
+  /** Start at the first line containing this text. */
+  from?: string;
+}
+const { id, lines, from } = Astro.props;
+const t = learn.transcripts[id];
+if (!t) throw new Error(`learn: no transcript ${id}`);
+const found = from ? t.lines.findIndex((l) => l.includes(from)) : 0;
+if (found < 0) throw new Error(`learn: transcript ${id} has no line with "${from}"`);
+const shown = t.lines.slice(found, lines ? found + lines : undefined);
+const after = t.lines.length - found - shown.length;
+const body = [...(found > 0 ? [`… (${found} lines before)`] : []), ...shown, ...(after > 0 ? [`… (${after} more lines)`] : [])].join("\n");
+---
+<figure class="aa-term">
+  <figcaption class="aa-term-label">Recorded output, offline run</figcaption>
+  <pre tabindex="0" aria-label={`Terminal output of: ${t.command}`}><span class="aa-term-cmd">$ {t.command}</span>
+{body}</pre>
+  {t.normalised.length > 0 && <p class="aa-term-note">Replaced in the recording because they change on every run: {t.normalised.join(", ")}.</p>}
+</figure>

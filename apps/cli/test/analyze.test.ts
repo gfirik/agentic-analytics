@@ -11,6 +11,7 @@ import type { Report } from "@agentic-analytics/schema";
 import { afterAll, describe, expect, it } from "vitest";
 import { analyzeCommand } from "../src/analyze.ts";
 import { askCommand, explainCommand, jobsList } from "../src/followup.ts";
+import { ReviewEndedError } from "../src/prompt.ts";
 
 const tmp = mkdtempSync(join(tmpdir(), "aa-analyze-"));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -67,6 +68,28 @@ describe("aa analyze", () => {
     expect(report.metrics.every((m) => m.status === "confirmed")).toBe(true);
     expect(answers).toContain("drop");
   }, 180_000);
+
+  it("interactive review: when the input ends, it stops (exit 1) instead of asking again", async () => {
+    const lines: string[] = [];
+    let asked = 0;
+    const review = {
+      show: (l: string) => lines.push(l),
+      async choose(): Promise<ReviewChoice> {
+        asked++;
+        if (asked > 1) throw new ReviewEndedError();
+        return "accept";
+      },
+      edit: async () => "",
+    };
+    const r = await analyzeCommand(
+      { files, options, out: join(tmp, "out3"), jobId: "cli-ended" },
+      { manager, print: (l) => lines.push(l), review },
+    );
+    expect(r.code).toBe(1);
+    expect(asked).toBe(2);
+    expect(lines).toContain("The review ended before every metric was answered; the job is waiting for its metrics.");
+    await manager.delete(r.jobId);
+  }, 60_000);
 
   it("aa ask, aa explain and aa jobs ls print from the report's facts", async () => {
     const lines: string[] = [];

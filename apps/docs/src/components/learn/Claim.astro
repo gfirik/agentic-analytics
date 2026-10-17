@@ -1,0 +1,10 @@
+---
+// A claim as the report shows it: each {{N…}} placeholder becomes the fact's value followed by its chip.
+import Fact from "./Fact.astro";
+
+interface Props {
+  text: string;
+}
+const parts = Astro.props.text.split(/(\{\{N\d+\}\})/);
+---
+{parts.map((p) => (/^\{\{N\d+\}\}$/.test(p) ? <Fact id={p.slice(2, -2)} /> : p))}

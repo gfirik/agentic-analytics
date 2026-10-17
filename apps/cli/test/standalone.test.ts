@@ -10,6 +10,9 @@ describe("standalone binary choices", () => {
     expect(resultsLocation(undefined, {}, "/work", "/repo/evals/results")).toEqual({ dir: "/repo/evals/results" });
     const b = resultsLocation(undefined, bin, "/work", "/$bunfs/evals/results");
     expect([b.dir, b.page].map((p) => p?.replace(/\\/g, "/"))).toEqual(["/work/eval-results", "/work/eval-results/RESULTS.md"]);
+    // Your own answer files (--answers): never into the project's published results.
+    const own = resultsLocation(undefined, {}, "/work", "/repo/evals/results", true);
+    expect([own.dir, own.page].map((p) => p?.replace(/\\/g, "/"))).toEqual(["/work/eval-results", "/work/eval-results/RESULTS.md"]);
   });
 
   it("embedder: hash when asked, hash with a notice by default in the binary, an explicit model always wins", () => {

@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
@@ -28,6 +27,7 @@ import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
+import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
 import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
 
@@ -146,7 +146,7 @@ function runtime(embedderArg?: string) {
 
 /** Terminal review: one letter per choice; edits are YAML typed or pasted, ended by an empty line. */
 function terminalIO(): ReviewIO & { close(): void } {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = lineReader(process.stdin, process.stdout);
   const keys: Record<string, ReviewChoice> = { a: "accept", e: "edit", d: "drop" };
   return {
     show: (line) => process.stdout.write(`${line}\n`),
@@ -374,16 +374,29 @@ const evalCmd = defineCommand({
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
-    "results-dir": { type: "string", description: "Where results files and RESULTS.md go (default evals/results)" },
+    "results-dir": {
+      type: "string",
+      description: "Where results files and RESULTS.md go (default evals/results; ./eval-results with --answers)",
+    },
+    answers: {
+      type: "string",
+      description: "With --suite real: a folder of your own answer files (<dataset>.yaml) instead of evals/real/answers",
+    },
+    data: {
+      type: "string",
+      description: "With --suite real: the folder holding the files the answer files name (default: the --answers folder)",
+    },
   },
   async run({ args }) {
     const model = args.model ?? "baseline";
+    if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const where = resultsLocation(
       args["results-dir"],
       process.env,
       process.cwd(),
       fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+      Boolean(args.answers),
     );
     const evalRouter = new Router();
     const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
@@ -412,8 +425,8 @@ const evalCmd = defineCommand({
           model,
           resultsDir: where.dir,
           ...(where.page ? { resultsPage: where.page } : {}),
-          dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
-          answersDir: fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
+          dataDir: args.data ?? args.answers ?? fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
+          answersDir: args.answers ?? fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
           ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
         },
         deps,
@@ -473,6 +486,10 @@ const metrics = defineCommand({
           ...(modelError ? { modelError } : {}),
         },
       );
+      if (outcome.ended) {
+        process.exitCode = 1;
+        return;
+      }
       if (args.save) {
         writeFileSync(args.save, outcome.yaml);
         process.stdout.write(`\nSaved ${outcome.accepted} metric(s) to ${args.save}\n`);

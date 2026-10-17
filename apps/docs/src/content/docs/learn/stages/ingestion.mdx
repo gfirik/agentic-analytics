@@ -1,0 +1,95 @@
+---
+title: Ingestion & profiling
+description: How a messy workbook becomes clean tables, and documents become cited sections, before any model is involved.
+---
+
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { count, flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const orders = learn.ingest.tables[0];
+export const q = learn.ingest.quality;
+export const merged = learn.ingest.entities.merged;
+export const realQuality = learn.analysis.real.filter((c) => c.about.match(/Cancellations|Negative|Missing customer|Suppressed/));
+
+**Stage 1 of 10.** The first two stages, `INGEST` and `PROFILE`, read your files and measure them. No language model runs here: everything is code and SQL.
+
+## The problem it solves
+
+A business spreadsheet is not a database table. The coffee roaster's workbook has a title-less `Orders` sheet, and a `Monthly` sheet the owner keeps by hand, with *two* tables side by side on it. Dates like `03/04/2026` could mean March 4th or April 3rd. One cell is a thousand times too big. If you paste a sheet like this into a chatbot as text, it has to guess where the tables are and what the columns mean, and it guesses silently.
+
+So before anything is analysed, the engine turns each file into something it can query exactly, and writes down every problem it finds as a **data-quality item** that the report shows you.
+
+## What happens on the example
+
+Step through it: each step marks what it produced.
+
+<StageFlow client:visible {...flowProps("ingest")} title="Ingestion and profiling on the coffee-roaster files" />
+
+**Tables, not text.** The workbook is read as a grid of cells. The engine looks for rectangular blocks with a header row, so it found {learn.ingest.tables.length} tables in one file: <code>{orders.sheet}!{orders.range}</code> with {count(orders.rows)} rows, and two tables on the `Monthly` sheet ({learn.ingest.tables.slice(1).map((t) => `${t.sheet}!${t.range}`).join(" and ")}). Each table is loaded into [DuckDB](../../glossary/#duckdb), an embedded SQL database that lives in one file per job.
+
+**Columns get types.** The <code>{orders.sheet}</code> table's columns were typed as: {orders.columns.map((c) => `${c.name} (${c.type})`).join(", ")}. A type is what lets SQL add up `amount` and group by `channel`.
+
+**Documents become sections.** The PDF is split by page, the Word file by heading, the email keeps its headers. That gave {learn.ingest.sections.length} sections, each with its position, so a quote can later point at exactly where it came from. The text is stored but not read by any model yet.
+
+**Profiling finds the mess.** The profiler measured every column in SQL and raised {q.length} data-quality items:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Data-quality items on the example">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Item</th><th scope="col">Kind</th><th scope="col">Where</th><th scope="col">What the profiler wrote</th></tr></thead>
+<tbody>
+{q.map((x) => <tr><td class="id">{x.id}</td><td><code>{x.kind}</code></td><td class="muted">{x.where}</td><td>{x.message}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+**Names are matched.** Customers are written differently in different rows. The profiler found {learn.ingest.entities.count} entities (customers and products) and merged spellings that mean the same one: {merged.map((m) => `“${m.raw}” (${m.rows} rows, match ${m.confidence})`).join(" and ")} are both **{merged[0]?.canonical}**. That matters later, when an email from “Hotel Group” has to be connected to rows in the sheet.
+
+## The ideas behind it
+
+### Structure before meaning
+
+A language model reads a spreadsheet pasted as text one token at a time. It has no reliable way to tell a header from a total row, or one table from the next. Detecting regions in the grid is ordinary code, and it is either right or visibly wrong. The rest of the pipeline relies on that: a number in the report is a SQL query over a known table and known rows.
+
+### Profiling
+
+[Profiling](../../glossary/#profiling) means measuring the data before trusting it: counting nulls and distinct values, finding the date range and the grain (day, month), looking for duplicate keys, and flagging values far from the rest. The ×1000 cell above is caught with a robust rule: a value about 1,000 times the column's median is almost always a unit or decimal-point slip, not a real cost.
+
+### Ambiguous dates
+
+`03/04/2026` fits both day-first and month-first. The profiler counts the values that fit only one order (a day above 12 settles it) and reads the whole column that way, then reports how many dates were ambiguous. It never guesses quietly.
+
+### On real public data
+
+The same checks run on two public datasets in the [real-data evals](../../../quality/evals/). From the latest committed results (<code>{learn.analysis.realFile}</code>, in [`evals/results/`](https://github.com/gfirik/agentic-analytics/tree/main/evals/results)):
+
+<ul>
+{realQuality.map((c) => <li><strong>{c.title}</strong>: {c.about}. <span class="aa-mono-wrap">{c.detail}</span> {c.pass ? "(pass)" : "(fail)"}</li>)}
+</ul>
+
+## Try it
+
+`aa metrics` runs ingestion and profiling on your files and stops before any analysis. It needs no model:
+
+```bash title="Terminal"
+bun run aa metrics examples/coffee-roaster --yes --currency USD --today 2026-07-01
+```
+
+The [first tutorial](../../tutorials/first-file/) runs the whole job.
+
+## In the code
+
+- [`packages/ingest/src/regions.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/ingest/src/regions.ts): finds table regions in a sheet's grid.
+- [`packages/ingest/src/docs/pdf.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/ingest/src/docs/pdf.ts), [`docx.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/ingest/src/docs/docx.ts) and [`eml.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/ingest/src/docs/eml.ts): PDF pages, Word headings and emails into sections.
+- [`packages/profile/src/profile.sql.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/profile/src/profile.sql.ts): the profiling queries.
+- [`packages/profile/src/dates.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/profile/src/dates.ts) and [`rules.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/profile/src/rules.ts): date order and the data-quality rules.
+- [`packages/profile/src/entities.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/profile/src/entities.ts): matching names to entities.
+- The spec: [`docs/specs/ingestion-and-profiling.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/ingestion-and-profiling.md).
+
+Go deeper: [Ingest and table detection](../../../how-it-works/ingest/) and [Profiling and data quality](../../../how-it-works/profiling/).
+
+## Further reading
+
+- Abedjan, Golab, Naumann, *Profiling relational data: a survey*, The VLDB Journal, 2015. [doi:10.1007/s00778-015-0389-y](https://doi.org/10.1007/s00778-015-0389-y)
+- [DuckDB documentation](https://duckdb.org/docs/): the database every job runs in.
+
+This stage computes no facts yet: its outputs are tables, sections and data-quality items. Facts start with the [metric layer](../metric-layer/).

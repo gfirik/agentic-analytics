@@ -40,3 +40,6 @@ evals/.cache/
 .claude/worktrees/
 # Standalone binary build (scripts/build-binary.ts)
 apps/cli/native/
+# Reports and eval results the Learn tutorials write when run from a clone's root (aa analyze, aa eval --answers)
+/agentic-analytics/
+/eval-results/

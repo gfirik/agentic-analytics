@@ -23,6 +23,8 @@ The product site: a custom landing page and the Astro Starlight docs, deployed t
 
 Everything it writes is gitignored. The `Pipeline` island's data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
 
+The Learn section's data is checked in too, at `docs/assets/learn/learn.json`: `scripts/learn-data.ts --write` records it from real runs (the same web-enabled run as `pipeline.json`, the CLI's own output for each tutorial, the MCP server, the model router on a scripted transport, an injection fixture), and `scripts/test/learn.test.ts` re-records it and fails on drift.
+
 Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the README embeds.
 
 ## Islands (React, `client:visible`)
@@ -34,6 +36,7 @@ Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the READM
 - `VerifierDiff`: the draft against the verified report.
 - `Mermaid`: the shared diagrams, in the site's colours and type.
 - `LedgerReport` (landing page): the report with clickable fact IDs. Without JS the chips link into the static fact ledger.
+- `learn/StageFlow` (Learn): one stage as in → stage → out with the run's real numbers, stepped through; `learn/Transcript`, `learn/Fact`, `learn/FactLedger`, `learn/Claim` and `learn/LearnMap` are static Astro components.
 
 All of them:
 
@@ -48,6 +51,7 @@ bun run --filter @agentic-analytics/docs dev     # http://localhost:4321/agentic
 bun run --filter @agentic-analytics/docs build   # → apps/docs/dist
 bun run --filter @agentic-analytics/docs assets  # re-render public/og.png and public/favicon.ico (Playwright)
 bun run site:check:browser                       # browser checks on the built site (PW_CHANNEL=chrome locally)
+tsx apps/docs/scripts/learn-data.ts --write      # re-record the Learn data (docs/assets/learn/learn.json)
 ```
 
 Astro 5 is pinned because Astro 7 needs Node ≥ 22.22.

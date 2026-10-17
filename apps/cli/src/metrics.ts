@@ -20,6 +20,7 @@ import type { ModelClient } from "@agentic-analytics/models";
 import { periodOf, profileJob } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
+import { ReviewEndedError, reviewEndedLines } from "./prompt.ts";
 
 export interface MetricsOptions {
   readonly files: readonly InputFile[];
@@ -44,6 +45,8 @@ export interface MetricsOutcome {
   readonly accepted: number;
   readonly rejected: number;
   readonly source: "model" | "fallback" | "file";
+  /** The review's input ended before every metric was answered (exit 1, nothing saved). */
+  readonly ended?: boolean;
 }
 
 export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDeps): Promise<MetricsOutcome> {
@@ -80,11 +83,20 @@ export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDe
     }
     for (const r of rejected) out(`  rejected ${r.id ?? "(no id)"}: ${r.reasons.join("; ")}`);
 
-    const reviewed = await reviewMetrics(drafts, catalog, options.yes ? undefined : deps.io, {
-      ...validateOptions,
-      yes: options.yes,
-      grain: summary.grain,
-    });
+    let reviewed: Awaited<ReturnType<typeof reviewMetrics>>;
+    try {
+      reviewed = await reviewMetrics(drafts, catalog, options.yes ? undefined : deps.io, {
+        ...validateOptions,
+        yes: options.yes,
+        grain: summary.grain,
+      });
+    } catch (err) {
+      // The input ended mid-review: say so and stop (the caller exits 1); nothing is saved.
+      if (!(err instanceof ReviewEndedError)) throw err;
+      out("");
+      for (const l of reviewEndedLines("nothing was saved")) out(l);
+      return { yaml: "", accepted: 0, rejected: rejected.length, source, ended: true };
+    }
     for (const d of reviewed.dropped) out(`  dropped ${d.id}: ${d.reason}`);
 
     // The period range at the job's grain, so values, wording ("per week") and the saved YAML agree.

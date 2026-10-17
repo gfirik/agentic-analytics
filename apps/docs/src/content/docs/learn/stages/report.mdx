@@ -1,0 +1,86 @@
+---
+title: Report & fact IDs
+description: How every number in the report carries an ID that opens its SQL, its inputs and the rows it came from.
+---
+
+import CitationDemo from "../../../../components/CitationDemo.tsx";
+import Claim from "../../../../components/learn/Claim.astro";
+import Fact from "../../../../components/learn/Fact.astro";
+import FactLedger from "../../../../components/learn/FactLedger.astro";
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import Transcript from "../../../../components/learn/Transcript.astro";
+import { factText, flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const rep = learn.report;
+export const f = rep.finding;
+export const shown = [...new Set([...f.claims.flatMap((c) => c.facts), rep.action.low, rep.action.high])];
+
+**Stage 8 of 10.** `RENDER` writes `report.json` (the verified data) and `report.html` (a self-contained page you can open offline).
+
+## The problem it solves
+
+A report is only as useful as your ability to check it. “Revenue fell {factText(learn.analysis.change.pct).replace("−", "")}” in a slide is a claim; you would have to redo the work to trust it. Here every number sits next to a short ID, a [fact ID](../../glossary/#fact-id), and the ID opens the exact computation behind it: the SQL and its parameters, or the function and its inputs, down to the spreadsheet rows.
+
+## What happens on the example
+
+<StageFlow client:visible {...flowProps("report")} title="Rendering the verified coffee-roaster report" />
+
+The top finding, **{f.title}**, as the report states it. Each figure is followed by its chip; a chip with a check mark was recomputed by the verifier. Click one: it jumps to its row in the ledger at the bottom of this page.
+
+<ol class="aa-learn-claims">
+{f.claims.map((c) => <li><Claim text={c.text} /> <span class="aa-grade">{c.grade ?? "observed"}</span>{c.citations.filter((x) => x.quote).map((x) => <span class="aa-learn-quote"> <code>{x.file}</code>: “{x.quote}”</span>)}</li>)}
+</ol>
+
+The top recommendation: **{rep.action.text}**, expected impact <Fact id={rep.action.low} /> to <Fact id={rep.action.high} />, {rep.action.horizon}. The impact is a *scenario* computed in code from facts and bounded assumptions (how much of the lost wholesale might come back, at what discount), never a number the model made up.
+
+**Following a chip down.** The headline change <Fact id={learn.analysis.change.pct} /> is `pct_change` of two SQL facts. From the terminal, `aa explain` shows the same thing the chip opens:
+
+<Transcript id="explainPct" />
+
+and one of its inputs, with the SQL, its parameters and the first input rows:
+
+<Transcript id="explainSql" lines={10} />
+
+Click a citation to see what it points at (from the build's own run of the example):
+
+<CitationDemo client:visible />
+
+## The ideas behind it
+
+### Provenance
+
+[Provenance](../../glossary/#provenance) is the record of where something came from. Every fact has it (its computation and cited rows), every quote has it (file, page, character span), every web statement has it (URL and fetch time). A claim without provenance is not allowed in `report.json`.
+
+### Placeholders, filled by code
+
+The text in the report was written with `{{N12}}`-style placeholders. Rendering replaces each with the fact's stored value, formatted for reading: rounding happens only on screen, the stored value keeps full precision. That is why the report and `aa explain` always agree.
+
+### One file you can keep
+
+`report.html` carries its own data and script, makes no network requests, and works from a USB stick. `report.json` follows a published [schema](../../../reference/report-schema/), so other tools can read it.
+
+## Try it
+
+Run the first tutorial, then open the report and click any number:
+
+```bash title="Terminal"
+AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash --today 2026-07-01 --currency USD --open
+```
+
+## In the code
+
+- [`packages/report/src/render.tsx`](https://github.com/gfirik/agentic-analytics/blob/main/packages/report/src/render.tsx): `report.html`.
+- [`packages/report/src/text.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/report/src/text.ts) and [`format.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/report/src/format.ts): filling placeholders, formatting for reading.
+- [`packages/schema/src/report.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/schema/src/report.ts): the report schema (Zod, with JSON Schema generated from it).
+- [`packages/analysis/src/impact.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/impact.ts): impact scenarios.
+- The spec: [`docs/specs/report-schema.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/report-schema.md).
+
+Go deeper: [Your first report](../../../start/first-report/) and the [report schema](../../../reference/report-schema/).
+
+## Further reading
+
+- W3C, [PROV-Overview](https://www.w3.org/TR/prov-overview/): a standard vocabulary for provenance.
+
+## Facts on this page
+
+<FactLedger flow="report" ids={[...shown, learn.analysis.change.pct]} />

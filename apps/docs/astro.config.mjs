@@ -73,7 +73,7 @@ export default defineConfig({
         },
       },
       // Navigation (M13f): sections in reading order, each opening with a page that says what the section is for.
-      // A later "Learn" section (concept guides per stage, tutorials) slots in between "How it works" and "Use it".
+      // Learn (M13g) is the beginner path, between the reference-level "How it works" and "Use it".
       sidebar: [
         {
           label: "Start",
@@ -85,6 +85,38 @@ export default defineConfig({
           ],
         },
         { label: "How it works", autogenerate: { directory: "how-it-works" } },
+        {
+          label: "Learn",
+          items: [
+            { label: "The big picture", slug: "learn" },
+            {
+              label: "Stage by stage",
+              items: [
+                "learn/stages/ingestion",
+                "learn/stages/metric-layer",
+                "learn/stages/analysis",
+                "learn/stages/retrieval",
+                "learn/stages/web-lane",
+                "learn/stages/planner",
+                "learn/stages/verifier",
+                "learn/stages/report",
+                "learn/stages/models",
+                "learn/stages/security",
+              ],
+            },
+            {
+              label: "Tutorials",
+              items: [
+                "learn/tutorials/first-file",
+                "learn/tutorials/confirm-metrics",
+                "learn/tutorials/documents-as-evidence",
+                "learn/tutorials/claude-mcp",
+                "learn/tutorials/evals-on-your-data",
+              ],
+            },
+            "learn/glossary",
+          ],
+        },
         {
           label: "Use it",
           items: ["use-it/overview", "use-it/cli", "use-it/http-api", "use-it/mcp", "use-it/telegram", "use-it/viewer"],

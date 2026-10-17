@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { confirmJobMetrics, type JobOptions, runJob } from "@agentic-analytics/core";
-import { parseRealAnswers, REAL_DATASETS, type RealAnswers, type RealCheck } from "@agentic-analytics/eval-real";
+import { parseRealAnswers, REAL_DATASETS, type RealAnswers, type RealCheck, sha256 } from "@agentic-analytics/eval-real";
 import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { placeholders, type Report } from "@agentic-analytics/schema";
@@ -31,6 +31,8 @@ export interface RealDatasetResult {
   readonly page: string;
   readonly file: string;
   readonly sha256: string;
+  /** Your own data (an answer file with a `title`), not one of the public datasets. */
+  readonly own?: boolean;
   readonly completed: boolean;
   readonly error?: string;
   readonly seconds: number;
@@ -225,7 +227,11 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
   const t0 = Date.now();
   for (const [i, { answers, dir: answersDir }] of all.entries()) {
     const meta = REAL_DATASETS.find((d) => d.id === answers.dataset);
-    if (!meta) throw new EvalRunError("UNKNOWN_DATASET", `answer file for unknown dataset ${answers.dataset}`);
+    if (!meta && !answers.title)
+      throw new EvalRunError(
+        "UNKNOWN_DATASET",
+        `answer file for unknown dataset ${answers.dataset} (for your own data, give the answer file a \`title\`)`,
+      );
     const dir = mkdtempSync(join(tmpdir(), `aa-real-${answers.dataset}-`));
     const started = Date.now();
     const options: JobOptions = {
@@ -234,6 +240,17 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
       ...(answers.confirmed_metrics ? { autoConfirm: false } : {}),
     };
     const bytes = new Uint8Array(readFileSync(join(o.dataDir, answers.file)));
+    // A public dataset is described by its manifest; your own data by its answer file, with the file's own checksum.
+    const about = meta
+      ? {
+          title: meta.title,
+          publisher: meta.publisher,
+          licence: meta.licence.name,
+          citation: meta.citation,
+          page: meta.page,
+          sha256: meta.derived.sha256,
+        }
+      : { title: answers.title ?? answers.dataset, publisher: "", licence: "", citation: "", page: "", sha256: sha256(bytes), own: true };
     let report: Report | undefined;
     let error: string | undefined;
     try {
@@ -260,13 +277,8 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
     }
     const r: RealDatasetResult = {
       dataset: answers.dataset,
-      title: meta.title,
-      publisher: meta.publisher,
-      licence: meta.licence.name,
-      citation: meta.citation,
-      page: meta.page,
+      ...about,
       file: answers.file,
-      sha256: meta.derived.sha256,
       completed: report !== undefined,
       ...(error ? { error } : {}),
       seconds: (Date.now() - started) / 1000,
@@ -295,13 +307,14 @@ const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
 
 /** The "Real public data" section of RESULTS.md for one run. */
 export function realResultsMarkdown(r: RealSuiteResult): string {
-  const lines = [`### ${r.model} · real public data · ${r.date}`, "", ...(r.note ? [r.note, ""] : [])];
+  const own = r.datasets.length > 0 && r.datasets.every((d) => d.own);
+  const lines = [`### ${r.model} · ${own ? "your data" : "real public data"} · ${r.date}`, "", ...(r.note ? [r.note, ""] : [])];
   for (const d of r.datasets) {
     const passed = d.checks.filter((c) => c.pass).length;
     lines.push(
-      `#### ${d.title} (${d.publisher}, ${d.licence})`,
+      d.own ? `#### ${d.title} (your data)` : `#### ${d.title} (${d.publisher}, ${d.licence})`,
       "",
-      `${d.citation} File read: \`${d.file}\` (SHA-256 \`${d.sha256.slice(0, 12)}…\`). ${d.completed ? `Completed in ${d.seconds.toFixed(1)} s` : `**Failed**: ${cell(d.error ?? "")}`} · ${passed}/${d.checks.length} checks pass.`,
+      `${d.citation ? `${d.citation} ` : ""}File read: \`${d.file}\` (SHA-256 \`${d.sha256.slice(0, 12)}…\`). ${d.completed ? `Completed in ${d.seconds.toFixed(1)} s` : `**Failed**: ${cell(d.error ?? "")}`} · ${passed}/${d.checks.length} checks pass.`,
       "",
       "| Check | Pass | What the report shows |",
       "|---|---|---|",

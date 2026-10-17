@@ -142,6 +142,8 @@ Prose is capped at `--aa-measure` (68ch). Docs articles follow Starlight's conte
     - corners at 4px.
   - The scene is its own frame, with a hairline and no island box around it.
   - Under 30rem its type is too small to read, so the island also tells the same run as a ruled list of steps, from the same data.
+- **Stage diagram** (`StageFlow`, Learn): three ruled columns, In → the stage's steps → Out, on a `raised` panel. Figures in mono with their fact chips; a selected step and the outputs it produced take the `mark` wash (not a colour). The server renders every step done; buttons step through it, and Play is offered only without reduced motion. Under 50rem the columns stack, with ↓ between them.
+- **Recorded output** (`Transcript`, Learn): a `surface` block in mono with a label-style caption; long lines scroll inside it, and a note names what was replaced (durations, job ids, paths).
 - **Header:** the wordmark, a mark (a ruled square with a check, `aria-hidden`, drawn in `currentColor`: it is the brand, not a verified state, so it is never green; the favicon is the same mark in ink), then Docs, Evals and GitHub. In the docs it adds search and the theme control. Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`, Escape closes it and returns focus).
 - **Footer (every page):** project links, the licence, and "Built by fhsystems", linking to https://fhsystems.dev.
 

@@ -1,0 +1,104 @@
+---
+title: Retrieval
+description: How the engine finds the passage that explains a number, with BM25, embeddings, reciprocal rank fusion and a reranker, explained from scratch.
+---
+
+import RagStepper from "../../../../components/RagStepper.tsx";
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const r = learn.retrieval;
+export const email = r.hits.find((h) => h.file.endsWith(".eml"));
+
+**Stage 4 of 10.** `INDEX_DOCS` indexes the documents; the planner's `search_documents` tool searches them. This is the engine's [RAG](../../glossary/#rag): retrieval-augmented generation.
+
+## The problem it solves
+
+The numbers say revenue fell in April and wholesale did it. They can't say *why*. The why is usually written somewhere: a price list, an email, a note. But you can't hand every document to a language model on every question (too long, too slow, and anything in them could steer it), and a plain keyword search misses passages that say the same thing in other words.
+
+So the documents are cut into small passages called [chunks](../../glossary/#chunk), and a search picks the few that matter for one question. Only those are read, and only by the [quarantined extractor](../../glossary/#quarantined-extractor).
+
+## What happens on the example
+
+The planner, investigating the revenue drop, searched for **“{r.query}”**. The {r.chunks} chunks of the four documents were searched two ways and the lists combined:
+
+<StageFlow client:visible {...flowProps("retrieval")} title="One document search on the coffee-roaster files" />
+
+Every chunk the search returned, with its rank in each list and the fused score:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Search results with BM25, vector and fused ranks">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Chunk</th><th scope="col">From</th><th scope="col" class="num">BM25 rank</th><th scope="col" class="num">Vector rank</th><th scope="col" class="num">RRF score</th><th scope="col">Starts with</th></tr></thead>
+<tbody>
+{r.hits.map((h) => <tr><td class="id">{h.chunk}</td><td><code>{h.file}</code>{h.heading ? ` › ${h.heading}` : ""}</td><td class="num">{h.bm25 ?? "–"}</td><td class="num">{h.vector ?? "–"}</td><td class="num">{h.rrf.toFixed(4)}</td><td class="muted">{h.text.slice(0, 90)}…</td></tr>)}
+</tbody>
+</table>
+</div>
+
+The hotel's email ({email?.chunk}) came third in both lists, behind two pages of the price list. That's fine: all three are relevant, and the planner reads extracts from the top few. The Word notes about roasting and staff share no words with the query, so BM25 doesn't rank them at all ("–"), and the vector lane puts them last.
+
+**Rerank** was skipped: this offline run has no reranker model, and the result says so (<code>degraded: {r.degraded.join(", ")}</code>) instead of hiding it. The fused order stands.
+
+**Extract.** The top chunk went to the quarantined extractor, a model call with no tools that returns typed records with **exact quotes**, checked to be substrings of the chunk:
+
+<pre class="aa-learn-yaml" tabindex="0" aria-label="What the extractor returned for the top chunk">{JSON.stringify(r.extract, null, 2)}</pre>
+
+That quote, with its page and character span, is what a citation in the report points at.
+
+Step through another query on the same files (from the build's own run):
+
+<RagStepper client:visible />
+
+## The ideas behind it
+
+### RAG
+
+[Retrieval-augmented generation](../../glossary/#rag) means: before a model writes, find the few passages that are relevant and give it those, so it writes from evidence instead of memory. Here the model never sees raw passages at all; it sees the extractor's typed records.
+
+### BM25: keyword search
+
+[BM25](../../glossary/#bm25) scores a passage by the query words it contains, giving rare words more weight than common ones and not rewarding a long passage just for being long. It is exact and explainable, and it misses synonyms. The engine runs it inside DuckDB's full-text index, with stemming, so "increase" also matches "increases".
+
+### Embeddings: meaning search
+
+An [embedding](../../glossary/#embedding) is a list of numbers that places a text in a "meaning space", where texts about the same thing sit close together. The query is embedded too, and the nearest passages win, even if they share no words. The default model, `bge-m3`, runs in-process with no server; this page's run used <code>{r.embedder}</code>, an offline stand-in that hashes words, so tests and docs need no download.
+
+### Reciprocal rank fusion
+
+The two lists disagree. [RRF](../../glossary/#reciprocal-rank-fusion) combines them without comparing their scores (which are on different scales): each list gives a passage 1/(60 + rank) points, and points add up. A passage near the top of both lists beats one that tops only one. The email: 1/(60+{email?.bm25}) + 1/(60+{email?.vector}) = {email?.rrf.toFixed(4)}.
+
+### Rerankers
+
+A [reranker](../../glossary/#reranker) (a cross-encoder) reads the query and one passage *together* and scores how well the passage answers it. It is slower than both lanes, so it only reorders the top few. When it can't run, the engine says the result is degraded.
+
+## Try it
+
+The retrieval benchmark runs both labelled corpora offline:
+
+```bash title="Terminal"
+bun run --filter @agentic-analytics/retrieval eval:retrieval
+```
+
+And the [documents tutorial](../../tutorials/documents-as-evidence/) shows what the documents change in a report.
+
+## In the code
+
+- [`packages/retrieval/src/chunk.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/retrieval/src/chunk.ts): chunking with page, heading and span.
+- [`packages/retrieval/src/search.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/retrieval/src/search.ts): the query flow.
+- [`packages/retrieval/src/retrieval.sql.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/retrieval/src/retrieval.sql.ts): BM25 and vector search in DuckDB.
+- [`packages/retrieval/src/rrf.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/retrieval/src/rrf.ts) and [`rerank.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/retrieval/src/rerank.ts): fusion and reranking.
+- [`packages/retrieval/src/embed.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/retrieval/src/embed.ts): in-process embeddings and the offline hash embedder.
+- [`packages/agent/src/extractor.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/agent/src/extractor.ts): the quarantined extractor.
+- The spec: [`docs/specs/retrieval.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/retrieval.md).
+
+Go deeper: [Documents lane](../../../how-it-works/documents/).
+
+## Further reading
+
+- Lewis et al., *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks*, 2020. [arXiv:2005.11401](https://arxiv.org/abs/2005.11401)
+- Robertson and Zaragoza, *The Probabilistic Relevance Framework: BM25 and Beyond*, 2009. [doi:10.1561/1500000019](https://doi.org/10.1561/1500000019)
+- Reimers and Gurevych, *Sentence-BERT*, 2019. [arXiv:1908.10084](https://arxiv.org/abs/1908.10084)
+- Chen et al., *BGE M3-Embedding*, 2024. [arXiv:2402.03216](https://arxiv.org/abs/2402.03216)
+- Cormack, Clarke and Büttcher, *Reciprocal rank fusion outperforms Condorcet and individual rank learning methods*, SIGIR 2009. [doi:10.1145/1571941.1572114](https://doi.org/10.1145/1571941.1572114)
+- Nogueira and Cho, *Passage Re-ranking with BERT*, 2019. [arXiv:1901.04085](https://arxiv.org/abs/1901.04085)
+- DuckDB, [Full-text search extension](https://duckdb.org/docs/current/core_extensions/full_text_search.html).

@@ -101,6 +101,17 @@ describe("metric review (confirm flow)", () => {
     expect(io.shown[0]).toBe("Revenue = sum of amount where status is not refunded, per month, in USD (assumed)");
   });
 
+  it("an input failure during an edit propagates instead of being reported as invalid YAML", async () => {
+    const { catalog: c } = await catalog();
+    const ended = new Error("input ended");
+    const io = scripted(["edit"], []);
+    io.edit = async () => {
+      throw ended;
+    };
+    await expect(reviewMetrics(DRAFTS, c, io)).rejects.toBe(ended);
+    expect(io.shown.some((l) => l.includes("isn't valid YAML"))).toBe(false);
+  });
+
   it("dropping a metric drops the ratio that depends on it, with the reason", async () => {
     const { catalog: c } = await catalog();
     const res = await reviewMetrics(DRAFTS, c, scripted(["accept", "drop", "accept"], []));

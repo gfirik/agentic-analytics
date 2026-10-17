@@ -42,6 +42,16 @@ Why derive at all:
 
 A dataset whose file has no money-named column can name a metrics YAML in `confirmed_metrics`. The runner then uses the product's review flow: the job pauses at AWAIT_CONFIRM, the definitions are confirmed, and it resumes. Checks are written from the data, never from what the engine happens to output; a failed check is an engine gap, recorded in docs/progress/STATE.md.
 
+## Your own data
+
+The same checks work on your files. Write an answer file per dataset (the format above, plus a `title`: a dataset that isn't one of the public ones must have one), put it in a folder, and point `aa eval` at it:
+
+```bash
+bun run aa eval --suite real --answers examples/my-evals --data examples/coffee-roaster --results-dir data/my-evals
+```
+
+`--data` is the folder holding the files the answer files name (default: the answers folder). Results go to `--results-dir`, or `./eval-results`, never to `evals/results`. `examples/my-evals/coffee-roaster.yaml` is a worked example on the example workbook, with its ground truth from DuckDB over the Orders sheet.
+
 ## Public API
 
 - `REAL_DATASETS`: each dataset's URLs, licence (with the publisher's own wording), citation and checksums.

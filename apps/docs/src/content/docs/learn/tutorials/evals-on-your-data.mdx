@@ -1,0 +1,80 @@
+---
+title: Run evals on your own data
+description: Write down what is true about your data, independently of the engine, and let aa eval check every report against it.
+---
+
+import Transcript from "../../../../components/learn/Transcript.astro";
+
+**Tutorial 5 of 5.** About twenty minutes, offline.
+
+## Why evaluate
+
+An [eval](../../glossary/#eval) is a test for a system whose output isn't fixed: you can't compare a report to an expected string, but you can check that it *says the right things*. Before you trust the engine (or a new model, or a new version) on your data, write down a few facts you know are true, and let the engine be checked against them every time.
+
+The rule that makes an eval honest: **the expected answers come from your own SQL or your own books, never from what the engine output.** Otherwise you are testing that the engine agrees with itself.
+
+The project already does this on generated businesses and on public datasets ([How quality is measured](../../../quality/evals/)). `aa eval --suite real --answers <folder>` runs the same checks on yours.
+
+## 1. Establish the truth yourself
+
+For this tutorial, treat the example workbook as your data. Save its `Orders` sheet as CSV and query it with any SQL tool; with DuckDB:
+
+```sql
+SELECT strftime(strptime("Date", '%d/%m/%Y'), '%Y-%m') AS month,
+       round(sum(Amount::DOUBLE) FILTER (WHERE Status <> 'refunded'), 2) AS revenue
+FROM read_csv('orders.csv', all_varchar = true) GROUP BY 1 ORDER BY 1;
+```
+
+Write the results down. They are the ground truth.
+
+## 2. Write an answer file
+
+One YAML file per dataset, in a folder of its own. This is the real file used below, [`examples/my-evals/coffee-roaster.yaml`](https://github.com/gfirik/agentic-analytics/blob/main/examples/my-evals/coffee-roaster.yaml). The important parts:
+
+- `dataset` and `title`: a name for your data (a `title` marks it as yours rather than one of the public datasets);
+- `file`: the file the engine reads, and `options` (today's date, the currency);
+- `ground_truth`: your queries and their results, written next to the checks so anyone can re-run them;
+- `checks`: what a correct report must show.
+
+The check kinds:
+
+| Kind | Passes when the report |
+|---|---|
+| `completes` | was produced (no stage failed) |
+| `verified` | has no number mismatch, re-derivation mismatch or definition violation |
+| `finding_at` | has a finding about that metric's change in that month, in that direction |
+| `no_finding_at` | has no finding about that month (a partial month, a change too small to matter) |
+| `quality_issue` | reports that kind of data-quality problem for that column (optionally with the right row count) |
+| `seasonal_peak` | shows the peak month you expect each year, with values equal to your SQL |
+| `seasonal_not_flagged` | does not report a move that happens every year |
+
+Each check reads only `report.json`, so it works the same with any model.
+
+## 3. Run it
+
+```bash title="Terminal"
+bun run aa eval --suite real --answers examples/my-evals --data examples/coffee-roaster --results-dir data/my-evals
+```
+
+- `--answers`: the folder of answer files.
+- `--data`: where the files they name are (by default, the answers folder).
+- `--results-dir`: where results go (by default `./eval-results`; your results never mix with the project's).
+- `--model`: `baseline` (the default: a scripted heuristic, offline), `configured` (your `.env` models), or one model for every role, such as `ollama:qwen3.5:9b`.
+
+<Transcript id="eval" />
+
+Every check passes on the baseline here. The results file records every check with what the report showed, and `RESULTS.md` next to it is a readable table. The command exits with 1 when any check fails, so you can put it in CI.
+
+## 4. Make it yours
+
+- Put your own file and answer file in a folder, and add checks you can state from your books: “revenue fell in March”, “there is no finding about the half month at the end”, “the duplicate rows are reported”.
+- Run it with the model you plan to use, and again when you change model or version.
+- When a check fails, read its detail before touching anything: a failed check is information about the engine (or about your answer file), not something to tune away.
+
+## What you learned
+
+- An eval checks a report against facts you established independently.
+- `aa eval --suite real --answers` runs the project's real-data checks on your files.
+- Results are files you can compare over time.
+
+That's the end of the tutorials. The [glossary](../../glossary/) has every term from this section.

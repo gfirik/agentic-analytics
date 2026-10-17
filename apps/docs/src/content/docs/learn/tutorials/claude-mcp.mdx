@@ -1,0 +1,79 @@
+---
+title: Use it from Claude via MCP
+description: Connect Claude Desktop (or any MCP client) to the engine, ask it to analyse a folder, and get verified numbers back that the model quotes instead of recomputing.
+---
+
+import "../../../../components/learn/learn.css";
+import { learn } from "../../../../components/learn/data.ts";
+
+export const mcp = learn.tutorials.mcp;
+
+**Tutorial 4 of 5.** About fifteen minutes. You need Claude Desktop or another MCP client; the engine itself still runs offline.
+
+## Why connect them
+
+A chat assistant is good at conversation and bad at arithmetic over your files. The engine is the opposite. The [Model Context Protocol](../../glossary/#mcp) (MCP) is an open standard that lets an assistant call tools on your machine. With it, you ask Claude in plain words; Claude calls the engine; the engine does the reading, the SQL and the verification; Claude quotes the result.
+
+Your files never leave your machine through the engine: it reads local paths and returns text.
+
+## 1. Add the server to Claude Desktop
+
+Open Settings → Developer → Edit Config, and add the engine as a stdio server. Claude Desktop starts it for you. This configuration uses the scripted planner and the offline embedder, so it works with no model; replace them with your model settings later (see [Running on free models](../../../models/running-free/)):
+
+```json title="claude_desktop_config.json"
+{
+  "mcpServers": {
+    "agentic-analytics": {
+      "command": "node",
+      "args": ["/path/to/agentic-analytics/apps/cli/bin/aa.js", "mcp", "--embedder", "hash"],
+      "env": {
+        "AA_DEMO_MODEL": "scripted",
+        "AA_JOBS_DIR": "/path/to/agentic-analytics/data/jobs"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The server offers these tools (their real descriptions, as the client sees them):
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="The MCP tools">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Tool</th><th scope="col">What the client is told</th></tr></thead>
+<tbody>
+{mcp.tools.map((t) => <tr><td class="id">{t.name}</td><td>{t.description}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+Note the last sentence of most descriptions: the calling model is told the numbers are verified and must be quoted, never recalculated.
+
+## 2. Ask
+
+Try: *“Analyse the files in /path/to/agentic-analytics/examples/coffee-roaster and tell me why revenue fell.”* Claude calls the tools. Below are those calls and the engine's real answers, recorded through the MCP SDK's own client against the same server `aa mcp` runs (only the path and the job ID are shown generically):
+
+{mcp.calls.map((c) => <figure class="aa-term"><figcaption class="aa-term-label">{c.tool}</figcaption><pre tabindex="0" aria-label={`MCP call ${c.tool} and its result`}>{`→ ${JSON.stringify(c.args)}\n\n${c.result}`}</pre></figure>)}
+
+`analyze_files` with `wait: true` returned the summary. `explain_number` returned the computation behind the headline percentage. `ask_report` returned claims that passed verification, and lists any that failed.
+
+A long job can outlast a client's request timeout. Ask Claude to start with `wait: false` and then poll `get_report`.
+
+## 3. Over HTTP instead
+
+`aa serve` also serves MCP over streamable HTTP at `/mcp`, for clients that connect to a URL. Over HTTP anyone who can reach the port could ask for files, so local paths are read only inside the folders you list in `AA_MCP_ROOTS`:
+
+```bash title="Terminal"
+AA_MCP_ROOTS=/path/to/agentic-analytics/examples AA_DEMO_MODEL=scripted bun run aa serve --embedder hash
+```
+
+Then point the client at `http://127.0.0.1:8080/mcp`. The server listens on localhost only; set `API_TOKEN` before exposing it anywhere else.
+
+## What you learned
+
+- MCP lets an assistant call the engine's tools on your machine.
+- The assistant gets verified numbers with IDs and is told to quote them.
+- Over HTTP, `AA_MCP_ROOTS` limits which folders can be read.
+
+**Next:** [Run evals on your own data](../evals-on-your-data/).
+
+Reference: [MCP](../../../use-it/mcp/) · [MCP specification](https://modelcontextprotocol.io/specification)

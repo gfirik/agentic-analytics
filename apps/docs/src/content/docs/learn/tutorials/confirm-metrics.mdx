@@ -1,0 +1,61 @@
+---
+title: Confirm your metrics
+description: Look at the drafted metric definitions, save them to a file, and review them one by one before a job measures anything.
+---
+
+import Transcript from "../../../../components/learn/Transcript.astro";
+import { learn } from "../../../../components/learn/data.ts";
+
+**Tutorial 2 of 5.** About ten minutes, offline. Read [Metric layer](../../stages/metric-layer/) first if you want the why.
+
+Every number in a report is computed from a metric definition. In the first tutorial `--yes` kept the drafts without asking, and the summary ended with *“some metric definitions were assumed, not confirmed”*. Here you check them.
+
+## 1. See the drafts before running anything
+
+`aa metrics` reads and profiles the files, drafts the definitions, and shows each one in words, with its SQL and its last six values. `--save` writes them to a YAML file:
+
+<Transcript id="metrics" lines={14} />
+
+No model was running here, so the definitions were drafted by deterministic rules, and the first line says so. With a model configured, it drafts them instead; either way they are validated by the same code. Read each sentence: is *Revenue = sum of amount where status is not refunded* what you mean by revenue? Are the values what you see in your own books?
+
+## 2. Edit the file
+
+The saved file is plain YAML, one entry per metric. Its first entry:
+
+<pre class="aa-learn-yaml" tabindex="0" aria-label="The saved metrics file, first entry">{learn.tutorials.metricsYaml.split("\n  - id: orders")[0]}</pre>
+
+Change what's wrong: a filter, the column, the label. Then use your file instead of drafting (with `--yes` the statuses in the file are kept; without it you review each one):
+
+```bash title="Terminal"
+bun run aa metrics examples/coffee-roaster --metrics agentic-analytics.metrics.yaml --yes --currency USD --today 2026-07-01
+```
+
+A definition that doesn't fit the data (a column that doesn't exist, a sum over a text column) is refused with the reason. The full format is in [Metric YAML](../../../reference/metric-yaml/).
+
+## 3. Review during a job
+
+Without `--yes`, `aa analyze` stops after drafting and asks about each metric: **a**ccept, **e**dit (type or paste new YAML, then an empty line), or **d**rop.
+
+```bash title="Terminal"
+AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --embedder hash --today 2026-07-01 --currency USD
+```
+
+In this recording we accepted the first four and dropped `refund_rate`:
+
+<Transcript id="review" from="AWAIT_CONFIRM" lines={22} />
+
+and the job went on. The end of the same run:
+
+<Transcript id="review" from="Findings:" />
+
+Compare it with the first tutorial: the refund-rate finding and its recommendation are gone, because their metric was dropped, and the note about assumed metrics is gone, because every metric was confirmed. The report records each metric's status, so a reader can always tell a confirmed definition from an assumed one.
+
+You can also answer from a script (`printf 'a\na\na\na\nd\n' | …`); if the answers run out before the questions, the job stops and says so instead of guessing.
+
+## What you learned
+
+- `aa metrics` shows the definitions, their SQL and their values before any analysis.
+- Definitions live in a YAML file you can edit, keep and reuse with `--metrics`.
+- Without `--yes`, a job waits for you, and what you drop leaves the report.
+
+**Next:** [Add documents and emails as evidence](../documents-as-evidence/).

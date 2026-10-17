@@ -1,0 +1,112 @@
+---
+title: Analysis
+description: How the engine finds what changed and who moved it, with SQL facts, noise bands, and contribution and price-volume-mix splits.
+---
+
+import Decomposition from "../../../../components/Decomposition.tsx";
+import Fact from "../../../../components/learn/Fact.astro";
+import FactLedger from "../../../../components/learn/FactLedger.astro";
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const a = learn.analysis;
+export const ch = a.change;
+export const wholesale = a.channel.find((c) => c.member === "wholesale");
+export const retail = a.channel.find((c) => c.member === "retail");
+export const seasonal = a.real.filter((c) => c.about.match(/peak|January|partial/));
+export const templates = [...new Set(a.templates.map((t) => t.template))];
+
+**Stage 3 of 10.** `MEASURE`, `DETECT` and `DECOMPOSE` turn the metrics into facts, find the changes worth your time, and split each change into who caused it. No language model runs here either.
+
+## The problem it solves
+
+Six months of revenue is easy to look at. Six months of five metrics by six customers, two channels and five products is not: some numbers always wobble, a seasonal peak is not news, and "revenue fell" is useless until you know *where* it fell. A model asked to eyeball the table will find patterns in noise and do the subtraction in its head.
+
+So detection is a fixed library of tests, each one SQL plus a small function, and every number it produces is a [fact](../../glossary/#fact) with an ID.
+
+## What happens on the example
+
+<StageFlow client:visible {...flowProps("analysis")} title="Analysis on the coffee-roaster revenue" />
+
+**Compare.** March revenue was <Fact id={ch.before} />, April's <Fact id={ch.after} />. The change, <Fact id={ch.delta} />, and the percentage, <Fact id={ch.pct} />, are *function facts*: `delta` and `pct_change` applied to the two SQL facts, so each one points at its inputs.
+
+**Is it bigger than the noise?** Every series wobbles. The engine measures how much revenue usually moves and asks whether April is outside that. Two tests agree here:
+
+- a [robust z-score](../../glossary/#robust-z-score) of <Fact id={a.noise.z} />, against a threshold of ±{a.noise.threshold}: far outside the usual wobble;
+- a [noise band](../../glossary/#noise-band) of ±{a.noise.band.toFixed(1)}, against a level shift of <Fact id={a.noise.shift} /> after March (template <code>{a.noise.template}</code>). The band is not a fact but a parameter of the test, stored in the insight's details: 2 × 1.4826 × the median absolute deviation of the series' other month-to-month changes, so the change being tested can't widen its own band (`noiseBand` in [`baselines.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/baselines.ts)).
+
+March's own rise from February was small enough to stay inside the band, so it is not reported at all. On this run {a.templates.length} candidate insights came out of {templates.length} templates ({templates.join(", ")}); ranking keeps the ones that matter.
+
+**Who moved it: contribution.** Split by channel, the change adds up exactly:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Contribution by channel">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Channel</th><th scope="col" class="num">Change</th><th scope="col" class="num">Share of the change</th></tr></thead>
+<tbody>
+{a.channel.map((c) => <tr><td>{c.member}</td><td class="num"><Fact id={c.delta} /></td><td class="num"><Fact id={c.share} /></td></tr>)}
+<tr><td><strong>total</strong></td><td class="num"><Fact id={a.channelTotal} /></td><td></td></tr>
+</tbody>
+</table>
+</div>
+
+Wholesale is more than 100% of the drop (<Fact id={wholesale.share} />) because retail grew a little (<Fact id={retail.delta} />). A share above 100% is not an error: it means the other members moved the other way.
+
+**Price, volume or mix?** Split by product with [price-volume-mix](../../glossary/#price-volume-mix): fewer units sold (volume) <Fact id={a.pvm.volume} />, a shift toward cheaper products (mix) <Fact id={a.pvm.mix} />, prices themselves <Fact id={a.pvm.price} />. The three add up to <Fact id={a.pvm.total} />. Most of the fall is mix: sales moved away from the 1 kg bags, the products wholesale customers buy.
+
+The same kind of split by customer, drawn as a waterfall (from the build's own run of the example):
+
+<Decomposition client:visible />
+
+## The ideas behind it
+
+### Facts, not answers
+
+Each number is stored with its computation: the SQL and parameters, or the function and the IDs of its inputs. That is what lets the [verifier](../verifier/) recompute it later, and you open it from its chip.
+
+### Robust statistics
+
+An ordinary z-score uses the mean and standard deviation, which one outlier can drag around. A *robust* z-score uses the median and the median absolute deviation (MAD) instead, so a single strange month cannot hide another. A value beyond about 3.5 robust z is a common rule of thumb for "unusual".
+
+### Exact decompositions
+
+Contribution, price-volume-mix and rate-versus-mix are identities: the parts always add up to the whole, and a test checks it on random data. There is also a Simpson's-paradox guard: when a rate moves one way in every group but the other way in total, the engine reports the mix shift instead of a misleading headline.
+
+### Seasonality, on real data
+
+A December peak in retail is not news. The engine compares a month with the same month in earlier years when it has them, and doesn't report a move that happens every year. The coffee example has only six months, so this is shown on the public datasets of the [real-data evals](../../../quality/evals/) (<code>{a.realFile}</code>):
+
+<ul>
+{seasonal.map((c) => <li><strong>{c.title}</strong>: {c.about}. <span class="aa-mono-wrap">{c.detail}</span> {c.pass ? "(pass)" : "(fail)"}</li>)}
+</ul>
+
+## Try it
+
+The first tutorial's job prints these findings; `aa explain` opens any fact:
+
+```bash title="Terminal"
+AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash --today 2026-07-01 --currency USD
+bun run aa explain <job-id> N30
+```
+
+See [Analyse your first file](../../tutorials/first-file/) for the recorded output.
+
+## In the code
+
+- [`packages/analysis/src/templates.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/templates.ts): the insight templates.
+- [`packages/analysis/src/stats.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/stats.ts) and [`baselines.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/baselines.ts): robust statistics and the noise band.
+- [`packages/analysis/src/seasonal.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/seasonal.ts): the seasonal guard.
+- [`packages/analysis/src/decompose.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/decompose.ts): contribution, PVM, rate and mix.
+- [`packages/analysis/src/rank.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/rank.ts): which findings make the report.
+- The spec: [`docs/specs/analysis-library.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/analysis-library.md).
+
+Go deeper: [Detecting changes](../../../how-it-works/detect/) and [Finding drivers](../../../how-it-works/drivers/).
+
+## Further reading
+
+- NIST/SEMATECH e-Handbook of Statistical Methods, [Detection of outliers](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm) (the modified z-score and its 3.5 cut-off).
+- Hyndman and Athanasopoulos, [Forecasting: Principles and Practice](https://otexts.com/fpp3/), the chapters on time-series decomposition and seasonality.
+- Stanford Encyclopedia of Philosophy, [Simpson's Paradox](https://plato.stanford.edu/entries/paradox-simpson/).
+
+## Facts on this page
+
+<FactLedger flow="analysis" ids={[ch.before, ch.after, ch.delta, ch.pct, a.noise.z, a.noise.shift, a.channelTotal, a.pvm.volume, a.pvm.mix, a.pvm.price, a.pvm.total, ...a.channel.flatMap((c) => [c.delta, c.share])]} />

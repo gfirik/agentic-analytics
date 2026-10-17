@@ -1,0 +1,90 @@
+---
+title: The verifier (V1–V8)
+description: Eight checks every report passes before you see it, what each one caught on the example, and why a wrong number stops the job.
+---
+
+import VerifierDiff from "../../../../components/VerifierDiff.tsx";
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { learn } from "../../../../components/learn/data.ts";
+import { flowProps } from "../../../../components/learn/data.ts";
+
+export const v = learn.verifier;
+export const failed = v.checks.filter((c) => c.failed > 0);
+
+**Stage 7 of 10.** `VERIFY` takes the draft report and checks it. Nothing reaches `report.json` without passing.
+
+## The problem it solves
+
+Language models are fluent, and fluent text is persuasive whether or not it is true. A model may cite a number that doesn't exist, say “caused by” when it only knows two things happened together, or recommend an action no finding supports. A careful human analyst catches those by re-checking. The verifier is that re-check, done by code, every time.
+
+## What happens on the example
+
+<StageFlow client:visible {...flowProps("verifier")} title="The verifier's eight checks on the coffee-roaster draft" />
+
+On this run the verifier recomputed {v.summary.numbers_checked} numbers, and {v.summary.numbers_mismatched} differed. It checked {v.summary.citations_checked} citations. {failed.length ? `Only ${failed.map((c) => `${c.check} (${c.name})`).join(", ")} found problems.` : "Every check passed."} What it removed or changed:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Claims the verifier dropped or changed">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Claim in the draft</th><th scope="col">What happened</th><th scope="col">Why</th></tr></thead>
+<tbody>
+{v.dropped.map((d) => <tr><td><s>{d.claim}</s></td><td>dropped</td><td class="muted">{d.reason}</td></tr>)}
+{v.downgraded.map((d) => <tr><td>{d.claim}</td><td>{d.from === d.to ? "reworded" : `${d.from} → ${d.to}`}</td><td class="muted">{d.reason}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+{v.summary.claims_shipped} claims shipped. The same draft against the verified report, side by side (from the build's own run of the example):
+
+<VerifierDiff client:visible />
+
+## The eight checks
+
+| Check | Asks | If it fails |
+|---|---|---|
+| **V1** placeholders | Is every number in model text a `{{N…}}` placeholder for a fact that exists? | drop the claim |
+| **V2** recompute | Run every fact's SQL or function again: same value (within 1e-9)? | **stop the job** |
+| **V3** re-derive | Do headline totals match when computed another way (summing the members)? | **stop the job** |
+| **V4** definitions | Does each fact match its metric's definition, period and filters, and the wording its sign? | drop |
+| **V5** citations | Does each quote exist at its source, and do cited rows feed the fact? A judge model checks support. | drop |
+| **V6** causal language | Do “caused”, “because”, “led to” have a document behind them? | reword or downgrade |
+| **V7** grounding | Does each recommendation cite a surviving finding, with impact facts and a future check date? | drop the action |
+| **V8** external | Does each web number cite its exact web source and stay labelled External? | drop |
+
+Why do V2 and V3 stop the job instead of dropping a claim? Because a fact that doesn't recompute is not a model mistake, it is a bug in the engine. Shipping a report around it would hide the bug. The job fails with a diagnostics file instead.
+
+## The ideas behind it
+
+### Verify, don't trust
+
+The model's text is treated as a draft from a junior colleague: useful, and checked line by line. The checks are cheap because every number is a fact with its computation attached; re-running it is one query.
+
+### Causal grades
+
+Saying *why* something happened is the riskiest thing an analyst does. Every claim carries a [causal grade](../../glossary/#causal-grade): `observed` (the numbers themselves), `correlated` (two things happened together), `document_supported` (a document says so, with a quote). V6 enforces the vocabulary: causal words need a document.
+
+### Hallucination
+
+When a model states something not supported by its input, that is called a [hallucination](../../glossary/#hallucination). You can't make a model stop; you can make sure nothing it states unsupported is shown to the reader as fact.
+
+## Try it
+
+The verifier's own tests, and the injection suite that runs every report through it:
+
+```bash title="Terminal"
+bunx vitest run packages/core/test/verify.test.ts packages/core/test/injection.test.ts
+```
+
+Every report carries a `verification` section with these counts; see [Report & fact IDs](../report/).
+
+## In the code
+
+- [`packages/verify/src/verify.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/verify/src/verify.ts): V1–V8 and the drop/rewrite/stop policy.
+- [`packages/verify/src/recompute.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/verify/src/recompute.ts): recomputing SQL and function facts.
+- The spec: [`docs/specs/agent-and-verifier.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/agent-and-verifier.md).
+
+Go deeper: [The verifier](../../../how-it-works/verifier/).
+
+## Further reading
+
+- Ji et al., *Survey of Hallucination in Natural Language Generation*, 2022. [arXiv:2202.03629](https://arxiv.org/abs/2202.03629)
+- Min et al., *FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation*, 2023. [arXiv:2305.14251](https://arxiv.org/abs/2305.14251)
