@@ -74,7 +74,7 @@ Model profiles (`packages/models/src/profiles.ts`) record per-model facts: conte
   - When every route is limited, it waits for the soonest, up to 90 s, then stops with `RATE_LIMITED`, naming each route and when it frees up.
   - It never switches models.
 - **Two kinds of call.** A structured-output call carries no tools, and a tool loop asks for no structured output (enforced by a transport test).
-- **Response cache.** Responses are keyed by SHA-256 of the URL and request body (model, messages, parameters); only successful responses are stored. Tools still run on replay, so cached runs give the same facts. It is on for `aa eval` (`evals/.cache/`), and on elsewhere with `AA_MODEL_CACHE=<dir>`.
+- **Response cache.** Responses are keyed by SHA-256 of the URL and request body (model, messages, parameters); only successful responses are stored. Tools still run on replay, so cached runs give the same facts. It is on for `aa eval` (`evals/.cache/`), and on elsewhere with `AA_MODEL_CACHE=<dir>`. A cached answer is served even while every route is rate-limited: the router lets a call probe the cache before it waits or stops with `RATE_LIMITED` (on the routes it would wait for, or on every route when it is about to stop), and a miss sends nothing. A tool loop whose cached steps were served stays on that route: its next live step waits for the route (or stops), so tools never run twice (M13h).
 - **Call log.** Every call reports role, provider, endpoint, model as sent, status, cached, latency and tokens. The CLI appends it to `data/logs/model-calls.jsonl` (stderr too with `AA_LOG_CALLS=1`), and eval results record calls per route. No prompt or answer text is logged.
 
 ## 6. Testing

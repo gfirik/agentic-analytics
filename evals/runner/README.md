@@ -22,7 +22,7 @@ Its rules were written knowing the generator's document templates: a sentence wi
 
 ## Public API
 
-- `runSuite({ suite, model, modelName, embedder, smallModel?, datasets? })` and `suiteDatasets(suite)`. The smoke suite is coffee_roaster-v1, saas-v2 and restaurant-v3; the full suite is all 30 datasets.
+- `runSuite({ suite, model, modelName, embedder, smallModel?, datasets?, keepReports? })` and `suiteDatasets(suite)`. With `keepReports` (`aa eval --keep-reports dir`), each report is kept as `<dir>/<dataset>.json` and each job's drafted metrics as `<dir>/<dataset>.metrics.drafted.json`, also when the job failed (`keepDraftedMetrics`; the job folder itself is temporary). The real-data tier does the same. The smoke suite is coffee_roaster-v1, saas-v2 and restaurant-v3; the full suite is all 30 datasets.
 - `scoreReport(report, key, run)`, `subjectOf`, `matchesPlanted`, `matchesDistractor`, `sliceOf`, `summarize(scores)`: the bars.
 - `evalCommand(args, deps)` (typed `EvalRunError`), `resultsPage(dir)`, `resultsMarkdown(result)`. Full-suite results are committed in `evals/results/`; smoke runs stay local.
 - `EvalArgs.label` / `note` / `only` (`aa eval --label --note --only`):

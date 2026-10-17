@@ -21,7 +21,7 @@ The core engine is shared: every door calls `@agentic-analytics/core`.
 | GET | `/v1/health` | engine, DuckDB, model, search and Docling availability |
 | GET | `/openapi.json` | generated spec |
 
-- **Jobs:** every door goes through `JobManager` in `packages/core`. Jobs live in `AA_JOBS_DIR/<jobId>/` and run one at a time. While a job runs, its workspace is busy: metrics, ask, explain and delete answer `409 BUSY`.
+- **Jobs:** every door goes through `JobManager` in `packages/core`. Jobs live in `AA_JOBS_DIR/<jobId>/` and run one at a time. Each job folder keeps `metrics.drafted.json`: the drafted metrics before validation and the validation result (metric-layer §2.6). While a job runs, its workspace is busy: metrics, ask, explain and delete answer `409 BUSY`.
 - **Events:** the SSE stream sends the job's events so far, then live ones. It ends on a live `done`, `failed` or `awaiting_confirmation`.
 - **Errors:** `{ error: { code, message } }`, with 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 409 `BUSY`/`NOT_READY`, and 401 `UNAUTHORIZED`.
 - **Ask:** the answer is claims that went through the report's verifier (agent-and-verifier §7). The planner names the report claims an answer rests on, and code copies their citations.

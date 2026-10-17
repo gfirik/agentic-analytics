@@ -12,7 +12,7 @@ M12 is a human gate. The agent prepared everything that can be reviewed in a pul
 ## Go public
 
 1. Settings → General → Change visibility → **Public**.
-2. Settings → Pages → Source: **GitHub Actions**. While the repo was private the `docs` workflow built the site but skipped the Pages upload and deploy; after making it public, rerun the `docs` workflow on main and confirm https://gfirik.github.io/agentic-analytics/ loads.
+2. Settings → Pages → Source: **GitHub Actions**. While the repo was private the `docs` workflow built the site but skipped the Pages upload and deploy; after making it public, run it on main with `gh workflow run docs.yml --ref main` (a re-run of an old push reuses its private flag and skips again) and confirm https://gfirik.github.io/agentic-analytics/ loads.
 3. Settings → Security: enable private vulnerability reporting (SECURITY.md points to it).
 4. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`. The `release` workflow then pushes `ghcr.io/gfirik/agentic-analytics:0.1.0` and `:latest` and creates the GitHub release from `docs/releases/v0.1.0.md`.
 5. Set the GHCR package visibility to public (Packages → agentic-analytics → Settings).

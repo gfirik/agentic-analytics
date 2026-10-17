@@ -3,6 +3,8 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
+  // One browser at a time locally (AGENTS.md §9); CI runners keep the default.
+  ...(process.env.CI ? {} : { workers: 1 }),
   testDir: "browser",
   timeout: 120_000,
   reporter: [["list"]],

@@ -15,9 +15,11 @@ export { describeMetric } from "./describe.ts";
 export { buildDigest, type Digest, type DigestColumn, type DigestOptions, type DigestTable, MAX_SAMPLES, maskSample } from "./digest.ts";
 export {
   DRAFT_SYSTEM,
+  type DraftRecord,
   type DraftResult,
   draftMetrics,
   draftPrompt,
+  draftRecord,
   fallbackMetrics,
   groupingColumns,
   MAX_GROUPING_VALUES,
