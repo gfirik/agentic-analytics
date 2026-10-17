@@ -15,7 +15,7 @@ The metric layer: draft metric definitions (model, else deterministic fallbacks)
 | `parseExpression`, `parseFilter` | The metric language: columns, numbers, `+ - * /`, `abs`, `coalesce`; filters with `= <> < <= > >=`, `IN`, `IS [NOT] NULL`, `AND/OR/NOT`. Anything else is rejected. |
 | `buildDigest(summary)` | What a model sees: tables, columns, types and ≤ 5 samples per column. Customers, suppliers, people, emails and phones are masked. |
 | `describeMetric(def)` | "Revenue = sum of amount where status is not refunded, per month, in USD" |
-| `reviewMetrics(drafts, catalog, io?, { yes? })` | Accept, edit (YAML, re-validated) or drop each draft. `--yes` keeps new drafts as assumptions; confirmed ones stay confirmed. A final re-validation drops metrics whose inputs were dropped. |
+| `reviewMetrics(drafts, catalog, io?, { yes? })` | Accept, edit (YAML, re-validated) or drop each draft. `--yes` keeps new drafts as assumptions; confirmed ones stay confirmed. A final re-validation drops metrics whose inputs were dropped. Only a parse error counts as invalid YAML: an error from `io.choose` or `io.edit` (for example, the terminal's input ended) rejects the review unchanged. |
 | `metricsYaml`, `parseMetricsYaml`, `saveMetricDefs` | `agentic-analytics.metrics.yaml` for reuse, and the `metric_defs` workspace table (YAML, SQL and its params, status). |
 | `fallbackMetrics(summary)` | The deterministic drafts on their own (spec §2.4): `revenue` from a money-named amount column, or `revenue = sum(quantity * price)` for invoice lines with a price-named currency column and a quantity column but no amount; `orders`, `refund_rate` and channel slices. |
 | `loadCatalog(ws)` | Tables, typed columns and date columns of a workspace, as the metric layer sees them. |
