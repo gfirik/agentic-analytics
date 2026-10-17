@@ -29,7 +29,7 @@ import { analyzeJob, loadAnalysis, readFacts, type StoredInsight } from "@agenti
 import { type IngestResult, type InputFile, ingest } from "@agentic-analytics/ingest";
 import { draftMetrics, type Grain, loadCatalog, parseMetricsYaml, saveMetricDefs, validateMetrics } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import { type ProfileSummary, periodOf, profileJob } from "@agentic-analytics/profile";
+import { type ProfileSummary, partialLastMonth, periodOf, previousMonth, profileJob } from "@agentic-analytics/profile";
 import { renderReportHtml } from "@agentic-analytics/report";
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
@@ -140,6 +140,8 @@ interface MetricsOutput {
   readonly range: { from: string; to: string; grain: Grain };
   readonly periodEnd: string;
   readonly source: string;
+  /** The incomplete last month left out of the range, if any. */
+  readonly partialPeriod?: string;
 }
 
 /** The definitions later stages use: the confirmed ones when the job paused for review, else the drafted ones. */
@@ -287,12 +289,23 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const grain = summary.grain as Grain;
           const bounds = summary.tables.flatMap((t) => (t.date_first && t.date_last ? [t.date_first, t.date_last] : [])).sort();
           const periods = bounds.map((d) => periodOf(d, grain)).sort();
-          const range = { from: periods[0] ?? "0000", to: periods.at(-1) ?? "9999", grain };
+          // A last month the data stops early in is left out: a part-month compared with whole months reads as a
+          // collapse (found on Online Retail II, which ends on 9 December 2011). The report says so as an assumption.
+          const partial = partialLastMonth(summary.tables, grain);
+          const first = periods[0] ?? "0000";
+          const dropLast = partial !== undefined && first < partial;
+          const range = { from: first, to: dropLast ? previousMonth(partial) : (periods.at(-1) ?? "9999"), grain };
           // --yes semantics (interactive review lands with the CLI in M10): drafts are kept as assumptions.
           const defs = draft.validation.accepted.map((d) => ({ ...d, status: "assumed" as const }));
           await saveMetricDefs(ws, defs, catalog, range);
           ctx.log.info("metrics drafted", { source: draft.source, accepted: defs.length, rejected: draft.validation.rejected.length });
-          return { defs, range, periodEnd: bounds.at(-1) ?? opts.today, source: draft.source } satisfies MetricsOutput;
+          return {
+            defs,
+            range,
+            periodEnd: bounds.at(-1) ?? opts.today,
+            source: draft.source,
+            ...(dropLast ? { partialPeriod: partial } : {}),
+          } satisfies MetricsOutput;
         },
       },
       {
@@ -355,7 +368,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               message: `${screened.quarantined.length} source(s) quarantined for text addressed to a model`,
             });
           // The first run of an in-process embedder downloads and loads its model, which can take minutes.
-          await ctx.progress(0, "indexing documents (an in-process embedding model is downloaded on its first use)");
+          await ctx.progress(0, "indexing documents (an in-process embedding model, if used, is downloaded on its first use)");
           return { ...(await indexDocuments(ws, deps.embedder)), quarantined: screened.quarantined };
         },
       },
@@ -503,6 +516,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             dropped: [...ex.dropped, ...d.dropped],
             downgraded: ex.downgraded,
             facts: await factMap(),
+            ...(m.partialPeriod ? { partialPeriod: m.partialPeriod } : {}),
           });
           const v = validateReport(report);
           if (!v.ok)

@@ -1,0 +1,281 @@
+{
+  "suite": "smoke",
+  "model": "openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode)",
+  "date": "2026-10-16",
+  "datasets": 3,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 5.692,
+      "tokens": {
+        "input": 20304,
+        "output": 5565
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 16,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 10.459,
+      "tokens": {
+        "input": 31506,
+        "output": 8061
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 20.879,
+      "tokens": {
+        "input": 25334,
+        "output": 6849
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 3,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 2,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 3,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0.8,
+      "bar": "≥ 80%",
+      "pass": true
+    },
+    {
+      "metric": "Driver accuracy",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "value": 0.75,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "≤ 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Citation precision",
+      "value": 1,
+      "bar": "≥ 95%",
+      "pass": true
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 0.6666666666666666,
+      "bar": "≥ 70%",
+      "pass": false
+    }
+  ],
+  "routes": [
+    {
+      "role": "extractor",
+      "route": "openai-compatible:groq:openai/gpt-oss-120b",
+      "calls": 54,
+      "cached": 54,
+      "failed": 0
+    },
+    {
+      "role": "judge",
+      "route": "openai-compatible:groq:openai/gpt-oss-20b",
+      "calls": 15,
+      "cached": 13,
+      "failed": 0
+    },
+    {
+      "role": "planner",
+      "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+      "calls": 15,
+      "cached": 14,
+      "failed": 0
+    }
+  ],
+  "seconds": 37.059,
+  "tokens": {
+    "input": 77144,
+    "output": 20475
+  },
+  "note": "Groq free tier, every role on Groq (planner qwen/qwen3.8-27b, extractor openai/gpt-oss-120b, judge openai/gpt-oss-20b), small-model mode, run with --model configured. All 3 jobs finished. The free judges tried first (Gemma 4 on Google AI Studio, OpenRouter free, Mistral) were dropped: overloaded (503/429, 44–127 s per call) or rate-limited on the first request. Bars missed: cause grade 75% (< 80%) and recommendation relevance 66.7% (< 70%)."
+}

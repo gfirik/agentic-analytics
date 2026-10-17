@@ -63,6 +63,65 @@ Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-o
 
 </details>
 
+### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-17
+
+**Partial run: 3 of 30 jobs finished.** Same Groq roles as the smoke run. Groq's free tier allows 200k tokens a day for qwen/qwen3.8-27b, about one business per day, so the other 27 jobs stopped on the rate limit (RATE_LIMITED, never switching models). The rates below count every unfinished job as a miss, so they are not the model's quality. Over the 3 finished jobs (coffee_roaster v1–v3): 4 of 5 planted events found, 0 distractors reported, 4 of 4 quality issues found, 0 number mismatches. printing_shop-v1 failed differently: its DECIDE request is larger than the tier's 7,000 input tokens per minute for this model, so it cannot finish on this tier (a known gap). The suite keeps running (scripts/eval-until-done.sh; finished calls are cached) and the complete numbers will replace this row.
+
+30 datasets · 196 s · 139172 tokens
+
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (83 calls, 77 cached, 2 failed); judge → openai-compatible:groq:openai/gpt-oss-20b (8 calls, 8 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (24 calls, 18 cached, 2 failed)
+
+| Metric | Result | v0.1 bar | Pass |
+|---|---|---|---|
+| Jobs completed | 10.0% | 100% | **no** |
+| Number mismatches | 0 | 0 | yes |
+| Planted recall@5 | 8.0% | ≥ 80% | **no** |
+| Driver accuracy | 100.0% | ≥ 90% | yes |
+| Cause grade accuracy | 50.0% | ≥ 80% | **no** |
+| Distractor FP rate | 0.0% | ≤ 10% | yes |
+| Quality-issue recall | 10.0% | ≥ 90% | **no** |
+| Citation precision | 100.0% | ≥ 95% | yes |
+| Definition adherence | 100.0% | 100% | yes |
+| Recommendation grounding | 100.0% | 100% | yes |
+| Recommendation relevance | 33.3% | ≥ 70% | **no** |
+
+<details><summary>Per dataset</summary>
+
+| Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
+|---|---|---|---|---|---|---|
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 4.4 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 6.9 s |
+| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 6.0 s |
+| printing_shop-v1 | no (PROVIDER: DECIDE failed: Request too large for model `qwen/q) | 0/1 | none | 0/2 | 0 | 6.9 s |
+| printing_shop-v2 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 12.7 s |
+| printing_shop-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.8 s |
+| clinic-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.8 s |
+| clinic-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.8 s |
+| clinic-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.7 s |
+| online_store-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.2 s |
+| online_store-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.2 s |
+| online_store-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 4.3 s |
+| distributor-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.4 s |
+| distributor-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 92.2 s |
+| distributor-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.9 s |
+| restaurant-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.6 s |
+| restaurant-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.7 s |
+| restaurant-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.1 s |
+| saas-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.3 s |
+| saas-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.1 s |
+| saas-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.8 s |
+| logistics-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.2 s |
+| logistics-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.2 s |
+| logistics-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 4.3 s |
+| construction_supplier-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.8 s |
+| construction_supplier-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.5 s |
+| construction_supplier-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.8 s |
+| agency-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.1 s |
+| agency-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 1.4 s |
+| agency-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.2 s |
+
+</details>
+
 ### openai-compatible:groq:openai/gpt-oss-120b (small-model mode) · smoke suite · 2026-10-16
 
 Groq free tier. The daily token quota (200k/day) ran out after the first job, so two jobs failed with a rate-limit error; rerun when the quota resets. Its one completed job was scored before the metric-concept mapping and its report was not kept, so that row may undercount (the run predates --keep-reports).
@@ -152,3 +211,74 @@ Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, 
 | saas-v2 | yes | 0/2 | none | 1/1 | 3 | 454.1 s |
 
 </details>
+
+### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · smoke suite · 2026-10-16
+
+Groq free tier, every role on Groq (planner qwen/qwen3.8-27b, extractor openai/gpt-oss-120b, judge openai/gpt-oss-20b), small-model mode, run with --model configured. All 3 jobs finished. The free judges tried first (Gemma 4 on Google AI Studio, OpenRouter free, Mistral) were dropped: overloaded (503/429, 44–127 s per call) or rate-limited on the first request. Bars missed: cause grade 75% (< 80%) and recommendation relevance 66.7% (< 70%).
+
+3 datasets · 37 s · 97619 tokens
+
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (54 calls, 54 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (15 calls, 13 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (15 calls, 14 cached)
+
+| Metric | Result | v0.1 bar | Pass |
+|---|---|---|---|
+| Jobs completed | 100.0% | 100% | yes |
+| Number mismatches | 0 | 0 | yes |
+| Planted recall@5 | 80.0% | ≥ 80% | yes |
+| Driver accuracy | 100.0% | ≥ 90% | yes |
+| Cause grade accuracy | 75.0% | ≥ 80% | **no** |
+| Distractor FP rate | 0.0% | ≤ 10% | yes |
+| Quality-issue recall | 100.0% | ≥ 90% | yes |
+| Citation precision | 100.0% | ≥ 95% | yes |
+| Definition adherence | 100.0% | 100% | yes |
+| Recommendation grounding | 100.0% | 100% | yes |
+| Recommendation relevance | 66.7% | ≥ 70% | **no** |
+
+<details><summary>Per dataset</summary>
+
+| Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
+|---|---|---|---|---|---|---|
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 5.7 s |
+| restaurant-v3 | yes | 1/2 | none | 1/1 | 3 | 10.5 s |
+| saas-v2 | yes | 2/2 | none | 1/1 | 3 | 20.9 s |
+
+</details>
+
+## Real public data
+
+Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.
+
+### baseline · real public data · 2026-10-17
+
+Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.
+
+#### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
+
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 5.6 s · 5/5 checks pass.
+
+| Check | Pass | What the report shows |
+|---|---|---|
+| C1: The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | yes | report with 4 findings, 1 data-quality item |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 380 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C3: The December peak: December is the top month of 2023, 2024 and 2025 (G1) | yes | 2023 peak 2023-12; 2024 peak 2024-12; 2025 peak 2025-12; 3/3 values equal SQL |
+| C4: The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | yes | none |
+| C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value: 264 rows (N403), SQL 264; cites rows 2, 3, 4… |
+
+Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_spend 2020-03 → 2020-04 (contribution.v1); anomaly: card_spend 2020-04 → 2020-05 (contribution.v1); trend_break: card_spend 2016-09 → 2016-10 (contribution.v1); improvement: card_spend 2026-09 (trend.v1).
+
+#### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
+
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.1 s · 7/7 checks pass.
+
+| Check | Pass | What the report shows |
+|---|---|---|
+| C1: The job completes on a real 105,797-line file | yes | report with 2 findings, 3 data-quality items |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 31 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id: 2089 rows (N120), SQL 2089; cites rows 58, 117, 118… |
+| C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity: 2431 rows (N121), SQL 2431; cites rows 58, 117, 118… |
+| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id: 21051 rows (N122), SQL 21051; cites rows 156, 157, 158… |
+| C6: The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | yes | 2010 peak 2010-11; 2011 peak 2011-11; 3/3 values equal SQL |
+| C7: No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | yes | no finding at 2011-12 |
+
+Metrics: revenue, orders. Data-quality kinds: prefixed_id, negative_quantity, missing_id. Findings: improvement: revenue 2011-11 (trend.v1); anomaly: orders 2010-11 → 2010-12 (anomaly.v1).
+

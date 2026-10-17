@@ -6,7 +6,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand } from "@agentic-analytics/eval-runner";
+import { evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -29,6 +29,7 @@ import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { formatEvent, runCommand } from "./run.ts";
+import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -44,7 +45,7 @@ const doctor = defineCommand({
   async run({ args }) {
     const file = configFile();
     const results = await runDoctor({
-      nodeVersion: process.version,
+      nodeVersion: runtimeVersion(process.env, process.versions, process.version),
       duckdbVersion,
       fetch: globalThis.fetch,
       env: process.env,
@@ -84,6 +85,16 @@ function logCall(c: CallRecord): void {
 }
 
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
+/** The embedder for a run: see embedderChoice (standalone.ts) for the binary's default. */
+function pickEmbedder(arg: string | undefined, configured: string, cacheDir: string) {
+  const choice = embedderChoice(arg, process.env);
+  if (choice.kind === "hash") {
+    if (choice.notice) process.stderr.write(`${choice.notice}\n`);
+    return hashEmbedder();
+  }
+  return transformersEmbedder({ model: choice.model ?? configured, cacheDir });
+}
+
 function runtime(embedderArg?: string) {
   const config = resolveModelConfig(process.env, configFile());
   // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
@@ -97,8 +108,7 @@ function runtime(embedderArg?: string) {
         ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
       });
   const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-  const embedder =
-    embedderArg === "hash" ? hashEmbedder() : transformersEmbedder({ model: embedderArg ?? config.models.embedder.model, cacheDir });
+  const embedder = pickEmbedder(embedderArg, config.models.embedder.model, cacheDir);
   const planner = config.models.planner;
   const plannerProfile = profileFor(
     planner.provider === "openai-compatible"
@@ -253,7 +263,7 @@ const serveCmd = defineCommand({
       if (cached && Date.now() - cached.at < 60_000) return cached.value;
       const file = configFile();
       const results = await runDoctor({
-        nodeVersion: process.version,
+        nodeVersion: runtimeVersion(process.env, process.versions, process.version),
         duckdbVersion,
         fetch: globalThis.fetch,
         env: process.env,
@@ -287,7 +297,8 @@ const serveCmd = defineCommand({
           .map((r) => r.trim())
           .filter(Boolean),
       }),
-      viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)),
+      // The binary carries no viewer build: the API, MCP and report.html still work.
+      ...(isStandalone(process.env) ? {} : { viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)) }),
       version: ENGINE_VERSION,
     }).catch((err: unknown) => {
       // A refused network bind is a configuration message, not a crash.
@@ -299,7 +310,9 @@ const serveCmd = defineCommand({
       throw err;
     });
     if (!s) return;
-    print(`agentic-analytics API on ${s.url} (viewer at /, OpenAPI at /openapi.json, MCP at /mcp)`);
+    print(
+      `agentic-analytics API on ${s.url} (${isStandalone(process.env) ? "no viewer in the standalone binary" : "viewer at /"}, OpenAPI at /openapi.json, MCP at /mcp)`,
+    );
   },
 });
 
@@ -348,9 +361,12 @@ const jobs = defineCommand({
 });
 
 const evalCmd = defineCommand({
-  meta: { name: "eval", description: "Run the eval suite on the generated datasets and update evals/RESULTS.md" },
+  meta: { name: "eval", description: "Run the eval suite on the generated datasets (or the real public ones) and update evals/RESULTS.md" },
   args: {
-    suite: { type: "string", description: "smoke (3 datasets) or full (30 datasets); default smoke" },
+    suite: {
+      type: "string",
+      description: "smoke (3 datasets), full (30 datasets) or real (public datasets; run `bun run eval:real:fetch` first); default smoke",
+    },
     model: {
       type: "string",
       description: "baseline (scripted heuristic, no LLM), configured (the .env/config models), or a model like ollama:qwen3.5:9b",
@@ -358,40 +374,63 @@ const evalCmd = defineCommand({
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
+    "results-dir": { type: "string", description: "Where results files and RESULTS.md go (default evals/results)" },
   },
   async run({ args }) {
-    const suite = args.suite === "full" ? "full" : "smoke";
     const model = args.model ?? "baseline";
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+    const where = resultsLocation(
+      args["results-dir"],
+      process.env,
+      process.cwd(),
+      fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+    );
     const evalRouter = new Router();
     const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
+    const deps = {
+      // Evals default to the hash embedder everywhere (deterministic, no download), unlike analyze.
+      embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
+      print,
+      modelFor: (name: string, onCall?: (c: CallRecord) => void) => {
+        // One model for every role, unless "configured" keeps the per-role settings.
+        const env = name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
+        // Shared across datasets: the router keeps each route's rate state, the cache makes reruns free.
+        return createModelClient(resolveModelConfig(env, configFile()), {
+          env: process.env,
+          router: evalRouter,
+          cache: evalCache,
+          onCall: (c) => {
+            onCall?.(c);
+            logCall(c);
+          },
+        });
+      },
+    };
+    if (args.suite === "real") {
+      const r = await realEvalCommand(
+        {
+          model,
+          resultsDir: where.dir,
+          ...(where.page ? { resultsPage: where.page } : {}),
+          dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
+          answersDir: fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
+          ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+        },
+        deps,
+      );
+      process.exitCode = r.datasets.every((d) => d.checks.every((c) => c.pass)) ? 0 : 1;
+      return;
+    }
     const r = await evalCommand(
       {
-        suite,
+        suite: args.suite === "full" ? "full" : "smoke",
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
-        resultsDir: fileURLToPath(new URL("../../../evals/results", import.meta.url)),
+        resultsDir: where.dir,
+        ...(where.page ? { resultsPage: where.page } : {}),
       },
-      {
-        embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
-        print,
-        modelFor: (name, onCall) => {
-          // One model for every role, unless "configured" keeps the per-role settings.
-          const env =
-            name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
-          // Shared across datasets: the router keeps each route's rate state, the cache makes reruns free.
-          return createModelClient(resolveModelConfig(env, configFile()), {
-            env: process.env,
-            router: evalRouter,
-            cache: evalCache,
-            onCall: (c) => {
-              onCall(c);
-              logCall(c);
-            },
-          });
-        },
-      },
+      deps,
     );
     process.exitCode = r.bars.every((b) => b.pass !== false) ? 0 : 1;
   },
@@ -477,8 +516,7 @@ const run = defineCommand({
       ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
     });
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const embedder =
-      args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder ?? config.models.embedder.model, cacheDir });
+    const embedder = pickEmbedder(args.embedder, config.models.embedder.model, cacheDir);
     const dir =
       resume ??
       args.dir ??

@@ -1,0 +1,15 @@
+# Confirmed before the analysis, as a person would in the metric review: the file has no money-named column
+# (values are in Data_value, units "Dollars", magnitude 6 = NZD millions), so the offline drafter proposes nothing.
+version: 1
+grain: month
+metrics:
+  - id: card_spend
+    label: Card spending (NZD million)
+    type: sum
+    table: t_t1
+    expression: data_value
+    time_column: period
+    unit: currency
+    currency: NZD
+    dimensions: [series_title_2]
+    status: confirmed

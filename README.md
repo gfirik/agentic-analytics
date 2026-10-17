@@ -38,6 +38,7 @@ bun run aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-
 - `--embedder hash` skips the 1 GB embedding-model download for a first run. Drop it for better document search.
 - `--yes` keeps the drafted metric definitions as assumptions. Without it you review them first.
 - Docker: `docker compose up` starts the API, the viewer and MCP on `http://127.0.0.1:8080`.
+- No Node or Bun: each release attaches a standalone `aa` binary (Linux x64/arm64, macOS arm64, Windows x64) with `SHA256SUMS`. It runs every command except the viewer at `/`, and indexes documents with the offline hash embedder (lexical); use Docker or the Node CLI for semantic document search.
 
 Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/quickstart/).
 
@@ -58,6 +59,27 @@ Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/qui
 <!-- table:problems:end -->
 
 ## How it works
+
+<!-- diagram:pipeline-gif:start -->
+<picture>
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/readme/pipeline-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/readme/pipeline-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/pipeline-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/pipeline-light.gif">
+  <img alt="Animated pipeline on examples/coffee-roaster (a real engine run, scripted planner, no LLM; its stages follow the run's 31-event log): email-0412.eml, ops-notes.docx, price-list.pdf, sales-2026.xlsx flow in; profiling finds 3 tables and 9 document sections; the Revenue metric is defined in plain words; DuckDB SQL computes Revenue $44,100 in 2026-03 and $36,200 in 2026-04, −17.9% (fact N30); the driver is wholesale (−$8,500, 108% of the drop); email-0412.eml from Purchasing, Hotel Group is cited: “After the new price list we are pausing our standing order while we compare suppliers.”; a web benchmark is cited and labelled External; the verifier runs V1–V8 and recomputes 97 numbers with 0 mismatches; the report's top-ranked action: Offer wholesale accounts a volume-tier discount to win back paused standing orders (+$3,995 to +$7,191, next quarter)." src="docs/assets/readme/pipeline-light.png" width="100%">
+</picture>
+
+<sub>One real engine run on `examples/coffee-roaster` with the scripted planner (no LLM) and an offline web fixture: every number on screen comes from that run: facts are shown with their ids, counts come from the report and the verifier's check table, and the stages follow its event log. Recorded by `scripts/readme-assets/pipeline-gif.ts` from the same animation as the docs site.</sub>
+<!-- diagram:pipeline-gif:end -->
+
+1. **Ingest and profile.** Tables are detected inside messy spreadsheets: merged headers, several tables on one sheet. Documents are parsed into sections. Data-quality problems become findings of their own.
+2. **Metric layer.** Definitions are drafted (what "revenue" means, the grain, the currency, the filters), shown in plain words, and confirmed or kept as flagged assumptions.
+3. **Analyze.** SQL insight templates find the changes. Decompositions (contribution, price–volume–mix, rate vs mix) split each change into drivers.
+4. **Explain.** Drivers are matched to events quoted from your documents and to labelled outside benchmarks. Each "why" is graded: observed, correlated or document-supported.
+5. **Decide.** Recommendations cite verified findings and carry an impact range computed in code, a confidence level and a dated check.
+6. **Verify.** Every number is recomputed, headline metrics are re-derived another way, and every citation is checked. Anything that fails is dropped or downgraded before the report ships.
+
+<details><summary>The packages</summary>
 
 <!-- diagram:architecture:start -->
 ```mermaid
@@ -95,12 +117,7 @@ flowchart TB
 ```
 <!-- diagram:architecture:end -->
 
-1. **Ingest and profile.** Tables are detected inside messy spreadsheets: merged headers, several tables on one sheet. Documents are parsed into sections. Data-quality problems become findings of their own.
-2. **Metric layer.** Definitions are drafted (what "revenue" means, the grain, the currency, the filters), shown in plain words, and confirmed or kept as flagged assumptions.
-3. **Analyze.** SQL insight templates find the changes. Decompositions (contribution, price–volume–mix, rate vs mix) split each change into drivers.
-4. **Explain.** Drivers are matched to events quoted from your documents and to labelled outside benchmarks. Each "why" is graded: observed, correlated or document-supported.
-5. **Decide.** Recommendations cite verified findings and carry an impact range computed in code, a confidence level and a dated check.
-6. **Verify.** Every number is recomputed, headline metrics are re-derived another way, and every citation is checked. Anything that fails is dropped or downgraded before the report ships.
+</details>
 
 <details><summary>The pipeline, stage by stage</summary>
 
@@ -144,10 +161,38 @@ Thirty generated businesses with planted events, distractors and data-quality is
 <!-- table:evals:start -->
 | Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware |
 |---|---|---|---|---|---|---|---|---|
-| groq:openai/gpt-oss-120b (small-model mode) | smoke (3) | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) |
-| groq:openai/gpt-oss-20b (small-model mode) | smoke (3) | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) |
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | smoke (3) | 100% | 80% | 100% | 0 | 100% | 1 min, 98k tokens | Groq free tier (hosted) |
+| groq:openai/gpt-oss-120b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) |
+| groq:openai/gpt-oss-20b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) |
 | groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) |
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 3 of 30 jobs finished** | 10% | 8% | 100% | 0 | 100% | 3 min, 139k tokens | Groq free tier (hosted) |
 <!-- table:evals:end -->
+
+### Real public data
+
+The same engine on two public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines) and New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities and suppressed values are reported, whether the seasonal peak lands in the right month, and whether a part-month or the regular January fall is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
+
+<!-- table:real-data:start -->
+12 of 12 checks pass (offline baseline, no language model, 2026-10-17). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
+
+| Dataset | Check | Result |
+|---|---|---|
+| Electronic card transactions, September 2026 | The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | pass |
+| Electronic card transactions, September 2026 | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
+| Electronic card transactions, September 2026 | The December peak: December is the top month of 2023, 2024 and 2025 (G1) | pass |
+| Electronic card transactions, September 2026 | The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | pass |
+| Electronic card transactions, September 2026 | Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | pass |
+| Online Retail II | The job completes on a real 105,797-line file | pass |
+| Online Retail II | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
+| Online Retail II | Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | pass |
+| Online Retail II | Negative quantities (G1: 2,431 lines) | pass |
+| Online Retail II | Missing customer IDs (G1: 21,051 lines) | pass |
+| Online Retail II | The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | pass |
+| Online Retail II | No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | pass |
+
+- Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.
+- Online Retail II (UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.
+<!-- table:real-data:end -->
 
 ## Stack
 

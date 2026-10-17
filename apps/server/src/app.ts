@@ -417,7 +417,12 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
   // The viewer: static files from its build, with index.html for client-side routes.
   app.get("*", (c) => {
     const dir = o.viewerDir;
-    if (!dir || !existsSync(join(dir, "index.html")))
+    if (!dir)
+      return c.html(
+        "<!doctype html><title>agentic-analytics</title><p>The API is running. This build has no viewer (the standalone binary doesn't include it): a job's report is at <code>/v1/jobs/{id}/report?format=html</code>. API spec: <a href=\"/openapi.json\">/openapi.json</a>.</p>",
+        200,
+      );
+    if (!existsSync(join(dir, "index.html")))
       return c.html(
         '<!doctype html><title>agentic-analytics</title><p>The API is running. The viewer is not built: run <code>bun run --filter @agentic-analytics/viewer build</code>. API spec: <a href="/openapi.json">/openapi.json</a>.</p>',
         200,

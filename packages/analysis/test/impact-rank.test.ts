@@ -163,15 +163,27 @@ describe("ranking (spec §6)", () => {
 });
 
 describe("topForExplain rules, hand-computed (spec §6, M13a)", () => {
-  const mk = (o: { template?: string; metric?: string; period?: string; score: number; share?: number; member?: string; pct?: number }) => {
+  const mk = (o: {
+    template?: string;
+    metric?: string;
+    period?: string;
+    score: number;
+    share?: number;
+    member?: string;
+    pct?: number;
+    /** No measured change (a trend: slope and p-value only). */
+    unmeasured?: boolean;
+  }) => {
     const metric = o.metric ?? "revenue";
+    const change = o.unmeasured ? [] : [{ name: "change", value: 1, unit: "currency" }];
     return {
       insight: {
         template: o.template ?? "period_change.v1",
         metric,
         series: o.member ? `${metric}|customer=${o.member}` : metric,
         period: o.period ?? "2026-04",
-        calcs: o.pct === undefined ? [] : [{ name: "change_pct", value: o.pct, unit: "percent" }],
+        roles: o.unmeasured ? {} : { change: "N1" },
+        calcs: [...change, ...(o.pct === undefined ? [] : [{ name: "change_pct", value: o.pct, unit: "percent" }])],
         ...(o.member ? { member: { dimension: "customer", value: o.member } } : {}),
       } as unknown as Insight,
       impactShare: o.share ?? o.score,
@@ -186,6 +198,16 @@ describe("topForExplain rules, hand-computed (spec §6, M13a)", () => {
     // At 0.11 ≥ 0.10 it qualifies and outranks anomaly; the group keeps the best score, 0.20.
     const strong = topForExplain([mk({ template: "anomaly.v1", score: 0.2 }), mk({ template: "trend_break.v1", score: 0.11 })]);
     expect(strong.map((r) => [r.insight.template, r.score])).toEqual([["trend_break.v1", 0.2]]);
+  });
+
+  it("a template with no measured change keeps its priority although it scores 0 (Online Retail II's Nov peak)", () => {
+    // trend.v1 has no Δ, so its impact share and score are 0; it isn't a weak change, so it still outranks new_lost
+    // (0.119) and the group keeps new_lost's score.
+    const top = topForExplain([mk({ template: "new_lost.v1", score: 0.119 }), mk({ template: "trend.v1", score: 0, unmeasured: true })]);
+    expect(top.map((r) => [r.insight.template, r.score])).toEqual([["trend.v1", 0.119]]);
+    // A measured template at 0 is weak: new_lost speaks.
+    const weak = topForExplain([mk({ template: "new_lost.v1", score: 0.119 }), mk({ template: "trend.v1", score: 0 })]);
+    expect(weak.map((r) => [r.insight.template, r.score])).toEqual([["new_lost.v1", 0.119]]);
   });
 
   it("the family slot goes to the parent metric when it carries ≥ 50% of the family's best", () => {

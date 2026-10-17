@@ -32,8 +32,10 @@ EXPLAIN and DECIDE.
 - **`writeHeadline`, `buildDraft`**: the headline and the report v1 draft.
   - Every fact referenced is included, with its inputs.
   - Quality issues and open questions are worded without numerals.
-- **`renderPrompt(name, vars)`**: prompts live in `prompts/*.md` with a versioned header and `[[variable]]` slots. They are covered by snapshot tests.
+- **`renderPrompt(name, vars)`**: prompts live in `prompts/*.md` with a versioned header and `[[variable]]` slots. They are covered by snapshot tests. The package reads them from `src/prompts.gen.ts`, generated from the `.md` files so they ship inside bundles and the standalone binary: after editing a prompt run `bun run prompts:write` (`bun run check` fails while it is stale).
 
 ## Example
 
 See `packages/core/src/job.ts`, which wires these into the EXPLAIN and DECIDE stages, and `packages/core/testing/coffee-planner.ts` for a scripted planner.
+
+**Quality items.** Issues of one kind in one column are grouped into one report item that cites the first rows and states its row count through a SQL count fact (`{{N…}} rows`, from `src/quality.sql.ts`; a `prefixed_id` count covers only the flagged prefixes), so the verifier re-runs it like any other number.

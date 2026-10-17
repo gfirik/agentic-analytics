@@ -142,7 +142,7 @@ Each material insight is scored as:
 
 The top 3–7 findings go to EXPLAIN. The rest stay in the appendix.
 
-Insights that detect one event (same series and period) are grouped. A group is represented by its highest-priority template among those carrying at least half of the group's best score, so a weak higher-priority template can't speak for a group made material by another. On equal scores the earlier period ranks first, because it is the onset of the change.
+Insights that detect one event (same series and period) are grouped. A group is represented by its highest-priority template among those carrying at least half of the group's best score, so a weak higher-priority template can't speak for a group made material by another. A template with no measured change (a trend: slope and p-value, no Δ) scores 0 but is not weak, and keeps its priority (found on Online Retail II, M13a). On equal scores the earlier period ranks first, because it is the onset of the change.
 
 The order that goes to EXPLAIN:
 

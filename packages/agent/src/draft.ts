@@ -2,6 +2,7 @@
 // assumptions, data quality, open questions and every fact referenced (with the facts those depend on). The
 // draft is unverified (`verified: false` everywhere, zero verification counts); M9's verifier checks it and M10
 // renders it. Text the engine writes here contains no numerals: they live in facts (report-schema §3).
+import { nextFactNumber, persistFacts } from "@agentic-analytics/analysis";
 import { describeMetric } from "@agentic-analytics/metrics";
 import {
   type Assumption,
@@ -21,6 +22,7 @@ import {
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
+import { qualityCount } from "./quality.sql.ts";
 import type { OpenQuestionDraft } from "./tools.ts";
 
 export interface DraftInput {
@@ -40,6 +42,8 @@ export interface DraftInput {
   readonly dropped: readonly Dropped[];
   readonly downgraded: readonly Downgraded[];
   readonly facts: ReadonlyMap<string, Fact>;
+  /** An incomplete last month the analysis left out (it becomes an assumption). */
+  readonly partialPeriod?: string;
 }
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -124,9 +128,16 @@ const ISSUE_WORDING: Record<string, string> = {
   no_tables_found: "No tables were found in a file",
   duplicate_file: "A file was uploaded twice",
   suspicious_instruction: "Text that looks like instructions to an AI was found; this source was quarantined",
+  missing_id: "Some rows have no identifier, so they can't be linked to a customer, order or document",
+  missing_value: "Some values are empty, so the totals of the periods they fall in leave them out",
+  prefixed_id: "Some document numbers carry a letter prefix the others lack; these are often cancellations or credit notes",
+  too_large: "A file is larger than the job's size limit and was not read",
 };
 
-async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Promise<QualityIssue[]> {
+/** A grouped quality issue cites at most this many rows. */
+const MAX_CITED_ROWS = 20;
+
+async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Promise<{ issues: QualityIssue[]; facts: Fact[] }> {
   const rows = await ws.all<{
     id: string;
     kind: string;
@@ -135,21 +146,59 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     source_id: string | null;
     rows: number[] | null;
     column_name: string | null;
+    prefix: string | null;
   }>(
-    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name
-        FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY i.id`,
+    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name, i.details->>'prefix' AS prefix
+        FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY TRY_CAST(substr(i.id, 2) AS INTEGER), i.id`,
   );
-  const issues: QualityIssue[] = rows.map((r) => {
+  // One report item per kind of issue in one column of one table: a real file can have thousands of negative
+  // quantities, and a list of thousands of identical items hides every other issue. The item cites the first rows.
+  const groups = new Map<string, (typeof rows)[number][]>();
+  for (const r of rows) {
+    const key = JSON.stringify([r.kind, r.file, r.source_id, r.column_name]);
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const rank = { high: 0, medium: 1, low: 2 } as const;
+  // Grouped items are numbered Q1, Q2, … in order. Nothing in the report refers to a quality item by id (claims cite
+  // facts, assumptions and questions cite findings), so the workspace ids (one per flagged row) need not survive.
+  // A column-level item states how many rows it covers, as a fact computed by SQL (the verifier re-runs it), so the
+  // report says "2,431 rows" without a numeral in its text and without citing every row.
+  const issues: QualityIssue[] = [];
+  const facts: Fact[] = [];
+  let next = await nextFactNumber(ws);
+  for (const [i, g] of [...groups.values()].entries()) {
+    const r = g[0] as (typeof rows)[number];
     const what = ISSUE_WORDING[r.kind] ?? `Data issue: ${r.kind.replace(/_/g, " ")}`;
     const where = [r.column_name ? `column ${q(r.column_name)}` : "", r.file ? `in ${q(r.file)}` : ""].filter(Boolean).join(" ");
-    return {
-      id: r.id,
+    const cited = [...new Set(g.flatMap((x) => x.rows ?? []))].sort((a, b) => a - b).slice(0, MAX_CITED_ROWS);
+    const severity = g.map((x) => x.severity).sort((a, b) => rank[a] - rank[b])[0] ?? r.severity;
+    const citations = r.source_id ? [{ source_id: r.source_id, ...(cited.length ? { rows: cited } : {}) }] : [];
+    const prefixes = [...new Set(g.flatMap((x) => (x.prefix ? [x.prefix] : [])))];
+    const count = r.source_id && r.column_name ? qualityCount(r.kind, r.source_id, r.column_name, prefixes) : undefined;
+    let howMany = "";
+    if (count) {
+      const value = Number((await ws.one<{ value: number }>(count))?.value ?? 0);
+      const fact: Fact = {
+        id: `N${next++}`,
+        label: `rows with ${r.kind.replace(/_/g, " ")} in ${r.column_name}`,
+        value,
+        unit: "count",
+        computation: { kind: "sql", sql: count.text, params: Object.fromEntries(count.params.map((p, j) => [`$${j + 1}`, p])) },
+        citations,
+        verified: false,
+      };
+      facts.push(fact);
+      howMany = `{{${fact.id}}} rows`;
+    }
+    issues.push({
+      id: `Q${i + 1}`,
       kind: r.kind,
-      severity: r.severity,
-      description: `${what}${where ? ` (${where})` : ""}.`,
-      citations: r.source_id ? [{ source_id: r.source_id, ...(r.rows?.length ? { rows: r.rows } : {}) }] : [],
-    };
-  });
+      severity,
+      description: `${what}${where || howMany ? ` (${[where, howMany].filter(Boolean).join("; ")})` : ""}.`,
+      citations,
+    });
+  }
+  await persistFacts(ws, facts);
   const files = new Map(
     (await ws.all<{ id: string; file: string }>(sql`SELECT s.id, f.name AS file FROM sources s JOIN files f ON f.id = s.file_id`)).map(
       (r) => [r.id, r.file],
@@ -163,7 +212,7 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
       description: `${ISSUE_WORDING.suspicious_instruction} (${q(files.get(src) ?? src)}).`,
       citations: [{ source_id: src }],
     });
-  return issues;
+  return { issues, facts };
 }
 
 /** Analysis open questions are developer strings with counts; the report states them without numerals. */
@@ -225,6 +274,13 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       text: `The definition of ${label(d.label)} was drafted automatically and not confirmed by you.`,
       affects: input.findings.filter((f) => usesMetric(f, d.id)).map((f) => f.id),
     }));
+  // Report text carries no free numerals, so the month is not named here; report.period.to shows where it stops.
+  if (input.partialPeriod)
+    assumptions.push({
+      id: `A${assumptions.length + 1}`,
+      text: "The data stops early in its last month, so that part-month is left out: comparing it with whole months would read as a fall.",
+      affects: input.findings.map((f) => f.id),
+    });
   const findings = input.findings.map((f) => ({
     ...f,
     assumptions: assumptions.filter((a) => a.affects.includes(f.id)).map((a) => a.id),
@@ -259,7 +315,9 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     ...findings.flatMap((f) => [f.title, ...f.confidence_reasons]),
     ...input.recommendations.flatMap((r) => [r.action, r.risk, r.impact.horizon, ...(r.not_advised ? [r.not_advised] : [])]),
   ];
-  const facts = closure([...referenced, ...texts.flatMap(placeholders)], input.facts);
+  const quality = await qualityIssues(ws, input.quarantined);
+  const known = new Map([...input.facts, ...quality.facts.map((f) => [f.id, f] as const)]);
+  const facts = closure([...referenced, ...[...texts, ...quality.issues.map((i) => i.description)].flatMap(placeholders)], known);
 
   return {
     schema: REPORT_SCHEMA_ID,
@@ -271,7 +329,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     sources: await reportSources(ws),
     metrics,
     assumptions,
-    data_quality: await qualityIssues(ws, input.quarantined),
+    data_quality: quality.issues,
     summary: { headline: input.headline, bullets },
     findings,
     recommendations: [...input.recommendations],

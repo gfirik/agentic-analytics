@@ -77,6 +77,20 @@ export const farFromMedian = (table: string, column: string, median: number): Sq
 export const negativeRows = (table: string, column: string): Sql =>
   sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} < 0 ORDER BY _row`;
 
+/** Detail rows where the column is empty. */
+export const nullRows = (table: string, column: string): Sql =>
+  sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NULL ORDER BY _row`;
+
+/**
+ * Identifier shapes: each letter prefix of a "letters + digits" value ("C" for "C489434") with its count and first
+ * rows, plus the count of plain-digit values (prefix ''). Values of any other shape are not counted.
+ */
+export const idPrefixes = (table: string, column: string): Sql =>
+  sql`SELECT upper(regexp_extract(${ident(column)}::VARCHAR, '^([A-Za-z]*)-?[0-9]+$', 1)) AS prefix, count(*) AS n,
+        list(_row ORDER BY _row)[1:20] AS rows
+      FROM ${ident(table)} WHERE ${fragment(detail)} AND regexp_full_match(${ident(column)}::VARCHAR, '[A-Za-z]{0,3}-?[0-9]+')
+      GROUP BY 1 ORDER BY 1`;
+
 /** Percent columns hold fractions, so a rate above 100% is a value above 1. */
 export const aboveOneRows = (table: string, column: string): Sql =>
   sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} > 1 ORDER BY _row`;

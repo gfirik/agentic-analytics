@@ -38,3 +38,5 @@ playwright-report/
 evals/.cache/
 # Agent worktrees (Claude Code): separate checkouts, never linted or committed from here
 .claude/worktrees/
+# Standalone binary build (scripts/build-binary.ts)
+apps/cli/native/

@@ -115,7 +115,10 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   const reps = [...groups.values()]
     .map((g) => {
       const best = Math.max(...g.map((x) => x.score));
-      const strong = g.filter((x) => x.score >= REPRESENTATIVE_SHARE * best);
+      // A template with no measured change (a trend: slope and p-value, no Δ) scores 0 but is not weak; it keeps its
+      // priority. Without this the Nov peak of Online Retail II was spoken for by a few small countries' new_lost
+      // (real-data eval, M13a × M13e).
+      const strong = g.filter((x) => x.score >= REPRESENTATIVE_SHARE * best || insightChange(x.insight) === undefined);
       const rep = [...strong].sort((a, b) => priority(a.insight.template) - priority(b.insight.template))[0] as Ranked;
       // The group carries its best score and its largest impact share: the member slot's floor applies to the event,
       // not to whichever template happens to speak for it.

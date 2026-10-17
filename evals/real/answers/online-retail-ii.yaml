@@ -1,0 +1,78 @@
+# Online Retail II (UCI, CC BY 4.0): what a correct report on the 10% invoice sample must show.
+# Ground truth: DuckDB over the derived file, e.g.
+#   node -e "…" or duckdb -c "<sql>" with FILE = evals/real/data/online_retail_II.sample10.csv
+# Every expected number below is a result of one of these queries; none comes from the engine.
+dataset: online-retail-ii
+file: online_retail_II.sample10.csv
+options:
+  today: "2026-10-16"
+  currency: GBP
+
+ground_truth:
+  - id: G1
+    about: Lines, cancellation lines and invoices, missing customer IDs, negative quantities
+    sql: >-
+      SELECT count(*) AS lines,
+             count(*) FILTER (WHERE Invoice LIKE 'C%') AS cancellation_lines,
+             count(DISTINCT Invoice) FILTER (WHERE Invoice LIKE 'C%') AS cancelled_invoices,
+             count(*) FILTER (WHERE "Customer ID" IS NULL) AS no_customer,
+             count(*) FILTER (WHERE Quantity::INTEGER < 0) AS negative_qty,
+             count(*) FILTER (WHERE Quantity::INTEGER < 0 AND Invoice NOT LIKE 'C%') AS negative_not_cancelled
+      FROM read_csv('FILE', all_varchar = true)
+    result: "lines 105797; cancellation_lines 2089; cancelled_invoices 816; no_customer 21051; negative_qty 2431; negative_not_cancelled 343"
+  - id: G2
+    about: Monthly sales (quantity × price, cancellations netted in, as the engine's fallback defines revenue)
+    sql: >-
+      SELECT left(InvoiceDate, 7) AS month, round(sum(Quantity::DOUBLE * Price::DOUBLE), 2) AS revenue
+      FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY 1
+    result: >-
+      2009-12 63405.87; 2010-01 50980.36; 2010-02 54891.88; 2010-03 65820.53; 2010-04 54829.21; 2010-05 59314.52;
+      2010-06 26517.05; 2010-07 62120.10; 2010-08 73532.25; 2010-09 68346.54; 2010-10 102056.66; 2010-11 140447.11;
+      2010-12 94762.59; 2011-01 67492.69; 2011-02 49223.89; 2011-03 66755.97; 2011-04 48332.03; 2011-05 68820.59;
+      2011-06 77601.96; 2011-07 59288.49; 2011-08 85290.76; 2011-09 115067.22; 2011-10 107910.09; 2011-11 145480.93;
+      2011-12 47422.25 (partial: the data ends 2011-12-09)
+  - id: G3
+    about: Last invoice date
+    sql: SELECT max(InvoiceDate) AS last_invoice FROM read_csv('FILE', all_varchar = true)
+    result: "2011-12-09 12:20:00"
+
+checks:
+  - id: C1
+    kind: completes
+    about: The job completes on a real 105,797-line file
+  - id: C2
+    kind: verified
+    about: Every number re-computes (no mismatch, re-derivation mismatch or definition violation)
+  - id: C3
+    kind: quality_issue
+    about: "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)"
+    issue: prefixed_id
+    column: invoice
+    count: 2089
+  - id: C4
+    kind: quality_issue
+    about: "Negative quantities (G1: 2,431 lines)"
+    issue: negative_quantity
+    column: quantity
+    count: 2431
+  - id: C5
+    kind: quality_issue
+    about: "Missing customer IDs (G1: 21,051 lines)"
+    issue: missing_id
+    column: customer_id
+    count: 21051
+  - id: C6
+    kind: seasonal_peak
+    about: "The Nov–Dec peak: November is the top month of 2010 and 2011 (G2)"
+    metric: revenue
+    years: [2010, 2011]
+    months: [11, 12]
+    values:
+      "2010-11": 140447.11
+      "2011-11": 145480.93
+      "2010-12": 94762.59
+    tolerance: 0.01
+  - id: C7
+    kind: no_finding_at
+    about: "No finding about December 2011, a partial month (G3: the data ends 2011-12-09)"
+    period: "2011-12"

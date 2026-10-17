@@ -20,27 +20,6 @@
   gap: 0.4rem;
   align-items: center;
 }
-.aa-chip {
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid var(--sl-color-gray-5);
-  font-size: 0.8rem;
-  color: var(--sl-color-gray-3);
-  background: transparent;
-}
-.aa-chip.running {
-  border-color: var(--sl-color-accent);
-  color: var(--sl-color-white);
-}
-.aa-chip.done {
-  background: var(--sl-color-accent);
-  border-color: var(--sl-color-accent);
-  color: var(--sl-color-black);
-}
-.aa-chip.skipped {
-  opacity: 0.45;
-  text-decoration: line-through;
-}
 .aa-btn {
   font: inherit;
   font-size: 0.85rem;
@@ -54,13 +33,6 @@
 .aa-btn[aria-pressed="true"] {
   background: var(--sl-color-accent);
   color: var(--sl-color-black);
-}
-.aa-log {
-  font: 0.78rem / 1.5 var(--sl-font-mono);
-  max-height: 9rem;
-  overflow: auto;
-  margin-top: 0.6rem;
-  color: var(--sl-color-gray-2);
 }
 .aa-claim {
   margin: 0.4rem 0;
@@ -163,4 +135,10 @@
   .aa-island .aa-hits li {
     transition: none;
   }
+}
+.aa-pipe-frame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
 }

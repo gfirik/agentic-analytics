@@ -150,7 +150,12 @@ describe("HTTP API", () => {
     expect(await (await withViewer.request("/jobs/x")).text()).toContain("<div id=root>");
     expect((await withViewer.request("/../../etc/passwd")).status).toBe(200);
     expect(await (await withViewer.request("/../../etc/passwd")).text()).toContain("<div id=root>");
-    expect(await (await app.request("/")).text()).toContain("The viewer is not built");
+    // A viewer folder without a build points at the build command; no viewer folder at all (the standalone binary)
+    // points at a job's report.html instead.
+    expect(await (await createApp(manager, { viewerDir: join(root, "no-build") }).request("/")).text()).toContain(
+      "The viewer is not built",
+    );
+    expect(await (await app.request("/")).text()).toContain("This build has no viewer");
   });
 
   it("POST /resume re-queues a finished job (completed stages are kept) and 404s an unknown one", async () => {

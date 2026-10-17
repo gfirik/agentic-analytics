@@ -161,12 +161,26 @@
         "tsx": "^4.23.15",
       },
     },
+    "evals/real": {
+      "name": "@agentic-analytics/eval-real",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/schema": "workspace:*",
+        "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+        "yaml": "^2.9.1",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "tsx": "^4.23.15",
+      },
+    },
     "evals/runner": {
       "name": "@agentic-analytics/eval-runner",
       "version": "0.0.0",
       "dependencies": {
         "@agentic-analytics/core": "workspace:*",
         "@agentic-analytics/eval-generator": "workspace:*",
+        "@agentic-analytics/eval-real": "workspace:*",
         "@agentic-analytics/models": "workspace:*",
         "@agentic-analytics/retrieval": "workspace:*",
         "@agentic-analytics/schema": "workspace:*",
@@ -375,6 +389,8 @@
     "@agentic-analytics/eval-datasets": ["@agentic-analytics/eval-datasets@workspace:evals/datasets"],
 
     "@agentic-analytics/eval-generator": ["@agentic-analytics/eval-generator@workspace:evals/generator"],
+
+    "@agentic-analytics/eval-real": ["@agentic-analytics/eval-real@workspace:evals/real"],
 
     "@agentic-analytics/eval-runner": ["@agentic-analytics/eval-runner@workspace:evals/runner"],
 
