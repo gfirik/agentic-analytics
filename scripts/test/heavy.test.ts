@@ -1,42 +1,86 @@
 // scripts/heavy.sh runs one heavy job at a time on a machine (AGENTS.md §9): a second job waits for the first one's
-// lock instead of running beside it, and a nested call (gate.sh running evals) reuses the lock it holds.
+// lock instead of running beside it, a nested call (gate.sh running evals) reuses the lock it holds, and a machine
+// without flock still runs the job (once, with a warning) instead of looping.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const hasFlock = spawnSync("sh", ["-c", "command -v flock"]).status === 0;
+const which = (bin: string) => spawnSync("sh", ["-c", `command -v ${bin}`], { encoding: "utf8" }).stdout.trim();
+const hasFlock = which("flock") !== "";
 const script = join(import.meta.dirname, "..", "heavy.sh");
+const tmp = () => mkdtempSync(join(tmpdir(), "aa-heavy-"));
 
-function env(lock: string): NodeJS.ProcessEnv {
+function env(lock: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const { CI: _ci, AA_HEAVY_LOCKED: _held, ...rest } = process.env;
-  return { ...rest, AA_HEAVY_LOCK: lock, AA_HEAVY_MIN_MB: "0" };
+  return { ...rest, AA_HEAVY_LOCK: lock, AA_HEAVY_MIN_MB: "0", ...extra };
+}
+
+/** Starts a job that holds the lock for `ms` and resolves once it has taken it (it prints "locked"). */
+async function holdLock(lock: string, ms: number, then = "true") {
+  const job = spawn("bash", [script, "sh", "-c", `echo locked; sleep ${ms / 1000}; ${then}`], { env: env(lock) });
+  let out = "";
+  await new Promise<void>((resolve) =>
+    job.stdout.on("data", (d: Buffer) => {
+      out += d.toString();
+      if (out.includes("locked")) resolve();
+    }),
+  );
+  const closed = new Promise<void>((r) => job.on("close", () => r()));
+  return { output: () => out, closed };
 }
 
 describe.skipIf(!hasFlock)("heavy.sh", () => {
   it("runs the command and passes its exit code through", () => {
-    const lock = join(mkdtempSync(join(tmpdir(), "aa-heavy-")), "lock");
-    const ok = spawnSync("bash", [script, "sh", "-c", "echo ran; exit 3"], { env: env(lock), encoding: "utf8" });
+    const ok = spawnSync("bash", [script, "sh", "-c", "echo ran; exit 3"], { env: env(join(tmp(), "lock")), encoding: "utf8" });
     expect(ok.stdout.trim()).toBe("ran");
     expect(ok.status).toBe(3);
   });
 
   it("a second job waits for the first one's lock; a nested call does not wait for its own", async () => {
-    const lock = join(mkdtempSync(join(tmpdir(), "aa-heavy-")), "lock");
-    const first = spawn("bash", [script, "sh", "-c", 'sleep 1.5; bash "$0" echo nested', script], { env: env(lock) });
-    let nested = "";
-    first.stdout.on("data", (d: Buffer) => {
-      nested += d.toString();
-    });
-    await new Promise((r) => setTimeout(r, 300));
+    const lock = join(tmp(), "lock");
+    const first = await holdLock(lock, 1500, `bash ${script} echo nested`);
     const started = Date.now();
     const second = spawnSync("bash", [script, "echo", "second"], { env: env(lock), encoding: "utf8" });
     const waited = Date.now() - started;
-    await new Promise((r) => first.on("close", r));
+    await first.closed;
     expect(second.stdout.trim()).toBe("second");
     expect(second.stderr).toContain("another heavy job is running");
     expect(waited).toBeGreaterThan(900);
-    expect(nested.trim()).toBe("nested");
+    expect(first.output()).toContain("nested");
+  });
+
+  it("--if-free skips with exit 75 while another job holds the lock, or when RAM is short", async () => {
+    const lock = join(tmp(), "lock");
+    const first = await holdLock(lock, 1000);
+    const busy = spawnSync("bash", [script, "--if-free", "echo", "ran"], { env: env(lock), encoding: "utf8" });
+    await first.closed;
+    expect(busy.status).toBe(75);
+    expect(busy.stdout).toBe("");
+    const short = spawnSync("bash", [script, "--if-free", "echo", "ran"], {
+      env: env(lock, { AA_HEAVY_MIN_MB: "999999999" }),
+      encoding: "utf8",
+    });
+    expect(short.status).toBe(75);
+    expect(short.stderr).toContain("RAM");
+  });
+
+  it("without flock it warns and runs once, marked as holding the lock (so gate.sh's re-exec through it ends)", () => {
+    // A PATH with the tools heavy.sh and gate.sh need, but no flock.
+    const bin = join(tmp(), "bin");
+    mkdirSync(bin);
+    for (const tool of ["bash", "sh", "awk", "seq", "cat", "sleep", "tr", "sed", "git", "node", "dirname"]) {
+      const path = which(tool);
+      if (path) symlinkSync(path, join(bin, tool));
+    }
+    const res = spawnSync("bash", [script, "sh", "-c", 'echo "locked=$AA_HEAVY_LOCKED"'], {
+      env: env(join(tmp(), "lock"), { PATH: bin }),
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    expect(res.stderr).toContain("no flock");
+    expect(res.stdout.trim()).toBe("locked=1");
+    expect(res.status).toBe(0);
   });
 });
