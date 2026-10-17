@@ -107,7 +107,7 @@ Prose is capped at `--aa-measure` (68ch). Docs articles follow Starlight's conte
 ## 6. Ledger motifs (components)
 
 - **Fact-ID chip** (`.aa-chip`):
-  - mono 0.75rem in `ink-2`, inside a 1px `rule` box with a 2px radius, e.g. `N30`;
+  - mono 0.75rem in `ink-2`, inside a 1px `rule-strong` box with a 2px radius, e.g. `N30`; a verified fact's chip starts with the green check (`✓N30`);
   - it follows the figure it backs: `−17.9% N30`;
   - it is a link to that fact's row in the fact ledger (`#fact-N30`), so it works without JS. With JS it opens the fact panel in place (`aria-expanded`, `aria-controls`; Escape closes it);
   - hover and focus show an `ink` box, and the open chip is filled `ink` with `page` text.
@@ -132,8 +132,17 @@ Prose is capped at `--aa-measure` (68ch). Docs articles follow Starlight's conte
   - Expressive Code with `github-light` / `github-dark`, re-based onto `surface` (so its contrast correction targets our real background);
   - a hairline frame, a mono 0.875rem body, no window dots;
   - terminal frames are labelled with a mono caption.
-- **Diagrams:** Mermaid, initialised with the token colours and Plex Sans. The pipeline scene is re-themed through its `--pp-*` custom properties: `ink` for progress and chips, `mark` for packets. The scene file itself is shared with the README GIF and stays untouched.
-- **Header:** the wordmark, a mark (a ruled square with a check, `aria-hidden`), then Docs, Evals and GitHub. In the docs it adds search and the theme control. Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`, Escape closes it and returns focus).
+- **Diagrams:**
+  - Mermaid is initialised with the token colours and Plex Sans.
+  - The pipeline scene (`pipeline-scene.ts`) is shared with the README GIF, so the site re-themes it rather than changing its colours. It does this through the scene's `--pp-*` custom properties and three class hooks the scene carries for the site (the GIF doesn't style them):
+    - `ink` for progress (the rail, the current stage, headings);
+    - `mark` for packets;
+    - fact IDs (`.fact-chip`, `.fact-id`) as hairline chips: a `rule-strong` stroke, `ink-2` text and a 2px radius, the same as the Fact-ID chip above;
+    - V1–V8 pass marks and the "verified, cited" stamp (`.verified`) in `--aa-verified`;
+    - corners at 4px.
+  - The scene is its own frame, with a hairline and no island box around it.
+  - Under 30rem its type is too small to read, so the island also tells the same run as a ruled list of steps, from the same data.
+- **Header:** the wordmark, a mark (a ruled square with a check, `aria-hidden`, drawn in `currentColor`: it is the brand, not a verified state, so it is never green; the favicon is the same mark in ink), then Docs, Evals and GitHub. In the docs it adds search and the theme control. Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`, Escape closes it and returns focus).
 - **Footer (every page):** project links, the licence, and "Built by fhsystems", linking to https://fhsystems.dev.
 
 ## 7. Motion

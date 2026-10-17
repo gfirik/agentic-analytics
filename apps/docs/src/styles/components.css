@@ -175,8 +175,9 @@ table.aa-ledger {
   background: var(--aa-surface);
 }
 
-/* The pipeline scene (pipeline-scene.ts, shared with the README GIF) re-themed through its own custom properties:
-   ink for progress and fact chips, the slate mark for packets, no warm tones. */
+/* The pipeline scene (pipeline-scene.ts, shared with the README GIF) re-themed through its own custom properties and
+   class hooks (DESIGN.md §6 "Diagrams"): ink for progress, fact IDs as hairline chips like everywhere else on the
+   site, verified marks in the one green, the slate mark for packets, 4px corners, no warm tones. */
 html .aa-pipe-frame svg.pp:not(.light):not(.dark) {
   --pp-bg: var(--aa-surface);
   --pp-card: var(--aa-raised);
@@ -195,6 +196,59 @@ html .aa-pipe-frame svg.pp text {
 }
 html .aa-pipe-frame svg.pp .mono {
   font-family: var(--aa-font-mono);
+}
+html .aa-pipe-frame svg.pp rect {
+  rx: 4px;
+  ry: 4px;
+}
+html .aa-pipe-frame svg.pp .fact-chip {
+  fill: var(--pp-card);
+  stroke: var(--aa-rule-strong);
+  stroke-width: 1.5;
+  rx: 2px;
+  ry: 2px;
+}
+html .aa-pipe-frame svg.pp .fact-id {
+  fill: var(--aa-ink-2);
+}
+html .aa-pipe-frame svg.pp .verified {
+  fill: var(--aa-verified);
+}
+/* The scene is its own frame: no island box around it. */
+.aa-island.aa-pipe {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.aa-pipe-frame svg {
+  border: 1px solid var(--aa-rule);
+}
+/* Under 30rem the scene's type is too small to read, so the run is also told as text (Pipeline.tsx). */
+.aa-pipe-steps {
+  display: none;
+}
+@media (max-width: 30rem) {
+  .aa-pipe-steps {
+    display: block;
+    margin: var(--aa-space-4) 0 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--aa-rule-strong);
+    font-size: var(--aa-text-small);
+    line-height: 1.55;
+    color: var(--aa-ink);
+  }
+  .aa-pipe-steps li {
+    padding: var(--aa-space-2) 0;
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  .aa-pipe-steps b {
+    display: block;
+    font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

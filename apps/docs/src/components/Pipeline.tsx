@@ -79,6 +79,34 @@ export default function Pipeline() {
           </button>
         ))}
       </div>
+      <ol className="aa-pipe-steps" aria-label="The same run, step by step">
+        <li>
+          <b>Files</b> {run.files.map((f) => f.name).join(", ")}
+        </li>
+        <li>
+          <b>Profile</b> {run.profile.tables} tables, {run.profile.sections} document sections, {run.profile.issues} data-quality issues
+        </li>
+        <li>
+          <b>Metric</b> {run.metric.label} = {run.metric.formula}, per {run.metric.grain} ({run.metric.status})
+        </li>
+        <li>
+          <b>SQL</b> {run.change.metric} {run.change.from.text} → {run.change.to.text},{" "}
+          <span className="aa-fig">{run.change.pct.text}</span> <span className="aa-chip">{run.change.pct.id}</span>; driver{" "}
+          {run.driver.member} <span className="aa-fig">{run.driver.delta.text}</span> <span className="aa-chip">{run.driver.delta.id}</span>
+        </li>
+        {run.docs.slice(0, 1).map((doc) => (
+          <li key={doc.source_id}>
+            <b>Evidence</b> {doc.file}
+            {doc.from ? ` from ${doc.from}` : ""}: <q>{doc.quote}</q>
+          </li>
+        ))}
+        <li>
+          <b>Verify</b> V1–V8: {run.verification.numbers_checked} numbers recomputed, {run.verification.numbers_mismatched} mismatched
+        </li>
+        <li>
+          <b>Report</b> {run.action.text}: +{run.action.low.text} to +{run.action.high.text}, {run.action.horizon}
+        </li>
+      </ol>
     </section>
   );
 }
