@@ -1,6 +1,7 @@
 // Screenshots of the built site for review (docs/assets/site/): the landing page and a docs page, in light and dark,
 // at desktop (1440) and mobile (390) widths. Serve the build first (`bun run --filter @agentic-analytics/docs preview`).
 //   tsx scripts/site-screenshots.ts [--url http://127.0.0.1:4321/agentic-analytics] [--out dir] [--full]
+//   tsx scripts/site-screenshots.ts --learn   → the Learn overview, a stage guide and a tutorial (docs/assets/site/learn/)
 // PW_CHANNEL=chrome uses an installed Chrome instead of Playwright's own build.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -15,16 +16,26 @@ const { values } = parseArgs({
     only: { type: "string" },
     sections: { type: "boolean", default: false },
     compare: { type: "string" },
+    learn: { type: "boolean", default: false },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
-const out = values.out as string;
+const out =
+  values.learn && values.out === join(import.meta.dirname, "..", "..", "..", "docs", "assets", "site")
+    ? join(values.out, "learn")
+    : (values.out as string);
 mkdirSync(out, { recursive: true });
 
-const pages = [
-  { name: "landing", path: "/" },
-  { name: "docs", path: "/how-it-works/verifier/" },
-];
+const pages: { name: string; path: string; at?: string }[] = values.learn
+  ? [
+      { name: "learn-overview", path: "/learn/" },
+      { name: "learn-stage-analysis", path: "/learn/stages/analysis/", at: "#what-happens-on-the-example" },
+      { name: "learn-tutorial-confirm-metrics", path: "/learn/tutorials/confirm-metrics/", at: "#3-review-during-a-job" },
+    ]
+  : [
+      { name: "landing", path: "/" },
+      { name: "docs", path: "/how-it-works/verifier/" },
+    ];
 const sizes = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -48,6 +59,12 @@ try {
         await page.evaluate(async () => {
           await document.fonts.ready;
         });
+        // A section of the page, not its top: scroll its heading just under the header.
+        if (p.at && !values.full)
+          await page.evaluate((sel) => {
+            const el = document.getElementById(sel.slice(1));
+            if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80);
+          }, p.at);
         await page.screenshot({ path: join(out, `${name}.png`), fullPage: Boolean(values.full) });
         if (values.sections) {
           const parts = page.locator("main > section, main .sl-markdown-content, body > footer");

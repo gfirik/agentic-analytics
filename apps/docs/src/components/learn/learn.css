@@ -299,3 +299,14 @@
   font-size: var(--aa-text-small);
   color: var(--aa-ink-2);
 }
+.aa-learn-ledger td:last-child {
+  white-space: nowrap;
+}
+
+/* Starlight spaces consecutive elements in an article with a top margin; inside the diagram the grid gaps do that. */
+.sl-markdown-content .aa-flow * {
+  margin-top: 0;
+}
+.sl-markdown-content .aa-flow > p.aa-small {
+  margin-top: var(--aa-space-4);
+}
