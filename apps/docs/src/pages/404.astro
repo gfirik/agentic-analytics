@@ -1,0 +1,62 @@
+---
+// The site's 404 (Starlight's own is turned off: disable404Route). GitHub Pages serves it for any missing path.
+import BaseLayout from "../components/site/BaseLayout.astro";
+import { DOCS_HOME, withBase } from "../components/site/site.ts";
+
+const ways = [
+  { href: withBase("/"), label: "Home", note: "What it does, the report, the evals" },
+  { href: withBase(DOCS_HOME), label: "What it is", note: "A one-minute read" },
+  { href: withBase("start/quickstart/"), label: "Quickstart", note: "From a clone to a verified report" },
+  { href: withBase("use-it/cli/"), label: "CLI reference", note: "Every aa command" },
+];
+---
+
+<BaseLayout title="Page not found · agentic-analytics" description="This page doesn't exist." index={false}>
+  <section class="aa-404">
+    <div class="aa-container">
+      <p class="aa-label">Error 404 · no matching row</p>
+      <h1 class="aa-display">This page isn't in the ledger.</h1>
+      <p class="aa-lead">
+        The link may be old, or the address mistyped. The docs search can find the page, or one of these will get you back:
+      </p>
+      <div class="aa-ledger-wrap">
+        <table class="aa-ledger">
+          <caption class="aa-label">Where to go</caption>
+          <thead>
+            <tr><th scope="col">Page</th><th scope="col">What's there</th></tr>
+          </thead>
+          <tbody>
+            {
+              ways.map((w) => (
+                <tr>
+                  <td>
+                    <a href={w.href}>{w.label}</a>
+                  </td>
+                  <td class="muted">{w.note}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .aa-404 {
+    padding: var(--aa-space-9) 0;
+  }
+  .aa-404 .aa-container {
+    display: grid;
+    gap: var(--aa-space-5);
+    max-width: 52rem;
+  }
+  .aa-404 caption {
+    text-align: left;
+    padding-bottom: var(--aa-space-2);
+  }
+  .aa-404 td a {
+    font-weight: 500;
+  }
+</style>
