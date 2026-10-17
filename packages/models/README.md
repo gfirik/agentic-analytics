@@ -16,7 +16,9 @@ The model layer: one `ModelClient` interface over the Vercel AI SDK, free provid
 | `Router`, `routesOf` | Same-model routing across providers: token buckets from `x-ratelimit-*`, `retry-after`, fallback only to the same model, `RATE_LIMITED` when none is left. With `run(routes, call, { probeCache: true })` (set by the client when a response cache is configured) a limited route still serves cached answers |
 | `fileCache(dir)`, `memoryCache()` | Response cache keyed by hash(URL, request body); `ProviderDeps.cache` |
 | `CallRecord`, `ProviderDeps.onCall` | Every call with role, provider, model, status, cached, latency, tokens |
-| `ModelError` | Typed errors: `CONFIG`, `MISSING_KEY`, `INVALID_OUTPUT`, `PROVIDER`, `TIMEOUT`, `NOT_AVAILABLE`, `FAKE_NO_SCRIPT` |
+| `ModelError` | Typed errors: `CONFIG`, `MISSING_KEY`, `INVALID_OUTPUT`, `PROVIDER`, `TIMEOUT`, `INPUT_TOO_LARGE`, `RATE_LIMITED`, `NOT_AVAILABLE`, `FAKE_NO_SCRIPT` |
+| `estimateTokens(text)`, `estimateObjectRequest({ system, prompt, schema, maxRetries? })`, `checkInputBudget` | Conservative, offline input-token estimate: digits and non-ASCII characters count 1 each, other characters 1/3.2, plus 8 per message. It covers the system prompt, the schema, the prompt and the longest retry feedback. `GenerateObjectArgs.maxInputTokens` refuses an over-budget call with `INPUT_TOO_LARGE` before sending, in the real client and in FakeModel (models §5). |
+| `boundedFeedback(error)`, `feedbackSuffix`, `FEEDBACK_MAX_CHARS` | Retry feedback for budgeted calls: the validation issues as `path: message`, at most 300 characters |
 | `@agentic-analytics/models/testing` → `FakeModel`, `FakeRequest`, `promptHash` | Scripted responses by role and prompt substring/hash; runs scripted tool calls against the real tools; deterministic embeddings. An entry's `object` or `steps` may be a function of the `FakeRequest` (`{ role, system, prompt }`), for scripts that must name ids only known at run time (see `packages/core/testing/coffee-planner.ts`) |
 
 ## Example

@@ -65,59 +65,59 @@ Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-o
 
 ### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-17
 
-**Partial run: 3 of 30 jobs finished.** Same Groq roles as the smoke run. Groq's free tier allows 200k tokens a day for qwen/qwen3.8-27b, about one business per day, so the other 27 jobs stopped on the rate limit (RATE_LIMITED, never switching models). The rates below count every unfinished job as a miss, so they are not the model's quality. Over the 3 finished jobs (coffee_roaster v1–v3): 4 of 5 planted events found, 0 distractors reported, 4 of 4 quality issues found, 0 number mismatches. printing_shop-v1 failed differently: its DECIDE request is larger than the tier's 7,000 input tokens per minute for this model, so it cannot finish on this tier (a known gap). The suite keeps running (scripts/eval-until-done.sh; finished calls are cached) and the complete numbers will replace this row.
+**Partial run: 8 of 30 jobs finished** (pass of 2026-10-18, after the M13h fixes). Same Groq roles as the smoke run. Groq's free tier allows 200k tokens a day for qwen/qwen3.8-27b, so the other jobs stopped on the rate limit (RATE_LIMITED, never switching models); coffee_roaster-v1, which finished on 2026-10-17, failed this pass on a network error ("Cannot connect to API") and replays from the cache next pass. The rates below count every unfinished job as a miss, so they are not the model's quality. Over the 8 finished jobs (coffee_roaster v2–v3, printing_shop v1–v3, clinic v1–v2, saas-v2): 10 of 14 planted events found, 0 of 12 distractors reported, 10 of 10 quality issues found, 0 number mismatches. printing_shop-v1 now finishes: with the M13h small-model input budget every live planner call stayed at or under 6,516 input tokens (the tier allows 7,000 per minute). One pass runs per day after the quota resets (scripts/eval-daily.sh; finished calls are cached) until every job finishes.
 
-30 datasets · 196 s · 139172 tokens
+30 datasets · 929 s · 488896 tokens
 
-Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (83 calls, 77 cached, 2 failed); judge → openai-compatible:groq:openai/gpt-oss-20b (8 calls, 8 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (24 calls, 18 cached, 2 failed)
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (314 calls, 269 cached, 1 failed); judge → openai-compatible:groq:openai/gpt-oss-20b (32 calls, 30 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (58 calls, 40 cached, 3 failed)
 
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
-| Jobs completed | 10.0% | 100% | **no** |
+| Jobs completed | 26.7% | 100% | **no** |
 | Number mismatches | 0 | 0 | n/a (partial run) |
-| Planted recall@5 | 8.0% | ≥ 80% | n/a (partial run) |
+| Planted recall@5 | 20.0% | ≥ 80% | n/a (partial run) |
 | Driver accuracy | 100.0% | ≥ 90% | n/a (partial run) |
-| Cause grade accuracy | 50.0% | ≥ 80% | n/a (partial run) |
+| Cause grade accuracy | 70.0% | ≥ 80% | n/a (partial run) |
 | Distractor FP rate | 0.0% | ≤ 10% | n/a (partial run) |
-| Quality-issue recall | 10.0% | ≥ 90% | n/a (partial run) |
+| Quality-issue recall | 25.0% | ≥ 90% | n/a (partial run) |
 | Citation precision | 100.0% | ≥ 95% | n/a (partial run) |
 | Definition adherence | 100.0% | 100% | n/a (partial run) |
 | Recommendation grounding | 100.0% | 100% | n/a (partial run) |
-| Recommendation relevance | 33.3% | ≥ 70% | n/a (partial run) |
+| Recommendation relevance | 50.0% | ≥ 70% | n/a (partial run) |
 
 <details><summary>Per dataset</summary>
 
 | Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
 |---|---|---|---|---|---|---|
-| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 4.4 s |
-| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 6.9 s |
-| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 6.0 s |
-| printing_shop-v1 | no (PROVIDER: DECIDE failed: Request too large for model `qwen/q) | 0/1 | none | 0/2 | 0 | 6.9 s |
-| printing_shop-v2 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 12.7 s |
-| printing_shop-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.8 s |
-| clinic-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.8 s |
-| clinic-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.8 s |
-| clinic-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.7 s |
-| online_store-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.2 s |
-| online_store-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.2 s |
-| online_store-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 4.3 s |
-| distributor-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.4 s |
-| distributor-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 92.2 s |
-| distributor-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.9 s |
-| restaurant-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.6 s |
-| restaurant-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.7 s |
-| restaurant-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.1 s |
-| saas-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.3 s |
-| saas-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.1 s |
-| saas-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.8 s |
-| logistics-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.2 s |
-| logistics-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.2 s |
-| logistics-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 4.3 s |
-| construction_supplier-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.8 s |
-| construction_supplier-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.5 s |
-| construction_supplier-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.8 s |
-| agency-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.1 s |
-| agency-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 1.4 s |
+| coffee_roaster-v1 | no (PROVIDER: DECIDE failed: Cannot connect to API: ) | 0/1 | none | 0/2 | 0 | 11.3 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 7.4 s |
+| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 26.4 s |
+| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 102.6 s |
+| printing_shop-v2 | yes | 1/2 | none | 1/1 | 3 | 52.9 s |
+| printing_shop-v3 | yes | 1/2 | none | 1/1 | 3 | 20.1 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 4.6 s |
+| clinic-v2 | yes | 1/2 | none | 1/1 | 3 | 96.7 s |
+| clinic-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 175.9 s |
+| online_store-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 4.0 s |
+| online_store-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 6.5 s |
+| online_store-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 8.8 s |
+| distributor-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.4 s |
+| distributor-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.0 s |
+| distributor-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 8.6 s |
+| restaurant-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 3.0 s |
+| restaurant-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.2 s |
+| restaurant-v3 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 6.5 s |
+| saas-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 6.1 s |
+| saas-v2 | yes | 2/2 | none | 1/1 | 3 | 4.9 s |
+| saas-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 7.8 s |
+| logistics-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 10.8 s |
+| logistics-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 133.0 s |
+| logistics-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 139.2 s |
+| construction_supplier-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 58.9 s |
+| construction_supplier-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 11.8 s |
+| construction_supplier-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.0 s |
+| agency-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.2 s |
+| agency-v2 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 1.6 s |
 | agency-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.2 s |
 
 </details>

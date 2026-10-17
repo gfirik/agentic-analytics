@@ -1,6 +1,17 @@
 // Public API of @agentic-analytics/agent (docs/specs/agent-and-verifier.md §2–§9).
 export { type AskDraft, answerQuestion, reportClaims } from "./ask.ts";
 export {
+  type BudgetedRequest,
+  type DecideFinding,
+  fitToBudget,
+  QUOTE_MAX_CHARS,
+  SMALL_MODEL_INPUT_BUDGET,
+  TOP_MEMBERS,
+  TRIM_STEPS,
+  type TrimStep,
+  trimDecideInput,
+} from "./budget.ts";
+export {
   contributionDrivers,
   decompositionClaims,
   findingType,
@@ -11,7 +22,7 @@ export {
   q,
   severity,
 } from "./claims.ts";
-export { type DecideInput, DecideOutput, decide } from "./decide.ts";
+export { type DecideInput, DecideOutput, type DecideRequest, decide, decideRequest } from "./decide.ts";
 export { buildDraft, type DraftInput, reportQuestion } from "./draft.ts";
 export { buildEvidence, MAX_EVIDENCE_ROWS } from "./evidence.ts";
 export {

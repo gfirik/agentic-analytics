@@ -1,5 +1,6 @@
 // FakeModel (docs/specs/models.md §6): scripted responses keyed by role and prompt (hash or substring).
 // Every unit and integration test uses it; it never touches the network (AGENTS.md §2.4).
+import { checkInputBudget } from "../budget.ts";
 import { ModelError } from "../errors.ts";
 import { generateValidated } from "../retry.ts";
 import {
@@ -83,6 +84,8 @@ export class FakeModel implements ModelClient {
   }
 
   async generateObject<T>(args: GenerateObjectArgs<T>): Promise<{ object: T; usage: Usage }> {
+    // The real client's budget check: an over-budget call never reaches the script, as it never reaches a provider.
+    checkInputBudget(args);
     const { object, usage } = await generateValidated(
       args.schema,
       args.prompt,
@@ -96,6 +99,7 @@ export class FakeModel implements ModelClient {
         return { value, usage: FAKE_USAGE };
       },
       args.maxRetries,
+      { boundedFeedback: args.maxInputTokens !== undefined },
     );
     return { object, usage };
   }

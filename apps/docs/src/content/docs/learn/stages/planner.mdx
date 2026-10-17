@@ -57,7 +57,7 @@ A model that writes “revenue fell {factText(learn.analysis.change.pct).replace
 
 ### Small-model mode
 
-Small local models struggle with long tool loops. `--small-model` halves the budgets and replaces the free-form loop with a fill-in form. The numbers are the same either way, because the model computes none of them.
+Small local models struggle with long tool loops. `--small-model` halves the budgets and replaces the free-form loop with a fill-in form. The numbers are the same either way, because the model computes none of them. The DECIDE request also stays under a 6,500-token input budget, trimmed in a fixed order that never changes a number ([Running free](../../../models/running-free/)).
 
 ## Try it
 

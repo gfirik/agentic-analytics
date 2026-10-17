@@ -4,6 +4,7 @@ export type ModelErrorCode =
   | "INVALID_OUTPUT" // structured output failed validation after all retries
   | "PROVIDER" // the provider returned an error or was unreachable
   | "TIMEOUT"
+  | "INPUT_TOO_LARGE" // the estimated input is over the call's maxInputTokens; refused before sending
   | "RATE_LIMITED" // every route of the model is rate-limited past the wait cap; never switches models
   | "NOT_AVAILABLE" // capability lands in a later milestone
   | "FAKE_NO_SCRIPT"; // FakeModel had no scripted response for a call
