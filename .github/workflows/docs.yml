@@ -30,13 +30,17 @@ jobs:
           node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run --filter @agentic-analytics/docs build
-      - if: github.event_name != 'pull_request' && !github.event.repository.private
+      - if: github.event_name != 'pull_request' && !github.event.repository.private && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: apps/docs/dist
 
   deploy:
-    if: github.event_name != 'pull_request' && !github.event.repository.private
+    # One deploy at a time, never cancelled half-way (builds above still cancel each other).
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    if: github.event_name != 'pull_request' && !github.event.repository.private && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:

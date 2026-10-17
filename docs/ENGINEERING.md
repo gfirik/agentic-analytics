@@ -76,7 +76,7 @@ docker compose --profile docling up -d   # docling-serve on :5001
 | Workflow | Trigger | Steps |
 |---|---|---|
 | `ci.yml` | PR, push to main | install (`oven-sh/setup-bun`, Bun cache; Node 22 for the runtime) → biome → typecheck → unit tests → schema drift → `eval:smoke` (FakeModel) → injection suite |
-| `docs.yml` | push to main (from M12) | build Starlight → deploy GitHub Pages |
+| `docs.yml` | PR (build only); push to main and `workflow_dispatch` on main (build + deploy) | build Starlight → deploy GitHub Pages (skipped while the repo is private) |
 | `release.yml` | tag `v*` | build → test → Docker image → push to GHCR → GitHub Release with notes |
 
 CI never needs secrets or network models.
