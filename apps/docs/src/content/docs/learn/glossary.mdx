@@ -1,0 +1,158 @@
+---
+title: Glossary
+description: Every term used in the Learn section, in a sentence or two, as it applies to this engine.
+---
+
+Short definitions, accurate to this codebase. Each links to where it is explained in full.
+
+### BM25
+
+A keyword ranking: a passage scores higher for containing the query's words, more for rare words, without rewarding length. Runs in DuckDB's full-text index, with stemming. See [Retrieval](../stages/retrieval/).
+
+### Causal grade
+
+How strongly a claim about *why* is supported: `observed` (the numbers show it), `correlated` (two things happened together), `document_supported` (a quoted document says so). The verifier's V6 polices the wording. See [The verifier](../stages/verifier/).
+
+### Chunk
+
+A small passage of a document (a few hundred tokens), with its file, page, heading and character span. Search returns chunks, not whole documents.
+
+### Contribution
+
+How much of a total's change each member accounts for: member change ÷ total change. Shares add up to 100% and can exceed it when members move in opposite directions. See [Analysis](../stages/analysis/).
+
+### Data-quality item
+
+A problem the profiler found in your data (a ×1000 value, ambiguous dates, missing IDs), shown in the report with the rows it concerns.
+
+### DuckDB
+
+An embedded SQL database: no server, one file. Each job has its own DuckDB file holding the tables, facts, chunks and checks. [duckdb.org](https://duckdb.org/docs/)
+
+### Embedding
+
+A list of numbers that places a text in a space where texts with similar meaning are close. Used for meaning search. The default model runs in-process; tests use an offline hash embedder.
+
+### Eval
+
+A test for a system whose output isn't a fixed string: run it on data with known answers and score whether the output states them. See [Run evals on your own data](../tutorials/evals-on-your-data/).
+
+### Extract
+
+What the quarantined extractor returns from a passage: a typed record (an event or a statement) with an exact quote and its position.
+
+### Fact
+
+A number the engine computed, stored with its computation: SQL with parameters, or a function and the IDs of its inputs. Every number in a report is a fact.
+
+### Fact ID
+
+A fact's short name, such as `N30`. It appears next to the number in the report and opens how it was computed. See [Report & fact IDs](../stages/report/).
+
+### Hallucination
+
+A model stating something its input doesn't support. The verifier exists so that unsupported statements don't reach the report as fact.
+
+### Metric definition
+
+What a business number means, written as YAML: table, column, filters, time column, unit. Drafted, validated, then compiled to one SQL query. See [Metric layer](../stages/metric-layer/).
+
+### MCP
+
+Model Context Protocol: an open standard for assistants to call tools. `aa mcp` and `aa serve` (at `/mcp`) expose the engine as MCP tools. See [Use it from Claude via MCP](../tutorials/claude-mcp/).
+
+### Noise band
+
+How far a series usually moves from its trend. A change inside the band is not reported. See [Analysis](../stages/analysis/).
+
+### Ollama
+
+A free program that runs open language models on your own machine. One of the two provider types the engine supports.
+
+### OpenAI-compatible endpoint
+
+Any API that speaks the same request format as OpenAI's chat API. Many free tiers do (Groq, Cerebras, OpenRouter); the engine uses them through this format only.
+
+### Placeholder
+
+`{{N30}}` in model-written text: a reference to a fact, filled in with the stored value by code. Models never write numbers directly.
+
+### Planner
+
+The language-model role that investigates findings with tools and writes explanations and actions in a schema. See [The planner](../stages/planner/).
+
+### Price-volume-mix
+
+Splitting a revenue change into three effects: prices changed (price), fewer or more units were sold (volume), and sales shifted between products with different prices (mix). The three add up to the change.
+
+### Profiling
+
+Measuring data before trusting it: types, ranges, nulls, duplicates, date order, outliers. See [Ingestion & profiling](../stages/ingestion/).
+
+### Prompt injection
+
+Text written to steer a model that reads it ("ignore your instructions and…"). It can hide in any document, cell or web page. See [Security](../stages/security/).
+
+### Provenance
+
+Where something came from: a fact's computation and rows, a quote's file and position, a web statement's URL and fetch time. Nothing in a report is without it.
+
+### Quarantine
+
+Setting a source aside because its text addresses a model: nothing from it reaches the planner or the report, and the report lists it.
+
+### Quarantined extractor
+
+The only model call that reads untrusted text. It has no tools, and returns typed extracts with exact quotes that code checks against the source.
+
+### Query sanitizer
+
+Code that removes private data (names, numbers, emails, file names) from a web search query before it leaves the machine. See [Web lane](../stages/web-lane/).
+
+### RAG
+
+Retrieval-augmented generation: find the relevant passages first, then let the model write from them instead of from memory. Here the model sees extracts, never raw passages. See [Retrieval](../stages/retrieval/).
+
+### Rate limit
+
+A provider's cap on requests or tokens per minute or per day. Exceeding it returns HTTP 429. See [Model router & free providers](../stages/models/).
+
+### Reciprocal rank fusion
+
+Merging ranked lists by giving each item 1/(60 + rank) points per list. Needs no score calibration; items near the top of several lists win.
+
+### Reranker
+
+A model (cross-encoder) that reads a query and a passage together and scores how well the passage answers it. Slower, so used only on the top few. Optional; skipped offline, and the result says so.
+
+### Robust z-score
+
+How unusual a value is, measured with the median and the median absolute deviation instead of the mean and standard deviation, so one outlier can't distort it.
+
+### Router
+
+The part of the model layer that sends each call to one of several providers serving the *same* model, moving on when one is rate-limited.
+
+### Scripted planner
+
+A stand-in for the language model that replays fixed decisions for the example, including deliberate mistakes. It makes tests, the demo and these pages reproducible without a model.
+
+### Small-model mode
+
+`--small-model`: smaller tool budgets, fewer findings, a fill-in form instead of a free tool loop. For models of about 9B parameters or fewer.
+
+### SSRF
+
+Server-side request forgery: tricking a server into fetching an address of the attacker's choosing, often an internal one. The web fetcher refuses private, local and metadata addresses. See [Security](../stages/security/).
+
+### Structured output
+
+A model answer that must be JSON matching a schema. Invalid answers are sent back with the error, and retried.
+
+### Tool calling
+
+A model asking the engine to run a named tool with arguments, instead of answering directly. The planner's tools are a fixed list; there is no code execution.
+
+### Verifier
+
+The code that checks a draft report (V1–V8) before it ships: recomputes every number, checks every quote and polices causal wording. See [The verifier](../stages/verifier/).

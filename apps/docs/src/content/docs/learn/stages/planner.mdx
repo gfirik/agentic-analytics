@@ -1,0 +1,88 @@
+---
+title: The planner (agent)
+description: What the language model actually does here, through tool calling and structured output, and what it is not allowed to do.
+---
+
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const g = learn.agent;
+
+**Stage 6 of 10.** `EXPLAIN` investigates each top finding; `DECIDE` proposes actions. This is where a language model works, as the **planner**.
+
+## The problem it solves
+
+The analysis found *that* revenue fell and *where*. Turning that into an explanation means deciding what to look at next: drill into customers? search the documents? compare with a benchmark? That is judgement, and judgement is what language models are useful for. But a model left free will write numbers from memory, run whatever code it likes, and present guesses as causes.
+
+So the planner is given a job, a budget and a short list of fixed tools, and its answer must fit a schema. It never sees raw document text and never writes a number.
+
+## What happens on the example
+
+The finding was “{g.finding}”. The planner had {g.tools.length} tools: <code>{g.tools.join(", ")}</code>. Here is what it called, in order (the first two for the revenue finding, the rest for the refund-rate finding):
+
+<StageFlow client:visible {...flowProps("agent")} title="The planner's tool calls on the coffee-roaster job" />
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Tool calls with their inputs and outputs">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Tool</th><th scope="col">Input</th><th scope="col">Output (start)</th></tr></thead>
+<tbody>
+{g.calls.map((c) => <tr><td class="id">{c.tool}</td><td><code class="aa-mono-wrap">{JSON.stringify(c.input)}</code></td><td class="muted"><span class="aa-mono-wrap">{c.output.slice(0, 220)}…</span></td></tr>)}
+</tbody>
+</table>
+</div>
+
+Notice what came back: `search_documents` returned **extracts** (typed records with quotes), not the documents. `drill_down` returned **facts with IDs**, computed by SQL. `search_web` returned the query that was actually sent. `compare_benchmark` returned the gap as a fact. The planner can combine these; it cannot invent them.
+
+**Then it writes, in a schema.** After investigating, the planner answers with a JSON object that must match a schema (<code>{g.structured?.schema}</code>): a title, explanations with the extracts they rest on and a [causal grade](../../glossary/#causal-grade), alternatives it rejected, and a confidence. The scripted planner's real answer on this run:
+
+<pre class="aa-learn-yaml" tabindex="0" aria-label="The planner's structured answer">{JSON.stringify(g.structured?.object, null, 2)}</pre>
+
+Two of these are deliberate mistakes, the kind real models make: a fact ID that doesn't exist (`N99999`), and “caused by” with no document behind it. Neither reaches the report; the [verifier](../verifier/) drops the first and rewords the second.
+
+On this run the model layer was called {Object.entries(g.roles).map(([role, n]) => `${n} times as ${role}`).join(", ")}. The extractor does most of the reading.
+
+## The ideas behind it
+
+### Tool calling
+
+[Tool calling](../../glossary/#tool-calling) lets a model ask for an action instead of writing an answer: it emits a tool name and arguments, the engine runs the tool, and the result goes back to the model. The set of tools is the model's whole world here. There is no `eval`, no generated code, no shell. A budget caps the calls per finding and per job.
+
+### Structured output
+
+[Structured output](../../glossary/#structured-output) means the model's answer must parse as JSON matching a schema. When it doesn't, the error is fed back and the model tries again (twice at most). Endpoints that can enforce a schema natively do; for the rest, the engine validates with the same schema.
+
+### Placeholders instead of numbers
+
+A model that writes “revenue fell 17.9%” may be right or may have made the number up; you can't tell from the text. So the planner writes `{{N30}}` and code fills in the stored value. A placeholder pointing at a fact that doesn't exist is caught at once.
+
+### Small-model mode
+
+Small local models struggle with long tool loops. `--small-model` halves the budgets and replaces the free-form loop with a fill-in form. The numbers are the same either way, because the model computes none of them.
+
+## Try it
+
+With a model configured, run a job and watch the stages (`--log` adds structured logs on stderr):
+
+```bash
+bun run aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-01 --log
+```
+
+Without one, the scripted planner replays this page's run: [Analyse your first file](../../tutorials/first-file/). To run a real free model, see [Model router & free providers](../models/).
+
+## In the code
+
+- [`packages/agent/src/tools.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/agent/src/tools.ts): the fixed tools and their budgets.
+- [`packages/agent/src/explain.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/agent/src/explain.ts): the investigation and the explanation schema.
+- [`packages/agent/src/decide.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/agent/src/decide.ts): candidate actions, with impacts computed in code.
+- [`packages/agent/src/prompts.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/agent/src/prompts.ts): the prompts, versioned.
+- [`packages/models/src/retry.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/models/src/retry.ts): schema validation with retries.
+- [`packages/core/testing/coffee-planner.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/core/testing/coffee-planner.ts): the scripted planner behind these pages.
+- The spec: [`docs/specs/agent-and-verifier.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/agent-and-verifier.md).
+
+Go deeper: [Explain and causal grades](../../../how-it-works/explain/) and [Decisions and impact ranges](../../../how-it-works/decide/).
+
+## Further reading
+
+- Yao et al., *ReAct: Synergizing Reasoning and Acting in Language Models*, 2022. [arXiv:2210.03629](https://arxiv.org/abs/2210.03629)
+- Schick et al., *Toolformer: Language Models Can Teach Themselves to Use Tools*, 2023. [arXiv:2302.04761](https://arxiv.org/abs/2302.04761)
+- [JSON Schema](https://json-schema.org/): the format the answer schemas are written in.

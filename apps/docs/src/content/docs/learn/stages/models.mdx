@@ -1,0 +1,103 @@
+---
+title: Model router & free providers
+description: Roles, free endpoints, rate limits, routing between providers of the same model, the response cache, and the call log.
+---
+
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const rt = learn.router;
+
+**Stage 9 of 10**, though it isn't a stage: the model layer sits under every stage that calls a model.
+
+## The problem it solves
+
+The engine must run free: on a laptop with [Ollama](../../glossary/#ollama), or on the free tiers of hosted endpoints (Groq, Cerebras, OpenRouter and others that speak the OpenAI-compatible API). Free tiers have tight [rate limits](../../glossary/#rate-limit): a token budget per minute and a cap per day. A job makes dozens of calls. Without care, the third call fails with “429 Too Many Requests” and the job dies.
+
+And when you compare results, you need to know which model on which endpoint answered each call.
+
+## Roles
+
+Three roles call a model, and each can use a different one:
+
+- **planner** (`PLANNER_MODEL`): investigates and writes. The capable one.
+- **extractor** (`EXTRACTOR_MODEL`): reads untrusted text and returns typed extracts. A small model is fine.
+- **judge** (`JUDGE_MODEL`): answers yes or no: does this quote support this claim?
+
+Embeddings run in-process (no model server at all).
+
+## What happens: one call, two providers
+
+The same open model, `gpt-oss-120b`, is served by more than one free provider. A role can list several routes for **the same model**, separated by `|`:
+
+<pre class="aa-learn-yaml" tabindex="0" aria-label="The planner's model setting">PLANNER_MODEL="{rt.spec}"</pre>
+
+This record comes from the real model client on a scripted transport: the responses are canned, the code paths are the real ones, and nothing leaves the machine. (The keys in it are placeholders.)
+
+<StageFlow client:visible {...flowProps("router")} title="The router and the call log, one structured call" />
+
+The call log, one line per HTTP request, as `data/logs/model-calls.jsonl` records it (no prompt or answer text is ever logged):
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="The call log">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Role</th><th scope="col">Endpoint</th><th scope="col">Model</th><th scope="col" class="num">Status</th><th scope="col">Cached</th><th scope="col" class="num">Tokens in / out</th><th scope="col">Error</th></tr></thead>
+<tbody>
+{rt.calls.map((c) => <tr><td>{c.role}</td><td><code>{c.endpoint ?? c.provider}</code></td><td><code>{c.model}</code></td><td class="num">{c.status}</td><td>{c.cached ? "yes" : "no"}</td><td class="num">{c.inputTokens ?? "–"} / {c.outputTokens ?? "–"}</td><td class="muted">{c.error ?? ""}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+Reading it top to bottom:
+
+1. **Groq answered 429**, rate-limited, with a time to wait in its message. Rather than wait, the router handed the call to the next route of the same model.
+2. **Cerebras answered**, but the first answer broke the schema (a grade that doesn't exist). The client fed the error back and asked again: the second answer was valid, <code>{JSON.stringify(rt.answer)}</code>.
+3. **The same request again** was served from the response cache, both steps of the conversation, and the log says `cached`.
+
+## The ideas behind it
+
+### Routing without switching models
+
+The router keeps a small budget per route, fed by the `x-ratelimit-*` headers each response carries and by 429s. A call goes to the first route with capacity. It never falls back to a *different* model: the config refuses routes that name different models, because a different model would make a different report, and results must say what produced them.
+
+### Waiting politely
+
+A 429 usually says how long to wait (`Retry-After`, or “try again in 24.7s”). With no other route free, the client waits that long and retries, up to a cap. A wait longer than the cap fails clearly instead of hanging.
+
+### The cache and the call log
+
+Evals re-run the same prompts often. The cache stores complete answers keyed by a hash of the request, so a re-run costs nothing. The call log records which provider and model served every call, with token counts, so results are reproducible and attributable.
+
+### Local first
+
+Nothing requires a paid API. Ollama runs models on your machine; the hosted endpoints above have free tiers. Tests and these docs use no model at all.
+
+## Try it
+
+Check what is configured, per role, and that each endpoint answers:
+
+```bash
+bun run aa doctor
+```
+
+With a free Groq key in `.env`, set `PLANNER_MODEL=openai-compatible:groq:openai/gpt-oss-120b` (and the other roles) and run the smoke evals:
+
+```bash
+bun run eval -- --suite smoke --model configured --small-model
+```
+
+## In the code
+
+- [`packages/models/src/router.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/models/src/router.ts): routes, buckets, handing over.
+- [`packages/models/src/fetch.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/models/src/fetch.ts): 429 waits, the call record, the cache hook.
+- [`packages/models/src/config.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/models/src/config.ts): model specs, presets for the free endpoints.
+- [`packages/models/src/cache.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/models/src/cache.ts): the response cache.
+- [`packages/models/src/retry.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/models/src/retry.ts): schema validation with retries.
+- The spec: [`docs/specs/models.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/models.md).
+
+Go deeper: [Running on free models](../../../models/running-free/).
+
+## Further reading
+
+- RFC 6585, [Additional HTTP Status Codes](https://www.rfc-editor.org/rfc/rfc6585) (429 Too Many Requests).
+- RFC 9110, [HTTP Semantics: Retry-After](https://www.rfc-editor.org/rfc/rfc9110#field.retry-after).
+- [Ollama](https://github.com/ollama/ollama): running open models locally.

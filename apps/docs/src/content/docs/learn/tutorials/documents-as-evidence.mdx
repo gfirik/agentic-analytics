@@ -1,0 +1,70 @@
+---
+title: Add documents and emails as evidence
+description: Run the example with the workbook alone, then with its price list, email and notes, and see what the documents change in the report.
+---
+
+import Transcript from "../../../../components/learn/Transcript.astro";
+import { learn } from "../../../../components/learn/data.ts";
+
+export const ev = learn.tutorials.evidence;
+
+**Tutorial 3 of 5.** About ten minutes, offline. Background: [Retrieval](../../stages/retrieval/) and [the verifier](../../stages/verifier/).
+
+Numbers say *what* changed. Documents can say *why*. This tutorial shows the difference on the same data.
+
+## 1. The workbook alone
+
+Give the engine only the spreadsheet:
+
+<Transcript id="alone" from="Revenue fell" lines={4} />
+
+The finding's title says revenue fell **“alongside”** wholesale. With no document, the engine can show that the two moved together, not why. These are the finding's claims, with their [causal grades](../../glossary/#causal-grade):
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Claims from the workbook alone">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Claim</th><th scope="col">Grade</th><th scope="col">Evidence</th></tr></thead>
+<tbody>
+{ev.without.claims.map((c) => <tr><td>{c.text}</td><td><span class="aa-grade">{c.grade}</span></td><td class="muted">{c.sources.join(", ") || "the numbers"}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+The scripted planner still *tried* to write “caused by the price increase”; with nothing to cite, the verifier reworded it to “coincided with”.
+
+## 2. Add the documents
+
+Put the price list (PDF), the hotel's email (EML) and the operations notes (DOCX) next to the workbook. That is just the whole example folder:
+
+```bash
+AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash --today 2026-07-01 --currency USD
+```
+
+<Transcript id="analyze" from="Revenue fell" lines={4} />
+
+Now it says **“driven by”** wholesale, and the claims gain evidence:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="Claims with the documents">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Claim</th><th scope="col">Grade</th><th scope="col">Evidence</th></tr></thead>
+<tbody>
+{ev.with.claims.map((c) => <tr><td>{c.text}</td><td><span class="aa-grade">{c.grade}</span></td><td class="muted">{c.sources.join(", ") || "the numbers"}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+The email moved one claim to `document_supported`: the hotel wrote that it paused its standing order *after the new price list*, and the report quotes it exactly, with the file and the character span. The price list supports a weaker claim, `correlated`: prices went up shortly before the drop. The numbers did not change at all; they never come from documents.
+
+## 3. What counts as evidence
+
+- **Formats:** PDF (with a text layer), Word (DOCX), email (EML, headers included), Markdown and plain text. Scanned PDFs can go through an optional Docling container.
+- **Put them in the same folder** (or list them on the command line) as the data. Every file of a job is indexed.
+- **They are untrusted.** A document can't give instructions: it is [screened](../../stages/security/), and only the quarantined extractor reads it. A document that tries is quarantined and listed in the report.
+- **Grades are earned.** A cause needs a quote that says so; the verifier checks the quote exists in the file and that causal wording has a document behind it.
+
+## What you learned
+
+- Without documents the report describes; with them it can explain, and says how strongly.
+- Every causal claim cites an exact quote you can open.
+- Documents add explanations, never numbers.
+
+**Next:** [Use it from Claude via MCP](../claude-mcp/).

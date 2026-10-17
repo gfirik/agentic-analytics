@@ -1,0 +1,91 @@
+---
+title: Web lane
+description: How the engine looks up a public benchmark without leaking your customers' names or numbers, and without trusting the pages it reads.
+---
+
+import Fact from "../../../../components/learn/Fact.astro";
+import FactLedger from "../../../../components/learn/FactLedger.astro";
+import StageFlow from "../../../../components/learn/StageFlow.tsx";
+import { flowProps, learn } from "../../../../components/learn/data.ts";
+
+export const w = learn.web;
+
+**Stage 5 of 10.** `WEB_CONTEXT` and the planner's `search_web` tool. The web lane is **off by default**; a job uses it only with `--web`.
+
+## The problem it solves
+
+Some questions need the outside world: is a refund rate of 3.4% high for a coffee roaster? But a search query is a message to a third party. A careless query that names a customer, or carries a number from your books, tells a search engine who your customers are and how much they buy. And a web page is text written by a stranger, which may contain instructions aimed at AI systems.
+
+So the lane cleans every query before it leaves the machine, refuses to fetch addresses that point inside your network, and treats every page as untrusted.
+
+## What happens on the example
+
+The run uses a fixed, offline set of pages (no internet), so it is the same every time.
+
+<StageFlow client:visible {...flowProps("web")} title="One web search on the coffee-roaster job" />
+
+**The query.** The scripted planner made the careless query on purpose:
+
+- asked: <code>{w.asked}</code>
+- sent: <code>{w.sent}</code>
+
+The [sanitizer](../../glossary/#query-sanitizer) removed {w.removed.map((x) => `${x.kind} “${x.text}”`).join(" and ")}. The list of private terms comes from the job itself: every customer and supplier name in the data and its spellings, file names, and email addresses found in documents. Years stay, because “2026” is public.
+
+**The results.** The search returned three addresses:
+
+<div class="aa-ledger-wrap" tabindex="0" role="region" aria-label="What happened to each search result">
+<table class="aa-ledger">
+<thead><tr><th scope="col">Address</th><th scope="col">Outcome</th><th scope="col">Why</th></tr></thead>
+<tbody>
+{w.results.map((x) => <tr><td><code>{x.url}</code></td><td>{x.outcome}</td><td class="muted">{x.why}</td></tr>)}
+</tbody>
+</table>
+</div>
+
+The forum page looked harmless but hid an instruction in invisible text; the whole page was [quarantined](../../glossary/#quarantine). The third address, `169.254.169.254`, is where cloud servers expose their credentials; fetching it is the classic [SSRF](../../glossary/#ssrf) attack, refused before any connection.
+
+**The statement.** From the benchmark page the extractor quoted: *“{w.statement?.quote}”* ({w.statement?.source}). The planner compared it with the roaster's June refund rate, and code computed the gap: <Fact id={w.gap} />. In the report the claim is labelled **External**: a web number can sit next to your numbers, never replace one.
+
+## The ideas behind it
+
+### Data minimisation
+
+Send the least that answers the question. The sanitizer normalises before matching (case, accents, look-alike digits, legal forms like “LLC”), so “HOTEL GROUP llc” and “Hotel-Group” are caught too. When in doubt, a term is removed.
+
+### SSRF
+
+Server-side request forgery is tricking a server into fetching an address *you* choose, usually one only the server can reach: a database admin page, `localhost`, a cloud metadata service. The fetcher allows only http(s) on ports 80 and 443, checks every address the name resolves to at connect time (so a name that later points inside can't slip through), and re-checks each redirect.
+
+### Indirect prompt injection
+
+A model that reads web pages can be steered by the pages. The defence here is architectural: pages are screened, and only the quarantined extractor, which has no tools, reads them. See [Security](../security/).
+
+## Try it
+
+The web lane needs a search engine; the project ships a self-hosted SearXNG:
+
+```bash
+docker compose --profile web up -d searxng
+bun run aa run examples/coffee-roaster --web --embedder hash --today 2026-07-01 --currency USD
+```
+
+That needs a configured model for the planner. The offline record above comes from the test fixture the CI uses.
+
+## In the code
+
+- [`packages/web/src/sanitize.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/web/src/sanitize.ts): the query sanitizer.
+- [`packages/web/src/fetch.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/web/src/fetch.ts) and [`ip.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/web/src/ip.ts): the safe fetcher and the address rules.
+- [`packages/web/src/lane.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/web/src/lane.ts): one search, end to end.
+- [`packages/agent/src/web.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/agent/src/web.ts): the job's private terms, and pages into quarantined sources.
+- The spec: [`docs/specs/security.md`](https://github.com/gfirik/agentic-analytics/blob/main/docs/specs/security.md).
+
+Go deeper: [Web lane and privacy](../../../how-it-works/web/).
+
+## Further reading
+
+- OWASP, [Server-Side Request Forgery Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html).
+- Greshake et al., *Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection*, 2023. [arXiv:2302.12173](https://arxiv.org/abs/2302.12173)
+
+## Facts on this page
+
+<FactLedger flow="web" ids={[w.gap]} />

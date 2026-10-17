@@ -1,0 +1,301 @@
+/* The Learn section's components (StageFlow, Transcript, FactLedger, LearnMap), on the site's tokens (DESIGN.md):
+   hairlines, no shadows, figures in mono, green only for verified marks, no motion beyond 120–160 ms colour changes,
+   and none at all under prefers-reduced-motion. Nothing here may scroll the page sideways at 360 px. */
+
+/* ── StageFlow: in → stage → out ── */
+.aa-flow-controls {
+  margin-bottom: var(--aa-space-4);
+}
+.aa-flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--aa-space-5);
+  align-items: start;
+}
+.aa-flow-col {
+  position: relative;
+  min-width: 0;
+}
+/* The arrows between the columns: decoration only (the column heads say In / Out). */
+.aa-flow-col + .aa-flow-col::before {
+  content: "→";
+  position: absolute;
+  left: calc(-1 * var(--aa-space-5) + 0.15rem);
+  top: 0;
+  font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+  color: var(--aa-ink-3);
+}
+.aa-flow-head {
+  margin: 0 0 var(--aa-space-2);
+  padding-bottom: var(--aa-space-2);
+  border-bottom: 1px solid var(--aa-rule-strong);
+  font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.aa-island .aa-flow-head {
+  color: var(--aa-ink-3);
+}
+.aa-flow-col ul,
+.aa-flow-col ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.aa-flow-col li {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: var(--aa-space-2) var(--aa-space-2);
+  border-bottom: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius-chip);
+  transition: background-color var(--aa-fast) var(--aa-ease);
+  overflow-wrap: anywhere;
+}
+.aa-flow-col li.is-current {
+  background: var(--aa-mark);
+}
+.aa-flow-name {
+  font: 500 0.8125rem / 1.4 var(--aa-font-sans);
+  color: var(--aa-ink);
+}
+.aa-flow-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.35rem;
+  font-family: var(--aa-font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--aa-ink);
+}
+.aa-flow-value:empty {
+  display: none;
+}
+.aa-flow-value .aa-chip {
+  margin-inline: 0;
+}
+.aa-flow-note {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--aa-ink-2);
+}
+@media (max-width: 50rem) {
+  .aa-flow-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--aa-space-4);
+  }
+  .aa-flow-col + .aa-flow-col::before {
+    content: "↓";
+    position: static;
+    display: block;
+    margin-bottom: var(--aa-space-2);
+  }
+}
+
+/* ── Transcript: a recorded terminal session ── */
+.aa-term {
+  margin: var(--aa-space-5) 0;
+  min-width: 0;
+}
+.aa-term-label {
+  margin-bottom: var(--aa-space-2);
+  font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.sl-markdown-content .aa-term pre {
+  margin: 0;
+  max-width: 100%;
+  max-height: 32rem;
+  overflow: auto;
+  padding: var(--aa-space-3) var(--aa-space-4);
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-surface);
+  color: var(--aa-ink);
+  font: 400 0.8125rem / 1.65 var(--aa-font-mono);
+  font-variant-ligatures: none;
+  white-space: pre;
+}
+.sl-markdown-content .aa-term pre:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+.aa-term-cmd {
+  font-weight: 500;
+}
+.sl-markdown-content .aa-term-note {
+  margin: var(--aa-space-2) 0 0;
+  font-size: var(--aa-text-small);
+  color: var(--aa-ink-2);
+}
+
+/* ── FactLedger ── */
+.aa-learn-ledger {
+  margin: var(--aa-space-4) 0;
+}
+.sl-markdown-content .aa-learn-ledger table {
+  display: table;
+  margin: 0;
+}
+.aa-learn-ledger td {
+  overflow-wrap: anywhere;
+}
+.aa-learn-ledger details summary {
+  cursor: pointer;
+  font-size: var(--aa-text-small);
+}
+.sl-markdown-content .aa-learn-ledger pre.aa-learn-sql {
+  margin: var(--aa-space-2) 0;
+  max-width: 34rem;
+  overflow-x: auto;
+  padding: var(--aa-space-2) var(--aa-space-3);
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-surface);
+  font: 400 0.75rem / 1.55 var(--aa-font-mono);
+  white-space: pre;
+}
+.sl-markdown-content .aa-learn-params {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--aa-ink-2);
+}
+
+/* ── LearnMap: the overview ── */
+.aa-map {
+  margin: var(--aa-space-5) 0;
+  display: grid;
+  gap: var(--aa-space-4);
+}
+.aa-map-lane {
+  min-width: 0;
+}
+.sl-markdown-content .aa-map-lane-head {
+  margin: 0 0 var(--aa-space-2);
+  font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.sl-markdown-content ol.aa-map-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--aa-space-3);
+}
+.sl-markdown-content ol.aa-map-row > li {
+  margin: 0;
+  min-width: 0;
+}
+.aa-map-card {
+  display: grid;
+  gap: var(--aa-space-1);
+  height: 100%;
+  padding: var(--aa-space-3) var(--aa-space-4);
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-raised);
+  color: var(--aa-ink);
+  text-decoration: none;
+  transition:
+    border-color var(--aa-fast) var(--aa-ease),
+    background-color var(--aa-fast) var(--aa-ease);
+}
+.sl-markdown-content a.aa-map-card {
+  text-decoration: none;
+  color: var(--aa-ink);
+}
+.aa-map-card:hover,
+.aa-map-card:focus-visible {
+  border-color: var(--aa-ink);
+  background: var(--aa-surface);
+}
+.aa-map-card:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+.aa-map-step {
+  font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.aa-map-title {
+  font: 600 1rem / 1.35 var(--aa-font-sans);
+}
+.aa-map-io {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--aa-ink-2);
+  overflow-wrap: anywhere;
+}
+.aa-map-io b {
+  font: 500 0.75rem / 1.5 var(--aa-font-mono);
+  color: var(--aa-ink-3);
+}
+.aa-map-io .aa-fig {
+  white-space: normal;
+  color: var(--aa-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aa-flow-col li,
+  .aa-map-card {
+    transition: none;
+  }
+}
+
+/* A recorded detail line in prose: mono like a figure, but allowed to wrap at 360 px. */
+.aa-mono-wrap {
+  font-family: var(--aa-font-mono);
+  font-size: 0.875em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.aa-learn-fn {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+}
+.aa-learn-fn .aa-chip {
+  margin-inline: 0;
+}
+
+/* A stored YAML, SQL or JSON value shown as it is (scrolls inside itself, never the page). */
+.sl-markdown-content pre.aa-learn-yaml {
+  max-width: 100%;
+  max-height: 28rem;
+  overflow: auto;
+  padding: var(--aa-space-3) var(--aa-space-4);
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-surface);
+  color: var(--aa-ink);
+  font: 400 0.8125rem / 1.6 var(--aa-font-mono);
+  white-space: pre;
+}
+.sl-markdown-content pre.aa-learn-yaml:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+
+/* The report's claims, numbered like the report. */
+.sl-markdown-content ol.aa-learn-claims {
+  padding-left: 1.5rem;
+}
+.sl-markdown-content ol.aa-learn-claims > li {
+  margin: var(--aa-space-2) 0;
+  line-height: 1.85;
+}
+.aa-learn-quote {
+  display: block;
+  font-size: var(--aa-text-small);
+  color: var(--aa-ink-2);
+}

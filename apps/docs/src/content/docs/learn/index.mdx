@@ -1,0 +1,48 @@
+---
+title: Learn
+description: How an AI analyst you can audit works, stage by stage, on one small business's files. Concept guides, tutorials and a glossary.
+---
+
+import Pipeline from "../../../components/Pipeline.tsx";
+import Fact from "../../../components/learn/Fact.astro";
+import FactLedger from "../../../components/learn/FactLedger.astro";
+import LearnMap from "../../../components/learn/LearnMap.astro";
+import { count, learn } from "../../../components/learn/data.ts";
+
+This section is for a smart beginner: you know what a spreadsheet is, you have heard of large language models, and you want to know how this engine turns a folder of business files into a report you can check, and why it is built the way it is.
+
+Everything here follows one example from start to finish: **`examples/coffee-roaster`**, a small specialty roaster's first half of 2026. It has {learn.ingest.files.length} files: a sales workbook with {count(learn.ingest.tables[0].rows)} order rows, a wholesale price list (PDF), an email from a hotel customer, and the owner's operations notes (Word). Revenue fell <Fact id={learn.analysis.change.pct} /> from March to April. By the end of the section you will know where that number came from, why the engine believes the hotel's email explains it, and how you could prove it wrong.
+
+## The whole job on one screen
+
+This is one real run of the engine on the example, animated: files go in, a verified report comes out. The rail follows the run's own event log.
+
+<Pipeline client:visible />
+
+## Every stage, with what went in and what came out
+
+Each card is one stage of the job, with the real numbers of that run. Open any of them for a guide: the problem the stage solves, a diagram you can step through, the ideas behind it in plain words, and a command to try it yourself.
+
+<LearnMap />
+
+Two rules hold in every stage, and most of the design follows from them:
+
+1. **The model never does arithmetic.** Every number in a report is computed by SQL in [DuckDB](glossary/#duckdb) or by a small deterministic function, and carries a [fact ID](glossary/#fact-id) such as <Fact id={learn.analysis.change.pct} chip />. A language model may only *refer* to numbers, through placeholders like `{{N30}}`.
+2. **Text from your files is data, never instructions.** Documents, emails, cells and web pages are read only by a [quarantined extractor](glossary/#quarantined-extractor) that has no tools. Nothing it reads can make the engine act.
+
+## How to read this section
+
+- **New to all of it?** Read the stages in order: [Ingestion & profiling](stages/ingestion/) first, [Security](stages/security/) last.
+- **Want to run it?** Start with the tutorial [Analyse your first file](tutorials/first-file/). Every tutorial runs offline, with no model and no API key.
+- **Want the exact rules?** Each guide links to its reference page under [How it works](../how-it-works/pipeline/).
+- **Met a word you don't know?** The [glossary](glossary/) explains every term used here.
+
+## About the numbers on these pages
+
+Nothing on these pages is typed by hand. The numbers, fact IDs, SQL, quotes, retrieval ranks, verifier counts and terminal output come from real runs of the engine on the example, recorded by [`apps/docs/scripts/learn-data.ts`](https://github.com/gfirik/agentic-analytics/blob/main/apps/docs/scripts/learn-data.ts) into [`docs/assets/learn/learn.json`](https://github.com/gfirik/agentic-analytics/blob/main/docs/assets/learn/learn.json). A test reruns the engine and fails if the file no longer matches.
+
+The runs are offline and deterministic: a **scripted planner** stands in for the language model (it replays the decisions a model would make, including some deliberate mistakes, so the verifier has something to catch), documents are embedded with an offline hash embedder, and the web lane reads a fixed set of pages. With a real model the wording changes; the numbers don't, because no model computes them.
+
+## Facts on this page
+
+<FactLedger ids={[learn.analysis.change.pct]} />

@@ -1,0 +1,126 @@
+---
+// The Learn overview: every stage as a card that links to its guide, grouped by what it does, with what went in and
+// what came out on the coffee-roaster run (learn.json). Static links: complete without JS.
+import "./learn.css";
+import { count, factText, learn } from "./data.ts";
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+const page = (slug: string) => `${base}learn/stages/${slug}/`;
+const d = learn;
+const orders = d.ingest.tables[0];
+const ch = d.analysis.change;
+const email = d.retrieval.hits.find((h) => h.file.endsWith(".eml"));
+const outcomes = (o: string) => d.web.results.filter((r) => r.outcome === o).length;
+const dropped = d.verifier.dropped.length;
+const reworded = d.verifier.downgraded.length;
+const first = d.router.calls[0];
+const second = d.router.calls.find((c) => c.status === 200 && !c.cached);
+const lanes = [
+  {
+    head: "Read the files",
+    cards: [
+      {
+        slug: "ingestion",
+        title: "Ingestion & profiling",
+        in: `${d.ingest.files.length} files`,
+        out: `${d.ingest.tables.length} tables (${count(orders?.rows ?? 0)} order rows), ${d.ingest.sections.length} document sections, ${d.ingest.quality.length} data-quality issues`,
+      },
+      {
+        slug: "metric-layer",
+        title: "Metric layer",
+        in: `${orders?.columns.length ?? 0} columns of ${orders?.sheet ?? ""}`,
+        out: `${d.metrics.defs.length} metric definitions, each one SQL query`,
+      },
+      {
+        slug: "analysis",
+        title: "Analysis",
+        in: `${d.metrics.revenue.series.length} months of revenue`,
+        out: `${factText(ch.pct)} (${ch.pct}), split by channel and by price, volume and mix`,
+      },
+    ],
+  },
+  {
+    head: "Find the why",
+    cards: [
+      {
+        slug: "retrieval",
+        title: "Retrieval",
+        in: `“${d.retrieval.query}”`,
+        out: email ? `the hotel's email at BM25 #${email.bm25 ?? "–"}, vector #${email.vector ?? "–"}` : "no email hit",
+      },
+      {
+        slug: "web-lane",
+        title: "Web lane",
+        in: "a query with a customer's name and a number in it",
+        out: `${d.web.removed.length} terms cut; ${outcomes("kept")} page kept, ${outcomes("quarantined")} quarantined, ${outcomes("refused")} refused`,
+      },
+      {
+        slug: "planner",
+        title: "The planner (agent)",
+        in: `a finding and ${d.agent.tools.length} fixed tools`,
+        out: `${d.agent.calls.length} tool calls, a structured draft with {{N…}} placeholders`,
+      },
+    ],
+  },
+  {
+    head: "Check and show",
+    cards: [
+      {
+        slug: "verifier",
+        title: "The verifier (V1–V8)",
+        in: `the draft report`,
+        out: `${d.verifier.summary.numbers_checked} numbers recomputed, ${d.verifier.summary.numbers_mismatched} mismatched; ${dropped} claims dropped, ${reworded} reworded or downgraded`,
+      },
+      {
+        slug: "report",
+        title: "Report & fact IDs",
+        in: `${d.report.facts} facts`,
+        out: `the headline ${factText(ch.pct)}, with ${ch.pct} next to it`,
+      },
+    ],
+  },
+  {
+    head: "Under every stage",
+    cards: [
+      {
+        slug: "models",
+        title: "Model router & free providers",
+        in: "one model on two free endpoints",
+        out: `${first?.endpoint ?? ""} ${first?.status ?? ""} → ${second?.endpoint ?? ""} ${second?.status ?? ""}; repeats from the cache`,
+      },
+      {
+        slug: "security",
+        title: "Security",
+        in: "a poisoned email, a forum page, a metadata URL",
+        out: `${d.security.injectionRun.flagged.length ? "quarantined" : "not flagged"}, ${d.security.quarantined.length ? "quarantined" : "kept"}, ${outcomes("refused") ? "refused" : "fetched"}; ${d.security.injectionRun.sameFacts ? "every fact unchanged" : "facts changed"}`,
+      },
+    ],
+  },
+];
+let n = 0;
+---
+<nav class="aa-map" aria-label="The stages, in the order a job runs them">
+  {
+    lanes.map((lane) => (
+      <div class="aa-map-lane">
+        <p class="aa-map-lane-head">{lane.head}</p>
+        <ol class="aa-map-row">
+          {lane.cards.map((c) => (
+            <li>
+              <a class="aa-map-card" href={page(c.slug)}>
+                <span class="aa-map-step">Stage {++n}</span>
+                <span class="aa-map-title">{c.title}</span>
+                <span class="aa-map-io">
+                  <b>in</b> {c.in}
+                </span>
+                <span class="aa-map-io">
+                  <b>out</b> <span class="aa-fig">{c.out}</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    ))
+  }
+</nav>
