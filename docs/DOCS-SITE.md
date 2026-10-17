@@ -1,16 +1,24 @@
-# Docs site plan (`apps/docs`, Astro Starlight, deployed to GitHub Pages)
+# Product site and docs (`apps/docs`, Astro Starlight, deployed to GitHub Pages)
 
 The docs are part of the product, not something added at the end. Every stage of the pipeline gets a page that shows how it works visually.
+
+The site has two parts:
+
+- **A landing page** (`src/pages/index.astro`, M13f): a custom page, not the Starlight splash.
+- **The docs:** Starlight, fully themed.
+
+They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/styles/tokens.css`, and its identity is "an AI analyst you can audit": a cool slate/ink-navy palette, one green accent used only for "verified", Source Serif 4 + IBM Plex Sans + IBM Plex Mono (self-hosted), and ledger motifs (ruled tables, fact-ID chips, check marks).
 
 ## 1. Structure
 
 | Section | Pages |
 |---|---|
-| Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / Bun / Ollama / free endpoint), Your first report (coffee-roaster walkthrough) |
+| Landing page (`/`) | The one-liner and the pipeline animation (the README GIF scene); the coffee-roaster report with clickable fact IDs (`LedgerReport`); the real-data checks (Online Retail II, Stats NZ); why it's different (with V1–V8 from the pipeline run); eval numbers with their caveats; quickstart and binaries; the four doors |
+| Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / Bun / Ollama / free endpoint), Your first report (coffee-roaster walkthrough), Running on free models (the Models page, listed here since M13f) |
 | How it works | Pipeline overview (interactive, ported from `docs/assets/blueprint.html`); Ingest & table detection; Profiling & data quality; Metric layer; Detecting changes; Finding drivers (PVM, contribution, rate/mix, Simpson, DIFF), with worked examples and animated bar breakdowns; Documents lane (RAG: chunking, BM25, vectors, RRF, rerank, with a step-through visual); Web lane & privacy; Explain & causal grades; Decisions & impact ranges; The verifier (V1–V8 with a before/after draft example); Security & prompt injection |
-| Use it | CLI, HTTP API (generated from OpenAPI), MCP (Claude Desktop / Cursor setup), Telegram demo, Viewer |
+| *(Learn, later)* | Concept guides per stage and tutorials: slots in between "How it works" and "Use it" |
+| Use it | One engine, four doors (overview), CLI, HTTP API (generated from OpenAPI), MCP (Claude Desktop / Cursor setup), Telegram demo, Viewer |
 | Reference | Report schema (generated from JSON Schema), Metric YAML, Config, Insight templates list, Decomposers list |
-| Models | Running free: Ollama, free endpoints, hardware guidance, small-model mode, eval results per model |
 | Quality | Evals: method, datasets, results table (from `evals/RESULTS.md`), how to reproduce |
 | Project | Architecture, Decisions, Roadmap, Contributing, Security policy, Changelog |
 
@@ -22,7 +30,9 @@ The docs are part of the product, not something added at the end. Every stage of
 - **`<RagStepper />`:** walks a query through BM25, vectors, RRF, rerank and extract, showing ranks changing.
 - **`<VerifierDiff />`:** shows a draft report vs the verified report, with dropped and downgraded claims highlighted.
 - **Mermaid** for architecture and state diagrams.
-- **Accessibility:** every component respects `prefers-reduced-motion` and works in light and dark.
+- **`<LedgerReport />`** (landing page): the first finding of the real coffee-roaster run, each number followed by its fact-ID chip. A chip links to the fact's row in a static fact ledger, so it works without JS. With JS it opens the fact in place: its SQL and parameters, or its function and input facts (which open in turn), the rows it cites, and its verification state.
+- **Accessibility:** every component respects `prefers-reduced-motion`, works in light and dark, and renders its final state on the server.
+- **Theme:** every component uses the site tokens (`src/styles/tokens.css`). The pipeline scene keeps its own colours for the README GIF; the site re-themes it through its `--pp-*` custom properties, so `pipeline-scene.ts` (hash-checked against the GIFs) is unchanged.
 
 ## 3. README visuals
 
@@ -70,7 +80,27 @@ The README is the first thing people see on GitHub. It carries five visuals, and
 
 **Tools.** VHS (MIT; needs `ttyd` and `ffmpeg`) and Playwright (Apache-2.0) are free, local, dev-only tools. M12 adds a DECISIONS.md entry for them before they are installed.
 
-## 4. Rules
+## 4. Site data, files and checks
+
+- **Numbers.**
+  - Every number on the landing page comes from generated data, written by `scripts/generate.ts` on each build (gitignored).
+  - `landing.json` comes from the real coffee-roaster run.
+  - `evals.json` holds the suite metrics, computed by the eval runner's own `summarize()` from the latest `evals/results/*.json`, and the real-data checks.
+  - The pipeline numbers come from the committed `docs/assets/readme/pipeline.json`.
+- **Site files.**
+  - `public/favicon.svg`, plus `public/favicon.ico` and `public/og.png` (1200×630). The last two are rendered by `bun run --filter @agentic-analytics/docs assets` with Playwright; the OG headline number is read from `pipeline.json`.
+  - `sitemap.xml` is an index pointing at Starlight's `sitemap-0.xml`, which lists the landing page and every docs page.
+  - The custom 404 is `src/pages/404.astro` (Starlight's is turned off).
+- **Commands.** `scripts/test/site-commands.test.ts` (in `bun run check`) extracts every `aa …`, `bun run …` and `./aa-<os>-<arch> …` command from the site's sources and checks it against the citty definitions in `apps/cli/src/main.ts` and the package.json scripts.
+- **Browser** (`bun run site:check:browser`, the `site-browser` CI job, after a site build):
+  - no request to any origin but the site's own;
+  - axe WCAG 2 A/AA with no violations on every page in the sitemap and on the 404, in light and in dark;
+  - no horizontal scroll at 360 px on every page;
+  - the fact panel opens and Escape closes it; the page is complete without JS; the pipeline doesn't play under reduced motion; the mobile menu sets aria-expanded and Escape closes it;
+  - the favicons, OG image and sitemaps are served, with an absolute og:image.
+- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` (with `--compare <url>` for a side-by-side) writes `docs/assets/site/`.
+
+## 5. Rules
 
 - Every feature PR from M12 on updates its docs page.
 - Code samples are tested (extracted and run in CI where practical).

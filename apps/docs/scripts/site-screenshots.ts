@@ -14,6 +14,7 @@ const { values } = parseArgs({
     full: { type: "boolean", default: false },
     only: { type: "string" },
     sections: { type: "boolean", default: false },
+    compare: { type: "string" },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
@@ -54,6 +55,32 @@ try {
         }
         await ctx.close();
       }
+  // --compare <url>: our landing page next to another site's, both light, desktop, above the fold.
+  if (values.compare) {
+    const shot = async (url: string, scheme: "light" | "dark") => {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme, reducedMotion: "reduce" });
+      const page = await ctx.newPage();
+      await page.goto(url, { waitUntil: "networkidle" });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      const png = (await page.screenshot({ type: "png" })).toString("base64");
+      await ctx.close();
+      return `data:image/png;base64,${png}`;
+    };
+    const rows: string[] = [];
+    for (const scheme of ["light", "dark"] as const) {
+      const [ours, theirs] = [await shot(`${base}/`, scheme), await shot(values.compare as string, scheme)];
+      rows.push(
+        `<div class="row"><figure><img src="${ours}"><figcaption>agentic-analytics · ${scheme}</figcaption></figure><figure><img src="${theirs}"><figcaption>pas-agent · ${scheme}</figcaption></figure></div>`,
+      );
+    }
+    const page = await browser.newPage({ viewport: { width: 1480, height: 400 } });
+    await page.setContent(
+      `<!doctype html><style>body{margin:0;padding:12px;background:#ffffff;font:500 14px/1.4 monospace;color:#333}.row{display:flex;gap:16px;margin-bottom:12px}figure{margin:0;width:720px}img{width:720px;display:block;border:1px solid #ccc}figcaption{padding:4px 0}</style>${rows.join("")}`,
+    );
+    await page.screenshot({ path: join(out, "compare-pas-agent.png"), fullPage: true });
+  }
 } finally {
   await browser.close();
 }

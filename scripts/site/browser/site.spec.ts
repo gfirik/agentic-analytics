@@ -51,6 +51,36 @@ test.describe("no horizontal scroll at 360 px", () => {
   }
 });
 
+test("no horizontal scroll at 360 px on any page in the sitemap", async ({ page, request }) => {
+  const sitemap = await (await request.get(`${BASE}/sitemap-0.xml`)).text();
+  const paths = [...sitemap.matchAll(/<loc>https:\/\/gfirik\.github\.io([^<]+)<\/loc>/g)].map((m) => m[1] as string);
+  expect(paths.length).toBeGreaterThan(30);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const wide: string[] = [];
+  for (const path of paths) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (over > 0) wide.push(`${path} (+${over}px)`);
+  }
+  expect(wide).toEqual([]);
+});
+
+test("WCAG 2 A/AA (axe) on every page in the sitemap, light and dark", async ({ page, request }) => {
+  test.setTimeout(600_000);
+  const sitemap = await (await request.get(`${BASE}/sitemap-0.xml`)).text();
+  const paths = [...sitemap.matchAll(/<loc>https:\/\/gfirik\.github\.io([^<]+)<\/loc>/g)].map((m) => m[1] as string);
+  const found: string[] = [];
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+    for (const path of paths) {
+      await page.goto(path, { waitUntil: "networkidle" });
+      const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      for (const v of result.violations) found.push(`${path} · ${scheme} · ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+    }
+  }
+  expect(found).toEqual([]);
+});
+
 test("landing: one h1, a skip link, a footer crediting fhsystems", async ({ page }) => {
   await page.goto(LANDING);
   await expect(page.locator("h1")).toHaveCount(1);
