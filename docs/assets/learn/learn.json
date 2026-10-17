@@ -241,7 +241,7 @@
       "verified": true,
       "computation": {
         "kind": "sql",
-        "sql": "WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND (\"status\" IN ($1)) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL),\n  m2 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($4))) AND strftime(\"date\", '%Y-%m') BETWEEN $5 AND $6 GROUP BY ALL),\n  m3 AS (SELECT coalesce(m1.period, m2.period) AS period, coalesce(m1.value, 0) / NULLIF(m2.value, 0) * 100 AS value FROM m1 FULL JOIN m2 ON coalesce(m1.period) IS NOT DISTINCT FROM m2.period)\nSELECT period, value FROM m3 ORDER BY period",
+        "sql": "WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND (\"status\" IN ($1)) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL),\n  m2 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($4))) AND strftime(\"date\", '%Y-%m') BETWEEN $5 AND $6 GROUP BY ALL),\n  m3 AS (SELECT coalesce(j0.period, j1.period) AS period, coalesce(j0.value, 0) / NULLIF(j1.value, 0) * 100 AS value FROM m1 AS j0 FULL JOIN m2 AS j1 ON coalesce(j0.period) IS NOT DISTINCT FROM j1.period)\nSELECT period, value FROM m3 ORDER BY period",
         "params": {
           "$1": "refunded",
           "$2": "2026-06",

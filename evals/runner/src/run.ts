@@ -1,10 +1,10 @@
 // The eval runner (docs/EVALS.md §3): runs every dataset of a suite as a full job with the given model, scores each
 // report against its answer key, and writes `evals/results/<date>-<model>.json` plus the markdown table that
 // RESULTS.md collects. Jobs run one at a time in temporary folders that are removed afterwards.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type JobOptions, runJob } from "@agentic-analytics/core";
+import { DRAFTED_METRICS, type JobOptions, runJob } from "@agentic-analytics/core";
 import { type Dataset, generatedDatasets } from "@agentic-analytics/eval-generator";
 import type { CallRecord, ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
@@ -98,6 +98,17 @@ export interface RunOptions {
   readonly now?: () => Date;
 }
 
+/**
+ * Copies a job's drafted metrics (metrics.drafted.json) next to its kept report as `<dataset>.metrics.drafted.json`,
+ * whether the job finished or failed: the job folder is temporary, and a real model's draft can't be re-created.
+ */
+export function keepDraftedMetrics(jobDir: string, keepDir: string, dataset: string): void {
+  const src = join(jobDir, DRAFTED_METRICS);
+  if (!existsSync(src)) return;
+  mkdirSync(keepDir, { recursive: true });
+  copyFileSync(src, join(keepDir, `${dataset}.metrics.drafted.json`));
+}
+
 export async function runSuite(o: RunOptions): Promise<SuiteResult> {
   const datasets = o.datasets ?? suiteDatasets(o.suite);
   const scores: DatasetScore[] = [];
@@ -133,6 +144,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
         error: { ...(code ? { code } : {}), message: err instanceof Error ? err.message : String(err) },
       });
     } finally {
+      if (o.keepReports) keepDraftedMetrics(dir, o.keepReports, ds.id);
       rmSync(dir, { recursive: true, force: true });
     }
     scores.push({ ...score, routes: routeSummary(calls) });

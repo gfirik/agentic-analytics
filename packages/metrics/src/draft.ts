@@ -43,7 +43,11 @@ export function draftPrompt(digest: Digest): string {
 
 export interface DraftResult {
   readonly source: "model" | "fallback";
+  /** The drafts as proposed, before validation: the model's metrics, or the fallback's when it ran. */
+  readonly proposals: readonly unknown[];
   readonly validation: Validation;
+  /** When the model answered but nothing it proposed was valid: its proposals and why each was rejected. */
+  readonly modelDraft?: { readonly proposals: readonly unknown[]; readonly validation: Validation };
   readonly digest: Digest;
   /** Why the model path wasn't used, when the fallback ran. */
   readonly note?: string;
@@ -60,6 +64,7 @@ export async function draftMetrics(
 ): Promise<DraftResult> {
   const digest = buildDigest(summary, options.suspicious ? { suspicious: options.suspicious } : {});
   let note: string;
+  let modelDraft: DraftResult["modelDraft"];
   if (options.model) {
     try {
       const { object } = await options.model.generateObject({
@@ -71,7 +76,8 @@ export async function draftMetrics(
       const drafted = validateMetrics(object.metrics, catalog, options);
       // A model often lists too few dimensions (no customer): code adds every grouping column the profile found.
       const validation = { ...drafted, accepted: drafted.accepted.map((d) => withGroupingDimensions(d, summary)) };
-      if (validation.accepted.length) return { source: "model", validation, digest };
+      if (validation.accepted.length) return { source: "model", proposals: object.metrics, validation, digest };
+      modelDraft = { proposals: object.metrics, validation };
       note = `the model proposed no valid metric (${validation.rejected.length} rejected); used deterministic fallbacks`;
     } catch (err) {
       note = `the model was unavailable (${err instanceof Error ? err.message.slice(0, 120) : String(err)}); used deterministic fallbacks`;
@@ -79,7 +85,40 @@ export async function draftMetrics(
   } else {
     note = `${options.noModelReason ?? "no model configured"}; used deterministic fallbacks`;
   }
-  return { source: "fallback", validation: validateMetrics(fallbackMetrics(summary), catalog, options), digest, note };
+  const proposals = fallbackMetrics(summary);
+  return {
+    source: "fallback",
+    proposals,
+    validation: validateMetrics(proposals, catalog, options),
+    digest,
+    note,
+    ...(modelDraft ? { modelDraft } : {}),
+  };
+}
+
+/** What a job saves as `metrics.drafted.json`: every draft before validation and what validation made of it. A debug artifact with no stable schema (metric-layer §2.6). */
+export interface DraftRecord {
+  readonly source: "model" | "fallback";
+  readonly note?: string;
+  readonly proposals: readonly unknown[];
+  readonly accepted: readonly MetricDef[];
+  readonly rejected: Validation["rejected"];
+  readonly assumptions: Validation["assumptions"];
+  /** The model's rejected draft, when the fallback replaced it. */
+  readonly model_draft?: { readonly proposals: readonly unknown[]; readonly rejected: Validation["rejected"] };
+}
+
+/** A JSON-ready record of a draft, so a failure later in the job can be traced back to what was drafted. */
+export function draftRecord(draft: DraftResult): DraftRecord {
+  return {
+    source: draft.source,
+    ...(draft.note ? { note: draft.note } : {}),
+    proposals: draft.proposals,
+    accepted: draft.validation.accepted,
+    rejected: draft.validation.rejected,
+    assumptions: draft.validation.assumptions,
+    ...(draft.modelDraft ? { model_draft: { proposals: draft.modelDraft.proposals, rejected: draft.modelDraft.validation.rejected } } : {}),
+  };
 }
 
 const MONEY = /amount|revenue|sales|sum\b|summa|выручка|сумма|tushum|turnover/i;
