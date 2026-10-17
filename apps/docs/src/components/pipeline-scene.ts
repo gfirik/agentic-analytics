@@ -449,12 +449,7 @@ function report(d: PipelineData, local: number, dur: number): string {
   const a = d.action;
   const impactY = top + 78 + act.length * 29;
   return (
-    group(
-      local,
-      0,
-      dur,
-      txt({ x: 40, y: 128, size: 18, text: `${stagesOf(d, "Report")} · verified, cited`, cls: "mono muted verified", weight: 700 }),
-    ) +
+    group(local, 0, dur, txt({ x: 40, y: 128, size: 18, text: `${stagesOf(d, "Report")} · ${STAMP}`, cls: "mono muted", weight: 700 })) +
     group(local, 0.1, dur, head.map((l, i) => txt({ x: 40, y: 162 + i * 34, size: 26, text: l, weight: 700 })).join("")) +
     group(
       local,
@@ -506,6 +501,13 @@ export interface SceneOptions {
   readonly width?: number | string;
 }
 
+/** The report's stamp. On the site (theme "auto") its words carry the `verified` hook in a <tspan>, so only they turn
+ *  green; the GIF recorder pins a theme and gets the plain text, because a <tspan> split shifts the glyphs by a
+ *  sub-pixel and the README frames must stay byte-identical. */
+const STAMP = "verified, cited";
+const STAMP_TEXT = `· ${STAMP}</text>`;
+const STAMP_SITE = `· <tspan class="verified">${STAMP}</tspan></text>`;
+
 /** The frame at t seconds (looping every LOOP_SECONDS). Pure: same data and t, same SVG. */
 export function sceneSvg(d: PipelineData, t: number, o: SceneOptions = {}): string {
   const { scene, local } = sceneAt(t);
@@ -513,5 +515,7 @@ export function sceneSvg(d: PipelineData, t: number, o: SceneOptions = {}): stri
   const theme = o.theme ?? "auto";
   const cls = theme === "auto" ? "pp" : `pp ${theme}`;
   const w = o.width ?? "100%";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${w}" class="${cls}" role="img" aria-label="${esc(altText(d))}"><style>${THEME_CSS}</style><rect width="${WIDTH}" height="${HEIGHT}" rx="16" class="bg"/>${rail(railOf(d.stages), scene, local)}${RENDER[scene.key]?.(d, local, dur) ?? ""}</svg>`;
+  const body = RENDER[scene.key]?.(d, local, dur) ?? "";
+  const shown = theme === "auto" ? body.replace(STAMP_TEXT, STAMP_SITE) : body;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${w}" class="${cls}" role="img" aria-label="${esc(altText(d))}"><style>${THEME_CSS}</style><rect width="${WIDTH}" height="${HEIGHT}" rx="16" class="bg"/>${rail(railOf(d.stages), scene, local)}${shown}</svg>`;
 }

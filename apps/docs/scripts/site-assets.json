@@ -1,5 +1,7 @@
 {
-  "inputs": "3394105b0d04a5346b46ef49f06097d642939bdb89f50fed8fe0fd689da64a44",
-  "og": "public/og.png",
-  "icon": "public/favicon.ico"
+  "inputs": "bbd084619f19bb3a1fe0d50ea48f946be6cf48c9a891a3d58d99549835e3a73b",
+  "outputs": {
+    "public/og.png": "60671498e450b0b2713a2b7c82a9a043b1ad537380cd637ddb72682b3ccbe51f",
+    "public/favicon.ico": "087805ce10f781799697fa4bd58b3ace3237a46eb76284479a566c6f695d3948"
+  }
 }

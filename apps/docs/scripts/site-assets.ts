@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
-import { SITE_ASSETS_MANIFEST, siteAssetInputsHash } from "./site-assets-inputs.ts";
+import { SITE_ASSETS_MANIFEST, siteAssetsManifest } from "./site-assets-inputs.ts";
 
 const DOCS = join(import.meta.dirname, "..");
 const ROOT = join(DOCS, "..", "..");
@@ -101,10 +101,7 @@ try {
     pngs.push({ size, data: await p.screenshot({ type: "png", omitBackground: true }) });
   }
   writeFileSync(join(PUBLIC, "favicon.ico"), ico(pngs));
-  writeFileSync(
-    SITE_ASSETS_MANIFEST,
-    `${JSON.stringify({ inputs: siteAssetInputsHash(), og: "public/og.png", icon: "public/favicon.ico" }, null, 2)}\n`,
-  );
+  writeFileSync(SITE_ASSETS_MANIFEST, `${JSON.stringify(siteAssetsManifest(), null, 2)}\n`);
 } finally {
   await browser.close();
 }

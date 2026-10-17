@@ -25,3 +25,16 @@ export function siteAssetInputsHash(): string {
 }
 
 export const SITE_ASSETS_MANIFEST = join(DOCS_DIR, "scripts", "site-assets.json");
+
+const sha256 = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
+
+/** What site-assets.ts records: the inputs' hash and the sha256 of each rendered file, so a hand-edited manifest can't pass. */
+export function siteAssetsManifest() {
+  return {
+    inputs: siteAssetInputsHash(),
+    outputs: {
+      "public/og.png": sha256(join(DOCS_DIR, "public", "og.png")),
+      "public/favicon.ico": sha256(join(DOCS_DIR, "public", "favicon.ico")),
+    },
+  };
+}

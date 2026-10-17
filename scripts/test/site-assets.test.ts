@@ -3,12 +3,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DOCS_DIR, SITE_ASSETS_MANIFEST, siteAssetInputsHash } from "../../apps/docs/scripts/site-assets-inputs.ts";
+import { DOCS_DIR, SITE_ASSETS_MANIFEST, siteAssetsManifest } from "../../apps/docs/scripts/site-assets-inputs.ts";
 
 describe("site assets", () => {
-  it("og.png and favicon.ico were rendered from the current inputs", () => {
-    const manifest = JSON.parse(readFileSync(SITE_ASSETS_MANIFEST, "utf8")) as { inputs: string };
-    expect(manifest.inputs, "re-render with `bun run --filter @agentic-analytics/docs assets`").toBe(siteAssetInputsHash());
+  it("og.png and favicon.ico were rendered from the current inputs, and are the files that render recorded", () => {
+    const recorded = JSON.parse(readFileSync(SITE_ASSETS_MANIFEST, "utf8")) as unknown;
+    // The inputs' hash catches stale assets; the outputs' sha256 catches a hand-edited manifest or a hand-edited image.
+    expect(recorded, "re-render with `bun run --filter @agentic-analytics/docs assets`").toEqual(siteAssetsManifest());
   });
 
   it("og.png is a 1200×630 PNG and favicon.ico an ICO", () => {

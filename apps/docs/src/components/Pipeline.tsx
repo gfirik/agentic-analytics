@@ -8,6 +8,8 @@ import { reducedMotion } from "./format.ts";
 import { LOOP_SECONDS, type PipelineData, POSTER_SECONDS, railOf, SCENES, sceneAt, sceneSvg } from "./pipeline-scene.ts";
 
 const run = data as PipelineData;
+/** A fact's row in the landing page's fact ledger (the same run), from any page the island is on. */
+const factLink = (id: string) => `${import.meta.env.BASE_URL.replace(/\/?$/, "/")}#fact-${id}`;
 /** The rail as the run's event log ordered it, and a still moment per node: just before its last scene fades out. */
 const STOPS = railOf(run.stages);
 const STILLS = STOPS.map((stop) => {
@@ -91,8 +93,14 @@ export default function Pipeline() {
         </li>
         <li>
           <b>SQL</b> {run.change.metric} {run.change.from.text} → {run.change.to.text},{" "}
-          <span className="aa-fig">{run.change.pct.text}</span> <span className="aa-chip">{run.change.pct.id}</span>; driver{" "}
-          {run.driver.member} <span className="aa-fig">{run.driver.delta.text}</span> <span className="aa-chip">{run.driver.delta.id}</span>
+          <span className="aa-fig">{run.change.pct.text}</span>{" "}
+          <a className="aa-chip" href={factLink(run.change.pct.id)}>
+            {run.change.pct.id}
+          </a>
+          ; driver {run.driver.member} <span className="aa-fig">{run.driver.delta.text}</span>{" "}
+          <a className="aa-chip" href={factLink(run.driver.delta.id)}>
+            {run.driver.delta.id}
+          </a>
         </li>
         {run.docs.slice(0, 1).map((doc) => (
           <li key={doc.source_id}>
