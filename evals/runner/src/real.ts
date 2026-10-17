@@ -11,6 +11,7 @@ import type { ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { placeholders, type Report } from "@agentic-analytics/schema";
 import { EvalRunError } from "./errors.ts";
+import { keepDraftedMetrics } from "./run.ts";
 import { canonicalMetrics, subjectOf } from "./score.ts";
 
 export interface RealCheckResult {
@@ -273,6 +274,7 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
     } finally {
+      if (o.keepReports) keepDraftedMetrics(dir, o.keepReports, answers.dataset);
       rmSync(dir, { recursive: true, force: true });
     }
     const r: RealDatasetResult = {
