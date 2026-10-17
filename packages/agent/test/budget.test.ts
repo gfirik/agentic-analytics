@@ -106,7 +106,7 @@ describe("DECIDE input budget, printing_shop-v1 (small-model mode)", () => {
     // Degrades like an invalid answer: the findings stand, no recommendations, and the reason is recorded.
     expect(r.recommendations).toEqual([]);
     expect(r.dropped).toEqual([
-      { claim: "(candidate actions)", reason: expect.stringMatching(/^the DECIDE request was not sent: .*1500/) },
+      { claim: "(candidate actions)", reason: expect.stringMatching(/^the DECIDE request is about .*budget of 1500; it was not sent$/) },
     ]);
     expect(model.calls).toEqual([]);
   });

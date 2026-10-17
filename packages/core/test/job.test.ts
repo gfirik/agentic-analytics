@@ -169,6 +169,23 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
       for (const id of [rec.impact.low, rec.impact.high, rec.check.threshold, ...rec.impact.inputs]) expect(ids.has(id), id).toBe(true);
   }, 180_000);
 
+  it("small-model mode: a DECIDE request that can't fit the budget is not sent, and the report ships its findings without recommendations (§8.1)", async () => {
+    const m = coffeePlanner({ small: true });
+    const r = await runJob(
+      { dir: tempDir(), files, options: { ...options, smallModel: true, budget: { inputTokens: 500 } } },
+      { model: m, embedder: hashEmbedder() },
+    );
+    expect(m.calls.some((c) => c.prompt === "Propose the candidate actions.")).toBe(false);
+    expect(r.report.recommendations).toEqual([]);
+    expect(r.report.findings.length).toBeGreaterThan(0);
+    expect(r.report.verification.numbers_mismatched).toBe(0);
+    expect(checkReportIntegrity(r.report)).toEqual([]);
+    expect(r.report.verification.claims_dropped).toContainEqual({
+      claim: "(candidate actions)",
+      reason: expect.stringMatching(/^the DECIDE request is about .*budget of 500; it was not sent$/),
+    });
+  }, 180_000);
+
   it("report.json carries evidence for what it cites: the cited table rows and the passage around each quote", () => {
     const ev = report.evidence ?? [];
     const cited = report.findings.flatMap((f) => f.claims.flatMap((c) => c.citations)).filter((c) => c.quote);

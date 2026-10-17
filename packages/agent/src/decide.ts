@@ -4,7 +4,7 @@
 // impossible scenario, an unknown threshold fact or a check date that isn't after the data is dropped.
 import { type ScenarioRequest, scenarioFacts } from "@agentic-analytics/analysis";
 import type { Catalog, Grain } from "@agentic-analytics/metrics";
-import type { ModelClient } from "@agentic-analytics/models";
+import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import { type Fact, type Finding, findFreeNumerals, type MetricDef, placeholders, type Recommendation } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
@@ -135,8 +135,8 @@ export async function decide(
   } catch (err) {
     // Still over the input budget after every trimming step (§8.1): nothing is sent. Like an invalid answer, this
     // costs the recommendations, not the verified findings; the reason is recorded.
-    if (!(err instanceof Error && "code" in err && err.code === "INPUT_TOO_LARGE")) throw err;
-    dropped.push({ claim: "(candidate actions)", reason: `the DECIDE request was not sent: ${err.message.slice(0, 200)}` });
+    if (!(err instanceof ModelError && err.code === "INPUT_TOO_LARGE")) throw err;
+    dropped.push({ claim: "(candidate actions)", reason: err.message });
     return { recommendations: [], dropped };
   }
   const request = { estimate: req.estimate, untrimmed: req.untrimmed, steps: req.steps };
