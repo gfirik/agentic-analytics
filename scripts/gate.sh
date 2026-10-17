@@ -3,6 +3,8 @@
 # Bun is the package manager (D14); scripts still execute on Node 22 (D7).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# One heavy job at a time on this machine, and only with enough free RAM (scripts/heavy.sh, AGENTS.md §9).
+if [ -z "${AA_HEAVY_LOCKED:-}" ] && [ -z "${CI:-}" ]; then exec bash scripts/heavy.sh bash scripts/gate.sh "$@"; fi
 
 if [ ! -f package.json ]; then
   echo "gate: no package.json yet (pre-M0) — nothing to check"; exit 0

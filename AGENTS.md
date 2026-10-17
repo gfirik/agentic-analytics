@@ -125,3 +125,21 @@ docker compose up -d searxng    # optional: web lane
 bun run check
 bun run dev                     # API on :8080
 ```
+
+## 9. Machine resources (laptop limits)
+
+The maintainer's laptop runs out of RAM when agents work in parallel. These rules apply to every agent and session:
+
+- **Agents:** at most two background agents at a time besides the main session. Queue the rest: nothing is skipped, only serialized.
+- **Heavy jobs one at a time** across all agents and worktrees: `scripts/gate.sh`, full test runs, builds (including the docs build), evals and Playwright.
+  - `gate.sh` takes a machine-wide lock by itself.
+  - Run other heavy commands through it too, e.g. `bash scripts/heavy.sh bun run eval -- --suite smoke` or `bash scripts/heavy.sh bun run site:check:browser`.
+  - If another heavy job holds the lock, wait for it.
+- **Low parallelism inside a job:**
+  - Vitest uses at most 2 workers (`vitest.config.ts`); pass `--maxWorkers=2` if you call it another way.
+  - Turbo runs with `--concurrency=2`.
+  - Playwright runs one browser at a time locally (`workers: 1`).
+- **Check memory first:** before a heavy job, check `free -m`. Below about 1.5 GB available, wait for running jobs to finish. `heavy.sh` waits for this automatically on Linux; without `flock` (stock macOS) it warns and runs without the lock, so keep to the rule by hand there.
+- **The Stop hook** runs `bun run check` through `heavy.sh --if-free`: when another heavy job holds the lock or RAM is short, it skips that turn's check instead of piling on.
+- **Clean up after every job:** make sure its processes are gone (dev and preview servers, watchers, test workers, Chrome/Playwright) and kill leftovers you started. A leftover process can keep holding the heavy lock; `heavy.sh` names the holders' PIDs when it waits.
+- **Worktrees:** remove each one as soon as its PR merges (§5).
