@@ -41,7 +41,7 @@
         "output": 2780
       },
       "completed": false,
-      "error": "PROVIDER: EXPLAIN failed: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01khtmmfe2e15vbadebjy3bane` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197944, Requested 3960. Please try again in 13m42.528s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "error": "PROVIDER: EXPLAIN failed: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_***` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197944, Requested 3960. Please try again in 13m42.528s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
       "numberMismatch": false,
       "planted": [
         {
@@ -72,7 +72,7 @@
         "output": 0
       },
       "completed": false,
-      "error": "PROVIDER: EXPLAIN failed: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01khtmmfe2e15vbadebjy3bane` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197934, Requested 2468. Please try again in 2m53.664s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "error": "PROVIDER: EXPLAIN failed: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_***` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 197934, Requested 2468. Please try again in 2m53.664s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
       "numberMismatch": false,
       "planted": [
         {

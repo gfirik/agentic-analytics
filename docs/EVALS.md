@@ -96,6 +96,16 @@ How a finding is matched to a planted event (by the subject its code-written fir
 
 Models are listed honestly. A weak result is shown, not hidden, and small-model mode is noted.
 
+A run whose jobs didn't all finish (a free tier's daily quota ran out) is published as **partial**. The README row reads "partial: k of n jobs finished", and RESULTS.md judges no bar on it ("n/a (partial run)"); the aggregate rates count every unfinished job as a miss, so they are not the model's quality.
+
+**Free tiers with daily quotas.** Run one pass a day, after the quota resets: `bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports` (for example from cron). Each pass:
+- replays every finished call from `evals/.cache` (a cached answer is served even while the route is rate-limited);
+- spends the day's quota on the businesses not yet finished;
+- regenerates the README table and RESULTS.md;
+- sends a one-line summary through `scripts/notify.sh`.
+
+It never switches models.
+
 ## 5. Rules
 
 - Datasets and answer keys are versioned. Changing an answer key requires a note in the PR.
