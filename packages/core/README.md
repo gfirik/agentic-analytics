@@ -7,7 +7,8 @@ The job runner: the pipeline state machine with checkpoints, the event bus, stru
 
 ## Public API
 
-- `runJob({ dir, jobId?, files?, options? }, deps)` runs a job in a folder: `input/`, `job.duckdb`, `report.draft.json`, `report.json` (verified) and `report.html`.
+- `runJob({ dir, jobId?, files?, options? }, deps)` runs a job in a folder: `input/`, `job.duckdb`, `metrics.drafted.json`, `report.draft.json`, `report.json` (verified) and `report.html`.
+  - METRICS_DRAFT writes `metrics.drafted.json` (`DRAFTED_METRICS`) as soon as the draft is validated, before anything can fail on it: the drafts as proposed (`proposals`), `accepted`, `rejected` with reasons, `assumptions`, the `source` (model or fallback) and, when the fallback replaced an all-invalid model draft, that `model_draft`. A failed job keeps it, so a bad draft can be inspected.
   - Re-running the same folder resumes it. Completed stages are skipped, and the interrupted stage is reset and re-run.
   - `deps`: `{ model, embedder, reranker?, log?, engine?, now?, onEvent? }`.
   - `options`: `{ today, currency?, objective?, smallModel?, web?, autoConfirm?, budget? }`. With `autoConfirm: false` the job pauses at AWAIT_CONFIRM (an `awaiting_confirmation` event; `runJob` throws `JobError("AWAITING_CONFIRMATION")`) until `confirmJobMetrics(dir, yaml)` stores validated definitions; the next run continues with them.
