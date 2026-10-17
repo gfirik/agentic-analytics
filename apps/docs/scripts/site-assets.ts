@@ -2,10 +2,12 @@
 //   public/og.png       the 1200×630 Open Graph card: on-system HTML with the site's self-hosted fonts, its
 //                       headline number read from the README pipeline run (docs/assets/readme/pipeline.json);
 //   public/favicon.ico  the favicon.svg mark rasterized at 16, 32 and 48 px, packed as PNG-in-ICO.
+// It records the hash of its inputs in scripts/site-assets.json (checked by scripts/test/site-assets.test.ts).
 // Run: `bun run --filter @agentic-analytics/docs assets` (needs Playwright's Chromium, or PW_CHANNEL=chrome).
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
+import { SITE_ASSETS_MANIFEST, siteAssetInputsHash } from "./site-assets-inputs.ts";
 
 const DOCS = join(import.meta.dirname, "..");
 const ROOT = join(DOCS, "..", "..");
@@ -99,6 +101,10 @@ try {
     pngs.push({ size, data: await p.screenshot({ type: "png", omitBackground: true }) });
   }
   writeFileSync(join(PUBLIC, "favicon.ico"), ico(pngs));
+  writeFileSync(
+    SITE_ASSETS_MANIFEST,
+    `${JSON.stringify({ inputs: siteAssetInputsHash(), og: "public/og.png", icon: "public/favicon.ico" }, null, 2)}\n`,
+  );
 } finally {
   await browser.close();
 }

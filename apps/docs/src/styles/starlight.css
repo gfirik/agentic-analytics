@@ -19,7 +19,8 @@
   --sl-color-accent: var(--aa-ink);
   --sl-color-accent-high: var(--aa-ink);
 
-  /* Asides and badges: slate, told apart by their icon and title, never by hue. */
+  /* Asides and badges: slate, told apart by their icon and title, never by hue. Starlight's green ("tip", "success")
+     is slate too: the site's green means "verified" and only the site's own components use it. */
   --sl-color-orange-low: var(--aa-surface);
   --sl-color-orange: var(--aa-rule-strong);
   --sl-color-orange-high: var(--aa-ink);
@@ -32,9 +33,9 @@
   --sl-color-red-low: var(--aa-surface);
   --sl-color-red: var(--aa-ink);
   --sl-color-red-high: var(--aa-ink);
-  --sl-color-green-low: var(--aa-verified-wash);
-  --sl-color-green: var(--aa-verified);
-  --sl-color-green-high: var(--aa-verified);
+  --sl-color-green-low: var(--aa-surface);
+  --sl-color-green: var(--aa-rule-strong);
+  --sl-color-green-high: var(--aa-ink);
 
   --sl-color-text: var(--aa-ink);
   --sl-color-text-accent: var(--aa-ink);
