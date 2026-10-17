@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
@@ -28,6 +27,7 @@ import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
+import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
 import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
 
@@ -146,7 +146,7 @@ function runtime(embedderArg?: string) {
 
 /** Terminal review: one letter per choice; edits are YAML typed or pasted, ended by an empty line. */
 function terminalIO(): ReviewIO & { close(): void } {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = lineReader(process.stdin, process.stdout);
   const keys: Record<string, ReviewChoice> = { a: "accept", e: "edit", d: "drop" };
   return {
     show: (line) => process.stdout.write(`${line}\n`),

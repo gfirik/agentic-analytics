@@ -279,7 +279,11 @@ describe("your own data (aa eval --suite real --answers <dir> --data <dir>)", ()
     const [d] = r.datasets;
     expect(d).toMatchObject({ dataset: "coffee-roaster", own: true, file: "sales-2026.xlsx", completed: true, publisher: "" });
     expect(d?.title).toMatch(/^Coffee roaster sales/);
-    expect(d?.sha256).toBe(createHash("sha256").update(readFileSync(join(EXAMPLES, "coffee-roaster", "sales-2026.xlsx"))).digest("hex"));
+    expect(d?.sha256).toBe(
+      createHash("sha256")
+        .update(readFileSync(join(EXAMPLES, "coffee-roaster", "sales-2026.xlsx")))
+        .digest("hex"),
+    );
     expect(d?.checks.map((c) => [c.id, c.pass])).toEqual([
       ["C1", true],
       ["C2", true],

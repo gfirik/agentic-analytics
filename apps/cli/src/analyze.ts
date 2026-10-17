@@ -8,6 +8,7 @@ import type { InputFile } from "@agentic-analytics/ingest";
 import { metricsYaml, parseMetricsYaml, type ReviewChoice } from "@agentic-analytics/metrics";
 import { reportSummaryText } from "@agentic-analytics/report";
 import type { MetricDef } from "@agentic-analytics/schema";
+import { ReviewEndedError } from "./prompt.ts";
 import { formatEvent } from "./run.ts";
 
 /** What the metric review asks a person (a terminal, or a script in tests). */
@@ -86,6 +87,13 @@ export async function analyzeCommand(input: AnalyzeInput, deps: AnalyzeDeps): Pr
           m.metrics.map((x) => x.text),
         );
       } catch (err) {
+        // The input ended (piped answers ran out, or stdin is closed): stop instead of asking again forever.
+        if (err instanceof ReviewEndedError) {
+          print("");
+          print("The review ended before every metric was answered; the job is waiting for its metrics.");
+          print("Run again and answer each one, or add --yes to keep the drafts as assumptions.");
+          return { code: 1, jobId: id };
+        }
         // A typo in an edit: say why and review again.
         print(`That edit did not parse: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
         continue;
