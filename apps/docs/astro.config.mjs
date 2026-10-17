@@ -91,7 +91,7 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          items: ["reference/config", "reference/metric-yaml", "reference/report-schema", "reference/templates"],
+          items: ["reference/overview", "reference/config", "reference/metric-yaml", "reference/report-schema", "reference/templates"],
         },
         { label: "Quality", items: ["quality/evals", "quality/results"] },
         {

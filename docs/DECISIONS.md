@@ -100,3 +100,14 @@ Release tags also attach `aa` binaries built with `bun build --compile` (Linux x
 - Prompts are inlined into `packages/agent/src/prompts.gen.ts` (checked by `bun run prompts:check`) instead of read from disk next to the source.
 
 Each target is built and smoke tested (doctor + a full offline eval) on its own native runner (`.github/workflows/binaries.yml`), on pull requests that touch the build and on every tag.
+
+## D17. Self-hosted site fonts and axe for the site's accessibility checks (2026-10-17)
+
+The product site (apps/docs/DESIGN.md) adds three font packages and one test tool. All are free, run locally, and none touches the engine:
+
+- **Fonts:** `@fontsource-variable/source-serif-4`, `@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-mono`, all under the SIL Open Font License 1.1.
+  - Vite bundles the WOFF2 files into the site, so it makes no request to a font CDN (no third-party requests at runtime).
+  - The pairing deliberately differs from the sibling pas-agent site (Instrument Sans + JetBrains Mono).
+- **`@axe-core/playwright`** (MPL-2.0; axe-core is MPL-2.0 too) is a root dev dependency. The `site-browser` CI job uses it to check WCAG 2 A/AA, light and dark, on every page of the built site.
+
+Both reuse Playwright (D15). No paid service is involved.

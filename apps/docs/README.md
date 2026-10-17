@@ -18,7 +18,7 @@ The product site: a custom landing page and the Astro Starlight docs, deployed t
 - It copies the eval results, decisions, roadmap and changelog.
 
 - It writes the landing page's data:
-  - `landing.json`: finding F1 of that run, with every fact behind it;
+  - `landing.json`: finding F1 of the hero's web-enabled run (the same run as `pipeline.json`, checked), with every fact behind it;
   - `evals.json`: the eval runner's own `summarize()` over the latest `evals/results/*.json`, plus the real-data checks.
 
 Everything it writes is gitignored. The `Pipeline` island's data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.

@@ -84,7 +84,7 @@ The README is the first thing people see on GitHub. It carries five visuals, and
 
 - **Numbers.**
   - Every number on the landing page comes from generated data, written by `scripts/generate.ts` on each build (gitignored).
-  - `landing.json` comes from the real coffee-roaster run.
+  - `landing.json` comes from the same web-enabled run as the hero animation (`pipeline-data.ts` `recordRun()`, via `scripts/landing-data.ts`). The build fails, and `scripts/test/landing-run.test.ts` fails, if its counts or recommendation fact ids disagree with `pipeline.json`, so the page shows one run throughout.
   - `evals.json` holds the suite metrics, computed by the eval runner's own `summarize()` from the latest `evals/results/*.json`, and the real-data checks.
   - The pipeline numbers come from the committed `docs/assets/readme/pipeline.json`.
 - **Site files.**
