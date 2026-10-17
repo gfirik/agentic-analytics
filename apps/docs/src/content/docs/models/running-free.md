@@ -9,7 +9,7 @@ No feature needs a paid API. Two providers cover everything: **Ollama** (local) 
 - **Free hosted.** Set the key and `PLANNER_MODEL=openai-compatible:groq:<model>`. Free tiers limit tokens per minute and per day; the engine waits as long as a 429 asks and retries. A small-mode job uses tens of thousands of tokens.
 - **Roles.** `PLANNER_MODEL` does the reasoning; `EXTRACTOR_MODEL` reads untrusted text (a small model is fine); `JUDGE_MODEL` answers yes/no for citations.
 - **Small-model mode** (`--small-model`) halves tool budgets, caps findings at 3 and recommendations at 2, and replaces the tool loop with a fill-in form. The engine stays exactly as correct — every number is still SQL.
-- **Input budget.** In small-model mode the DECIDE request is kept under 6,500 estimated input tokens, so it fits free tiers that cap input per minute (Groq: 7,000). When it is larger, code trims what the model reads in a fixed order: redundant labels first, then the smaller members of each split, long quotes, decompositions no finding cites, unused metrics. It never changes a number. A request that still doesn't fit fails with `INPUT_TOO_LARGE` before it is sent.
+- **Input budget.** In small-model mode the DECIDE request is kept under 6,500 estimated input tokens, so it fits free tiers that cap input per minute (Groq: 7,000). When it is larger, code trims what the model reads in a fixed order: redundant labels first, then the smaller members of each split, long quotes, decompositions no finding cites, unused metrics, and insight labels. It never changes a number. A request that still doesn't fit is not sent (`INPUT_TOO_LARGE`): the report keeps its verified findings and ships without recommendations, with the reason recorded.
 
 ## How models did
 

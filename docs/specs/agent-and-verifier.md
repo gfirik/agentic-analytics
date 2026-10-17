@@ -181,9 +181,9 @@ When the request is over budget, code trims the fact sheet and findings in this 
 5. `unused_metrics`: drop metric definitions no kept insight measures.
 6. `insight_labels`: drop the `label` of insight facts.
 
-Trimming only removes or shortens what the model reads. Every value kept is the fact's own, findings keep their ids, and a fact a finding cites is never dropped. Fact ids the model may cite stay resolvable, because DECIDE checks them against the whole fact table, not the sheet, and the verifier checks the report as usual. The JSON is already compact. Without a budget (normal mode) the request is untouched.
+Trimming only removes or shortens what the model reads. Every value kept is the fact's own, findings keep their ids, and a fact a finding cites is never dropped: one its claim text names (`{{N…}}`) or one in a claim's `facts` list. Fact ids the model may cite stay resolvable, because DECIDE checks them against the whole fact table, not the sheet, and the verifier checks the report as usual. The JSON is already compact. Without a budget (normal mode) the request is untouched.
 
-If the request still doesn't fit after step 6, DECIDE fails with `INPUT_TOO_LARGE` before anything is sent. A request over budget is never sent.
+If the request still doesn't fit after step 6, nothing is sent: the request is refused with `INPUT_TOO_LARGE`, and DECIDE degrades the way it does for an invalid answer. The verified findings stand, the report ships with no recommendations, and the reason goes to `verification.claims_dropped` as "(candidate actions)". A request over budget is never sent.
 
 Measured on printing_shop-v1 (the 2026-10-17 Groq eval, where the provider counted 7,804 input tokens and refused): 9,047 estimated tokens untrimmed, and 6,220 after steps 1–2.
 
