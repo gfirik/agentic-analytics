@@ -68,6 +68,12 @@ describe("learn.json (from real runs)", () => {
     // RRF with k = 60: the email is #3 in both lanes, so 2 / 63.
     const email = data.retrieval.hits.find((h) => h.file === "email-0412.eml");
     expect(email?.rrf).toBeCloseTo(1 / (60 + (email?.bm25 ?? 0)) + 1 / (60 + (email?.vector ?? 0)), 12);
+    // The noise band: 2 × 1.4826 × MAD of the other month-to-month changes. Without Mar→Apr they are
+    // +1,700, +1,200, −400, +1,200: median 1,200, absolute deviations 500, 0, 1,600, 0, MAD 250 → 741.3.
+    expect(data.analysis.noise.band).toBeCloseTo(2 * 1.4826 * 250, 6);
+    // The figures the pages state in words: the headline 17.9%, and the 3.4% refund rate the benchmark is compared with.
+    expect(fact(data.analysis.change.pct).value).toBeCloseTo(-17.9, 1);
+    expect(fact(fact(data.web.gap ?? "").computation.inputs?.[0] ?? "").value).toBeCloseTo(3.4, 9);
     // The revenue series is the answer key's integer-cent ledger (evals/datasets/coffee-roaster-v1/answers.yaml).
     expect(data.metrics.revenue.series.map((s) => Math.round(fact(s.fact).value))).toEqual([
       41_200, 42_900, 44_100, 36_200, 35_800, 37_000,

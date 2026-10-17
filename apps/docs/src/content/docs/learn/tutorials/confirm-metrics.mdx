@@ -26,7 +26,7 @@ The saved file is plain YAML, one entry per metric. Its first entry:
 
 Change what's wrong: a filter, the column, the label. Then use your file instead of drafting (with `--yes` the statuses in the file are kept; without it you review each one):
 
-```bash
+```bash title="Terminal"
 bun run aa metrics examples/coffee-roaster --metrics agentic-analytics.metrics.yaml --yes --currency USD --today 2026-07-01
 ```
 
@@ -36,7 +36,7 @@ A definition that doesn't fit the data (a column that doesn't exist, a sum over 
 
 Without `--yes`, `aa analyze` stops after drafting and asks about each metric: **a**ccept, **e**dit (type or paste new YAML, then an empty line), or **d**rop.
 
-```bash
+```bash title="Terminal"
 AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --embedder hash --today 2026-07-01 --currency USD
 ```
 

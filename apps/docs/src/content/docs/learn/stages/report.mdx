@@ -9,7 +9,7 @@ import Fact from "../../../../components/learn/Fact.astro";
 import FactLedger from "../../../../components/learn/FactLedger.astro";
 import StageFlow from "../../../../components/learn/StageFlow.tsx";
 import Transcript from "../../../../components/learn/Transcript.astro";
-import { flowProps, learn } from "../../../../components/learn/data.ts";
+import { factText, flowProps, learn } from "../../../../components/learn/data.ts";
 
 export const rep = learn.report;
 export const f = rep.finding;
@@ -19,7 +19,7 @@ export const shown = [...new Set([...f.claims.flatMap((c) => c.facts), rep.actio
 
 ## The problem it solves
 
-A report is only as useful as your ability to check it. “Revenue fell 17.9%” in a slide is a claim; you would have to redo the work to trust it. Here every number sits next to a short ID, a [fact ID](../../glossary/#fact-id), and the ID opens the exact computation behind it: the SQL and its parameters, or the function and its inputs, down to the spreadsheet rows.
+A report is only as useful as your ability to check it. “Revenue fell {factText(learn.analysis.change.pct).replace("−", "")}” in a slide is a claim; you would have to redo the work to trust it. Here every number sits next to a short ID, a [fact ID](../../glossary/#fact-id), and the ID opens the exact computation behind it: the SQL and its parameters, or the function and its inputs, down to the spreadsheet rows.
 
 ## What happens on the example
 
@@ -63,7 +63,7 @@ The text in the report was written with `{{N12}}`-style placeholders. Rendering 
 
 Run the first tutorial, then open the report and click any number:
 
-```bash
+```bash title="Terminal"
 AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash --today 2026-07-01 --currency USD --open
 ```
 

@@ -20,7 +20,7 @@ Your files never leave your machine through the engine: it reads local paths and
 
 Open Settings → Developer → Edit Config, and add the engine as a stdio server. Claude Desktop starts it for you. This configuration uses the scripted planner and the offline embedder, so it works with no model; replace them with your model settings later (see [Running on free models](../../../models/running-free/)):
 
-```json
+```json title="claude_desktop_config.json"
 {
   "mcpServers": {
     "agentic-analytics": {
@@ -62,7 +62,7 @@ A long job can outlast a client's request timeout. Ask Claude to start with `wai
 
 `aa serve` also serves MCP over streamable HTTP at `/mcp`, for clients that connect to a URL. Over HTTP anyone who can reach the port could ask for files, so local paths are read only inside the folders you list in `AA_MCP_ROOTS`:
 
-```bash
+```bash title="Terminal"
 AA_MCP_ROOTS=/path/to/agentic-analytics/examples AA_DEMO_MODEL=scripted bun run aa serve --embedder hash
 ```
 

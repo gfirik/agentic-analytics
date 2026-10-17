@@ -33,7 +33,7 @@ So detection is a fixed library of tests, each one SQL plus a small function, an
 **Is it bigger than the noise?** Every series wobbles. The engine measures how much revenue usually moves and asks whether April is outside that. Two tests agree here:
 
 - a [robust z-score](../../glossary/#robust-z-score) of <Fact id={a.noise.z} />, against a threshold of ±{a.noise.threshold}: far outside the usual wobble;
-- a [noise band](../../glossary/#noise-band) of ±{a.noise.band.toFixed(1)} around the trend, with a level shift of <Fact id={a.noise.shift} /> after March (template <code>{a.noise.template}</code>).
+- a [noise band](../../glossary/#noise-band) of ±{a.noise.band.toFixed(1)}, against a level shift of <Fact id={a.noise.shift} /> after March (template <code>{a.noise.template}</code>). The band is not a fact but a parameter of the test, stored in the insight's details: 2 × 1.4826 × the median absolute deviation of the series' other month-to-month changes, so the change being tested can't widen its own band (`noiseBand` in [`baselines.ts`](https://github.com/gfirik/agentic-analytics/blob/main/packages/analysis/src/baselines.ts)).
 
 March's own rise from February was small enough to stay inside the band, so it is not reported at all. On this run {a.templates.length} candidate insights came out of {templates.length} templates ({templates.join(", ")}); ranking keeps the ones that matter.
 
@@ -83,7 +83,7 @@ A December peak in retail is not news. The engine compares a month with the same
 
 The first tutorial's job prints these findings; `aa explain` opens any fact:
 
-```bash
+```bash title="Terminal"
 AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedder hash --today 2026-07-01 --currency USD
 bun run aa explain <job-id> N30
 ```

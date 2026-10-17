@@ -4,7 +4,7 @@ description: What the language model actually does here, through tool calling an
 ---
 
 import StageFlow from "../../../../components/learn/StageFlow.tsx";
-import { flowProps, learn } from "../../../../components/learn/data.ts";
+import { factText, flowProps, learn } from "../../../../components/learn/data.ts";
 
 export const g = learn.agent;
 
@@ -53,7 +53,7 @@ On this run the model layer was called {Object.entries(g.roles).map(([role, n]) 
 
 ### Placeholders instead of numbers
 
-A model that writes “revenue fell 17.9%” may be right or may have made the number up; you can't tell from the text. So the planner writes `{{N30}}` and code fills in the stored value. A placeholder pointing at a fact that doesn't exist is caught at once.
+A model that writes “revenue fell {factText(learn.analysis.change.pct).replace("−", "")}” may be right or may have made the number up; you can't tell from the text. So the planner writes <code>{`{{${learn.analysis.change.pct}}}`}</code> and code fills in the stored value. A placeholder pointing at a fact that doesn't exist is caught at once.
 
 ### Small-model mode
 
@@ -63,7 +63,7 @@ Small local models struggle with long tool loops. `--small-model` halves the bud
 
 With a model configured, run a job and watch the stages (`--log` adds structured logs on stderr):
 
-```bash
+```bash title="Terminal"
 bun run aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-01 --log
 ```
 

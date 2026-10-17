@@ -61,7 +61,7 @@ The router keeps a small budget per route, fed by the `x-ratelimit-*` headers ea
 
 ### Waiting politely
 
-A 429 usually says how long to wait (`Retry-After`, or “try again in 24.7s”). With no other route free, the client waits that long and retries, up to a cap. A wait longer than the cap fails clearly instead of hanging.
+A 429 usually says how long to wait (the `Retry-After` header, or a “try again in …s” sentence in the body, like Groq's message in the log above). With no other route free, the client waits that long and retries, up to a cap. A wait longer than the cap fails clearly instead of hanging.
 
 ### The cache and the call log
 
@@ -75,13 +75,13 @@ Nothing requires a paid API. Ollama runs models on your machine; the hosted endp
 
 Check what is configured, per role, and that each endpoint answers:
 
-```bash
+```bash title="Terminal"
 bun run aa doctor
 ```
 
 With a free Groq key in `.env`, set `PLANNER_MODEL=openai-compatible:groq:openai/gpt-oss-120b` (and the other roles) and run the smoke evals:
 
-```bash
+```bash title="Terminal"
 bun run eval -- --suite smoke --model configured --small-model
 ```
 

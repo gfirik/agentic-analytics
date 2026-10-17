@@ -645,11 +645,15 @@ async function cliRuns() {
         metrics.out,
         [[/unavailable \([^)]*\)/g, "unavailable (…)", "the reason no model answered (it depends on your setup)"]],
       ),
-      review: transcript(`AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster ${base}`, reviewOut, [
-        DURATIONS,
-        JOBS,
-        paths(out("review")),
-      ]),
+      review: (() => {
+        const t = transcript(`AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster ${base}`, reviewOut, [
+          DURATIONS,
+          JOBS,
+          paths(out("review")),
+        ]);
+        // The answers were piped in, and piped input isn't echoed: they are written after each question, as a terminal shows them.
+        return { ...t, normalised: [...t.normalised, "your answers, written after each question (piped input isn't echoed)"] };
+      })(),
       alone: transcript(`AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster/sales-2026.xlsx --yes ${base}`, alone.out, [
         DURATIONS,
         JOBS,

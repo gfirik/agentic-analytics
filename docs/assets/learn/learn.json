@@ -2377,7 +2377,8 @@
       "normalised": [
         "stage durations",
         "the job id (a timestamp)",
-        "the report folder (the current folder)"
+        "the report folder (the current folder)",
+        "your answers, written after each question (piped input isn't echoed)"
       ]
     },
     "alone": {

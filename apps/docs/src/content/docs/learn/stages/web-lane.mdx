@@ -6,15 +6,16 @@ description: How the engine looks up a public benchmark without leaking your cus
 import Fact from "../../../../components/learn/Fact.astro";
 import FactLedger from "../../../../components/learn/FactLedger.astro";
 import StageFlow from "../../../../components/learn/StageFlow.tsx";
-import { flowProps, learn } from "../../../../components/learn/data.ts";
+import { factText, flowProps, learn } from "../../../../components/learn/data.ts";
 
 export const w = learn.web;
+export const refundRate = learn.facts[w.gap].computation.inputs[0];
 
 **Stage 5 of 10.** `WEB_CONTEXT` and the planner's `search_web` tool. The web lane is **off by default**; a job uses it only with `--web`.
 
 ## The problem it solves
 
-Some questions need the outside world: is a refund rate of 3.4% high for a coffee roaster? But a search query is a message to a third party. A careless query that names a customer, or carries a number from your books, tells a search engine who your customers are and how much they buy. And a web page is text written by a stranger, which may contain instructions aimed at AI systems.
+Some questions need the outside world: is a refund rate of <Fact id={refundRate} /> high for a coffee roaster? But a search query is a message to a third party. A careless query that names a customer, or carries a number from your books, tells a search engine who your customers are and how much they buy. And a web page is text written by a stranger, which may contain instructions aimed at AI systems.
 
 So the lane cleans every query before it leaves the machine, refuses to fetch addresses that point inside your network, and treats every page as untrusted.
 
@@ -64,7 +65,7 @@ A model that reads web pages can be steered by the pages. The defence here is ar
 
 The web lane needs a search engine; the project ships a self-hosted SearXNG:
 
-```bash
+```bash title="Terminal"
 docker compose --profile web up -d searxng
 bun run aa run examples/coffee-roaster --web --embedder hash --today 2026-07-01 --currency USD
 ```
@@ -88,4 +89,4 @@ Go deeper: [Web lane and privacy](../../../how-it-works/web/).
 
 ## Facts on this page
 
-<FactLedger flow="web" ids={[w.gap]} />
+<FactLedger flow="web" ids={[w.gap, refundRate]} />
