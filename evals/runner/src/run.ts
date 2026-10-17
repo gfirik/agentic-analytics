@@ -169,6 +169,16 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
 }
 
 /**
+ * The model a route (`provider[:endpoint]:model`, as routeSummary writes it) served, as the router compares models:
+ * the id after the last "/", lower-cased (models' canonicalModel).
+ */
+function routeModel(route: string): string {
+  const [provider, ...rest] = route.split(":");
+  const model = (provider === "openai-compatible" ? rest.slice(1) : rest).join(":");
+  return (model.split("/").pop() ?? model).toLowerCase().replace(/:(free|latest)$/, "");
+}
+
+/**
  * One suite result from runs of parts of it (`aa eval --only`, e.g. the Kaggle notebook's one-business-per-run
  * chunks that fit a session limit). Scores are taken as each run recorded them, so timings and tokens are the real
  * ones; the bars are computed again over all of them. Every dataset of the suite must be there exactly once, all
@@ -180,6 +190,21 @@ export function mergeResults(
 ): SuiteResult {
   const models = new Set(parts.map((p) => p.model));
   if (models.size > 1) throw new EvalRunError("USAGE", `the runs name different models: ${[...models].join(", ")}`);
+  const suites = new Set(parts.map((p) => p.suite));
+  if ([...suites].some((s) => s !== o.suite))
+    throw new EvalRunError("USAGE", `the runs are not all ${o.suite} runs: ${[...suites].join(", ")}`);
+  // "configured" names no model: the routes say what served each run. Per role, every run must have been served by
+  // the same model; a route may differ only as a fallback provider of that model (the router never switches models).
+  // A run that never called a role (a job that failed early) says nothing about it.
+  const served = new Map<string, Set<string>>();
+  for (const p of parts)
+    for (const u of p.routes ?? []) {
+      const set = served.get(u.role) ?? new Set<string>();
+      set.add(routeModel(u.route));
+      served.set(u.role, set);
+    }
+  for (const [role, models] of served)
+    if (models.size > 1) throw new EvalRunError("USAGE", `the runs' ${role} was served by different models: ${[...models].join(", ")}`);
   const byId = new Map<string, DatasetScore>();
   for (const p of parts)
     for (const s of p.scores) {

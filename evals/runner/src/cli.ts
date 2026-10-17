@@ -8,7 +8,7 @@ import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
 import { EvalRunError } from "./errors.ts";
 import { missingRealData, type RealSuiteResult, realResultsMarkdown, runRealSuite } from "./real.ts";
-import { resultsMarkdown, runSuite, type Suite, type SuiteResult, suiteDatasets } from "./run.ts";
+import { mergeResults, resultsMarkdown, runSuite, type Suite, type SuiteResult, suiteDatasets } from "./run.ts";
 
 export { EvalRunError };
 
@@ -71,6 +71,31 @@ export function selectDatasets(suite: Suite, only?: readonly string[], from?: re
       `not in the ${suite} suite: ${unknown.join(", ")} (ids look like coffee_roaster-v1; the ${suite} suite has ${all.length})`,
     );
   return all.filter((d) => only.includes(d.id));
+}
+
+/**
+ * `bun run eval:merge`: checks the arguments against the chunks, then mergeResults. The suite must be smoke or full,
+ * and every chunk must have run in the mode `smallModel` says (its model name carries the small-model suffix).
+ */
+export function mergeChunks(
+  a: { readonly label: string; readonly note?: string; readonly smallModel?: boolean; readonly suite: string },
+  parts: readonly SuiteResult[],
+  order?: readonly string[],
+): SuiteResult {
+  if (a.suite !== "smoke" && a.suite !== "full") throw new EvalRunError("USAGE", `--suite must be smoke or full, not "${a.suite}"`);
+  const small = a.smallModel === true;
+  const mismatched = parts.filter((p) => p.model.endsWith(" (small-model mode)") !== small);
+  if (mismatched.length)
+    throw new EvalRunError(
+      "USAGE",
+      `${small ? "--small-model is set but" : "--small-model is not set but"} these runs ${small ? "were not" : "were"} in small-model mode: ${mismatched.map((p) => p.model).join(", ")}`,
+    );
+  return mergeResults(parts, {
+    suite: a.suite,
+    modelName: a.label + (small ? " (small-model mode)" : ""),
+    ...(a.note ? { note: a.note } : {}),
+    order: order ?? suiteDatasets(a.suite).map((d) => d.id),
+  });
 }
 
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {

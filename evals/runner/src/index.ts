@@ -6,6 +6,7 @@ export {
   EvalRunError,
   evalCommand,
   evalSlug,
+  mergeChunks,
   type RealEvalArgs,
   realEvalCommand,
   resultsPage,

@@ -6,7 +6,17 @@ import { join } from "node:path";
 import type { Dataset } from "@agentic-analytics/eval-generator";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { describe, expect, it } from "vitest";
-import { EvalRunError, evalCommand, evalSlug, mergeResults, resultsPage, type SuiteResult, selectDatasets } from "../src/index.ts";
+import {
+  EvalRunError,
+  evalCommand,
+  evalSlug,
+  mergeChunks,
+  mergeResults,
+  mergeRoutes,
+  resultsPage,
+  type SuiteResult,
+  selectDatasets,
+} from "../src/index.ts";
 
 const LABEL = "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ";
 
@@ -37,7 +47,7 @@ describe("selectDatasets", () => {
 });
 
 describe("mergeResults", () => {
-  const score = (dataset: string, completed: boolean, seconds: number) =>
+  const score = (dataset: string, completed: boolean, seconds: number, route = "openai-compatible:vllm:Qwen3.8-27B-AWQ") =>
     ({
       dataset,
       completed,
@@ -49,8 +59,9 @@ describe("mergeResults", () => {
       findings: 0,
       seconds,
       tokens: { input: 100, output: 10 },
-      routes: [{ role: "planner", route: "openai-compatible:vllm:Qwen3.8-27B-AWQ", calls: 3, cached: 0, failed: 0 }],
+      routes: [{ role: "planner", route, calls: 3, cached: 0, failed: 0 }],
     }) as unknown as SuiteResult["scores"][number];
+  // As a run writes it: the run's routes are its datasets' routes summed.
   const part = (date: string, ...scores: SuiteResult["scores"]): SuiteResult => ({
     suite: "full",
     model: "configured",
@@ -58,6 +69,7 @@ describe("mergeResults", () => {
     datasets: scores.length,
     scores,
     bars: [],
+    routes: mergeRoutes(scores.flatMap((s) => s.routes ?? [])),
     seconds: 1,
     tokens: { input: 0, output: 0 },
   });
@@ -104,6 +116,76 @@ describe("mergeResults", () => {
         o,
       ),
     ).toThrow(/different models/);
+    expect(() =>
+      mergeResults(
+        [part("d", score("a-v1", true, 1)), { ...part("d", score("b-v1", true, 1), score("c-v1", true, 1)), suite: "smoke" }],
+        o,
+      ),
+    ).toThrow(/not all full runs: full, smoke/);
+  });
+
+  it("refuses runs whose role was served by another model, but accepts the same model on a fallback provider", () => {
+    const o = { suite: "full" as const, modelName: LABEL, order };
+    expect(() =>
+      mergeResults(
+        [part("d", score("a-v1", true, 1), score("b-v1", true, 1)), part("d", score("c-v1", true, 1, "openai-compatible:vllm:Qwen3.5-9B"))],
+        o,
+      ),
+    ).toThrow(/planner was served by different models: qwen3.8-27b-awq, qwen3.5-9b/);
+    expect(() =>
+      mergeResults(
+        [
+          part("d", score("a-v1", true, 1, "openai-compatible:groq:openai/gpt-oss-120b")),
+          part(
+            "d",
+            score("b-v1", true, 1, "openai-compatible:nvidia-nim:openai/gpt-oss-120b"),
+            score("c-v1", true, 1, "openai-compatible:groq:openai/gpt-oss-120b"),
+          ),
+        ],
+        o,
+      ),
+    ).not.toThrow();
+  });
+});
+
+describe("mergeChunks (bun run eval:merge)", () => {
+  const run = (model: string, dataset: string): SuiteResult => ({
+    suite: "smoke",
+    model,
+    date: "2026-10-20",
+    datasets: 1,
+    scores: [
+      {
+        dataset,
+        completed: true,
+        planted: [],
+        distractorsReported: [],
+        qualityFound: [],
+        quality: 0,
+        findings: 0,
+        seconds: 1,
+        tokens: { input: 0, output: 0 },
+      },
+    ] as unknown as SuiteResult["scores"],
+    bars: [],
+    seconds: 1,
+    tokens: { input: 0, output: 0 },
+  });
+  const order = ["a-v1", "b-v1"];
+  it("refuses a suite other than smoke or full", () => {
+    expect(() => mergeChunks({ label: LABEL, suite: "real" }, [run("configured", "a-v1")], order)).toThrow(
+      /--suite must be smoke or full, not "real"/,
+    );
+  });
+  it("refuses chunks run in the other mode than --small-model says", () => {
+    const small = [run("configured (small-model mode)", "a-v1"), run("configured (small-model mode)", "b-v1")];
+    expect(() => mergeChunks({ label: LABEL, suite: "smoke" }, small, order)).toThrow(
+      /--small-model is not set but these runs were in small-model mode/,
+    );
+    expect(() =>
+      mergeChunks({ label: LABEL, suite: "smoke", smallModel: true }, [run("configured", "a-v1"), small[1] as SuiteResult], order),
+    ).toThrow(/--small-model is set but these runs were not in small-model mode: configured$/);
+    expect(mergeChunks({ label: LABEL, suite: "smoke", smallModel: true }, small, order).model).toBe(`${LABEL} (small-model mode)`);
   });
 });
 

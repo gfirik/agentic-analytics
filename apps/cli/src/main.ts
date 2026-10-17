@@ -29,7 +29,7 @@ import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
-import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
+import { embedderChoice, isStandalone, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -401,20 +401,16 @@ const evalCmd = defineCommand({
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
     if ((args.label || args.note || args.only) && args.suite === "real")
       throw new Error("--label, --note and --only go with --suite smoke|full");
+    const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
     // A chunk is a partial run: it must never become the published row in evals/results.
-    if (args.only && !args["results-dir"]) throw new Error("--only needs --results-dir (a chunk's results never go to evals/results)");
+    const refused = onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults);
+    if (refused) throw new Error(refused);
     const only = args.only
       ?.split(",")
       .map((s) => s.trim())
       .filter(Boolean);
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const where = resultsLocation(
-      args["results-dir"],
-      process.env,
-      process.cwd(),
-      fileURLToPath(new URL("../../../evals/results", import.meta.url)),
-      Boolean(args.answers),
-    );
+    const where = resultsLocation(args["results-dir"], process.env, process.cwd(), checkoutResults, Boolean(args.answers));
     const evalRouter = new Router();
     const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
     const deps = {

@@ -1,7 +1,7 @@
 // What differs when the CLI runs as the standalone binary (`bun build --compile`, scripts/build-binary.ts sets
 // AA_STANDALONE=1 before loading the CLI): no source tree next to it, no in-process ONNX embedder, no viewer build,
 // and Bun's runtime instead of Node's. Pure functions, so the choices are tested without building a binary.
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -26,6 +26,24 @@ export function resultsLocation(
     return { dir, page: join(dir, "RESULTS.md") };
   }
   return { dir: checkoutDefault };
+}
+
+/**
+ * `aa eval --only` runs a chunk of a suite: a partial run that must never become the published row. It needs a
+ * `--results-dir`, and that folder can't be the checkout's evals/results (however it is spelled). Returns why the
+ * arguments are refused, or undefined.
+ */
+export function onlyProblem(
+  only: string | undefined,
+  resultsDir: string | undefined,
+  cwd: string,
+  checkoutDefault: string,
+): string | undefined {
+  if (!only) return undefined;
+  if (!resultsDir) return "--only needs --results-dir (a chunk's results never go to evals/results)";
+  if (resolve(cwd, resultsDir) === resolve(checkoutDefault))
+    return `--only can't write to ${checkoutDefault}: a chunk is a partial run; join chunks with \`bun run eval:merge\``;
+  return undefined;
 }
 
 /**
