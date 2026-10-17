@@ -72,4 +72,24 @@ describe("evals/kaggle/full-suite-vllm.ipynb", () => {
     // The notebook finds the merged file with the same rule as evalSlug.
     expect(all).toContain('re.sub(r"[^a-z0-9.]+", "-", LABEL.lower()).strip("-")');
   });
+
+  it("retries a business only for a lost connection or an HTTP 5xx, never for a model result with a number in it", () => {
+    // The Python pattern is adjacent r"…" pieces; it uses no syntax that differs between Python's re and JS.
+    const body = /INFRA = re\.compile\(([\s\S]*?)\n\)/.exec(all)?.[1] ?? "";
+    const infra = new RegExp([...body.matchAll(/r"([^"]*)"/g)].map((m) => m[1]).join(""));
+    expect(infra.source.length).toBeGreaterThan(20);
+    for (const retry of [
+      "PROVIDER: fetch failed",
+      "PROVIDER: connect ECONNREFUSED 127.0.0.1:8000",
+      "PROVIDER: HTTP 503",
+      "PROVIDER: Internal Server Error",
+    ])
+      expect(infra.test(retry), retry).toBe(true);
+    for (const keep of [
+      "PROVIDER: This model's maximum context length is 32768 tokens. However, you requested 33280 tokens (32768 in the messages, 512 in the completion)",
+      "TIMEOUT: the request took longer than 900000 ms",
+      "RECOMPUTE_MISMATCH: fact N500 differs",
+    ])
+      expect(infra.test(keep), keep).toBe(false);
+  });
 });

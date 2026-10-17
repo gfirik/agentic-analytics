@@ -29,7 +29,7 @@ import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
-import { embedderChoice, isStandalone, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
+import { embedderChoice, isStandalone, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -399,16 +399,13 @@ const evalCmd = defineCommand({
   async run({ args }) {
     const model = args.model ?? "baseline";
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
-    if ((args.label || args.note || args.only) && args.suite === "real")
+    if ((args.label || args.note || args.only !== undefined) && args.suite === "real")
       throw new Error("--label, --note and --only go with --suite smoke|full");
     const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
     // A chunk is a partial run: it must never become the published row in evals/results.
     const refused = onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults);
     if (refused) throw new Error(refused);
-    const only = args.only
-      ?.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const only = args.only === undefined ? undefined : onlyIds(args.only);
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const where = resultsLocation(args["results-dir"], process.env, process.cwd(), checkoutResults, Boolean(args.answers));
     const evalRouter = new Router();

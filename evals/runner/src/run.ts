@@ -174,7 +174,9 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
  */
 function routeModel(route: string): string {
   const [provider, ...rest] = route.split(":");
-  const model = (provider === "openai-compatible" ? rest.slice(1) : rest).join(":");
+  // An openai-compatible route always names its endpoint (the config refuses one without, models §4), so the model
+  // starts after it; a route written without one keeps everything after the provider rather than losing a segment.
+  const model = (provider === "openai-compatible" && rest.length > 1 ? rest.slice(1) : rest).join(":");
   return (model.split("/").pop() ?? model).toLowerCase().replace(/:(free|latest)$/, "");
 }
 

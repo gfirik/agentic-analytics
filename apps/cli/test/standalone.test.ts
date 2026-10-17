@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { embedderChoice, onlyProblem, resultsLocation, runtimeVersion } from "../src/standalone.ts";
+import { embedderChoice, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "../src/standalone.ts";
 
 const bin = { AA_STANDALONE: "1" };
 
@@ -24,6 +24,17 @@ describe("standalone binary choices", () => {
     expect(onlyProblem("saas-v2", "evals/results/", "/repo", repo)).toMatch(/can't write to/);
     expect(onlyProblem("saas-v2", "../repo/evals/./results", "/work", repo)).toMatch(/can't write to/);
     expect(onlyProblem("saas-v2", "chunks/saas-v2", "/repo", repo)).toBeUndefined();
+    // A folder inside evals/results is refused too; a sibling whose name only starts the same is not inside it.
+    expect(onlyProblem("saas-v2", "/repo/evals/results/chunks/saas-v2", "/work", repo)).toMatch(/or a folder inside it/);
+    expect(onlyProblem("saas-v2", "evals/results/x", "/repo", repo)).toMatch(/or a folder inside it/);
+    expect(onlyProblem("saas-v2", "/repo/evals/results-chunks", "/work", repo)).toBeUndefined();
+    expect(onlyProblem("saas-v2", "/repo/evals", "/work", repo)).toBeUndefined();
+  });
+
+  it("--only that names no dataset is refused, never run as the whole suite", () => {
+    const repo = "/repo/evals/results";
+    for (const empty of ["", " , ", ","]) expect(onlyProblem(empty, "/chunks", "/work", repo)).toMatch(/names no dataset/);
+    expect(onlyIds(" saas-v2 , ,agency-v1,")).toEqual(["saas-v2", "agency-v1"]);
   });
 
   it("embedder: hash when asked, hash with a notice by default in the binary, an explicit model always wins", () => {
