@@ -1,0 +1,684 @@
+{
+  "_source": "Real requests from the 2026-10-17 Groq small-model eval (coffee_roaster v1-v3, printing_shop-v1), replayed offline from the eval response cache. No prompt text: each message is [digits and non-ASCII characters, other characters], which is all estimateTokens reads. prompt_tokens is the provider's own count (usage.prompt_tokens; 7,804 for the refused DECIDE, from Groq's error).",
+  "pairs": [
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 1020,
+      "messages": [[9, 1749], [217, 1473]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 737,
+      "messages": [[47, 2494], [6, 244]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 727,
+      "messages": [[47, 2494], [8, 195]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 716,
+      "messages": [[47, 2494], [6, 143]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 695,
+      "messages": [[47, 2494], [0, 61]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 715,
+      "messages": [[47, 2494], [1, 149]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 2475,
+      "messages": [[559, 7307], [1, 86]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 723,
+      "messages": [[46, 2473], [8, 195]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 691,
+      "messages": [[46, 2473], [0, 61]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2473], [1, 149]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 733,
+      "messages": [[46, 2473], [6, 244]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 712,
+      "messages": [[46, 2473], [6, 143]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 3166,
+      "messages": [[762, 8838], [1, 86]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 728,
+      "messages": [[46, 2483], [8, 195]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 738,
+      "messages": [[46, 2483], [6, 244]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 716,
+      "messages": [[46, 2483], [1, 149]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 717,
+      "messages": [[46, 2483], [6, 143]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 696,
+      "messages": [[46, 2483], [0, 61]]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 3237,
+      "messages": [[806, 8898], [1, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 1028,
+      "messages": [[9, 1749], [227, 1492]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 722,
+      "messages": [[46, 2468], [8, 198]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 733,
+      "messages": [[46, 2468], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 690,
+      "messages": [[46, 2468], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2468], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2468], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 3086,
+      "messages": [[776, 8380], [1, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 691,
+      "messages": [[46, 2471], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 712,
+      "messages": [[46, 2471], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 723,
+      "messages": [[46, 2471], [8, 198]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 734,
+      "messages": [[46, 2471], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2471], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 1607,
+      "messages": [[288, 4934], [1, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 723,
+      "messages": [[46, 2474], [8, 198]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 734,
+      "messages": [[46, 2474], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 691,
+      "messages": [[46, 2474], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2474], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 712,
+      "messages": [[46, 2474], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 1613,
+      "messages": [[293, 4979], [1, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 5221,
+      "messages": [[1302, 14539], [0, 30]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 5912,
+      "messages": [[1302, 14539], [75, 2749]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 5919,
+      "messages": [[1302, 14539], [78, 2765]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 438,
+      "messages": [[38, 1436], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 462,
+      "messages": [[34, 1576], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 462,
+      "messages": [[34, 1576], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 438,
+      "messages": [[38, 1436], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 462,
+      "messages": [[34, 1576], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 1027,
+      "messages": [[9, 1749], [226, 1485]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2468], [8, 136]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 726,
+      "messages": [[46, 2468], [5, 210]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 733,
+      "messages": [[46, 2468], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 690,
+      "messages": [[46, 2468], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2468], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2468], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 2999,
+      "messages": [[734, 8255], [1, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2474], [8, 136]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 734,
+      "messages": [[46, 2474], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 727,
+      "messages": [[46, 2474], [5, 210]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 691,
+      "messages": [[46, 2474], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2474], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 712,
+      "messages": [[46, 2474], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 1556,
+      "messages": [[264, 4885], [2, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 726,
+      "messages": [[46, 2462], [5, 210]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2462], [8, 136]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 733,
+      "messages": [[46, 2462], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2462], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 690,
+      "messages": [[46, 2462], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2462], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 1271,
+      "messages": [[197, 3996], [2, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 4600,
+      "messages": [[1098, 12985], [0, 30]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 462,
+      "messages": [[34, 1576], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 462,
+      "messages": [[34, 1576], [0, 36]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 1035,
+      "messages": [[9, 1749], [233, 1512]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 722,
+      "messages": [[46, 2468], [8, 198]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 716,
+      "messages": [[46, 2468], [11, 152]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 733,
+      "messages": [[46, 2468], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 690,
+      "messages": [[46, 2468], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2468], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2468], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 3112,
+      "messages": [[800, 8392], [1, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 716,
+      "messages": [[46, 2465], [11, 152]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 722,
+      "messages": [[46, 2465], [8, 198]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2465], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 733,
+      "messages": [[46, 2465], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 690,
+      "messages": [[46, 2465], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 710,
+      "messages": [[46, 2465], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 1160,
+      "messages": [[185, 3702], [2, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 734,
+      "messages": [[46, 2467], [6, 238]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 717,
+      "messages": [[46, 2467], [11, 152]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 723,
+      "messages": [[46, 2467], [8, 198]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 712,
+      "messages": [[46, 2467], [6, 143]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 711,
+      "messages": [[46, 2467], [1, 149]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "extractor",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 691,
+      "messages": [[46, 2467], [0, 61]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 1043,
+      "messages": [[130, 3524], [2, 86]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 4348,
+      "messages": [[1061, 12232], [0, 30]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 5170,
+      "messages": [[1061, 12232], [93, 2900]]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "role": "judge",
+      "model": "openai/gpt-oss-20b",
+      "prompt_tokens": 438,
+      "messages": [[38, 1436], [0, 36]]
+    },
+    {
+      "dataset": "printing_shop-v1 (DECIDE, refused)",
+      "role": "planner",
+      "model": "qwen/qwen3.8-27b",
+      "prompt_tokens": 7804,
+      "messages": [[2096, 21098], [0, 30]]
+    }
+  ]
+}

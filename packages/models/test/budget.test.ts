@@ -1,4 +1,5 @@
 // Input budget (models §5): the conservative token estimate and the refusal of an over-budget call before sending.
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
@@ -70,5 +71,27 @@ describe("maxInputTokens", () => {
     const long = z.object({ answer: z.string({ error: "e".repeat(800) }) });
     await model.generateObject({ role: "planner", schema: long, system: "s", prompt: "Go." });
     expect(model.calls[1]?.prompt).toContain("e".repeat(800));
+  });
+});
+
+describe("estimator calibration (97 real Groq requests, fixtures/calibration.json)", () => {
+  interface Pair {
+    readonly dataset: string;
+    readonly role: string;
+    readonly prompt_tokens: number;
+    /** Per message: [digits and non-ASCII characters, other characters]; all estimateTokens reads. */
+    readonly messages: readonly (readonly [number, number])[];
+  }
+  const { pairs } = JSON.parse(readFileSync(new URL("./fixtures/calibration.json", import.meta.url), "utf8")) as { pairs: Pair[] };
+  // A text with the same counts has the same estimate, so the prompts themselves need not be committed.
+  const estimate = (p: Pair) => p.messages.reduce((a, [heavy, other]) => a + estimateTokens("1".repeat(heavy) + "a".repeat(other)) + 8, 0);
+
+  it("never estimates below the provider's own count", () => {
+    expect(pairs.length).toBe(97);
+    for (const p of pairs) expect(estimate(p), `${p.dataset} ${p.role}`).toBeGreaterThanOrEqual(p.prompt_tokens);
+  });
+
+  it("is not wildly conservative either (at most 1.3× the provider's count)", () => {
+    for (const p of pairs) expect(estimate(p) / p.prompt_tokens, `${p.dataset} ${p.role}`).toBeLessThanOrEqual(1.3);
   });
 });
