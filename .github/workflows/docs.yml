@@ -1,7 +1,7 @@
 name: docs
 
 # Builds the docs site on every PR and push; deploys it to GitHub Pages from main (Settings → Pages → Source: GitHub Actions).
-# Pages is free only for public repositories: while the repo is private the upload and deploy are skipped, not failed.
+# Pages is unavailable for this private repo (GitHub Free plan): while it is private the upload and deploy are skipped, not failed.
 on:
   pull_request:
   push:
