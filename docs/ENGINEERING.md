@@ -99,4 +99,4 @@ CI never needs secrets or network models.
 
 ## 7. Running several agents in parallel
 
-After M1 locks the contracts, M2, M5 and M6 can run in separate Claude Code sessions. Each one gets its own git worktree (`git worktree add ../aa-m5 -b m5/analysis`), so they never touch the same files. Each session reads AGENTS.md and only its milestone. Merge order follows ROADMAP dependencies.
+After M1 locks the contracts, M2, M5 and M6 can run in separate Claude Code sessions. Each one gets its own git worktree inside the repo at `.claude/worktrees/<name>` (`git worktree add .claude/worktrees/m5-analysis -b m5/analysis origin/main`), never as a sibling folder outside the repo, so they never touch the same files. Run one gate at a time on a machine, and never edit a worktree another agent is testing. After the branch merges, `git worktree remove .claude/worktrees/<name>` and `git worktree prune`. Each session reads AGENTS.md and only its milestone. Merge order follows ROADMAP dependencies.

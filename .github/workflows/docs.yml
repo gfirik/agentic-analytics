@@ -12,9 +12,10 @@ on:
 permissions:
   contents: read
 
+# PR builds cancel each other; runs on main never cancel one that is deploying (the next one queues).
 concurrency:
   group: docs-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
