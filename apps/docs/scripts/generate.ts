@@ -3,14 +3,15 @@
 // draft and verified report and a real retrieval trace for the islands; it renders the HTTP API reference from the
 // server's own OpenAPI spec, the report schema from its JSON Schema, and copies the eval results and project docs.
 // Runs before every build (`bun run build`); everything it writes is gitignored.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobManager, runJob } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
+import { type DatasetScore, type RealSuiteResult, summarize } from "@agentic-analytics/eval-runner";
 import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
-import type { JobEvent } from "@agentic-analytics/schema";
+import type { JobEvent, Report } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
 import { sql, Workspace } from "@agentic-analytics/store";
 
@@ -30,6 +31,7 @@ const write = (rel: string, text: string) => {
 // 1. A real run on the example, for the CitationDemo, Decomposition and VerifierDiff islands. (The Pipeline island
 //    plays the README GIF's checked-in data instead: scripts/pipeline-data.ts.)
 const dir = mkdtempSync(join(tmpdir(), "aa-docs-"));
+let coffeeReport: Report | undefined;
 try {
   const events: JobEvent[] = [];
   const files = Object.entries(coffeeRoasterFiles()).map(([name, bytes]) => ({ name, bytes }));
@@ -38,6 +40,7 @@ try {
     { model: coffeePlanner(), embedder: hashEmbedder(), onEvent: (e) => events.push(e), now: () => new Date("2026-07-01T09:00:00Z") },
   );
   writeFileSync(join(DATA, "coffee.json"), JSON.stringify({ events, draft: out.draft, report: out.report }));
+  coffeeReport = out.report;
 
   // 2. A real retrieval trace (BM25 rank, vector rank, fused score) for the RagStepper.
   const ws = await Workspace.open(join(dir, "job.duckdb"));
@@ -162,5 +165,152 @@ for (const [file, rel, title, description] of [
 // 6. The shared diagrams (the same files the README and ARCHITECTURE.md embed).
 for (const d of ["architecture", "pipeline"])
   writeFileSync(join(DATA, `${d}.mmd`), readFileSync(join(ROOT, "docs/assets/diagrams", `${d}.mmd`), "utf8"));
+
+// 7. The landing page's report (src/pages/index.astro): the first finding of the same real run, every fact its claims
+//    and its top recommendation use, and the facts those are computed from (so each chip opens a fact whose inputs
+//    open too). Values are the facts' stored values; the page only formats them.
+if (!coffeeReport) throw new Error("docs: the coffee-roaster run produced no report");
+{
+  const report = coffeeReport;
+  const byId = new Map(report.facts.map((f) => [f.id, f]));
+  const file = (id: string) => report.sources.find((s) => s.id === id)?.file ?? id;
+  const finding = report.findings[0];
+  const rec = report.recommendations[0];
+  if (!finding || !rec) throw new Error("docs: the coffee-roaster report has no finding or recommendation");
+  const direct = [
+    ...finding.claims.flatMap((c) => c.facts),
+    ...[rec.impact?.low, rec.impact?.high].filter((x): x is string => typeof x === "string"),
+  ].filter((id, i, a) => a.indexOf(id) === i);
+  const closure = new Set<string>();
+  const visit = (id: string) => {
+    if (closure.has(id)) return;
+    const f = byId.get(id);
+    if (!f) throw new Error(`docs: unknown fact ${id} in the landing finding`);
+    closure.add(id);
+    if (f.computation.kind === "function") for (const input of f.computation.inputs ?? []) visit(input);
+  };
+  for (const id of direct) visit(id);
+  const facts = Object.fromEntries(
+    [...closure].map((id) => {
+      const f = byId.get(id) as (typeof report.facts)[number];
+      return [
+        id,
+        {
+          id,
+          label: f.label,
+          value: f.value,
+          unit: f.unit,
+          currency: f.currency ?? null,
+          verified: f.verified ?? false,
+          computation: f.computation,
+          citations: f.citations.map((c) => ({
+            source_id: c.source_id,
+            file: file(c.source_id),
+            rows: (c.rows ?? []).slice(0, 12),
+            count: c.rows?.length ?? 0,
+          })),
+        },
+      ];
+    }),
+  );
+  const v = report.verification;
+  writeFileSync(
+    join(DATA, "landing.json"),
+    JSON.stringify({
+      run: { example: "examples/coffee-roaster", model: "scripted planner, no LLM", today: "2026-07-01" },
+      finding: {
+        id: finding.id,
+        type: finding.type,
+        severity: finding.severity,
+        title: finding.title,
+        method: finding.method ?? null,
+        confidence: finding.confidence,
+        claims: finding.claims.map((c) => ({
+          text: c.text,
+          facts: c.facts,
+          grade: c.causal_grade,
+          verified: c.verified ?? false,
+          citations: c.citations.map((x) => ({ source_id: x.source_id, file: file(x.source_id), quote: x.quote ?? null })),
+        })),
+      },
+      recommendation: {
+        id: rec.id,
+        action: rec.action,
+        low: rec.impact?.low ?? null,
+        high: rec.impact?.high ?? null,
+        horizon: rec.impact?.horizon ?? null,
+        confidence: rec.confidence,
+        not_advised: rec.not_advised ?? null,
+      },
+      direct,
+      facts,
+      verification: {
+        numbers_checked: v.numbers_checked,
+        numbers_mismatched: v.numbers_mismatched,
+        rederived_metrics: v.rederived_metrics,
+        rederivation_mismatches: v.rederivation_mismatches,
+        citations_checked: v.citations_checked,
+        citations_unsupported: v.citations_unsupported,
+        claims_dropped: v.claims_dropped.length,
+        claims_downgraded: v.claims_downgraded.length,
+      },
+    }),
+  );
+}
+
+// 8. The landing page's eval numbers, from the committed results files (evals/results/*.json): the suite metrics are
+//    computed by the eval runner's own summarize(), the same function that writes evals/RESULTS.md.
+{
+  const RESULTS = join(ROOT, "evals", "results");
+  const latest = (suffix: string) => {
+    const name = readdirSync(RESULTS)
+      .filter((f) => f.endsWith(suffix))
+      .sort()
+      .at(-1);
+    if (!name) throw new Error(`docs: no evals/results/*${suffix}`);
+    return { name, data: JSON.parse(readFileSync(join(RESULTS, name), "utf8")) as unknown };
+  };
+  type SuiteFile = { suite: string; model: string; note?: string; date: string; datasets: number; scores: DatasetScore[] };
+  const suite = (suffix: string) => {
+    const { name, data } = latest(suffix);
+    const s = data as SuiteFile;
+    return {
+      file: `evals/results/${name}`,
+      suite: s.suite,
+      model: s.model,
+      note: s.note ?? null,
+      date: s.date,
+      datasets: s.scores.length,
+      completed: s.scores.filter((x) => x.completed).length,
+      bars: summarize(s.scores),
+    };
+  };
+  const real = latest("-baseline-real.json");
+  const r = real.data as RealSuiteResult;
+  writeFileSync(
+    join(DATA, "evals.json"),
+    JSON.stringify({
+      synthetic: suite("-baseline-full.json"),
+      smoke: suite("-configured-small-smoke.json"),
+      full: suite("-configured-small-full.json"),
+      real: {
+        file: `evals/results/${real.name}`,
+        model: r.model,
+        note: r.note ?? null,
+        date: r.date,
+        datasets: r.datasets.map((d) => ({
+          dataset: d.dataset,
+          title: d.title,
+          publisher: d.publisher,
+          licence: d.licence,
+          page: d.page,
+          completed: d.completed,
+          seconds: d.seconds,
+          checks: d.checks.map((c) => ({ id: c.id, about: c.about, pass: c.pass, detail: c.detail })),
+        })),
+      },
+    }),
+  );
+}
 
 process.stdout.write("docs: generated data and reference pages\n");

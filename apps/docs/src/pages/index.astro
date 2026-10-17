@@ -1,0 +1,681 @@
+---
+// The landing page (DESIGN.md). Every number on it comes from generated data: the README pipeline run
+// (docs/assets/readme/pipeline.json), a real engine run on examples/coffee-roaster (src/data/landing.json) and the
+// committed eval results (src/data/evals.json, scored by the eval runner's summarize()). Nothing is typed by hand.
+import pipeline from "../../../../docs/assets/readme/pipeline.json";
+import { percent } from "../components/format.ts";
+import LedgerReport, { Check } from "../components/LedgerReport.tsx";
+import Pipeline from "../components/Pipeline.tsx";
+import BaseLayout from "../components/site/BaseLayout.astro";
+import { DOCS_HOME, GITHUB_URL, RELEASES_URL, withBase } from "../components/site/site.ts";
+import evals from "../data/evals.json";
+
+interface Bar {
+  metric: string;
+  value: number | null;
+  bar: string;
+  pass: boolean | null;
+}
+const COUNT_METRICS = new Set(["Number mismatches"]);
+const show = (b: Bar | undefined) =>
+  b?.value === null || b?.value === undefined ? "n/a" : COUNT_METRICS.has(b.metric) ? String(b.value) : percent(b.value);
+const rows = [
+  "Jobs completed",
+  "Number mismatches",
+  "Planted recall@5",
+  "Driver accuracy",
+  "Cause grade accuracy",
+  "Distractor FP rate",
+  "Citation precision",
+  "Recommendation relevance",
+];
+const bar = (suite: { bars: Bar[] }, metric: string) => suite.bars.find((b) => b.metric === metric);
+const synthetic = evals.synthetic as typeof evals.synthetic & { bars: Bar[] };
+const smoke = evals.smoke as typeof evals.smoke & { bars: Bar[] };
+const full = evals.full;
+const below = smoke.bars.filter((b) => b.pass === false).map((b) => b.metric);
+const model = (m: string) => m.replace(/^openai-compatible:groq:/, "").replace(/ \(small-model mode\)$/, "");
+
+const retail = evals.real.datasets.find((d) => d.dataset === "online-retail-ii");
+const others = evals.real.datasets.filter((d) => d.dataset !== "online-retail-ii");
+const passed = (d: { checks: { pass: boolean }[] }) => d.checks.filter((c) => c.pass).length;
+const tally = (d: { title: string; publisher: string; checks: { pass: boolean }[] }, name: string) =>
+  `${passed(d)}/${d.checks.length} checks pass on ${name}`;
+const realSummary = retail
+  ? [
+      tally(retail, retail.title),
+      ...others.map((d) => tally(d, `${d.publisher.replace(/ \(.*\)$/, "")} ${d.title.replace(/, .*$/, "").toLowerCase()}`)),
+    ].join(" · ") + "."
+  : "";
+
+const checks = pipeline.checks;
+const why = [
+  {
+    title: "The AI never does the math",
+    body: "Model-written text holds numbers only as placeholders like {{N12}}. Every figure is a fact: SQL run in DuckDB, or a deterministic function, stored with its computation and the rows it read.",
+    href: "how-it-works/pipeline/",
+    link: "The pipeline",
+  },
+  {
+    title: "Metrics you confirm",
+    body: "Before anything is measured, it drafts each metric's definition, in plain words and YAML: which column, which filters, which period. You accept, edit or drop each one. Every number is then held to the definition you confirmed.",
+    href: "how-it-works/metrics/",
+    link: "The metric layer",
+  },
+  {
+    title: "Causes, not charts",
+    body: "Each change is split into exact drivers (contribution, price–volume–mix, rate vs mix). It then looks for the reason in your documents and emails, and grades every cause as observed, correlated or document-supported.",
+    href: "how-it-works/drivers/",
+    link: "Finding drivers",
+  },
+  {
+    title: "Verified before it ships",
+    body: "Eight passes re-run every number, re-derive the headline totals another way, check every quote and cited row, and reword causal language that has no document behind it.",
+    href: "how-it-works/verifier/",
+    link: "The verifier",
+  },
+  {
+    title: "Local and free",
+    body: "It runs on your machine with Ollama or a free OpenAI-compatible endpoint. Embeddings run in-process. The web lane is off by default; when you turn it on, its queries are sanitized and go through your own SearXNG.",
+    href: "models/running-free/",
+    link: "Running free",
+  },
+];
+
+const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-windows-x64.exe", "SHA256SUMS"];
+---
+
+<BaseLayout title="agentic-analytics: an AI analyst you can audit">
+  <section class="aa-hero" aria-labelledby="aa-hero-title">
+    <div class="aa-container aa-hero-grid">
+      <div class="aa-hero-text">
+        <p class="aa-label">Open source · self-hosted · free models</p>
+        <h1 id="aa-hero-title" class="aa-display">An AI analyst you can audit.</h1>
+        <p class="aa-lead">
+          Give it a business's real files: spreadsheets, PDFs, emails. It returns what changed, why, and what to do next. Every number is
+          computed by SQL, recomputed by a verifier, and cited to the rows it came from.
+        </p>
+        <div class="aa-actions">
+          <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart</a>
+          <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
+        </div>
+        <dl class="aa-hero-facts">
+          <div>
+            <dt class="aa-label">Numbers recomputed</dt>
+            <dd>
+              <span class="aa-fig">{pipeline.verification.numbers_checked}</span>, <span class="aa-fig"
+                >{pipeline.verification.numbers_mismatched}</span
+              > mismatched <Check label="verified" />
+            </dd>
+          </div>
+          <div>
+            <dt class="aa-label">Claims caught</dt>
+            <dd>
+              <span class="aa-fig">{pipeline.verification.claims_dropped}</span> dropped, <span class="aa-fig"
+                >{pipeline.verification.claims_downgraded}</span
+              > downgraded
+            </dd>
+          </div>
+        </dl>
+        <p class="aa-small">In the run shown here: {pipeline.run.example}, {pipeline.run.model.replace(/ \(.*?\)/, "")}.</p>
+      </div>
+      <div class="aa-hero-figure">
+        <Pipeline client:visible />
+      </div>
+    </div>
+  </section>
+
+  <section id="report" class="aa-section" aria-labelledby="aa-report-title">
+    <div class="aa-container">
+      <div class="aa-section-head">
+        <p class="aa-label aa-ref"><b>§1</b> The report</p>
+        <h2 id="aa-report-title" class="aa-h2">Every number has an ID. Every ID opens its working.</h2>
+        <p class="aa-lead">
+          This is the first finding from a real run on the example coffee roaster (a scripted planner, no LLM, so the page is
+          reproducible). Choose a fact ID to see what produced the number: the SQL that ran, or the function and the facts it was
+          computed from. You also see the rows it cites, and whether the verifier recomputed it.
+        </p>
+      </div>
+      <LedgerReport client:visible />
+    </div>
+  </section>
+
+  {
+    retail ? (
+      <section id="real-data" class="aa-section" aria-labelledby="aa-real-title">
+        <div class="aa-container">
+          <div class="aa-section-head">
+            <p class="aa-label aa-ref">
+              <b>§2</b> Real data
+            </p>
+            <h2 id="aa-real-title" class="aa-h2">
+              On a real, messy file: {retail.title}.
+            </h2>
+            <p class="aa-lead">
+              A UK online retailer's invoice lines, from the {retail.publisher} ({retail.licence}), with cancellations, negative
+              quantities and missing customer IDs left in. Each check compares the report with SQL written separately, never with the
+              engine's own output.
+            </p>
+          </div>
+          <div class="aa-ledger-wrap" role="region" aria-label={`${retail.title} checks`} tabindex="0">
+            <table class="aa-ledger aa-checks">
+              <thead>
+                <tr>
+                  <th scope="col">Check</th>
+                  <th scope="col">The report must show</th>
+                  <th scope="col">What it showed</th>
+                  <th scope="col">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retail.checks.map((c) => (
+                  <tr>
+                    <td class="id">{c.id}</td>
+                    <td>{c.about}</td>
+                    <td class="muted aa-detail">{c.detail}</td>
+                    <td class="aa-result">
+                      {c.pass ? (
+                        <span class="aa-verified">
+                          <Check /> pass
+                        </span>
+                      ) : (
+                        <span class="aa-fail">fail</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div class="aa-under">
+            <p>{realSummary}</p>
+            <p class="aa-small">
+              Caveat: this is the offline baseline, a scripted heuristic with no language model; a real-model run on this tier is still to
+              come. The data is downloaded and checksum-verified at run time, never committed. Source:{" "}
+              <code>{evals.real.file}</code>, {evals.real.date}. <a href={withBase("quality/evals/#real-public-data")}>How it's checked</a>
+            </p>
+          </div>
+        </div>
+      </section>
+    ) : null
+  }
+
+  <section id="why" class="aa-section" aria-labelledby="aa-why-title">
+    <div class="aa-container">
+      <div class="aa-section-head">
+        <p class="aa-label aa-ref"><b>§3</b> Why it's different</p>
+        <h2 id="aa-why-title" class="aa-h2">Built so you don't have to take its word for it.</h2>
+      </div>
+      <ol class="aa-why">
+        {
+          why.map((w, i) => (
+            <li>
+              <span class="aa-why-n aa-label">{String(i + 1).padStart(2, "0")}</span>
+              <h3 class="aa-h3">{w.title}</h3>
+              <div class="aa-why-body">
+                <p>{w.body}</p>
+                {w.link === "The verifier" ? (
+                  <div class="aa-ledger-wrap aa-vchecks" role="region" aria-label="Verifier passes in the pipeline run" tabindex="0">
+                    <table class="aa-ledger">
+                      <caption class="aa-label">The eight passes, in the run at the top of the page</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Pass</th>
+                          <th scope="col">Checks</th>
+                          <th scope="col" class="num">
+                            Run
+                          </th>
+                          <th scope="col">Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {checks.map((c) => (
+                          <tr>
+                            <td class="id">{c.check}</td>
+                            <td>{c.name}</td>
+                            <td class="num">{c.run}</td>
+                            <td>
+                              {c.failed === 0 ? (
+                                <span class="aa-verified">
+                                  <Check /> pass
+                                </span>
+                              ) : (
+                                <span>
+                                  <span class="aa-fig">{c.failed}</span> caught
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+                <a class="aa-more" href={withBase(w.href)}>
+                  {w.link}
+                </a>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <section id="evals" class="aa-section" aria-labelledby="aa-evals-title">
+    <div class="aa-container">
+      <div class="aa-section-head">
+        <p class="aa-label aa-ref"><b>§4</b> Evals</p>
+        <h2 id="aa-evals-title" class="aa-h2">Measured, with the caveats next to the numbers.</h2>
+        <p class="aa-lead">
+          The eval suite runs the whole engine on {synthetic.datasets} generated businesses with planted events, distractors and
+          data-quality issues, and scores each report against an answer key. Scoring never reads wording.
+        </p>
+      </div>
+      <div class="aa-ledger-wrap" role="region" aria-label="Eval results" tabindex="0">
+        <table class="aa-ledger aa-evals">
+          <thead>
+            <tr>
+              <th scope="col">Metric</th>
+              <th scope="col">v0.1 bar</th>
+              <th scope="col" class="num">
+                Offline baseline<span class="aa-th-sub">{synthetic.datasets} datasets</span>
+              </th>
+              <th scope="col" class="num">
+                Real model, free tier<span class="aa-th-sub">{smoke.datasets}-dataset smoke</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rows.map((metric) => {
+                const a = bar(synthetic, metric);
+                const b = bar(smoke, metric);
+                return (
+                  <tr>
+                    <td>{metric}</td>
+                    <td class="aa-fig muted">{a?.bar}</td>
+                    {[a, b].map((x) => (
+                      <td class="num">
+                        <span class="aa-fig">{show(x)}</span>{" "}
+                        {x?.pass === true ? (
+                          <Check label="meets the bar" />
+                        ) : x?.pass === false ? (
+                          <span class="aa-below">below bar</span>
+                        ) : null}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
+            }
+          </tbody>
+        </table>
+      </div>
+      <ul class="aa-caveats">
+        <li>
+          <b>Offline baseline</b> ({synthetic.date}): a scripted heuristic, not a language model. The engine's detection and ranking rules
+          were tuned on these same {synthetic.datasets} datasets and there is no held-out set, so these scores are optimistic. They test
+          the engine and the harness, not model quality.
+        </li>
+        <li>
+          <b>Real model</b> ({smoke.date}): {model(smoke.model)} on Groq's free tier, in small-model mode. It completed {smoke.completed} of
+          {smoke.datasets} smoke datasets.{" "}
+          {below.length ? `${below.join(" and ")} are below their bars.` : ""}
+        </li>
+        <li>
+          <b>Full suite on the free tier</b> ({full.date}): partial. {full.completed} of {full.datasets} jobs finished before the daily
+          token quota ran out, so it is not a quality score yet.
+        </li>
+      </ul>
+      <p class="aa-small aa-under">
+        Sources: <code>{synthetic.file}</code>, <code>{smoke.file}</code>, <code>{full.file}</code>. Scored by the eval runner's own
+        code. <a href={withBase("quality/results/")}>All results</a> · <a href={withBase("quality/evals/")}>How quality is measured</a>
+      </p>
+    </div>
+  </section>
+
+  <section id="quickstart" class="aa-section" aria-labelledby="aa-quick-title">
+    <div class="aa-container">
+      <div class="aa-section-head">
+        <p class="aa-label aa-ref"><b>§5</b> Quickstart</p>
+        <h2 id="aa-quick-title" class="aa-h2">Run it on the example, then on your files.</h2>
+      </div>
+      <div class="aa-quick">
+        <div class="aa-code aa-quick-main">
+          <p class="aa-code-caption"><span class="aa-label">From source · Node 22 and Bun</span></p>
+          <pre
+            tabindex="0"
+            aria-label="Install from source and analyze the example"><code><span class="c"># clone, install, and check what this machine has</span>
+git clone https://github.com/gfirik/agentic-analytics
+cd agentic-analytics
+bun install
+bun run aa doctor
+
+<span class="c"># a verified report on the example (needs a model: Ollama or a free endpoint)</span>
+bun run aa analyze examples/coffee-roaster --yes --open \
+  --currency USD --today 2026-07-01 --small-model --embedder hash
+
+<span class="c"># no model yet? replay the example offline (a replay, not an analysis)</span>
+AA_DEMO_MODEL=scripted bun run aa analyze \
+  examples/coffee-roaster --yes --embedder hash</code></pre>
+        </div>
+        <div class="aa-quick-side">
+          <div class="aa-code">
+            <p class="aa-code-caption"><span class="aa-label">Docker</span></p>
+            <pre tabindex="0" aria-label="Run with Docker"><code>docker compose up
+<span class="c"># API, viewer and MCP on http://127.0.0.1:8080</span></code></pre>
+          </div>
+          <div class="aa-binaries">
+            <h3 class="aa-h3">Standalone binaries</h3>
+            <p class="aa-small">
+              No Node or Bun needed. They are attached to each tagged release, from v0.1.0 on, with a checksum file.
+            </p>
+            <ul>{binaries.map((b) => <li><code>{b}</code></li>)}</ul>
+            <p class="aa-small">
+              <a href={RELEASES_URL}>Releases on GitHub</a> · <a href={withBase("start/quickstart/")}>Checking a download</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="doors" class="aa-section" aria-labelledby="aa-doors-title">
+    <div class="aa-container">
+      <div class="aa-section-head">
+        <p class="aa-label aa-ref"><b>§6</b> Doors</p>
+        <h2 id="aa-doors-title" class="aa-h2">One engine, four ways in.</h2>
+        <p class="aa-lead">
+          The same pipeline and the same verifier behind each door, so a number means the same thing wherever you read it.
+        </p>
+      </div>
+      <ul class="aa-doors">
+        <li>
+          <h3 class="aa-h3">CLI</h3>
+          <p>Analyze files, ask follow-ups, and open the working behind any number.</p>
+          <pre><code>aa analyze ./exports --open
+aa ask &lt;job&gt; "why did refunds rise?"
+aa explain &lt;job&gt; N30</code></pre>
+          <a class="aa-more" href={withBase("use-it/cli/")}>CLI reference</a>
+        </li>
+        <li>
+          <h3 class="aa-h3">HTTP API</h3>
+          <p>Upload files, stream progress over SSE, and fetch the report as JSON or HTML.</p>
+          <pre><code>aa serve
+<span class="c"># OpenAPI at /openapi.json</span></code></pre>
+          <a class="aa-more" href={withBase("use-it/http-api/")}>HTTP API</a>
+        </li>
+        <li>
+          <h3 class="aa-h3">MCP</h3>
+          <p>Let Claude Desktop, Cursor or any MCP client analyze files and quote verified numbers.</p>
+          <pre><code>aa mcp
+<span class="c"># or /mcp while aa serve runs</span></code></pre>
+          <a class="aa-more" href={withBase("use-it/mcp/")}>MCP setup</a>
+        </li>
+        <li>
+          <h3 class="aa-h3">Telegram</h3>
+          <p>A demo bot: send files, and get the summary and the report back.</p>
+          <pre><code>bun run --filter @agentic-analytics/telegram start</code></pre>
+          <a class="aa-more" href={withBase("use-it/telegram/")}>Telegram demo</a>
+        </li>
+      </ul>
+      <p class="aa-small aa-under">
+        Free and open source under Apache-2.0. <a href={GITHUB_URL}>Source on GitHub</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  /* Hero */
+  .aa-hero {
+    padding: var(--aa-space-8) 0 var(--aa-space-9);
+  }
+  .aa-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--aa-space-7);
+    align-items: start;
+  }
+  .aa-hero-text {
+    display: grid;
+    gap: var(--aa-space-5);
+    padding-top: var(--aa-space-5);
+  }
+  .aa-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--aa-space-3);
+  }
+  .aa-hero-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--aa-rule);
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  .aa-hero-facts > div {
+    padding: var(--aa-space-3) 0;
+  }
+  .aa-hero-facts > div + div {
+    border-left: 1px solid var(--aa-rule);
+    padding-left: var(--aa-space-4);
+  }
+  .aa-hero-facts dd {
+    margin-top: var(--aa-space-1);
+    font-size: var(--aa-text-small);
+  }
+  .aa-hero-figure {
+    min-width: 0;
+  }
+  @media (max-width: 60rem) {
+    .aa-hero {
+      padding: var(--aa-space-6) 0 var(--aa-space-8);
+    }
+    .aa-hero-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--aa-space-6);
+    }
+    .aa-hero-text {
+      padding-top: 0;
+    }
+  }
+
+  /* Real data */
+  .aa-checks td:nth-child(2) {
+    min-width: 16rem;
+  }
+  .aa-detail {
+    font-family: var(--aa-font-mono);
+    font-size: 0.8125rem;
+    min-width: 14rem;
+  }
+  .aa-result {
+    white-space: nowrap;
+  }
+  .aa-under {
+    margin-top: var(--aa-space-5);
+    max-width: var(--aa-measure);
+  }
+  .aa-under > * + * {
+    margin-top: var(--aa-space-2);
+  }
+
+  /* Why */
+  .aa-why {
+    list-style: none;
+    padding: 0;
+    border-top: 1px solid var(--aa-rule-strong);
+  }
+  .aa-why > li {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 16rem) minmax(0, 1fr);
+    gap: var(--aa-space-2) var(--aa-space-5);
+    padding: var(--aa-space-5) 0;
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  .aa-why-n {
+    padding-top: 0.2rem;
+  }
+  .aa-why-body {
+    display: grid;
+    gap: var(--aa-space-3);
+    max-width: var(--aa-measure);
+    color: var(--aa-ink-2);
+  }
+  .aa-vchecks {
+    margin: var(--aa-space-2) 0;
+  }
+  .aa-vchecks table {
+    max-width: 30rem;
+  }
+  .aa-ledger caption {
+    text-align: left;
+    padding-bottom: var(--aa-space-2);
+  }
+  .aa-more {
+    justify-self: start;
+    font-weight: 500;
+    font-size: var(--aa-text-small);
+  }
+  .aa-more::after {
+    content: " →";
+  }
+  @media (max-width: 48rem) {
+    .aa-why > li {
+      grid-template-columns: 2.5rem minmax(0, 1fr);
+    }
+    .aa-why-body {
+      grid-column: 2;
+    }
+  }
+
+  /* Evals */
+  .aa-evals th.num,
+  .aa-evals td.num {
+    text-align: right;
+  }
+  .aa-th-sub {
+    display: block;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-top: 0.15rem;
+  }
+  .aa-below {
+    font-family: var(--aa-font-mono);
+    font-size: 0.75rem;
+    color: var(--aa-ink);
+    border-bottom: 1px solid var(--aa-ink);
+  }
+  .aa-caveats {
+    margin-top: var(--aa-space-5);
+    padding-left: 1.1rem;
+    display: grid;
+    gap: var(--aa-space-2);
+    max-width: var(--aa-measure);
+    color: var(--aa-ink-2);
+    font-size: var(--aa-text-small);
+  }
+  .aa-caveats b {
+    color: var(--aa-ink);
+    font-weight: 600;
+  }
+
+  /* Quickstart */
+  .aa-quick {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: var(--aa-space-5);
+    align-items: start;
+  }
+  .aa-quick-side {
+    display: grid;
+    gap: var(--aa-space-5);
+    min-width: 0;
+  }
+  .aa-binaries {
+    display: grid;
+    gap: var(--aa-space-2);
+    border-top: 1px solid var(--aa-rule-strong);
+    padding-top: var(--aa-space-4);
+  }
+  .aa-binaries ul {
+    list-style: none;
+    padding: 0;
+    font-size: var(--aa-text-small);
+  }
+  .aa-binaries li {
+    border-bottom: 1px solid var(--aa-rule);
+    padding: var(--aa-space-1) 0;
+  }
+  @media (max-width: 56rem) {
+    .aa-quick {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Doors */
+  .aa-doors {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid var(--aa-rule-strong);
+  }
+  .aa-doors > li {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: var(--aa-space-3);
+    padding: var(--aa-space-5) var(--aa-space-5) var(--aa-space-5) 0;
+    min-width: 0;
+  }
+  .aa-doors > li + li {
+    border-left: 1px solid var(--aa-rule);
+    padding-left: var(--aa-space-5);
+  }
+  .aa-doors p {
+    color: var(--aa-ink-2);
+    font-size: var(--aa-text-small);
+  }
+  .aa-doors pre {
+    margin: 0;
+    padding: var(--aa-space-3);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-surface);
+    font-size: 0.75rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    align-self: start;
+  }
+  .aa-doors .c {
+    color: var(--aa-ink-2);
+  }
+  @media (max-width: 64rem) {
+    .aa-doors {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .aa-doors > li:nth-child(3) {
+      border-left: 0;
+      padding-left: 0;
+    }
+    .aa-doors > li:nth-child(n + 3) {
+      border-top: 1px solid var(--aa-rule);
+    }
+  }
+  @media (max-width: 36rem) {
+    .aa-doors {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .aa-doors > li,
+    .aa-doors > li + li {
+      border-left: 0;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .aa-doors > li + li {
+      border-top: 1px solid var(--aa-rule);
+    }
+  }
+</style>

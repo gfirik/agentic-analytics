@@ -27,4 +27,18 @@ export function fill(text: string, facts: ReadonlyMap<string, FactLike>): string
   });
 }
 
+/** A fact's stored value for reading, with its currency symbol when it has one (presentation only). */
+export function formatWithCurrency(f: FactLike & { readonly currency?: string | null }): string {
+  const text = formatFact(f);
+  if (f.unit !== "currency" || !f.currency) return text;
+  const symbol =
+    new Intl.NumberFormat("en-US", { style: "currency", currency: f.currency }).formatToParts(0).find((p) => p.type === "currency")
+      ?.value ?? f.currency;
+  return text.startsWith("−") ? `−${symbol}${text.slice(1)}` : `${symbol}${text}`;
+}
+
+/** A share (0.96) as a percentage for reading (presentation only). */
+export const percent = (share: number, digits = 1) =>
+  `${new Intl.NumberFormat("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(share * 100)}%`;
+
 export const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
