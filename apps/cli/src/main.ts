@@ -378,6 +378,15 @@ const evalCmd = defineCommand({
       type: "string",
       description: "Where results files and RESULTS.md go (default evals/results; ./eval-results with --answers)",
     },
+    label: {
+      type: "string",
+      description: 'The model name in RESULTS.md, the README and the results file name, e.g. "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ"',
+    },
+    note: { type: "string", description: "A note shown above the run's table in RESULTS.md (hardware, caveats)" },
+    only: {
+      type: "string",
+      description: "Comma-separated dataset ids to run (a chunk of a long run; needs --results-dir so it never lands in evals/results)",
+    },
     answers: {
       type: "string",
       description: "With --suite real: a folder of your own answer files (<dataset>.yaml) instead of evals/real/answers",
@@ -390,6 +399,14 @@ const evalCmd = defineCommand({
   async run({ args }) {
     const model = args.model ?? "baseline";
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
+    if ((args.label || args.note || args.only) && args.suite === "real")
+      throw new Error("--label, --note and --only go with --suite smoke|full");
+    // A chunk is a partial run: it must never become the published row in evals/results.
+    if (args.only && !args["results-dir"]) throw new Error("--only needs --results-dir (a chunk's results never go to evals/results)");
+    const only = args.only
+      ?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const where = resultsLocation(
       args["results-dir"],
@@ -440,6 +457,9 @@ const evalCmd = defineCommand({
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+        ...(args.label ? { label: args.label } : {}),
+        ...(args.note ? { note: args.note } : {}),
+        ...(only?.length ? { only } : {}),
         resultsDir: where.dir,
         ...(where.page ? { resultsPage: where.page } : {}),
       },

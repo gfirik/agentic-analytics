@@ -1,10 +1,12 @@
 // README visuals (docs/DOCS-SITE.md §3): every asset is generated here, so none can drift from the product.
-//   bun run readme:assets   → write the hero SVGs and the generated blocks of README.md and docs/ARCHITECTURE.md
+//   bun run readme:assets   → write the hero SVGs, the generated blocks of README.md and docs/ARCHITECTURE.md, and
+//                             evals/RESULTS.md (from evals/results/*.json)
 //   bun run readme:check    → fail on drift, on hero rule violations, and on the demo and pipeline GIF limits
 //                             (inside `bun run check`)
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
+import { resultsPage } from "../../evals/runner/src/index.ts";
 import { DARK, heroSvg, LIGHT } from "./hero.ts";
 import { pipelineInputsHash, pipelinePicture, pipelineProblems, readPipelineData } from "./pipeline.ts";
 
@@ -78,7 +80,15 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
   return [
     ...head,
     ...files.map((r) => {
-      const hosted = r.model.includes(":groq:") ? "Groq free tier (hosted)" : r.model.startsWith("ollama") ? "local (see note)" : "hosted";
+      // A self-hosted vLLM run names its hardware in its label: "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ" (aa eval --label).
+      const vllm = /^vllm \(([^)]+)\)/i.exec(r.model);
+      const hosted = vllm
+        ? `${vllm[1]} (self-hosted vLLM)`
+        : r.model.includes(":groq:")
+          ? "Groq free tier (hosted)"
+          : r.model.startsWith("ollama")
+            ? "local (see note)"
+            : "hosted";
       const tokens = r.tokens.input + r.tokens.output;
       // A run whose jobs didn't all finish (a free tier's daily quota) is labelled partial: its rates count the
       // unfinished jobs as misses, so they are not the model's quality.
@@ -154,6 +164,9 @@ export function expected(): Map<string, string> {
   arch = inject(arch, "diagram:architecture", mermaid("architecture.mmd"));
   arch = inject(arch, "diagram:pipeline", mermaid("pipeline.mmd"));
   out.set("docs/ARCHITECTURE.md", arch);
+  // RESULTS.md from the same results files as the README table, so a results JSON copied in (the Kaggle notebook's)
+  // updates both with one command, and neither can drift from evals/results.
+  out.set("evals/RESULTS.md", resultsPage(join(ROOT, "evals/results")));
   return out;
 }
 

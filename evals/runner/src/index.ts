@@ -1,6 +1,16 @@
 // Public API of @agentic-analytics/eval-runner (docs/EVALS.md §2–§4).
 export { baselineModel } from "./baseline.ts";
-export { type EvalArgs, type EvalDeps, EvalRunError, evalCommand, type RealEvalArgs, realEvalCommand, resultsPage } from "./cli.ts";
+export {
+  type EvalArgs,
+  type EvalDeps,
+  EvalRunError,
+  evalCommand,
+  evalSlug,
+  type RealEvalArgs,
+  realEvalCommand,
+  resultsPage,
+  selectDatasets,
+} from "./cli.ts";
 export {
   loadRealAnswers,
   missingRealData,
@@ -15,6 +25,7 @@ export {
   scoreRealReport,
 } from "./real.ts";
 export {
+  mergeResults,
   mergeRoutes,
   type RouteUse,
   type RunOptions,
