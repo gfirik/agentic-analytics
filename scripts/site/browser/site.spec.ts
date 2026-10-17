@@ -185,6 +185,9 @@ test("Learn: a stage diagram is complete without JS, and a step marks what it pr
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(path, { waitUntil: "networkidle" });
   const live = page.locator(".aa-flow").first();
+  // The island hydrates when it scrolls into view (client:visible); Astro drops the `ssr` attribute when it has.
+  await live.scrollIntoViewIfNeeded();
+  await expect(page.locator("astro-island", { has: live })).not.toHaveAttribute("ssr", /.*/);
   await expect(live.locator("button", { hasText: "Play" })).toHaveCount(0);
   await live.locator("button", { hasText: "3 · Split the change" }).click();
   await expect(live.locator("button", { hasText: "3 · Split the change" })).toHaveAttribute("aria-pressed", "true");
