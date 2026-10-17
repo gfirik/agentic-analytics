@@ -163,9 +163,29 @@ Selected automatically from the model profile, or with `--small-model`:
 - tool budgets are halved;
 - findings are capped at 3 and recommendations at 2;
 - the explanation template is stricter, a fill-in-the-blanks structured output: code runs one document search per finding (no tool loop), and the model only picks a title and which extracts relate to the change (with `correlated` or `document_supported`), which code turns into sentences that quote the source;
-- web is off unless explicitly enabled.
+- web is off unless explicitly enabled;
+- the DECIDE request has an input budget (§8.1).
 
 The engine stays fully correct in this mode because all numbers and decompositions are deterministic.
+
+### 8.1 Input budget (DECIDE)
+
+Free tiers cap input tokens per minute and refuse a larger request outright (Groq: 7,000 for qwen/qwen3.8-27b). In small-model mode the whole DECIDE request must fit in **6,500 estimated tokens** (`SMALL_MODEL_INPUT_BUDGET`; `JobOptions.budget.inputTokens` overrides it). The whole request counts: the system prompt with findings and fact sheet, the JSON Schema (providers count it whether it travels in the prompt or as `response_format`), the user prompt, and the longest retry feedback. The estimate is models §5's.
+
+When the request is over budget, code trims the fact sheet and findings in this fixed order, applying each step on top of the previous ones and stopping at the first that fits:
+
+1. `decomposition_labels`: drop the `label` of decomposition facts. The role key (`change:<member>`, `price`, …) and the decomposition's method and dimension already name them.
+2. `top_members`: keep the 3 members of each contribution split with the largest |change|, plus any member a finding cites; the split records how many were left out (`omitted_members`). Totals and other roles stay.
+3. `short_quotes`: cut finding claims without placeholders (quoted sources) to 160 characters. Claims with placeholders are never shortened.
+4. `uncited_decompositions`: drop decompositions none of whose facts a finding cites.
+5. `unused_metrics`: drop metric definitions no kept insight measures.
+6. `insight_labels`: drop the `label` of insight facts.
+
+Trimming only removes or shortens what the model reads. Every value kept is the fact's own, findings keep their ids, and a fact a finding cites is never dropped. Fact ids the model may cite stay resolvable, because DECIDE checks them against the whole fact table, not the sheet, and the verifier checks the report as usual. The JSON is already compact. Without a budget (normal mode) the request is untouched.
+
+If the request still doesn't fit after step 6, DECIDE fails with `INPUT_TOO_LARGE` before anything is sent. A request over budget is never sent.
+
+Measured on printing_shop-v1 (the 2026-10-17 Groq eval, where the provider counted 7,804 input tokens and refused): 9,047 estimated tokens untrimmed, and 6,220 after steps 1–2.
 
 ## 9. Prompts
 
