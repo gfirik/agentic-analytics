@@ -15,6 +15,7 @@ export {
   scoreRealReport,
 } from "./real.ts";
 export {
+  keepDraftedMetrics,
   mergeRoutes,
   type RouteUse,
   type RunOptions,

@@ -26,6 +26,6 @@ metrics:
 
 That is the definition the deterministic fallbacks drafted for the coffee example.
 
-Every proposal — from the model or the deterministic fallbacks — is **validated by code**: tables and columns exist, types fit the aggregation, filters parse, ratios are guarded. Invalid ones are refused with a reason.
+Every proposal — from the model or the deterministic fallbacks — is **validated by code**: tables and columns exist, types fit the aggregation, filters parse, ratios are guarded, and no ratio divides a quantity by itself (always 1). Invalid ones are refused with a reason. The job folder keeps every draft as proposed, with what was accepted and what was refused and why, in `metrics.drafted.json`, even when the job fails later.
 
 You confirm, edit or drop each definition in the CLI review, the viewer, the API (`POST /v1/jobs/{id}/metrics`) or MCP (`confirm_metrics`). With `--yes` they stay **assumed**, and every finding that uses an assumed definition says so. Each metric compiles to parameterized SQL; every fact is produced through that compiler, and the verifier checks each fact against its definition (V4).
