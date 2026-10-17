@@ -34,6 +34,13 @@ The method used is recorded.
   - |Δ| ≥ the minimum absolute amount, by default 1% of the series mean.
 - With fewer than 6 periods there is no MAD band, so only the % and absolute thresholds apply, and the finding's confidence is capped at medium.
 
+**Seasonality** (M13a). A one-period spike or dip is **seasonal**, not a finding, when the same calendar period in another year (±1 or ±2 years, at month, quarter or week grain) moved the same way:
+
+- The period stands out from both of its neighbours by ≥ 8%, and both neighbours are on the same side.
+- The other year's period (matched by calendar label, not by position) moves in the same direction by between 0.5× and 2× as much. A +25% December against a +100% one is a seasonal shortfall, not the season.
+
+The newest period has no next neighbour, so it is never judged seasonal: a drop there may be the start of a shift. A change measured against a seasonal period (January against a seasonal December peak) is seasonal only when it hasn't moved against the level outside the peak (November): a January that fell below November's level by ≥ 8% is a real change and stays a finding. A level shift is never seasonal: its next period stays shifted, so it isn't a spike. Withheld changes are listed in the open questions. The eval suite found this: every December peak was reported as a change.
+
 **Minimum data.** These tests are skipped when there isn't enough data. Each skip is logged as an open question.
 
 | Test | Needs |
@@ -135,7 +142,13 @@ Each material insight is scored as:
 
 The top 3–7 findings go to EXPLAIN. The rest stay in the appendix.
 
-Insights that detect one event (same series and period) are grouped, and the group is represented by its highest-priority template. Each metric family first gets one slot for its best whole-metric change, before any family gets a second. A channel slice such as `wholesale_revenue` is in the `revenue` family. A rate's materiality is a small share of its own total, so without the per-family slot a refund rate tripling would lose every slot to restatements of one revenue drop. The eval suite found this in M11.
+Insights that detect one event (same series and period) are grouped. A group is represented by its highest-priority template among those carrying at least half of the group's best score, so a weak higher-priority template can't speak for a group made material by another. A template with no measured change (a trend: slope and p-value, no Δ) scores 0 but is not weak, and keeps its priority (found on Online Retail II, M13a). On equal scores the earlier period ranks first, because it is the onset of the change.
+
+The order that goes to EXPLAIN:
+
+1. **One slot per metric family**, in the order of each family's best score. A channel slice such as `wholesale_revenue` is in the `revenue` family. The slot goes to the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without the per-family slot a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
+2. **One slot for the most dramatic single-member change.** This is the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and never takes this slot. A member already named as the top driver of a change chosen above is excluded. A product cannibalized by a launch otherwise never reaches the top (M13a).
+3. Everything else, by score.
 
 ## 7. Tests
 

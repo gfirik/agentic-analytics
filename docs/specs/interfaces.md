@@ -25,7 +25,7 @@ The core engine is shared: every door calls `@agentic-analytics/core`.
 - **Events:** the SSE stream sends the job's events so far, then live ones. It ends on a live `done`, `failed` or `awaiting_confirmation`.
 - **Errors:** `{ error: { code, message } }`, with 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 409 `BUSY`/`NOT_READY`, and 401 `UNAUTHORIZED`.
 - **Ask:** the answer is claims that went through the report's verifier (agent-and-verifier §7). The planner names the report claims an answer rests on, and code copies their citations.
-- **Auth:** none by default (localhost; the Docker port is published on 127.0.0.1). An optional `API_TOKEN` env var enables bearer auth on `/v1/jobs*` and `/mcp`. `/v1/health` and `/openapi.json` stay open.
+- **Auth:** none by default (localhost; the Docker port is published on 127.0.0.1). An optional `API_TOKEN` env var enables bearer auth on `/v1/jobs*` and `/mcp`. `/v1/health` and `/openapi.json` stay open, but without the token health reports only the engine and DuckDB (no provider, model or service details, and no model call). With no `API_TOKEN` configured (loopback only), health returns the full details. `aa serve` refuses to listen beyond loopback without `API_TOKEN` unless `--allow-no-auth` or `AA_ALLOW_NO_AUTH=1` is given: docker-compose sets `AA_ALLOW_NO_AUTH=1` because it publishes the port on 127.0.0.1 only, and a plain `docker run -p` needs `API_TOKEN`. The Host/Origin guard stops DNS rebinding in browsers; it is not access control. An unexpected error returns a generic 500 message; the details go to the server log.
 - **Hosts:** every route refuses (403 `FORBIDDEN_HOST`) a request whose `Host` or `Origin` names a host other than localhost, 127.0.0.1, ::1, the `--host` given, or `AA_ALLOWED_HOSTS`. A web page that DNS-rebinds its name to 127.0.0.1 therefore can't read jobs or call `/mcp`, token or not.
 - **Uploads:** file names keep their base name only. `.`, `..` and empty names become `file-<n>`, and a duplicate gets ` (2)`, so no upload overwrites another. MCP `analyze_files` skips symlinks and reads at most 500 files.
 - **Defaults:** option defaults (small-model mode from the planner's model profile) are applied by the job manager, so every door runs the same job for the same files.
@@ -42,7 +42,7 @@ The binary is `agentic-analytics`, with the short alias `aa`.
 | `aa explain <jobId> <factId>` | Shows the computation behind a number |
 | `aa serve [--port 8080]` | Starts the HTTP API |
 | `aa mcp` | Starts the MCP server on stdio |
-| `aa doctor` | Checks Node, DuckDB, Ollama models, SearXNG and Docling; prints fixes |
+| `aa doctor` | Checks Node, DuckDB, model providers, SearXNG and Docling; calls each role's model (planner, extractor, judge) once; `--models` lists every reachable provider's model ids; prints fixes |
 | `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>]` | Runs the eval suites and updates `evals/RESULTS.md` |
 | `aa jobs ls\|rm\|resume` | Manages jobs |
 | `aa run <path...>` / `aa run --resume <dir>` | A job in an explicit folder, without the job manager (M7; kept for scripts) |
@@ -61,7 +61,7 @@ Resources: `report://{job_id}` (JSON), `report-html://{job_id}`.
 
 Tool descriptions must tell the calling model that numbers in results are verified and must be quoted, never recalculated.
 
-The MCP server runs in the engine's process, either through `aa mcp` (stdio) or at `/mcp` in `aa serve` (stateless streamable HTTP). It reads local paths. Uploading by URL to a remote API is not in v0.1; a remote client uses the HTTP API instead.
+The MCP server runs in the engine's process, either through `aa mcp` (stdio) or at `/mcp` in `aa serve` (stateless streamable HTTP). Over stdio it reads local paths. Over HTTP, `analyze_files` reads only inside the folders in `AA_MCP_ROOTS` (comma-separated; checked after resolving symlinks), and none by default: an HTTP caller uploads through `POST /v1/jobs` instead. Uploading by URL to a remote API is not in v0.1; a remote client uses the HTTP API instead.
 
 ## 4. Telegram demo (`apps/telegram`, grammY)
 

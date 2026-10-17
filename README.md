@@ -66,7 +66,7 @@ Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/qui
   <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/readme/pipeline-light.png">
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/pipeline-dark.gif">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/pipeline-light.gif">
-  <img alt="Animated pipeline on examples/coffee-roaster (a real engine run, scripted planner, no LLM; its stages follow the run's 31-event log): email-0412.eml, ops-notes.docx, price-list.pdf, sales-2026.xlsx flow in; profiling finds 3 tables and 9 document sections; the Revenue metric is defined in plain words; DuckDB SQL computes Revenue $44,100 in 2026-03 and $36,200 in 2026-04, −17.9% (fact N30); the driver is wholesale (−$8,500, 108% of the drop); email-0412.eml from Purchasing, Hotel Group is cited: “After the new price list we are pausing our standing order while we compare suppliers.”; a web benchmark is cited and labelled External; the verifier runs V1–V8 and recomputes 122 numbers with 0 mismatches; the report's top-ranked action: Offer wholesale accounts a volume-tier discount to win back paused standing orders (+$3,995 to +$7,191, next quarter)." src="docs/assets/readme/pipeline-light.png" width="100%">
+  <img alt="Animated pipeline on examples/coffee-roaster (a real engine run, scripted planner, no LLM; its stages follow the run's 31-event log): email-0412.eml, ops-notes.docx, price-list.pdf, sales-2026.xlsx flow in; profiling finds 3 tables and 9 document sections; the Revenue metric is defined in plain words; DuckDB SQL computes Revenue $44,100 in 2026-03 and $36,200 in 2026-04, −17.9% (fact N30); the driver is wholesale (−$8,500, 108% of the drop); email-0412.eml from Purchasing, Hotel Group is cited: “After the new price list we are pausing our standing order while we compare suppliers.”; a web benchmark is cited and labelled External; the verifier runs V1–V8 and recomputes 97 numbers with 0 mismatches; the report's top-ranked action: Offer wholesale accounts a volume-tier discount to win back paused standing orders (+$3,995 to +$7,191, next quarter)." src="docs/assets/readme/pipeline-light.png" width="100%">
 </picture>
 
 <sub>One real engine run on `examples/coffee-roaster` with the scripted planner (no LLM) and an offline web fixture: every number on screen comes from that run: facts are shown with their ids, counts come from the report and the verifier's check table, and the stages follow its event log. Recorded by `scripts/readme-assets/pipeline-gif.ts` from the same animation as the docs site.</sub>
@@ -159,26 +159,30 @@ stateDiagram-v2
 Thirty generated businesses with planted events, distractors and data-quality issues. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
 
 <!-- table:evals:start -->
-| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware |
-|---|---|---|---|---|---|---|---|---|
-| groq:openai/gpt-oss-120b (small-model mode) | smoke (3) | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) |
-| groq:openai/gpt-oss-20b (small-model mode) | smoke (3) | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) |
-| groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) |
+| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |
+|---|---|---|---|---|---|---|---|---|---|
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | smoke (3) | 100% | 80% | 100% | 0 | 100% | 1 min, 98k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:openai/gpt-oss-120b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:openai/gpt-oss-20b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 3 of 30 jobs finished** | 10% | 8% | 100% | 0 | 100% | 3 min, 139k tokens | Groq free tier (hosted) | 2026-10-17 |
 <!-- table:evals:end -->
+
+Only the "planner, extractor, judge" rows ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
 
 ### Real public data
 
 The same engine on two public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines) and New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities and suppressed values are reported, whether the seasonal peak lands in the right month, and whether a part-month or the regular January fall is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
 
 <!-- table:real-data:start -->
-11 of 12 checks pass (offline baseline, no language model, 2026-10-16). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
+12 of 12 checks pass (offline baseline, no language model, 2026-10-17). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
 
 | Dataset | Check | Result |
 |---|---|---|
 | Electronic card transactions, September 2026 | The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | pass |
 | Electronic card transactions, September 2026 | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
 | Electronic card transactions, September 2026 | The December peak: December is the top month of 2023, 2024 and 2025 (G1) | pass |
-| Electronic card transactions, September 2026 | The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | **fail** |
+| Electronic card transactions, September 2026 | The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | pass |
 | Electronic card transactions, September 2026 | Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | pass |
 | Online Retail II | The job completes on a real 105,797-line file | pass |
 | Online Retail II | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |

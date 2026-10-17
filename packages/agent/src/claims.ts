@@ -81,7 +81,11 @@ export function contributionDrivers(
       .map((k) => ({ label: k.slice("share:".length), fact: d.facts[`change:${k.slice(6)}`] ?? "", share_of_change: d.facts[k] ?? "" }))
       .filter((x) => x.fact && x.share_of_change)
       .sort((a, b) => Math.abs(facts.get(b.share_of_change)?.value ?? 0) - Math.abs(facts.get(a.share_of_change)?.value ?? 0));
-    const top = Math.abs(facts.get(drivers[0]?.share_of_change ?? "")?.value ?? 0);
+    // The split that explains the change best is the one whose top member carries the most of the movement
+    // (|Δ top| / Σ|Δ|): shares over 100% from members offsetting each other (a launch up, the product it replaced
+    // down) don't make a dimension explanatory (M13a).
+    const total = drivers.reduce((a, x) => a + Math.abs(facts.get(x.fact)?.value ?? 0), 0);
+    const top = total > 0 ? Math.abs(facts.get(drivers[0]?.fact ?? "")?.value ?? 0) / total : 0;
     if (drivers.length && (!best || top > best.top)) best = { decomposition: d, drivers, top };
   }
   return best ? { decomposition: best.decomposition, drivers: best.drivers } : undefined;

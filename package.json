@@ -48,5 +48,8 @@
     "typescript": "^7.0.2",
     "vitest": "^5.0.5",
     "yaml": "^2.9.1"
+  },
+  "overrides": {
+    "sharp": "0.35.5"
   }
 }

@@ -164,6 +164,14 @@ export interface DatasetScore {
   readonly actionRelevant?: boolean;
   readonly seconds: number;
   readonly tokens: { readonly input: number; readonly output: number };
+  /** Which provider and model served each call of this dataset (M13a). */
+  readonly routes?: {
+    readonly role: string;
+    readonly route: string;
+    readonly calls: number;
+    readonly cached: number;
+    readonly failed: number;
+  }[];
 }
 
 /**

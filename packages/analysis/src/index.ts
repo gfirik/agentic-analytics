@@ -29,10 +29,12 @@ export {
   CONFIDENCE_WEIGHT,
   impactShare,
   insightChange,
+  MEMBER_MIN_SHARE,
   metricFamily,
   type RankContext,
   type Ranked,
   RECENCY_DECAY,
+  REPRESENTATIVE_SHARE,
   rankInsights,
   TEMPLATE_PRIORITY,
   topForExplain,
@@ -45,6 +47,7 @@ export {
   type StoredDecomposition,
   type StoredInsight,
 } from "./runner.ts";
+export { MIN_SPIKE, SEASON_MAX, SEASON_SHARE, seasonalMatch, touchesSeason } from "./seasonal.ts";
 export {
   type BenchmarkResult,
   benchmarkFacts,

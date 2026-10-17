@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type JobOptions, runJob } from "@agentic-analytics/core";
 import { type Dataset, generatedDatasets } from "@agentic-analytics/eval-generator";
-import type { ModelClient } from "@agentic-analytics/models";
+import type { CallRecord, ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import type { Report } from "@agentic-analytics/schema";
 import { type Bar, type DatasetScore, scoreReport, summarize } from "./score.ts";
@@ -20,6 +20,29 @@ export function suiteDatasets(suite: Suite, all: readonly Dataset[] = generatedD
   return all.filter((d) => pick.includes(d.id));
 }
 
+/** Calls per route (role · provider · model as sent), with how many came from the cache. */
+export interface RouteUse {
+  readonly role: string;
+  readonly route: string;
+  readonly calls: number;
+  readonly cached: number;
+  readonly failed: number;
+}
+
+export function routeSummary(calls: readonly CallRecord[]): RouteUse[] {
+  const m = new Map<string, { role: string; route: string; calls: number; cached: number; failed: number }>();
+  for (const c of calls) {
+    const route = `${c.provider}${c.endpoint ? `:${c.endpoint}` : ""}:${c.model}`;
+    const k = `${c.role ?? "?"} ${route}`;
+    const u = m.get(k) ?? { role: c.role ?? "?", route, calls: 0, cached: 0, failed: 0 };
+    u.calls++;
+    if (c.cached) u.cached++;
+    if (c.status >= 400) u.failed++;
+    m.set(k, u);
+  }
+  return [...m.values()].sort((a, b) => a.role.localeCompare(b.role) || a.route.localeCompare(b.route));
+}
+
 export interface SuiteResult {
   readonly suite: Suite;
   readonly model: string;
@@ -30,6 +53,8 @@ export interface SuiteResult {
   readonly bars: Bar[];
   readonly seconds: number;
   readonly tokens: { readonly input: number; readonly output: number };
+  /** Every route that served a call in this run, summed over datasets. */
+  readonly routes?: RouteUse[];
 }
 
 /** Counts tokens across every call of a model client. */
@@ -57,8 +82,11 @@ function counting(model: ModelClient): { model: ModelClient; tokens: { input: nu
 
 export interface RunOptions {
   readonly suite: Suite;
-  /** A fresh model client per dataset (scripted models keep state). */
-  readonly model: () => ModelClient;
+  /**
+   * A fresh model client per dataset (scripted models keep state). It reports every call to `onCall`, so the
+   * results record which provider and model served the run (M13a).
+   */
+  readonly model: (onCall: (c: CallRecord) => void) => ModelClient;
   readonly modelName: string;
   readonly note?: string;
   readonly embedder: Embedder;
@@ -76,7 +104,8 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
   const t0 = Date.now();
   for (const [i, ds] of datasets.entries()) {
     const dir = mkdtempSync(join(tmpdir(), `aa-eval-${ds.id}-`));
-    const { model, tokens } = counting(o.model());
+    const calls: CallRecord[] = [];
+    const { model, tokens } = counting(o.model((c) => calls.push(c)));
     const started = Date.now();
     const options: JobOptions = {
       today: ds.answers.today,
@@ -106,7 +135,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-    scores.push(score);
+    scores.push({ ...score, routes: routeSummary(calls) });
     o.onDataset?.(score, i, datasets.length);
   }
   return {
@@ -117,6 +146,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
     datasets: datasets.length,
     scores,
     bars: summarize(scores),
+    routes: mergeRoutes(scores.flatMap((s) => s.routes ?? [])),
     seconds: (Date.now() - t0) / 1000,
     tokens: {
       input: scores.reduce((a, s) => a + s.tokens.input, 0),
@@ -125,21 +155,41 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
   };
 }
 
+/** Sums route uses over datasets. */
+export function mergeRoutes(uses: readonly RouteUse[]): RouteUse[] {
+  const m = new Map<string, RouteUse>();
+  for (const u of uses) {
+    const k = `${u.role} ${u.route}`;
+    const prev = m.get(k);
+    m.set(k, prev ? { ...prev, calls: prev.calls + u.calls, cached: prev.cached + u.cached, failed: prev.failed + u.failed } : u);
+  }
+  return [...m.values()].sort((a, b) => a.role.localeCompare(b.role) || a.route.localeCompare(b.route));
+}
 const pct = (v: number | undefined) => (v === undefined ? "n/a" : `${(v * 100).toFixed(1)}%`);
+
+const passCell = (b: Bar, partial: boolean) =>
+  partial && b.metric !== "Jobs completed" ? "n/a (partial run)" : b.pass === undefined ? "n/a" : b.pass ? "yes" : "**no**";
 
 /** One model's results as markdown: the bars, then one line per dataset. */
 export function resultsMarkdown(r: SuiteResult): string {
+  // With unfinished jobs every rate counts them as misses, or covers only the finished few: no bar is judged.
+  const partial = r.scores.some((s) => !s.completed);
   const lines = [
     `### ${r.model} · ${r.suite} suite · ${r.date}`,
     "",
     ...(r.note ? [r.note, ""] : []),
     `${r.datasets} datasets · ${r.seconds.toFixed(0)} s · ${r.tokens.input + r.tokens.output} tokens`,
     "",
+    ...(r.routes?.length
+      ? [
+          `Served by: ${r.routes.map((u) => `${u.role} → ${u.route} (${u.calls} calls, ${u.cached} cached${u.failed ? `, ${u.failed} failed` : ""})`).join("; ")}`,
+          "",
+        ]
+      : []),
     "| Metric | Result | v0.1 bar | Pass |",
     "|---|---|---|---|",
     ...r.bars.map(
-      (b) =>
-        `| ${b.metric} | ${b.metric === "Number mismatches" ? String(b.value) : pct(b.value)} | ${b.bar} | ${b.pass === undefined ? "n/a" : b.pass ? "yes" : "**no**"} |`,
+      (b) => `| ${b.metric} | ${b.metric === "Number mismatches" ? String(b.value) : pct(b.value)} | ${b.bar} | ${passCell(b, partial)} |`,
     ),
     "",
     "<details><summary>Per dataset</summary>",

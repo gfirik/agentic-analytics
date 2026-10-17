@@ -22,6 +22,33 @@
             "model": {
               "type": "string",
               "minLength": 1
+            },
+            "fallbacks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "ollama",
+                      "openai-compatible",
+                      "transformers"
+                    ]
+                  },
+                  "endpoint": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ]
+              }
             }
           },
           "required": [
@@ -46,6 +73,33 @@
             "model": {
               "type": "string",
               "minLength": 1
+            },
+            "fallbacks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "ollama",
+                      "openai-compatible",
+                      "transformers"
+                    ]
+                  },
+                  "endpoint": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ]
+              }
             }
           },
           "required": [
@@ -70,6 +124,33 @@
             "model": {
               "type": "string",
               "minLength": 1
+            },
+            "fallbacks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "ollama",
+                      "openai-compatible",
+                      "transformers"
+                    ]
+                  },
+                  "endpoint": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ]
+              }
             }
           },
           "required": [
@@ -94,6 +175,33 @@
             "model": {
               "type": "string",
               "minLength": 1
+            },
+            "fallbacks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "ollama",
+                      "openai-compatible",
+                      "transformers"
+                    ]
+                  },
+                  "endpoint": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ]
+              }
             }
           },
           "required": [
@@ -118,6 +226,33 @@
             "model": {
               "type": "string",
               "minLength": 1
+            },
+            "fallbacks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "ollama",
+                      "openai-compatible",
+                      "transformers"
+                    ]
+                  },
+                  "endpoint": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ]
+              }
             }
           },
           "required": [

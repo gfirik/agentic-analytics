@@ -9,7 +9,7 @@
       "dataset": "coffee_roaster-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.009,
+      "seconds": 4.912,
       "tokens": {
         "input": 470,
         "output": 235
@@ -36,13 +36,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "coffee_roaster-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.339,
+      "seconds": 5.426,
       "tokens": {
         "input": 530,
         "output": 265
@@ -71,16 +72,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "coffee_roaster-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 8.122,
+      "seconds": 7.646,
       "tokens": {
         "input": 560,
         "output": 280
@@ -97,28 +99,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 5,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 9,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "printing_shop-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.103,
+      "seconds": 2.205,
       "tokens": {
         "input": 290,
         "output": 145
@@ -145,13 +148,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 3,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "printing_shop-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.121,
+      "seconds": 3.722,
       "tokens": {
         "input": 530,
         "output": 265
@@ -180,16 +184,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "printing_shop-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.266,
+      "seconds": 4.258,
       "tokens": {
         "input": 570,
         "output": 285
@@ -206,28 +211,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "clinic-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.914,
+      "seconds": 3.13,
       "tokens": {
         "input": 470,
         "output": 235
@@ -254,13 +260,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "clinic-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.304,
+      "seconds": 4.076,
       "tokens": {
         "input": 530,
         "output": 265
@@ -289,16 +296,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "clinic-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.245,
+      "seconds": 4.056,
       "tokens": {
         "input": 570,
         "output": 285
@@ -315,28 +323,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "online_store-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.176,
+      "seconds": 3.08,
       "tokens": {
         "input": 380,
         "output": 190
@@ -363,13 +372,14 @@
       "recommendations": 2,
       "groundedRecommendations": 2,
       "findings": 4,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "online_store-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.714,
+      "seconds": 4.351,
       "tokens": {
         "input": 530,
         "output": 265
@@ -386,7 +396,9 @@
         },
         {
           "id": "P2",
-          "detected": false
+          "detected": true,
+          "rank": 2,
+          "cause": true
         }
       ],
       "distractorsReported": [],
@@ -396,16 +408,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "online_store-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 8.054,
+      "seconds": 5.493,
       "tokens": {
         "input": 570,
         "output": 285
@@ -422,28 +435,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "distributor-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.822,
+      "seconds": 2.334,
       "tokens": {
         "input": 470,
         "output": 235
@@ -470,13 +484,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "distributor-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.141,
+      "seconds": 3.236,
       "tokens": {
         "input": 530,
         "output": 265
@@ -503,16 +518,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "distributor-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 6.198,
+      "seconds": 4.122,
       "tokens": {
         "input": 560,
         "output": 280
@@ -529,28 +545,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 4,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 9,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "restaurant-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.053,
+      "seconds": 3.852,
       "tokens": {
         "input": 470,
         "output": 235
@@ -577,13 +594,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "restaurant-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.124,
+      "seconds": 5.631,
       "tokens": {
         "input": 530,
         "output": 265
@@ -615,13 +633,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "restaurant-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 8.618,
+      "seconds": 7.386,
       "tokens": {
         "input": 570,
         "output": 285
@@ -638,28 +657,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "saas-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.117,
+      "seconds": 3.563,
       "tokens": {
         "input": 470,
         "output": 235
@@ -686,13 +706,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "saas-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 5.502,
+      "seconds": 4.737,
       "tokens": {
         "input": 530,
         "output": 265
@@ -709,7 +730,9 @@
         },
         {
           "id": "P2",
-          "detected": false
+          "detected": true,
+          "rank": 2,
+          "cause": true
         }
       ],
       "distractorsReported": [],
@@ -719,16 +742,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "saas-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 8.312,
+      "seconds": 6.34,
       "tokens": {
         "input": 570,
         "output": 285
@@ -745,28 +769,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "logistics-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 4.201,
+      "seconds": 3.664,
       "tokens": {
         "input": 470,
         "output": 235
@@ -793,13 +818,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "logistics-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.943,
+      "seconds": 4.538,
       "tokens": {
         "input": 530,
         "output": 265
@@ -831,13 +857,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "logistics-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 7.192,
+      "seconds": 5.79,
       "tokens": {
         "input": 570,
         "output": 285
@@ -854,28 +881,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "construction_supplier-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 3.367,
+      "seconds": 3.027,
       "tokens": {
         "input": 470,
         "output": 235
@@ -902,13 +930,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "construction_supplier-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 4.116,
+      "seconds": 3.62,
       "tokens": {
         "input": 530,
         "output": 265
@@ -937,16 +966,17 @@
       "citationsChecked": 6,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "construction_supplier-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 5.743,
+      "seconds": 4.382,
       "tokens": {
         "input": 570,
         "output": 285
@@ -963,28 +993,29 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 10,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "agency-v1",
       "distractors": 1,
       "quality": 2,
-      "seconds": 2.106,
+      "seconds": 2.191,
       "tokens": {
         "input": 470,
         "output": 235
@@ -1011,13 +1042,14 @@
       "recommendations": 1,
       "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "agency-v2",
       "distractors": 1,
       "quality": 1,
-      "seconds": 2.815,
+      "seconds": 2.372,
       "tokens": {
         "input": 520,
         "output": 260
@@ -1044,16 +1076,17 @@
       "citationsChecked": 5,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     },
     {
       "dataset": "agency-v3",
       "distractors": 3,
       "quality": 1,
-      "seconds": 4.527,
+      "seconds": 3.385,
       "tokens": {
         "input": 560,
         "output": 280
@@ -1070,22 +1103,23 @@
         },
         {
           "id": "P3",
-          "detected": false
+          "detected": true,
+          "rank": 3,
+          "cause": true
         }
       ],
-      "distractorsReported": [
-        "D2"
-      ],
+      "distractorsReported": [],
       "qualityFound": [
         "Q1"
       ],
       "citationsChecked": 9,
       "citationsUnsupported": 0,
       "definitionViolations": 0,
-      "recommendations": 2,
-      "groundedRecommendations": 2,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
       "findings": 5,
-      "actionRelevant": true
+      "actionRelevant": true,
+      "routes": []
     }
   ],
   "bars": [
@@ -1103,9 +1137,9 @@
     },
     {
       "metric": "Planted recall@5",
-      "value": 0.72,
+      "value": 0.96,
       "bar": "≥ 80%",
-      "pass": false
+      "pass": true
     },
     {
       "metric": "Driver accuracy",
@@ -1121,9 +1155,9 @@
     },
     {
       "metric": "Distractor FP rate",
-      "value": 0.2,
+      "value": 0,
       "bar": "≤ 10%",
-      "pass": false
+      "pass": true
     },
     {
       "metric": "Quality-issue recall",
@@ -1156,7 +1190,8 @@
       "pass": true
     }
   ],
-  "seconds": 145.388,
+  "routes": [],
+  "seconds": 126.639,
   "tokens": {
     "input": 15390,
     "output": 7695

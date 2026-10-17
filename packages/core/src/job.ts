@@ -4,7 +4,7 @@
 // completed stages are skipped, the interrupted one is reset and re-run. The model is used only by METRICS_DRAFT
 // (optional), EXPLAIN and DECIDE; everything numeric is deterministic code.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
   Budget,
   buildDraft,
@@ -42,7 +42,7 @@ import { type RunResult, runPipeline, type StageContext, type StageDef, StagePau
 
 export class JobError extends Error {
   constructor(
-    readonly code: "NO_INPUT" | "INVALID_DRAFT" | "BAD_OPTIONS" | "AWAITING_CONFIRMATION" | "BAD_METRICS",
+    readonly code: "NO_INPUT" | "BAD_INPUT" | "INVALID_DRAFT" | "BAD_OPTIONS" | "AWAITING_CONFIRMATION" | "BAD_METRICS",
     message: string,
     readonly details?: unknown,
   ) {
@@ -216,7 +216,13 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
     if (!options) {
       if (!input.options) throw new JobError("BAD_OPTIONS", "a new job needs options (at least `today`)");
       if (!input.files?.length && !readInputs(dir).length) throw new JobError("NO_INPUT", "a new job needs input files");
-      for (const f of input.files ?? []) writeFileSync(join(dir, "input", f.name), f.bytes);
+      for (const f of input.files ?? []) {
+        // Only a plain file name lands in input/: every door sanitizes names already, but runJob is public API too.
+        const name = basename(f.name.replace(/\\/g, "/"));
+        if (!name || name === "." || name === ".." || name !== f.name)
+          throw new JobError("BAD_INPUT", `input file name must be a plain file name, not a path: ${JSON.stringify(f.name)}`);
+        writeFileSync(join(dir, "input", name), f.bytes);
+      }
       options = input.options;
       jobId =
         input.jobId ??
@@ -403,9 +409,9 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const ranked = measured.top
             .map((i) => analysis.insights.find((x) => x.id === i))
             .filter((x): x is StoredInsight => x !== undefined);
-          // Changes of a whole metric come before changes of one member (a customer, a product): they are what the
-          // headline is about, and a rate tripling must not lose its slot to one customer's good month.
-          const top = [...ranked.filter((i) => !i.member), ...ranked.filter((i) => i.member)];
+          // The ranking's order (analysis-library §6): each metric family's best whole-metric change, then the
+          // strongest single-member change, then the rest. Rates keep their slot through the family rule.
+          const top = ranked;
           const sheet = buildFactSheet({
             objective: objectiveText(opts),
             period: m.range,

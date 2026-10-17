@@ -4,17 +4,30 @@ import { z } from "zod";
 
 export const ProviderId = z.enum(["ollama", "openai-compatible", "transformers"]);
 
+const needsEndpoint = (r: { provider: string; endpoint?: string | undefined }) => r.provider !== "openai-compatible" || !!r.endpoint;
+const endpointMessage = {
+  message: "openai-compatible models need `endpoint` naming an entry under providers.openai-compatible",
+  path: ["endpoint"],
+};
+
+/** One way to reach a model: a provider (and endpoint) plus the model id there. */
+export const RouteModel = z
+  .object({ provider: ProviderId, endpoint: z.string().optional(), model: z.string().min(1) })
+  .refine(needsEndpoint, endpointMessage);
+
 export const RoleModel = z
   .object({
     provider: ProviderId,
     /** Name of an entry under `providers.openai-compatible` (required for that provider). */
     endpoint: z.string().optional(),
     model: z.string().min(1),
+    /**
+     * The same model on other providers, tried in order when this one is rate-limited or out of quota. Every
+     * route must serve the same model: the router never switches models.
+     */
+    fallbacks: z.array(RouteModel).optional(),
   })
-  .refine((r) => r.provider !== "openai-compatible" || !!r.endpoint, {
-    message: "openai-compatible models need `endpoint` naming an entry under providers.openai-compatible",
-    path: ["endpoint"],
-  });
+  .refine(needsEndpoint, endpointMessage);
 
 export const OpenAICompatibleEndpoint = z.object({
   base_url: z.url(),
@@ -50,5 +63,6 @@ export const Config = z.object({
 });
 
 export type RoleModel = z.infer<typeof RoleModel>;
+export type RouteModel = z.infer<typeof RouteModel>;
 export type Config = z.infer<typeof Config>;
 export type ConfigInput = z.input<typeof Config>;

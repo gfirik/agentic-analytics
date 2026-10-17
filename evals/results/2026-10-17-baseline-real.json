@@ -2,7 +2,7 @@
   "suite": "real",
   "model": "baseline",
   "note": "Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.",
-  "date": "2026-10-16",
+  "date": "2026-10-17",
   "datasets": [
     {
       "dataset": "nz-card-spend",
@@ -14,16 +14,15 @@
       "file": "nz-card-spend-by-industry.csv",
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
       "completed": true,
-      "seconds": 5.612,
+      "seconds": 5.644,
       "metrics": [
         "card_spend"
       ],
       "findings": [
-        "anomaly: card_spend 2025-12 → 2026-01 (contribution.v1)",
-        "anomaly: card_spend 2024-12 → 2025-01 (contribution.v1)",
-        "anomaly: card_spend 2023-12 → 2024-01 (contribution.v1)",
-        "anomaly: card_spend 2022-12 → 2023-01 (contribution.v1)",
-        "anomaly: card_spend 2021-12 → 2022-01 (contribution.v1)"
+        "anomaly: card_spend 2020-03 → 2020-04 (contribution.v1)",
+        "anomaly: card_spend 2020-04 → 2020-05 (contribution.v1)",
+        "trend_break: card_spend 2016-09 → 2016-10 (contribution.v1)",
+        "improvement: card_spend 2026-09 (trend.v1)"
       ],
       "quality": [
         "missing_value"
@@ -34,14 +33,14 @@
           "kind": "completes",
           "about": "The job completes on the official CSV layout (Period as year.month, e.g. 2002.10)",
           "pass": true,
-          "detail": "report with 5 findings, 1 data-quality item"
+          "detail": "report with 4 findings, 1 data-quality item"
         },
         {
           "id": "C2",
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "181 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
+          "detail": "380 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
         },
         {
           "id": "C3",
@@ -54,15 +53,15 @@
           "id": "C4",
           "kind": "seasonal_not_flagged",
           "about": "The regular January fall is not reported as news (G4: January is below December in 24 of 24 years)",
-          "pass": false,
-          "detail": "5 of 5 findings: F1 2025-12→2026-01 (contribution.v1), F2 2024-12→2025-01 (contribution.v1), F3 2023-12→2024-01 (contribution.v1), F4 2022-12→2023-01 (contribution.v1), F5 2021-12→2022-01 (contribution.v1)"
+          "pass": true,
+          "detail": "none"
         },
         {
           "id": "C5",
           "kind": "quality_issue",
           "about": "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)",
           "pass": true,
-          "detail": "Q1 missing_value: 264 rows (N733), SQL 264; cites rows 2, 3, 4…"
+          "detail": "Q1 missing_value: 264 rows (N403), SQL 264; cites rows 2, 3, 4…"
         }
       ]
     },
@@ -76,7 +75,7 @@
       "file": "online_retail_II.sample10.csv",
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
       "completed": true,
-      "seconds": 12.037,
+      "seconds": 12.057,
       "metrics": [
         "revenue",
         "orders"
@@ -143,5 +142,5 @@
       ]
     }
   ],
-  "seconds": 17.653
+  "seconds": 17.705
 }

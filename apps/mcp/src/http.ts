@@ -6,7 +6,8 @@ import { createMcpServer, type McpOptions } from "./server.ts";
 
 export function mcpHttpHandler(manager: JobManager, o: McpOptions = {}): (req: Request) => Promise<Response> {
   return async (req) => {
-    const server = createMcpServer(manager, o);
+    // Over HTTP, local paths are off unless the server was given roots (AA_MCP_ROOTS).
+    const server = createMcpServer(manager, { ...o, roots: o.roots ?? [] });
     const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
     await server.connect(transport);
     return transport.handleRequest(req);

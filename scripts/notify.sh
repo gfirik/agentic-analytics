@@ -1,8 +1,28 @@
 #!/usr/bin/env bash
-# Optional free Telegram notification. Set AA_TG_TOKEN and AA_TG_CHAT in your shell (never in the repo).
+# Optional free Telegram notification. AA_TG_TOKEN and AA_TG_CHAT come from the shell, or else from
+# ~/.config/agentic-analytics/telegram.env (outside the repo, chmod 600; override the path with AA_TG_ENV).
+# The values are never printed.
 msg="[agentic-analytics] ${1:-update}"
 echo "$msg"
+envfile="${AA_TG_ENV:-${XDG_CONFIG_HOME:-$HOME/.config}/agentic-analytics/telegram.env}"
+if { [ -z "${AA_TG_TOKEN:-}" ] || [ -z "${AA_TG_CHAT:-}" ]; } && [ -r "$envfile" ]; then
+  # Only the two expected keys are read; the file is never sourced as a script.
+  # A last line without a newline still counts; CR and surrounding quotes are dropped.
+  while IFS='=' read -r k v || [ -n "$k" ]; do
+    v="${v%$'\r'}"
+    v="${v#[\"\']}"
+    v="${v%[\"\']}"
+    case "$k" in
+      AA_TG_TOKEN) [ -n "${AA_TG_TOKEN:-}" ] || AA_TG_TOKEN="$v" ;;
+      AA_TG_CHAT) [ -n "${AA_TG_CHAT:-}" ] || AA_TG_CHAT="$v" ;;
+    esac
+  done <"$envfile"
+fi
 if [ -n "${AA_TG_TOKEN:-}" ] && [ -n "${AA_TG_CHAT:-}" ]; then
-  curl -s -o /dev/null -X POST "https://api.telegram.org/bot${AA_TG_TOKEN}/sendMessage" \
-    --data-urlencode "chat_id=${AA_TG_CHAT}" --data-urlencode "text=${msg}" || true
+  if curl -s -o /dev/null -w '%{http_code}' -X POST "https://api.telegram.org/bot${AA_TG_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${AA_TG_CHAT}" --data-urlencode "text=${msg}" | grep -q '^200$'; then
+    echo "(sent to Telegram)"
+  else
+    echo "(Telegram send failed)" >&2
+  fi
 fi

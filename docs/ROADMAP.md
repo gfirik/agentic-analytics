@@ -189,6 +189,29 @@ Everything up to M12 uses free and local models only.
   - the demo GIF: under 5 MB, at most 30 s, a clean `.tape`, and the citation-click spec passing.
 - The manual GitHub light/dark rendering check is recorded in the release PR.
 
+## M13a: Quality and free providers
+
+The maintainer requested this before launch (2026-10-16). It is a human gate.
+
+**Build:**
+- **Presets.** Remove the `github-models` preset (retired 2026-07-30). Add `nvidia-nim` (`https://integrate.api.nvidia.com/v1`, `NVIDIA_API_KEY`), `google-ai-studio`, `sambanova` and `cloudflare`.
+- **Provider router.**
+  - A token bucket per provider and model, fed by the `x-ratelimit-*` headers; `retry-after` is honoured.
+  - Fallback goes to the **same model** on another provider. It never silently switches models (in an eval or anywhere), and stops with a report when no route is left.
+- **Calls.** Tool calls and structured JSON output stay two separate calls, enforced by a test.
+- **Response cache** keyed by hash(prompt, model, params), so eval reruns are free.
+- **Logging.** Model and provider are logged on every call and in the eval results.
+- **Engine gaps from STATE:**
+  - seasonal baselines;
+  - member-level changes (cannibalization) reaching the top findings;
+  - metric drafting that misses the customer dimension.
+- **Reruns.** The smoke suite and the full 30-business suite, with NVIDIA NIM (GLM-5.3 or Kimi K3 as planner) plus Groq.
+
+**Acceptance:**
+- ≥ 80% of planted events found, and ≤ 10% distractors, on the full suite with real models. The real numbers are reported honestly either way.
+- Every model call is logged with its provider and model. A rerun of an eval is served from the cache.
+- A rate-limited provider falls back to the same model elsewhere, or the run stops with a clear report.
+
 ## After v0.1
 
 - **M13:** optional paid providers (Anthropic, OpenAI) via the model layer, the user's own keys only.

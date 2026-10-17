@@ -9,8 +9,8 @@ import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { createApp } from "@agentic-analytics/server";
-import { afterAll, describe, expect, it } from "vitest";
-import { ApiClient, createBot } from "../src/index.ts";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { ApiClient, chatPolicy, createBot } from "../src/index.ts";
 
 const root = mkdtempSync(join(tmpdir(), "aa-tg-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -106,5 +106,37 @@ describe("Telegram bot (long polling)", () => {
     });
     await bot.handleUpdate(message({ text: "Why did revenue fall?" }) as never);
     expect(replies).toEqual(["This bot is private. Its owner can allow chat 42 in TELEGRAM_ALLOWED_CHATS."]);
+  });
+
+  it("a failing update goes to onError and a generic reply; the bot keeps handling updates", async () => {
+    const replies: string[] = [];
+    const errors: unknown[] = [];
+    const bot = createBot("123:fake", api, {
+      botInfo: { id: 1, is_bot: true, first_name: "AA", username: "aa_bot" } as never,
+      allowedChats: [42],
+      onError: (e) => errors.push(e),
+    });
+    let calls = 0;
+    bot.api.config.use(async (_prev, method, payload) => {
+      // The first reply fails (as a Telegram 400 would); later ones succeed.
+      if (method === "sendMessage" && calls++ === 0) throw new Error("Bad Request: message is too long at /internal/path");
+      if (method === "sendMessage") replies.push(String((payload as { text: string }).text));
+      return { ok: true as const, result: { message_id: 1, date: 0, chat } } as never;
+    });
+    // Long polling hands a failing update to bot.errorHandler (set by bot.catch) and carries on; handleUpdate rethrows.
+    await bot
+      .handleUpdate(message({ text: "/help", entities: [{ type: "bot_command", offset: 0, length: 5 }] }) as never)
+      .catch((e: unknown) => bot.errorHandler(e as never));
+    expect(errors).toHaveLength(1);
+    // The generic reply is sent without blocking the error handler: wait for it.
+    await vi.waitFor(() => expect(replies).toEqual(["Something went wrong (details are in the bot's log)."]));
+    await bot.handleUpdate(message({ text: "/help", entities: [{ type: "bot_command", offset: 0, length: 5 }] }) as never);
+    expect(replies).toHaveLength(2);
+  });
+
+  it("refuses to start without an allowlist unless TELEGRAM_PUBLIC=1", () => {
+    expect(chatPolicy({})).toHaveProperty("error");
+    expect(chatPolicy({ TELEGRAM_ALLOWED_CHATS: "42, -100" })).toEqual({ allowedChats: [42, -100] });
+    expect(chatPolicy({ TELEGRAM_PUBLIC: "1" })).toEqual({ allowedChats: [] });
   });
 });

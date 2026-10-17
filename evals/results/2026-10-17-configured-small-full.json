@@ -1,0 +1,1147 @@
+{
+  "suite": "full",
+  "model": "openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode)",
+  "date": "2026-10-17",
+  "datasets": 30,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 4.382,
+      "tokens": {
+        "input": 20304,
+        "output": 5565
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 16,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 6.898,
+      "tokens": {
+        "input": 25223,
+        "output": 6330
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 3,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 2,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 2,
+          "cached": 2,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 6.023,
+      "tokens": {
+        "input": 29158,
+        "output": 6675
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 1,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 1,
+          "cached": 1,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 6.864,
+      "tokens": {
+        "input": 20653,
+        "output": 5221
+      },
+      "completed": false,
+      "error": "PROVIDER: DECIDE failed: Request too large for model `qwen/qwen3.8-27b` in organization `org_***` service tier `on_demand` on input tokens per minute (ITPM): Limit 7000, Requested 7804, please reduce your message size and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 16,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 3,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "printing_shop-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 12.73,
+      "tokens": {
+        "input": 14573,
+        "output": 5470
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: DECIDE failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 310 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 12,
+          "cached": 7,
+          "failed": 1
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 0,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "printing_shop-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 2.795,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 308 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "clinic-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 1.762,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 306 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "clinic-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 2.794,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 303 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "clinic-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 2.727,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 300 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "online_store-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.228,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 298 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "online_store-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.237,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 295 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "online_store-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 4.307,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 291 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "distributor-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 1.35,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 289 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "distributor-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 92.163,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 197 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "distributor-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 3.856,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 193 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 1,
+          "cached": 0,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "restaurant-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.64,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 191 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "restaurant-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.703,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 187 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 5.11,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 182 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "saas-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.282,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 179 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.101,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 176 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "saas-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 3.824,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 173 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "logistics-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.194,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 170 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "logistics-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.181,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 167 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "logistics-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 4.348,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 163 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "construction_supplier-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 1.81,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 161 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "construction_supplier-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 2.465,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 159 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "construction_supplier-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 2.814,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 156 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "agency-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 1.134,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 155 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "agency-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 1.432,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 153 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    },
+    {
+      "dataset": "agency-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 2.169,
+      "tokens": {
+        "input": 0,
+        "output": 0
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 151 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": []
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 0.1,
+      "bar": "100%",
+      "pass": false
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0.08,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Driver accuracy",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "value": 0.5,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "≤ 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 0.1,
+      "bar": "≥ 90%",
+      "pass": false
+    },
+    {
+      "metric": "Citation precision",
+      "value": 1,
+      "bar": "≥ 95%",
+      "pass": true
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 0.3333333333333333,
+      "bar": "≥ 70%",
+      "pass": false
+    }
+  ],
+  "routes": [
+    {
+      "role": "extractor",
+      "route": "openai-compatible:groq:openai/gpt-oss-120b",
+      "calls": 83,
+      "cached": 77,
+      "failed": 2
+    },
+    {
+      "role": "judge",
+      "route": "openai-compatible:groq:openai/gpt-oss-20b",
+      "calls": 8,
+      "cached": 8,
+      "failed": 0
+    },
+    {
+      "role": "planner",
+      "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+      "calls": 24,
+      "cached": 18,
+      "failed": 2
+    }
+  ],
+  "seconds": 196.444,
+  "tokens": {
+    "input": 109911,
+    "output": 29261
+  },
+  "note": "**Partial run: 3 of 30 jobs finished.** Same Groq roles as the smoke run. Groq's free tier allows 200k tokens a day for qwen/qwen3.8-27b, about one business per day, so the other 27 jobs stopped on the rate limit (RATE_LIMITED, never switching models). The rates below count every unfinished job as a miss, so they are not the model's quality. Over the 3 finished jobs (coffee_roaster v1–v3): 4 of 5 planted events found, 0 distractors reported, 4 of 4 quality issues found, 0 number mismatches. printing_shop-v1 failed differently: its DECIDE request is larger than the tier's 7,000 input tokens per minute for this model, so it cannot finish on this tier (a known gap). The suite keeps running (scripts/eval-until-done.sh; finished calls are cached) and the complete numbers will replace this row."
+}

@@ -25,12 +25,12 @@ The HTTP API (Hono + `@hono/zod-openapi`). The OpenAPI spec is generated from th
 
 Only localhost names (plus `--host` and `AA_ALLOWED_HOSTS`) are answered; any other `Host` or `Origin` gets 403 (a DNS-rebinding guard). The bearer token is compared in constant time.
 
-Errors are `{ error: { code, message } }`: 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 409 `BUSY` / `NOT_READY`, and 401 when `API_TOKEN` is set and the bearer token is missing. CORS is off. The server listens on 127.0.0.1 unless `--host` says otherwise.
+Errors are `{ error: { code, message } }`: 400 `BAD_REQUEST`, 404 `NOT_FOUND`, 409 `BUSY` / `NOT_READY`, and 401 when `API_TOKEN` is set and the bearer token is missing. An unexpected error is a 500 `INTERNAL` with a generic message; the details go to `onError` (the server log). CORS is off. The server listens on 127.0.0.1 unless `--host` says otherwise, and refuses a non-loopback address without a token (`ServeError` `NO_AUTH_ON_NETWORK`) unless `allowNoAuth` is set. Without the token, `/v1/health` reports only the engine and DuckDB.
 
 ## Public API
 
-- `createApp(manager, options)`: the Hono app (`token`, `allowedHosts`, `health`, `mcp`, `viewerDir`, `maxUpload`, `today`).
-- `startServer(manager, options & { port, hostname })`: serves it on Node.
+- `createApp(manager, options)`: the Hono app (`token`, `allowedHosts`, `health`, `mcp`, `viewerDir`, `maxUpload`, `today`, `onError`).
+- `startServer(manager, options & { port, hostname, allowNoAuth })`: serves it on Node; rejects with `ServeError` (`NO_AUTH_ON_NETWORK`) for a non-loopback `hostname` without a token unless `allowNoAuth`. `isLoopback(hostname)` is the check.
 
 ## Example
 

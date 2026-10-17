@@ -46,6 +46,7 @@ interface ResultFile {
   readonly model: string;
   readonly note?: string;
   readonly datasets: number;
+  readonly date?: string;
   readonly seconds: number;
   readonly tokens: { readonly input: number; readonly output: number };
   readonly bars: { readonly metric: string; readonly value?: number }[];
@@ -65,10 +66,10 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
         .filter((r) => !r.model.startsWith("baseline") && r.suite !== "real")
     : [];
   const head = [
-    "| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware |",
-    "|---|---|---|---|---|---|---|---|---|",
+    "| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |",
+    "|---|---|---|---|---|---|---|---|---|---|",
   ];
-  if (!files.length) return [...head, "| real-model results not yet run | | | | | | | | |"].join("\n");
+  if (!files.length) return [...head, "| real-model results not yet run | | | | | | | | | |"].join("\n");
   const pct = (r: ResultFile, m: string) => {
     const v = r.bars.find((b) => b.metric === m)?.value;
     return v === undefined || v === null ? "n/a" : `${(v * 100).toFixed(0)}%`;
@@ -79,7 +80,14 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
     ...files.map((r) => {
       const hosted = r.model.includes(":groq:") ? "Groq free tier (hosted)" : r.model.startsWith("ollama") ? "local (see note)" : "hosted";
       const tokens = r.tokens.input + r.tokens.output;
-      return `| ${r.model.replace(/^openai-compatible:/, "")} | ${r.suite} (${r.datasets}) | ${pct(r, "Jobs completed")} | ${pct(r, "Planted recall@5")} | ${pct(r, "Driver accuracy")} | ${num(r, "Number mismatches")} | ${pct(r, "Citation precision")} | ${Math.round(r.seconds / 60)} min, ${Math.round(tokens / 1000)}k tokens | ${hosted} |`;
+      // A run whose jobs didn't all finish (a free tier's daily quota) is labelled partial: its rates count the
+      // unfinished jobs as misses, so they are not the model's quality.
+      const done = Math.round((r.bars.find((b) => b.metric === "Jobs completed")?.value ?? 1) * r.datasets);
+      const suite =
+        done < r.datasets
+          ? `${r.suite} (${r.datasets}), **partial: ${done} of ${r.datasets} jobs finished**`
+          : `${r.suite} (${r.datasets})`;
+      return `| ${r.model.replace(/^openai-compatible:/, "")} | ${suite} | ${pct(r, "Jobs completed")} | ${pct(r, "Planted recall@5")} | ${pct(r, "Driver accuracy")} | ${num(r, "Number mismatches")} | ${pct(r, "Citation precision")} | ${Math.round(r.seconds / 60)} min, ${Math.round(tokens / 1000)}k tokens | ${hosted} | ${r.date ?? "n/a"} |`;
     }),
   ].join("\n");
 }

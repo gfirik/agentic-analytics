@@ -121,4 +121,33 @@ describe("aa doctor", () => {
     expect(results.find((r) => r.name === "model config")?.status).toBe("error");
     expect(exitCode(results)).toBe(0);
   });
+
+  it("calls every role's model once, each on its own provider, and --models lists the ids", async () => {
+    const fake = new FakeModel([
+      { role: "planner", object: { reply: "OK" } },
+      { role: "extractor", object: { reply: "OK" } },
+      { role: "judge", object: { reply: "OK" } },
+    ]);
+    const fetch = stubFetch({
+      "https://api.groq.com/openai/v1/models": { data: [{ id: "qwen/qwen3.8-27b" }, { id: "openai/gpt-oss-120b" }] },
+      "https://generativelanguage.googleapis.com/v1beta/openai/models": { data: [{ id: "models/gemma-4" }] },
+    });
+    const env = {
+      PLANNER_MODEL: "openai-compatible:groq:qwen/qwen3.8-27b",
+      EXTRACTOR_MODEL: "openai-compatible:groq:openai/gpt-oss-120b",
+      JUDGE_MODEL: "openai-compatible:google-ai-studio:models/gemma-4",
+      GROQ_API_KEY: "g",
+      GEMINI_API_KEY: "m",
+    };
+    const results = await runDoctor(base({ fetch, env, modelClient: () => fake, listModels: true }));
+    const by = (n: string) => results.find((r) => r.name === n);
+    expect(by("model call")?.detail).toBe('planner openai-compatible:groq:qwen/qwen3.8-27b replied "OK" in 0.0s');
+    expect(by("model call (extractor)")?.status).toBe("ok");
+    expect(by("model call (judge)")?.detail).toContain("google-ai-studio:models/gemma-4");
+    expect(fake.calls.map((c) => c.role)).toEqual(["planner", "extractor", "judge"]);
+    expect(by("openai-compatible:groq")?.detail).toBe("reachable, 2 model(s): openai/gpt-oss-120b, qwen/qwen3.8-27b");
+    // The serve health check asks for the planner only.
+    const planner = await runDoctor(base({ fetch, env, modelClient: () => fake, roles: ["planner"] }));
+    expect(planner.filter((r) => r.name.startsWith("model call")).map((r) => r.name)).toEqual(["model call"]);
+  });
 });

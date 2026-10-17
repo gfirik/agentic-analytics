@@ -72,6 +72,8 @@ For each top finding, the planner:
 
 The planner must also record **alternatives considered and rejected**, with the reason. These appear in the report's confidence reasons.
 
+**Which split names the driver.** Among a change's contribution splits (by customer, channel, product, …), the driver comes from the split whose top member carries the most of the movement: |Δ top| ÷ Σ|Δ|. Shares over 100% that come from members offsetting each other (a launch up, the product it replaced down) don't make a dimension explanatory (M13a).
+
 **Who writes what.** The observed change and its decomposition are stated by code, not by the planner. Examples: "Revenue went from {{N12}} in 2026-03 to {{N11}} in 2026-04", "“wholesale” accounted for {{N144}} of the change". These claims carry grade `observed`, and their numbers are always the right facts. The planner adds explanations, alternatives and a title.
 
 **What reaches the draft.** Before planner text enters the draft:

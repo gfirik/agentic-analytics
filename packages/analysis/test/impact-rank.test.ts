@@ -134,7 +134,8 @@ describe("ranking (spec §6)", () => {
       score,
     });
     // Three restatements of one revenue drop outscore the refund rate tripling (0.012); with max = 3 the rate still
-    // gets a slot, ahead of the wholesale slice and the year-on-year restatement.
+    // gets a slot, then the strongest single-member change (Key Co), ahead of the wholesale slice and the
+    // year-on-year restatement.
     const top = topForExplain(
       [
         mk("revenue", "2026-06", 0.27),
@@ -148,7 +149,7 @@ describe("ranking (spec §6)", () => {
     expect(top.map((r) => [r.insight.series, r.insight.period])).toEqual([
       ["revenue", "2026-06"],
       ["refund_rate", "2026-05"],
-      ["wholesale_revenue", "2026-04"],
+      ["revenue|customer=Key Co", "2026-04"],
     ]);
   });
 
@@ -158,5 +159,95 @@ describe("ranking (spec §6)", () => {
     expect(metricFamily("refund_rate", ms)).toBe("refund_rate");
     expect(metricFamily("revenue", ms)).toBe("revenue");
     expect(metricFamily("orders", ms)).toBe("orders");
+  });
+});
+
+describe("topForExplain rules, hand-computed (spec §6, M13a)", () => {
+  const mk = (o: {
+    template?: string;
+    metric?: string;
+    period?: string;
+    score: number;
+    share?: number;
+    member?: string;
+    pct?: number;
+    /** No measured change (a trend: slope and p-value only). */
+    unmeasured?: boolean;
+  }) => {
+    const metric = o.metric ?? "revenue";
+    const change = o.unmeasured ? [] : [{ name: "change", value: 1, unit: "currency" }];
+    return {
+      insight: {
+        template: o.template ?? "period_change.v1",
+        metric,
+        series: o.member ? `${metric}|customer=${o.member}` : metric,
+        period: o.period ?? "2026-04",
+        roles: o.unmeasured ? {} : { change: "N1" },
+        calcs: [...change, ...(o.pct === undefined ? [] : [{ name: "change_pct", value: o.pct, unit: "percent" }])],
+        ...(o.member ? { member: { dimension: "customer", value: o.member } } : {}),
+      } as unknown as Insight,
+      impactShare: o.share ?? o.score,
+      score: o.score,
+    };
+  };
+
+  it("a group's representative is the highest-priority template carrying ≥ 50% of the group's best score", () => {
+    // Best 0.20 → the bar is 0.10. trend_break at 0.09 is below it, so anomaly (next in priority) speaks for the group.
+    const weak = topForExplain([mk({ template: "anomaly.v1", score: 0.2 }), mk({ template: "trend_break.v1", score: 0.09 })]);
+    expect(weak.map((r) => [r.insight.template, r.score])).toEqual([["anomaly.v1", 0.2]]);
+    // At 0.11 ≥ 0.10 it qualifies and outranks anomaly; the group keeps the best score, 0.20.
+    const strong = topForExplain([mk({ template: "anomaly.v1", score: 0.2 }), mk({ template: "trend_break.v1", score: 0.11 })]);
+    expect(strong.map((r) => [r.insight.template, r.score])).toEqual([["trend_break.v1", 0.2]]);
+  });
+
+  it("a template with no measured change keeps its priority although it scores 0 (Online Retail II's Nov peak)", () => {
+    // trend.v1 has no Δ, so its impact share and score are 0; it isn't a weak change, so it still outranks new_lost
+    // (0.119) and the group keeps new_lost's score.
+    const top = topForExplain([mk({ template: "new_lost.v1", score: 0.119 }), mk({ template: "trend.v1", score: 0, unmeasured: true })]);
+    expect(top.map((r) => [r.insight.template, r.score])).toEqual([["trend.v1", 0.119]]);
+    // A measured template at 0 is weak: new_lost speaks.
+    const weak = topForExplain([mk({ template: "new_lost.v1", score: 0.119 }), mk({ template: "trend.v1", score: 0 })]);
+    expect(weak.map((r) => [r.insight.template, r.score])).toEqual([["new_lost.v1", 0.119]]);
+  });
+
+  it("the family slot goes to the parent metric when it carries ≥ 50% of the family's best", () => {
+    // Family best: wholesale_revenue 0.30 → bar 0.15. revenue at 0.16 clears it and takes the slot.
+    const a = topForExplain(
+      [mk({ metric: "wholesale_revenue", score: 0.3 }), mk({ metric: "revenue", period: "2026-05", score: 0.16 })],
+      1,
+    );
+    expect(a.map((r) => r.insight.metric)).toEqual(["revenue"]);
+    // At 0.14 < 0.15 the slice keeps it.
+    const b = topForExplain(
+      [mk({ metric: "wholesale_revenue", score: 0.3 }), mk({ metric: "revenue", period: "2026-05", score: 0.14 })],
+      1,
+    );
+    expect(b.map((r) => r.insight.metric)).toEqual(["wholesale_revenue"]);
+  });
+
+  it("on equal scores the earlier period (the onset) goes first", () => {
+    const top = topForExplain([
+      mk({ period: "2026-06", score: 0.2 }),
+      mk({ period: "2026-04", score: 0.2 }),
+      mk({ metric: "x", score: 0.01 }),
+    ]);
+    // One family slot each (revenue's best is the onset, 2026-04; then x), then the restatement.
+    expect(top.map((r) => `${r.insight.metric}@${r.insight.period}`)).toEqual(["revenue@2026-04", "x@2026-04", "revenue@2026-06"]);
+  });
+
+  it("the member slot takes the largest |change_pct| at impact share ≥ 2%, skipping a member already named as driver", () => {
+    const parent = mk({ period: "2026-06", score: 0.3 });
+    const members = [
+      mk({ member: "A", score: 0.05, pct: -90 }), // impact share 0.05 ≥ 0.02, |−90%|
+      mk({ member: "B", period: "2026-05", score: 0.1, pct: -20 }), // 0.10 ≥ 0.02, |−20%|, higher score
+      mk({ member: "C", period: "2026-03", score: 0.01, pct: -100 }), // 0.01 < 0.02: never a candidate
+    ];
+    // |−90| > |−20| → A, though B scores higher; C is excluded by the 2% floor.
+    const top = topForExplain([parent, ...members], 2);
+    expect(top.map((r) => r.insight.member?.value ?? r.insight.metric)).toEqual(["revenue", "A"]);
+    // When the parent's decomposition already names customer=A as its driver, A restates it: B takes the slot.
+    const drivers = new Map([[parent.insight, new Set(["customer=A"])]]);
+    const told = topForExplain([parent, ...members], 2, { drivers });
+    expect(told.map((r) => r.insight.member?.value ?? r.insight.metric)).toEqual(["revenue", "B"]);
   });
 });

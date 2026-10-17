@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -9,9 +9,17 @@ import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
-import { createModelClient, type ModelClient, profileFor, resolveModelConfig } from "@agentic-analytics/models";
+import {
+  type CallRecord,
+  createModelClient,
+  fileCache,
+  type ModelClient,
+  profileFor,
+  Router,
+  resolveModelConfig,
+} from "@agentic-analytics/models";
 import { hashEmbedder, transformersEmbedder } from "@agentic-analytics/retrieval";
-import { startServer } from "@agentic-analytics/server";
+import { ServeError, startServer } from "@agentic-analytics/server";
 import { duckdbVersion } from "@agentic-analytics/store";
 import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
@@ -29,16 +37,21 @@ const CONFIG_FILE = "agentic-analytics.config.yaml";
 const configFile = () => (existsSync(CONFIG_FILE) ? (parse(readFileSync(CONFIG_FILE, "utf8")) as unknown) : undefined);
 
 const doctor = defineCommand({
-  meta: { name: "doctor", description: "Check Node, DuckDB, model providers, SearXNG and Docling; call the planner model once" },
-  async run() {
+  meta: {
+    name: "doctor",
+    description: "Check Node, DuckDB, model providers, SearXNG and Docling; call each role's model once",
+  },
+  args: { models: { type: "boolean", description: "List the model ids each reachable provider serves" } },
+  async run({ args }) {
     const file = configFile();
     const results = await runDoctor({
       nodeVersion: runtimeVersion(process.env, process.versions, process.version),
       duckdbVersion,
       fetch: globalThis.fetch,
       env: process.env,
-      modelClient: (config) => createModelClient(config, { env: process.env }),
+      modelClient: (config) => createModelClient(config, { env: process.env, onCall: logCall }),
       ...(file !== undefined ? { configFile: file } : {}),
+      ...(args.models ? { listModels: true } : {}),
     });
     process.stdout.write(formatReport(results));
     process.exitCode = exitCode(results);
@@ -56,6 +69,21 @@ const ENGINE_VERSION = "0.0.0";
 const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
 
+/**
+ * Every model call, with the provider and model that served it (M13a): appended to data/logs/model-calls.jsonl,
+ * and echoed to stderr when AA_LOG_CALLS is set. No prompt or answer text is logged.
+ */
+function logCall(c: CallRecord): void {
+  const line = `${JSON.stringify({ at: new Date().toISOString(), ...c })}\n`;
+  try {
+    mkdirSync(join("data", "logs"), { recursive: true });
+    appendFileSync(join("data", "logs", "model-calls.jsonl"), line);
+  } catch {
+    // Logging must never stop a job (a read-only folder, for example).
+  }
+  if (process.env.AA_LOG_CALLS) process.stderr.write(line);
+}
+
 /** Models, embedder and web lane from the environment and config file, as every door uses them. */
 /** The embedder for a run: see embedderChoice (standalone.ts) for the binary's default. */
 function pickEmbedder(arg: string | undefined, configured: string, cacheDir: string) {
@@ -72,7 +100,13 @@ function runtime(embedderArg?: string) {
   // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
   const scripted = process.env.AA_DEMO_MODEL === "scripted";
   if (scripted) process.stderr.write("Scripted demo model (no LLM): a deterministic replay for examples/coffee-roaster.\n");
-  const model: ModelClient = scripted ? coffeePlanner() : createModelClient(config, { env: process.env });
+  const model: ModelClient = scripted
+    ? coffeePlanner()
+    : createModelClient(config, {
+        env: process.env,
+        onCall: logCall,
+        ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
+      });
   const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
   const embedder = pickEmbedder(embedderArg, config.models.embedder.model, cacheDir);
   const planner = config.models.planner;
@@ -215,6 +249,10 @@ const serveCmd = defineCommand({
     host: { type: "string", description: "Interface to listen on (default 127.0.0.1)" },
     embedder: { type: "string", description: "'hash' for the offline embedder" },
     log: { type: "boolean", description: "Write structured logs to stderr" },
+    "allow-no-auth": {
+      type: "boolean",
+      description: "Listen beyond localhost without API_TOKEN (only behind a proxy or a localhost-only port mapping)",
+    },
   },
   async run({ args }) {
     const rt = runtime(args.embedder);
@@ -229,8 +267,9 @@ const serveCmd = defineCommand({
         duckdbVersion,
         fetch: globalThis.fetch,
         env: process.env,
-        modelClient: (config) => createModelClient(config, { env: process.env }),
+        modelClient: (config) => createModelClient(config, { env: process.env, onCall: logCall }),
         ...(file !== undefined ? { configFile: file } : {}),
+        roles: ["planner"],
       });
       const value = Object.fromEntries(results.map((r) => [r.name, { ok: r.status === "ok", detail: r.detail }]));
       cached = { at: Date.now(), value };
@@ -240,6 +279,7 @@ const serveCmd = defineCommand({
       port: Number(args.port ?? process.env.PORT ?? 8080),
       ...(args.host ? { hostname: args.host } : {}),
       ...(process.env.API_TOKEN ? { token: process.env.API_TOKEN } : {}),
+      ...(args["allow-no-auth"] || process.env.AA_ALLOW_NO_AUTH === "1" ? { allowNoAuth: true } : {}),
       // Names this server may be reached by besides localhost (a LAN name, a Docker service name).
       allowedHosts: [
         ...(args.host && args.host !== "0.0.0.0" ? [args.host] : []),
@@ -249,11 +289,27 @@ const serveCmd = defineCommand({
           .filter(Boolean),
       ],
       health,
-      mcp: mcpHttpHandler(manager, { version: ENGINE_VERSION }),
+      onError: (err) => process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`),
+      mcp: mcpHttpHandler(manager, {
+        version: ENGINE_VERSION,
+        roots: (process.env.AA_MCP_ROOTS ?? "")
+          .split(",")
+          .map((r) => r.trim())
+          .filter(Boolean),
+      }),
       // The binary carries no viewer build: the API, MCP and report.html still work.
       ...(isStandalone(process.env) ? {} : { viewerDir: fileURLToPath(new URL("../../viewer/dist", import.meta.url)) }),
       version: ENGINE_VERSION,
+    }).catch((err: unknown) => {
+      // A refused network bind is a configuration message, not a crash.
+      if (err instanceof ServeError) {
+        process.stderr.write(`${err.message}\n`);
+        process.exitCode = 1;
+        return undefined;
+      }
+      throw err;
     });
+    if (!s) return;
     print(
       `agentic-analytics API on ${s.url} (${isStandalone(process.env) ? "no viewer in the standalone binary" : "viewer at /"}, OpenAPI at /openapi.json, MCP at /mcp)`,
     );
@@ -329,14 +385,25 @@ const evalCmd = defineCommand({
       process.cwd(),
       fileURLToPath(new URL("../../../evals/results", import.meta.url)),
     );
+    const evalRouter = new Router();
+    const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
     const deps = {
       // Evals default to the hash embedder everywhere (deterministic, no download), unlike analyze.
       embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
       print,
-      modelFor: (name: string) => {
+      modelFor: (name: string, onCall?: (c: CallRecord) => void) => {
         // One model for every role, unless "configured" keeps the per-role settings.
         const env = name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
-        return createModelClient(resolveModelConfig(env, configFile()), { env: process.env });
+        // Shared across datasets: the router keeps each route's rate state, the cache makes reruns free.
+        return createModelClient(resolveModelConfig(env, configFile()), {
+          env: process.env,
+          router: evalRouter,
+          cache: evalCache,
+          onCall: (c) => {
+            onCall?.(c);
+            logCall(c);
+          },
+        });
       },
     };
     if (args.suite === "real") {
@@ -384,7 +451,7 @@ const metrics = defineCommand({
     let model: ModelClient | undefined;
     let modelError: string | undefined;
     try {
-      model = createModelClient(resolveModelConfig(process.env, configFile()), { env: process.env });
+      model = createModelClient(resolveModelConfig(process.env, configFile()), { env: process.env, onCall: logCall });
     } catch (err) {
       // An invalid model config is reported, not hidden: drafting falls back and says why.
       modelError = err instanceof Error ? err.message : String(err);
@@ -443,7 +510,11 @@ const run = defineCommand({
         ? `openai-compatible:${planner.endpoint}:${planner.model}`
         : `${planner.provider}:${planner.model}`,
     );
-    const model = createModelClient(config, { env: process.env });
+    const model = createModelClient(config, {
+      env: process.env,
+      onCall: logCall,
+      ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
+    });
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
     const embedder = pickEmbedder(args.embedder, config.models.embedder.model, cacheDir);
     const dir =

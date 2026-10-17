@@ -14,7 +14,18 @@ export {
   scoreCheck,
   scoreRealReport,
 } from "./real.ts";
-export { type RunOptions, rescore, resultsMarkdown, runSuite, type Suite, type SuiteResult, suiteDatasets } from "./run.ts";
+export {
+  mergeRoutes,
+  type RouteUse,
+  type RunOptions,
+  rescore,
+  resultsMarkdown,
+  routeSummary,
+  runSuite,
+  type Suite,
+  type SuiteResult,
+  suiteDatasets,
+} from "./run.ts";
 export {
   type Bar,
   canonicalMetrics,

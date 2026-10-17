@@ -12,7 +12,10 @@ The model layer: one `ModelClient` interface over the Vercel AI SDK, free provid
 | `ModelClient` | `generateObject` (Zod-validated, retried with feedback), `generateWithTools` (fixed tools, step cap), `embed` |
 | `createModelClient(config, { env, fetch?, embed? })` | AI SDK implementation. The only place `ai` is imported. |
 | `resolveModelConfig(env, file?)` | Defaults < config file < env (`PLANNER_MODEL=ollama:qwen3.5:9b`, `openai-compatible:groq:<model>`) |
-| `OPENAI_COMPATIBLE_PRESETS` | Free endpoints: groq, openrouter, cerebras, github-models |
+| `OPENAI_COMPATIBLE_PRESETS` | Free endpoints: groq, openrouter, cerebras, nvidia-nim, google-ai-studio, sambanova, mistral, cloudflare (`${CLOUDFLARE_ACCOUNT_ID}` in its URL). github-models was removed (retired 2026-07-30) |
+| `Router`, `routesOf` | Same-model routing across providers: token buckets from `x-ratelimit-*`, `retry-after`, fallback only to the same model, `RATE_LIMITED` when none is left |
+| `fileCache(dir)`, `memoryCache()` | Response cache keyed by hash(URL, request body); `ProviderDeps.cache` |
+| `CallRecord`, `ProviderDeps.onCall` | Every call with role, provider, model, status, cached, latency, tokens |
 | `ModelError` | Typed errors: `CONFIG`, `MISSING_KEY`, `INVALID_OUTPUT`, `PROVIDER`, `TIMEOUT`, `NOT_AVAILABLE`, `FAKE_NO_SCRIPT` |
 | `@agentic-analytics/models/testing` → `FakeModel`, `FakeRequest`, `promptHash` | Scripted responses by role and prompt substring/hash; runs scripted tool calls against the real tools; deterministic embeddings. An entry's `object` or `steps` may be a function of the `FakeRequest` (`{ role, system, prompt }`), for scripts that must name ids only known at run time (see `packages/core/testing/coffee-planner.ts`) |
 
@@ -34,3 +37,5 @@ Tests never call a network model; the AI SDK path is tested against a stub `fetc
 - It retries an HTTP 429 after the wait the endpoint asks for (`Retry-After`, or "try again in 24.7s"), up to 4 times and 90 s per wait.
 - It retries a 413 "output tokens per minute" refusal once, with `max_tokens` at 95% of the stated limit.
 - The model timeout applies to each HTTP request, so rate-limit waits don't count against it. A whole call is bounded at 20× the timeout.
+
+**Key masking limits.** `maskSecrets` masks the configured key values (8 characters or more) and key-like prefixes. A shorter key, or an unprefixed credential that isn't a configured key (an `x-api-key` header value, Basic auth), is not masked if a provider echoes it.

@@ -5,6 +5,10 @@ coverage/
 .env
 .env.*
 !.env.example
+# Editor swap and backup files (a swap of .env holds its keys)
+*.swp
+*.swo
+*~
 data/
 *.duckdb
 *.duckdb.wal
@@ -30,6 +34,9 @@ apps/docs/.astro/
 # Playwright run output
 test-results/
 playwright-report/
-
+# Model response cache (M13a): eval reruns are served from here
+evals/.cache/
+# Agent worktrees (Claude Code): separate checkouts, never linted or committed from here
+.claude/worktrees/
 # Standalone binary build (scripts/build-binary.ts)
 apps/cli/native/

@@ -10,7 +10,7 @@ import { mcpHttpHandler } from "@agentic-analytics/mcp";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import type { Report } from "@agentic-analytics/schema";
 import { afterAll, describe, expect, it } from "vitest";
-import { createApp } from "../src/index.ts";
+import { createApp, isLoopback, ServeError, startServer } from "../src/index.ts";
 
 const root = mkdtempSync(join(tmpdir(), "aa-srv-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -192,5 +192,46 @@ describe("HTTP API", () => {
     expect((await guarded.request("/v1/jobs", { headers: { authorization: "Bearer s3cret" } })).status).toBe(200);
     expect((await guarded.request("/mcp", { method: "POST" })).status).toBe(401);
     expect((await guarded.request("/v1/health")).status).toBe(200);
+  });
+
+  it("security review: health details need the token, 500s are generic, a network bind needs a token", async () => {
+    let probed = 0;
+    const health = async () => {
+      probed++;
+      return { "model call": { ok: true, detail: "planner openai-compatible:groq:m replied" } };
+    };
+    const guarded = createApp(manager, { token: "s3cret", health });
+    // Without the token: engine and DuckDB only, and no model call behind it.
+    const open = (await (await guarded.request("/v1/health")).json()) as { checks: Record<string, unknown> };
+    expect(Object.keys(open.checks).sort()).toEqual(["duckdb", "engine"]);
+    expect(probed).toBe(0);
+    const full = (await (await guarded.request("/v1/health", { headers: { authorization: "Bearer s3cret" } })).json()) as {
+      checks: Record<string, unknown>;
+    };
+    expect(full.checks["model call"]).toBeDefined();
+    expect(probed).toBe(1);
+
+    // An unexpected error reaches the log hook; the client gets no paths or SQL.
+    const logged: unknown[] = [];
+    const broken = Object.assign(Object.create(manager) as JobManager, {
+      list: async () => {
+        throw new Error("Binder Error at /home/owner/data/jobs/x/job.duckdb: SELECT secret");
+      },
+    });
+    const failing = createApp(broken, { onError: (e) => logged.push(e) });
+    const res = await failing.request("/v1/jobs");
+    expect(res.status).toBe(500);
+    expect(((await res.json()) as { error: { message: string } }).error.message).toBe("internal error (details are in the server log)");
+    expect(logged).toHaveLength(1);
+
+    // Beyond loopback, the server refuses to start without a token (or an explicit opt-out).
+    expect(isLoopback("127.0.0.1")).toBe(true);
+    expect(isLoopback("localhost")).toBe(true);
+    expect(isLoopback("[::1]")).toBe(true);
+    expect(isLoopback("0.0.0.0")).toBe(false);
+    expect(isLoopback("192.168.1.5")).toBe(false);
+    await expect(startServer(manager, { hostname: "0.0.0.0", port: 0 })).rejects.toBeInstanceOf(ServeError);
+    const s = await startServer(manager, { hostname: "0.0.0.0", port: 0, token: "s3cret" });
+    await s.close();
   });
 });

@@ -2,14 +2,16 @@
 // (AGENTS.md §3). Both free providers go through the OpenAI-compatible protocol: Ollama exposes it at
 // `<base>/v1`, and Groq/OpenRouter/Cerebras/… are OpenAI-compatible by definition.
 
-import type { Config, RoleModel } from "@agentic-analytics/schema";
+import type { Config, RoleModel, RouteModel } from "@agentic-analytics/schema";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { APICallError, generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
 import { z } from "zod";
+import type { ResponseCache } from "./cache.ts";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
-import { providerFetch } from "./fetch.ts";
+import { type CallRecord, maskSecrets, providerFetch } from "./fetch.ts";
 import { generateValidated } from "./retry.ts";
+import { type RouteLease, Router } from "./router.ts";
 import {
   addUsage,
   type GenerateObjectArgs,
@@ -28,19 +30,43 @@ export interface ProviderDeps {
   readonly fetch?: typeof fetch;
   /** The embedder, e.g. `transformersEmbedder().embed` from @agentic-analytics/retrieval. */
   readonly embed?: (texts: readonly string[]) => Promise<number[][]>;
+  /** Routes calls across the providers of one model; a fresh router per client by default. */
+  readonly router?: Router;
+  /** Serves repeated requests from disk (evals); off by default. */
+  readonly cache?: ResponseCache;
+  /** Every call with the provider and model that served it. */
+  readonly onCall?: (c: CallRecord) => void;
 }
 
+/** Every route of a role: the configured model first, then its fallbacks (the same model elsewhere). */
+export const routesOf = (m: RoleModel): RouteModel[] => [
+  { provider: m.provider, ...(m.endpoint ? { endpoint: m.endpoint } : {}), model: m.model },
+  ...(m.fallbacks ?? []),
+];
+
 /** Whether the role's endpoint enforces a JSON Schema natively. Ollama's /v1 does; other endpoints opt in. */
-export function supportsStructuredOutputs(m: RoleModel, config: Config): boolean {
+export function supportsStructuredOutputs(m: RouteModel, config: Config): boolean {
   if (m.provider === "ollama") return true;
   if (m.provider === "openai-compatible") return config.providers["openai-compatible"]?.[m.endpoint ?? ""]?.structured_outputs ?? false;
   return false;
 }
 
-export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps): LanguageModel {
+export function languageModel(
+  m: RouteModel,
+  config: Config,
+  deps: ProviderDeps,
+  call: { lease?: RouteLease; role?: string } = {},
+): LanguageModel {
   const common = {
     supportsStructuredOutputs: supportsStructuredOutputs(m, config),
-    fetch: providerFetch(deps.fetch ?? fetch, { timeoutMs: config.timeouts.model_ms }),
+    fetch: providerFetch(deps.fetch ?? fetch, {
+      timeoutMs: config.timeouts.model_ms,
+      ...(call.lease ? { lease: call.lease } : {}),
+      ...(deps.cache ? { cache: deps.cache } : {}),
+      ...(deps.onCall ? { onCall: deps.onCall } : {}),
+      secrets: secretsOf(config, deps.env),
+      label: { ...(call.role ? { role: call.role } : {}), provider: m.provider, ...(m.endpoint ? { endpoint: m.endpoint } : {}) },
+    }),
   };
   if (m.provider === "ollama") {
     const base = config.providers.ollama?.base_url;
@@ -68,10 +94,16 @@ export function languageModel(m: RoleModel, config: Config, deps: ProviderDeps):
 
 export function createModelClient(config: Config, deps: ProviderDeps): ModelClient {
   const timeoutMs = config.timeouts.model_ms;
+  // The configured keys, masked in any error message this client throws (it ends up in status.json, SSE and chats).
+  const secrets = secretsOf(config, deps.env);
+  const providerError = (err: unknown) => toProviderError(err, secrets);
   // The longest a call may take: each request's timeout, plus the most rate-limit waiting providerFetch allows
   // (4 waits of at most 90 s) per request.
   const callCap = (requests: number) => requests * (timeoutMs + 4 * 90_000);
-  const model = (role: Role) => languageModel(config.models[role], config, deps);
+  const router = deps.router ?? new Router();
+  /** Runs one call on a route of the role's model, chosen by the router (same model, any of its providers). */
+  const onRoute = <T>(role: Role, f: (lm: LanguageModel, route: RouteModel) => Promise<T>) =>
+    router.run(routesOf(config.models[role]), (lease) => f(languageModel(lease.route, config, deps, { lease, role }), lease.route));
   const usageOf = (u: { inputTokens?: number | undefined; outputTokens?: number | undefined } | undefined, latencyMs: number): Usage => ({
     inputTokens: u?.inputTokens ?? 0,
     outputTokens: u?.outputTokens ?? 0,
@@ -80,43 +112,53 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
 
   return {
     async generateObject<T>(args: GenerateObjectArgs<T>) {
-      const lm = model(args.role);
-      // Without native structured outputs the endpoint only gets json_object mode, so the schema goes in the prompt.
-      const system = supportsStructuredOutputs(config.models[args.role], config)
-        ? args.system
-        : `${args.system}\n\nRespond with JSON only. It must match this JSON Schema:\n${JSON.stringify(z.toJSONSchema(args.schema))}`;
+      // A structured-output call never carries tools; a tool loop never asks for structured output (M13a: two
+      // separate calls, enforced in ai-sdk.test.ts).
       const { object, usage } = await generateValidated(
         args.schema,
         args.prompt,
         async (prompt) => {
           const started = performance.now();
           try {
-            const res = await generateText({
-              model: lm,
-              system,
-              prompt,
-              output: Output.object({ schema: args.schema }),
-              maxRetries: 0,
-              // One request with its own timeout (providerFetch); this bounds the call, rate-limit waits included.
-              abortSignal: AbortSignal.timeout(callCap(1)),
+            return await onRoute(args.role, async (lm, route) => {
+              // Without native structured outputs the endpoint only gets json_object mode, so the schema goes in the prompt.
+              const system = supportsStructuredOutputs(route, config)
+                ? args.system
+                : `${args.system}\n\nRespond with JSON only. It must match this JSON Schema:\n${JSON.stringify(z.toJSONSchema(args.schema))}`;
+              try {
+                const res = await generateText({
+                  model: lm,
+                  system,
+                  prompt,
+                  output: Output.object({ schema: args.schema }),
+                  maxRetries: 0,
+                  // One request with its own timeout (providerFetch); this bounds the call, rate-limit waits included.
+                  abortSignal: AbortSignal.timeout(callCap(1)),
+                });
+                return { value: res.output as unknown, usage: usageOf(res.usage, performance.now() - started) };
+              } catch (err) {
+                // An endpoint that validates JSON itself (Groq: 400 `json_validate_failed`) refuses malformed output
+                // with an error; that is an invalid attempt to retry with feedback, not a provider failure.
+                if (
+                  APICallError.isInstance(err) &&
+                  err.statusCode === 400 &&
+                  /json_validate_failed|failed to validate json/i.test(`${err.message} ${err.responseBody ?? ""}`)
+                ) {
+                  return {
+                    invalid: "the JSON did not validate against the schema",
+                    usage: usageOf(undefined, performance.now() - started),
+                  };
+                }
+                if (NoObjectGeneratedError.isInstance(err)) {
+                  return {
+                    invalid: err.cause instanceof Error ? err.cause.message : err.message,
+                    usage: usageOf(err.usage, performance.now() - started),
+                  };
+                }
+                throw err;
+              }
             });
-            return { value: res.output as unknown, usage: usageOf(res.usage, performance.now() - started) };
           } catch (err) {
-            // An endpoint that validates JSON itself (Groq: 400 `json_validate_failed`) refuses malformed output
-            // with an error; that is an invalid attempt to retry with feedback, not a provider failure.
-            if (
-              APICallError.isInstance(err) &&
-              err.statusCode === 400 &&
-              /json_validate_failed|failed to validate json/i.test(`${err.message} ${err.responseBody ?? ""}`)
-            ) {
-              return { invalid: "the JSON did not validate against the schema", usage: usageOf(undefined, performance.now() - started) };
-            }
-            if (NoObjectGeneratedError.isInstance(err)) {
-              return {
-                invalid: err.cause instanceof Error ? err.cause.message : err.message,
-                usage: usageOf(err.usage, performance.now() - started),
-              };
-            }
             throw providerError(err);
           }
         },
@@ -134,16 +176,18 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
       );
       const started = performance.now();
       try {
-        const res = await generateText({
-          model: model(args.role),
-          system: args.system,
-          messages: args.messages.map((m) => ({ role: m.role, content: m.content })),
-          tools,
-          stopWhen: stepCountIs(args.maxSteps),
-          maxRetries: 0,
-          // Each step is one request with its own timeout (providerFetch); this bounds the loop, waits included.
-          abortSignal: AbortSignal.timeout(callCap(args.maxSteps)),
-        });
+        const res = await onRoute(args.role, (lm) =>
+          generateText({
+            model: lm,
+            system: args.system,
+            messages: args.messages.map((m) => ({ role: m.role, content: m.content })),
+            tools,
+            stopWhen: stepCountIs(args.maxSteps),
+            maxRetries: 0,
+            // Each step is one request with its own timeout (providerFetch); this bounds the loop, waits included.
+            abortSignal: AbortSignal.timeout(callCap(args.maxSteps)),
+          }),
+        );
         const steps: Step[] = res.steps.map((s) => ({
           text: s.text,
           toolCalls: s.toolCalls.map((c): ToolCallRecord => {
@@ -168,9 +212,31 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
   };
 }
 
-function providerError(err: unknown): ModelError {
-  if (err instanceof ModelError) return err;
+/** The configured API key values, masked in every error message and log line this package produces. */
+function secretsOf(config: Config, env: Env): string[] {
+  return Object.values(config.providers["openai-compatible"] ?? {}).flatMap((e) => {
+    const v = e.api_key_env ? env[e.api_key_env] : undefined;
+    return v ? [v] : [];
+  });
+}
+
+/**
+ * A provider failure as a ModelError whose message and cause chain are masked: callers print `cause.message` too
+ * (doctor), so the original error is not attached as is.
+ */
+function toProviderError(err: unknown, secrets: readonly string[]): ModelError {
+  const masked = (e: unknown, depth = 0): Error | undefined => {
+    if (!(e instanceof Error) || depth > 4) return undefined;
+    const copy = new Error(maskSecrets(e.message, secrets), { cause: masked(e.cause, depth + 1) });
+    copy.name = e.name;
+    return copy;
+  };
+  if (err instanceof ModelError) {
+    const cause = masked(err.cause);
+    return new ModelError(err.code, maskSecrets(err.message, secrets), cause ? { cause } : undefined);
+  }
   const name = err instanceof Error ? err.name : "";
-  const message = err instanceof Error ? err.message : String(err);
-  return new ModelError(name === "TimeoutError" || name === "AbortError" ? "TIMEOUT" : "PROVIDER", message, { cause: err });
+  const message = maskSecrets(err instanceof Error ? err.message : String(err), secrets);
+  const cause = masked(err instanceof Error ? err.cause : undefined);
+  return new ModelError(name === "TimeoutError" || name === "AbortError" ? "TIMEOUT" : "PROVIDER", message, cause ? { cause } : undefined);
 }

@@ -9,6 +9,7 @@ import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.
 import { FactBook, type SeriesInfo } from "./factbook.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
+import { seasonalMatch, touchesSeason } from "./seasonal.ts";
 import {
   anomalies,
   concentration,
@@ -266,6 +267,28 @@ export async function analyzeJob(
     }
   }
 
+  // A spike or dip that recurs in the same calendar period of another year is seasonal, not a finding.
+  const seasonal = found.filter((i) => {
+    const s = series.get(i.series)?.series;
+    const roles = Object.values(i.roles).flatMap((r) => (r.kind === "point" && r.series === i.series ? [r.period] : []));
+    return s ? touchesSeason(s, i.period, roles, grain) : false;
+  });
+  if (seasonal.length) {
+    found.splice(0, found.length, ...found.filter((i) => !seasonal.includes(i)));
+    for (const i of seasonal.filter((x, k, a) => a.findIndex((y) => y.series === x.series) === k)) {
+      const s = series.get(i.series)?.series as Series;
+      const label = defs.find((d) => d.id === i.metric)?.label ?? i.metric;
+      const who = i.member ? ` for “${i.member.value}”` : "";
+      const season = [
+        i.period,
+        ...Object.values(i.roles).flatMap((r) => (r.kind === "point" && r.series === i.series ? [r.period] : [])),
+      ].find((p) => seasonalMatch(s, p, grain) !== undefined) as string;
+      openQuestions.push(
+        `"${label}"${who} in ${season} moved like ${(seasonalMatch(s, season, grain) ?? []).join(" and ")}: treated as seasonal, not reported as a finding.`,
+      );
+    }
+  }
+
   // Changes that a flagged data error produces (a ×1000 cell) are data quality, not business findings.
   const flagged = await flaggedPeriods(ws, defs);
   const withheld = found.filter((i) => touchesFlagged(i, flagged));
@@ -368,7 +391,15 @@ export async function analyzeJob(
     storedDecomp.push({ id, method: d.method, insight: insightId, dimension: d.dimension, facts, details });
   }
 
-  const explain = topForExplain(ranked).flatMap((r) => {
+  // The top driver of each contribution split, so a member change that only restates it isn't explained twice.
+  const drivers = new Map<Insight, Set<string>>();
+  for (const d of decompositions) {
+    const top = [...(d.contribution?.contribution?.contributors ?? [])].sort(
+      (a, b) => Math.abs(b.share.value) - Math.abs(a.share.value),
+    )[0];
+    if (top) drivers.set(d.insight, new Set([...(drivers.get(d.insight) ?? []), `${d.dimension}=${top.key}`]));
+  }
+  const explain = topForExplain(ranked, 7, { drivers }).flatMap((r) => {
     const id = idOf.get(r.insight);
     return id ? [{ id, score: r.score }] : [];
   });

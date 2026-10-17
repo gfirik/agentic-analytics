@@ -112,7 +112,8 @@ curl http://127.0.0.1:8080/v1/jobs/<job_id>/report?format=html > report.html
 ## Security
 
 - The API listens on 127.0.0.1 and answers only localhost host names (plus \`--host\` and \`AA_ALLOWED_HOSTS\`): a request whose \`Host\` or \`Origin\` names another host gets 403, so a web page can't reach it through DNS rebinding.
-- \`API_TOKEN\` turns on bearer auth for \`/v1/jobs*\` and \`/mcp\`. CORS is off.
+- \`API_TOKEN\` turns on bearer auth for \`/v1/jobs*\` and \`/mcp\`; without the token, \`/v1/health\` reports only the engine and DuckDB. \`aa serve\` refuses a non-loopback address without \`API_TOKEN\` (opt out with \`--allow-no-auth\` / \`AA_ALLOW_NO_AUTH=1\` behind a proxy or a localhost-only port mapping). CORS is off.
+- An unexpected error is a 500 with a generic message; the details go to the server log.
 
 The full OpenAPI document, regenerated on every docs build: [openapi.json](/agentic-analytics/openapi.json).`,
     ),

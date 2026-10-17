@@ -79,7 +79,9 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(values[1]).toBeCloseTo(36200, 6);
     expect(values[2]).toBeCloseTo(-7900, 6);
     expect(values[3]).toBeCloseTo(-17.913832, 5);
-    expect(p1.drivers?.[0]?.label).toBe("“Hotel Group LLC”");
+    // The answer key's driver (channel wholesale, 108% of the drop): the channel split is the most concentrated
+    // explanation (−8,500 of 9,100 absolute movement); the hotel group's email gives the cause.
+    expect(p1.drivers?.[0]?.label).toBe("“wholesale”");
   });
 
   it("drops what the planner got wrong and downgrades unsupported causal grades", () => {
@@ -153,6 +155,19 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     if (table?.kind === "table") {
       expect(table.columns.map((c) => c.name)).toContain("Amount");
       expect(table.rows.map((r) => r.row)).toContain(rowCite?.rows?.[0]);
+    }
+  });
+});
+
+describe("runJob input names (security review)", () => {
+  it("refuses a file name that is a path", async () => {
+    for (const name of ["../escape.csv", "a/b.csv", "..", "c:\\x\\y.csv"]) {
+      await expect(
+        runJob(
+          { dir: tempDir(), files: [{ name, bytes: new Uint8Array([97]) }], options },
+          { model: coffeePlanner(), embedder: hashEmbedder() },
+        ),
+      ).rejects.toMatchObject({ code: "BAD_INPUT" });
     }
   });
 });
