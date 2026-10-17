@@ -101,28 +101,35 @@ function tableCte(
   return name;
 }
 
-/** Joins CTEs on period (and groups) and combines their values with `combine`. */
+/**
+ * Joins CTEs on period (and groups) and combines their values with `combine`. Each side gets its own alias
+ * (`j0`, `j1`, …): the same CTE can appear twice (a ratio of a metric to itself), and `FROM m1 FULL JOIN m1` is a
+ * duplicate-alias binder error in DuckDB (construction_supplier-v1, M13h).
+ */
 function joinCtes(ctx: Ctx, names: readonly string[], combine: (value: (i: number) => string) => string): string {
   const keys = ["period", ...ctx.groups.map((g) => q(g))];
-  const [first, ...rest] = names;
-  if (!first) throw new MetricCompileError("UNSUPPORTED_TYPE", "nothing to join");
+  if (!names.length) throw new MetricCompileError("UNSUPPORTED_TYPE", "nothing to join");
+  const alias = names.map((_, i) => `j${i}`);
   // Join on period and groups with IS NOT DISTINCT FROM, so a NULL group (e.g. no channel) matches itself;
   // each output key is the first non-null across the joined CTEs.
-  const from = rest.reduce((acc, n, i) => {
-    const on = keys
-      .map(
-        (k) =>
-          `coalesce(${names
-            .slice(0, i + 1)
-            .map((p) => `${p}.${k}`)
-            .join(", ")}) IS NOT DISTINCT FROM ${n}.${k}`,
-      )
-      .join(" AND ");
-    return `${acc} FULL JOIN ${n} ON ${on}`;
-  }, first);
-  const select = keys.map((k) => `coalesce(${names.map((n) => `${n}.${k}`).join(", ")}) AS ${k}`).join(", ");
+  const from = names
+    .map((n, i) => {
+      if (i === 0) return `${n} AS ${alias[0]}`;
+      const on = keys
+        .map(
+          (k) =>
+            `coalesce(${alias
+              .slice(0, i)
+              .map((a) => `${a}.${k}`)
+              .join(", ")}) IS NOT DISTINCT FROM ${alias[i]}.${k}`,
+        )
+        .join(" AND ");
+      return `FULL JOIN ${n} AS ${alias[i]} ON ${on}`;
+    })
+    .join(" ");
+  const select = keys.map((k) => `coalesce(${alias.map((a) => `${a}.${k}`).join(", ")}) AS ${k}`).join(", ");
   const name = `m${ctx.ctes.length + 1}`;
-  ctx.ctes.push(`${name} AS (SELECT ${select}, ${combine((i) => `${names[i]}.value`)} AS value FROM ${from})`);
+  ctx.ctes.push(`${name} AS (SELECT ${select}, ${combine((i) => `${alias[i]}.value`)} AS value FROM ${from})`);
   return name;
 }
 

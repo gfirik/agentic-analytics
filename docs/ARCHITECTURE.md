@@ -166,7 +166,7 @@ agentic-analytics/
   - `--profile web` adds SearXNG;
   - `--profile docling` adds docling-serve;
   - `--profile ollama` adds Ollama (users with Ollama installed natively skip this).
-- **Volumes:** `./data/jobs/<jobId>/` holds the uploads (`input/`), `job.duckdb`, `status.json`, `report.draft.json`, `report.json` and `report.html`.
+- **Volumes:** `./data/jobs/<jobId>/` holds the uploads (`input/`), `job.duckdb`, `status.json`, `metrics.drafted.json` (every metric draft before validation, with what was accepted and rejected and why; written even if the job later fails), `report.draft.json`, `report.json` and `report.html`.
 - **Single process.** The job runner is in-process with a concurrency limit (default 1 on CPU-only hosts). The later SaaS swaps in BullMQ behind the same `JobQueue` interface.
 
 ## 7. Extension points
