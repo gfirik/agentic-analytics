@@ -5,6 +5,7 @@ import { FakeModel } from "@agentic-analytics/models/testing";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { runMetricsCommand } from "../src/metrics.ts";
+import { ReviewEndedError } from "../src/prompt.ts";
 
 const dir = join(import.meta.dirname, "..", "..", "..", "evals/datasets/coffee-roaster-v1/files");
 const files = ["sales-2026.xlsx", "price-list.pdf", "email-0412.eml", "ops-notes.docx"].map((f) => ({
@@ -83,4 +84,24 @@ describe("aa metrics", () => {
     expect(again).toMatchObject({ source: "file", accepted: 4 });
     expect(lines.join("\n")).not.toContain("(assumed)");
   });
+
+  it("when the review's input ends (also mid-edit), it stops with a message and saves nothing", async () => {
+    for (const during of ["choose", "edit"] as const) {
+      const lines: string[] = [];
+      const io: ReviewIO = {
+        show: (l) => lines.push(l),
+        async choose(): Promise<ReviewChoice> {
+          if (during === "choose") throw new ReviewEndedError();
+          return "edit";
+        },
+        async edit(): Promise<string> {
+          throw new ReviewEndedError();
+        },
+      };
+      const out = await runMetricsCommand({ files, yes: false, today: "2026-07-01", currency: "USD" }, { out: (l) => lines.push(l), io });
+      expect(out).toMatchObject({ ended: true, accepted: 0, yaml: "" });
+      expect(lines).toContain("The review ended before every metric was answered; nothing was saved.");
+      expect(lines.some((l) => /isn't valid YAML/.test(l))).toBe(false);
+    }
+  }, 60_000);
 });

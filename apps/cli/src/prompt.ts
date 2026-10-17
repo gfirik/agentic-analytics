@@ -12,6 +12,12 @@ export class ReviewEndedError extends Error {
   }
 }
 
+/** What `aa analyze` and `aa metrics` print when the input ends mid-review (they then exit 1). */
+export const reviewEndedLines = (waiting: string): readonly string[] => [
+  `The review ended before every metric was answered; ${waiting}.`,
+  "Run again and answer each one, or add --yes to keep the drafts as assumptions.",
+];
+
 export interface LineReader {
   /** Writes the prompt and resolves with the next line of input. */
   question(prompt: string): Promise<string>;

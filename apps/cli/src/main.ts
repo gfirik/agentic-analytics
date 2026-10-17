@@ -486,6 +486,10 @@ const metrics = defineCommand({
           ...(modelError ? { modelError } : {}),
         },
       );
+      if (outcome.ended) {
+        process.exitCode = 1;
+        return;
+      }
       if (args.save) {
         writeFileSync(args.save, outcome.yaml);
         process.stdout.write(`\nSaved ${outcome.accepted} metric(s) to ${args.save}\n`);

@@ -18,7 +18,10 @@ The `agentic-analytics` / `aa` command line (citty).
 | `aa mcp` | The MCP server on stdio (Claude Desktop config: apps/mcp/README.md). |
 | `aa jobs ls \| rm <id> \| resume <id>` | Lists, deletes or resumes jobs in `AA_JOBS_DIR` (default `data/jobs`). |
 | `aa eval [--suite smoke\|full] [--model baseline\|configured\|<provider:model>] [--small-model] [--embedder hash] [--keep-reports dir] [--results-dir dir]` | Runs the eval suite on the generated datasets. It writes `evals/results/*.json` and regenerates `evals/RESULTS.md` in a checkout; with `--results-dir dir` (and by default in the standalone binary, `./eval-results`) both go into that folder, and exits 1 if a bar fails (evals/runner/README.md). |
+| `aa eval --suite real --answers <dir> [--data <dir>] [--model …] [--results-dir dir]` | The real-data checks on your own files: one answer file per dataset in `<dir>` (a dataset that isn't one of the public ones needs a `title`), the files they name in `--data` (default: the answers folder). With `--answers`, results and their RESULTS.md go to `./eval-results` unless `--results-dir` says otherwise, never to `evals/results`. Exits 1 if a check fails. |
 | `aa doctor` | Checks Node (≥22, required), DuckDB (required), Ollama, every configured OpenAI-compatible endpoint (keyed ones are probed), SearXNG and Docling; then calls the planner model with a one-line prompt if its provider is reachable. Prints a fix for each missing piece. Exits 1 only if a required check fails. |
+
+The metric review (`aa analyze` and `aa metrics` without `--yes`) reads its answers line by line from stdin, so answers piped in ahead of the questions are read in order; when the input runs out before every metric is answered, it stops with exit 1 and a message instead of asking again (`ReviewEndedError`, code `REVIEW_ENDED`, `src/prompt.ts`).
 
 ## Public API
 
