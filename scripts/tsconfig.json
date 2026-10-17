@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["*.ts", "test/**/*.ts", "readme-assets/**/*.ts", "../vitest.config.ts"]
+  "include": ["*.ts", "test/**/*.ts", "readme-assets/**/*.ts", "site/**/*.ts", "../vitest.config.ts"]
 }

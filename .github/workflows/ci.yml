@@ -58,3 +58,30 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bunx playwright install --with-deps chromium
       - run: bun run readme:check:browser
+
+  site-browser:
+    # The product site in a real browser (apps/docs/DESIGN.md §10): no third-party requests, axe WCAG 2 A/AA in light
+    # and dark, no horizontal scroll at 360 px, JS-off and reduced-motion behaviour, favicons, OG image and sitemap.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run --filter @agentic-analytics/docs build
+      - run: bun run site:check:browser
