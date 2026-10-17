@@ -165,7 +165,7 @@ Thirty generated businesses with planted events, distractors and data-quality is
 | groq:openai/gpt-oss-120b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) | 2026-10-16 |
 | groq:openai/gpt-oss-20b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) | 2026-10-16 |
 | groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) | 2026-10-16 |
-| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 3 of 30 jobs finished** | 10% | 8% | 100% | 0 | 100% | 3 min, 139k tokens | Groq free tier (hosted) | 2026-10-17 |
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 8 of 30 jobs finished** | 27% | 20% | 100% | 0 | 100% | 15 min, 489k tokens | Groq free tier (hosted) | 2026-10-17 |
 <!-- table:evals:end -->
 
 Only the "planner, extractor, judge" rows ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
