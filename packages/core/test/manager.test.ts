@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import type { JobEvent } from "@agentic-analytics/schema";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { JobManager } from "../src/index.ts";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { JobManager, type JobStatus } from "../src/index.ts";
 import { coffeePlanner } from "../testing/coffee-planner.ts";
 
 const files = Object.entries(coffeeRoasterFiles()).map(([name, bytes]) => ({ name, bytes }));
@@ -113,5 +113,22 @@ describe("JobManager", () => {
     expect((await manager.list()).map((s) => s.job_id)).toEqual(["coffee-review"]);
     await expect(manager.status("../etc")).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(manager.status("nope")).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("wait resolves when the job ends while its status read is still pending (no lost notification)", async () => {
+    // The job's terminal write lands between wait's status read and its return: the read still sees "running".
+    // The waiter must already be registered, or the notification is lost and the wait never resolves.
+    const internal = manager as unknown as { write(id: string, patch: Partial<JobStatus>): JobStatus };
+    const before = await manager.status(id);
+    const spy = vi.spyOn(manager, "status").mockImplementationOnce(async () => {
+      internal.write(id, { status: "done" });
+      return { ...before, status: "running" };
+    });
+    try {
+      expect((await manager.wait(id)).status).toBe("done");
+    } finally {
+      spy.mockRestore();
+      internal.write(id, { status: before.status });
+    }
   });
 });

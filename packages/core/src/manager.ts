@@ -214,17 +214,27 @@ export class JobManager {
 
   /** Resolves when the job is done, failed or waiting for confirmation. */
   async wait(id: string): Promise<JobStatus> {
-    const s = await this.status(id);
-    if (TERMINAL.includes(s.status)) return s;
-    return new Promise((resolve) => {
-      const set = this.waiters.get(id) ?? new Set();
-      const once = (x: JobStatus) => {
+    // The waiter is registered before the status is read: a job that ends while the read is pending notifies it,
+    // instead of finishing in the gap between the read and the registration and never resolving the wait.
+    const set = this.waiters.get(id) ?? new Set();
+    this.waiters.set(id, set);
+    let once: (x: JobStatus) => void = () => {};
+    const ended = new Promise<JobStatus>((resolve) => {
+      once = (x: JobStatus) => {
         set.delete(once);
         resolve(x);
       };
       set.add(once);
-      this.waiters.set(id, set);
     });
+    const s = await this.status(id).catch((err: unknown) => {
+      set.delete(once);
+      throw err;
+    });
+    if (TERMINAL.includes(s.status)) {
+      set.delete(once);
+      return s;
+    }
+    return ended;
   }
 
   /** All events so far, then live ones; returns an unsubscribe function. */

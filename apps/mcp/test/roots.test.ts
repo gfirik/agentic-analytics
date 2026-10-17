@@ -69,7 +69,7 @@ describe("MCP over HTTP (handler level)", () => {
     const id = allowed.result?.content?.[0]?.text?.match(/^job-[\w-]+/)?.[0];
     expect(id).toBeDefined();
     // The job runs in the background: wait for it, or afterAll removes its folder while it still writes (ENOTEMPTY).
-    await manager.wait(id as string);
+    expect((await manager.wait(id as string)).status).toBe("done");
   });
 
   it("a configured root that doesn't exist allows nothing and leaks no path", () => {
