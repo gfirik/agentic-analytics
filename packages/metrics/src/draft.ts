@@ -96,7 +96,7 @@ export async function draftMetrics(
   };
 }
 
-/** What a job saves as `metrics.drafted.json`: every draft before validation and what validation made of it. */
+/** What a job saves as `metrics.drafted.json`: every draft before validation and what validation made of it. A debug artifact with no stable schema (metric-layer §2.6). */
 export interface DraftRecord {
   readonly source: "model" | "fallback";
   readonly note?: string;
