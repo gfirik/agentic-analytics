@@ -156,6 +156,10 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
         if (table && !table.dateColumn) reasons.push(`${side}: table "${t.table}" has no date column, so it can't be measured per period`);
       }
     }
+    if (!reasons.length) {
+      const same = selfRatio(def.numerator as Term, def.denominator as Term, byId, catalog);
+      if (same) reasons.push(`ratio "${def.id}" divides "${same}" by itself (always 1)`);
+    }
     if (def.unit !== "percent" && def.unit !== "ratio") reasons.push(`a ratio's unit must be percent or ratio, not ${def.unit}`);
     return reasons;
   }
@@ -198,4 +202,55 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
       reasons.push(`dimension "${d}" is ${col.type}; dimensions must be categories, labels, ids or dates`);
   }
   return reasons;
+}
+
+/** The AST of a filter or expression as text, so spacing and redundant parentheses don't make two terms differ. */
+const canonical = (text: string, parse: (t: string) => unknown): string => {
+  try {
+    return JSON.stringify(parse(text));
+  } catch {
+    return text.trim();
+  }
+};
+
+/**
+ * What a ratio term sums, as a comparable key: a referenced metric is resolved to its table term when it is a plain
+ * sum over its table's date column (exactly what a table term compiles to), so `{table, expression, filters}` equal to
+ * `{metric: revenue}` is caught too.
+ */
+function termKey(t: Term, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
+  let table: string;
+  let expression: string;
+  let filters: readonly string[];
+  if ("metric" in t) {
+    const m = byId.get(t.metric);
+    const plainSum =
+      m?.type === "sum" &&
+      m.table &&
+      m.expression &&
+      (m.time_column ?? catalog.get(m.table)?.dateColumn) === catalog.get(m.table)?.dateColumn;
+    if (!m || !plainSum || !m.table || !m.expression) return `metric:${t.metric}`;
+    table = m.table;
+    expression = m.expression;
+    filters = m.filters ?? [];
+  } else {
+    table = t.table;
+    expression = t.expression;
+    filters = t.filters ?? [];
+  }
+  const f = [...new Set(filters.map((x) => canonical(x, parseFilter)))].sort();
+  return JSON.stringify([table, canonical(expression, parseExpression), f]);
+}
+
+/**
+ * A ratio whose numerator and denominator are the same quantity is always 1 (or unknown): a drafting mistake, never a
+ * metric (construction_supplier-v1, M13h). Returns how to name that quantity, or undefined when the sides differ.
+ */
+function selfRatio(n: Term | undefined, d: Term | undefined, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string | undefined {
+  if (!n || !d || termKey(n, byId, catalog) !== termKey(d, byId, catalog)) return undefined;
+  const side = "metric" in n ? n : "metric" in d ? d : undefined;
+  if (side) return side.metric;
+  const t = n as Exclude<Term, { metric: string }>;
+  const where = t.filters?.length ? ` where ${t.filters.map((f) => f.trim()).join(" and ")}` : "";
+  return `sum(${t.expression}) of ${t.table}${where}`;
 }
