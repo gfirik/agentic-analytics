@@ -179,6 +179,28 @@ describe("commands on the site", () => {
     expect(checked).toBeGreaterThan(20);
   });
 
+  it("every MCP client config on the site launches an aa command that exists (the `args` of each server)", () => {
+    let checked = 0;
+    const problems: Problem[] = [];
+    for (const f of sources) {
+      for (const m of readFileSync(f, "utf8").matchAll(/```json[^\n]*\n([\s\S]*?)```/g)) {
+        const config = JSON.parse(m[1] ?? "{}") as { mcpServers?: Record<string, { args?: string[] }> };
+        for (const server of Object.values(config.mcpServers ?? {})) {
+          const args = server.args ?? [];
+          const at = args.findIndex((a) => /(^|\/)aa\.js$/.test(a));
+          if (at < 0) continue;
+          checked++;
+          const why = checkAa(args.slice(at + 1));
+          if (why) problems.push({ file: relative(ROOT, f), command: args.join(" "), why });
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+    // use-it/mcp and the Learn MCP tutorial.
+    expect(checked).toBeGreaterThanOrEqual(2);
+    expect(checkAa(["mcp", "--embeder", "hash"])).toMatch(/no --embeder/);
+  });
+
   it("every command of a recorded Learn transcript exists (docs/assets/learn/learn.json)", () => {
     const file = join(ROOT, "docs", "assets", "learn", "learn.json");
     const learn = JSON.parse(readFileSync(file, "utf8")) as { transcripts: Record<string, { command: string }> };
