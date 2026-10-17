@@ -36,6 +36,14 @@ bun run eval -- --suite smoke --small-model --model ollama:qwen3.5:9b  # a real 
 
 The **baseline** is a scripted heuristic used to check the harness; it is never presented as model quality. Results: [Eval results](../results/).
 
+### On free GPUs (Kaggle)
+
+The full suite with a 27B model needs no paid API. [evals/kaggle/full-suite-vllm.ipynb](https://github.com/gfirik/agentic-analytics/blob/main/evals/kaggle/full-suite-vllm.ipynb) serves Qwen3.8-27B (4-bit) with vLLM inside a Kaggle notebook on the free 2× T4 GPUs.
+
+- **One business at a time.** Each run is `bun run eval -- --suite full --model configured --only <id> --results-dir <dir>`. It resumes across Kaggle's 12-hour sessions.
+- **One row.** `bun run eval:merge -- --label "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ" <part.json>` joins the runs into one model row.
+- **Steps:** [evals/README.md](https://github.com/gfirik/agentic-analytics/blob/main/evals/README.md#run-the-full-suite-on-kaggle-free-2t4).
+
 ## Real public data
 
 Generated data proves the engine finds what was planted. A second tier runs it on public business data with its real mess left in, and checks each report against facts established independently with SQL:

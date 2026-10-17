@@ -16,6 +16,7 @@ The binary is `agentic-analytics`, alias `aa` (`bun run aa …` from a clone).
 | `aa mcp` | The MCP server on stdio. |
 | `aa jobs ls \| rm <id> \| resume <id>` | Manage jobs in `AA_JOBS_DIR` (default `data/jobs`). |
 | `aa eval [--suite smoke\|full\|real] [--model …]` | The eval suite; updates `evals/RESULTS.md`. |
+| `aa eval --suite full --label "<name>" [--note "<text>"] [--only <id,…> --results-dir <dir>]` | A run under its own model row (a self-hosted model); `--only` runs some businesses, joined later with `bun run eval:merge`. |
 | `aa eval --suite real --answers <dir> [--data <dir>]` | The real-data checks on your own files ([tutorial](../../learn/tutorials/evals-on-your-data/)); results in `./eval-results`. |
 | `aa doctor` | What this machine has, with a fix for each missing piece. |
 | `aa metrics <paths…>` | Draft and review metric definitions only; `--save` writes them for reuse. |
