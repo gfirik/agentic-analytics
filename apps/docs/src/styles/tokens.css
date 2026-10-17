@@ -1,0 +1,96 @@
+/* The design tokens of the site (apps/docs/DESIGN.md §3–§5). This file and DESIGN.md must agree.
+   Light is the default; dark applies under prefers-color-scheme (no JS needed) unless the reader picked light, or
+   when the reader picked dark. The choice is Starlight's own `data-theme` / `starlight-theme`, shared with the docs. */
+
+:root {
+  /* Colour: slate and ink-navy; green only for "verified". */
+  --aa-page: #f7f9fb;
+  --aa-surface: #eef2f6;
+  --aa-raised: #ffffff;
+  --aa-mark: #e2e9f1;
+  --aa-rule: #d8dfe7;
+  --aa-rule-strong: #8696a9;
+  --aa-ink: #0e1a2b;
+  --aa-ink-2: #46566b;
+  --aa-ink-3: #5a6a7e;
+  --aa-verified: #0b6b3a;
+  --aa-verified-wash: #e6f2ea;
+  color-scheme: light;
+
+  /* Type */
+  --aa-font-display: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
+  --aa-font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --aa-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --aa-text-display: 3.5rem;
+  --aa-text-h2: 2.25rem;
+  --aa-text-h3: 1.125rem;
+  --aa-text-lead: 1.1875rem;
+  --aa-text-body: 1rem;
+  --aa-text-small: 0.875rem;
+  --aa-text-label: 0.75rem;
+  --aa-measure: 68ch;
+
+  /* Spacing: 4, 8, 12, 16, 24, 32, 48, 64, 96 */
+  --aa-space-1: 0.25rem;
+  --aa-space-2: 0.5rem;
+  --aa-space-3: 0.75rem;
+  --aa-space-4: 1rem;
+  --aa-space-5: 1.5rem;
+  --aa-space-6: 2rem;
+  --aa-space-7: 3rem;
+  --aa-space-8: 4rem;
+  --aa-space-9: 6rem;
+
+  /* Layout */
+  --aa-container: 73.75rem; /* 1180px */
+  --aa-gutter: 1.5rem;
+  --aa-radius-chip: 2px;
+  --aa-radius: 4px;
+
+  /* Motion */
+  --aa-ease: cubic-bezier(0.2, 0, 0, 1);
+  --aa-fast: 140ms;
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --aa-text-display: 2.25rem;
+    --aa-text-h2: 1.75rem;
+  }
+}
+@media (max-width: 30rem) {
+  :root {
+    --aa-gutter: 1rem;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --aa-page: #0b1220;
+    --aa-surface: #101a2b;
+    --aa-raised: #142036;
+    --aa-mark: #1c2a42;
+    --aa-rule: #24324a;
+    --aa-rule-strong: #566781;
+    --aa-ink: #e7edf4;
+    --aa-ink-2: #a8b5c5;
+    --aa-ink-3: #8f9db0;
+    --aa-verified: #4cc38a;
+    --aa-verified-wash: #0f2a20;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --aa-page: #0b1220;
+  --aa-surface: #101a2b;
+  --aa-raised: #142036;
+  --aa-mark: #1c2a42;
+  --aa-rule: #24324a;
+  --aa-rule-strong: #566781;
+  --aa-ink: #e7edf4;
+  --aa-ink-2: #a8b5c5;
+  --aa-ink-3: #8f9db0;
+  --aa-verified: #4cc38a;
+  --aa-verified-wash: #0f2a20;
+  color-scheme: dark;
+}

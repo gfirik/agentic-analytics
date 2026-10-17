@@ -21,7 +21,7 @@ export default function VerifierDiff() {
   const changed = report.verification.claims_downgraded;
   return (
     <section className="aa-island aa-diff" aria-label="Draft versus verified report">
-      <h4>Draft → verified · what the verifier changed</h4>
+      <p className="aa-island-label">Draft → verified · what the verifier changed</p>
       <ul>
         {dropped.map((d) => (
           <li key={d.claim + d.reason}>
@@ -40,7 +40,7 @@ export default function VerifierDiff() {
           </li>
         ))}
       </ul>
-      <p style={{ fontSize: "0.8rem" }}>
+      <p className="aa-small">
         {report.findings.reduce((a, f) => a + f.claims.length, 0)} claims shipped; {dropped.length} dropped and {changed.length} reworded or
         downgraded on the way, each listed in the report's verification section.
       </p>

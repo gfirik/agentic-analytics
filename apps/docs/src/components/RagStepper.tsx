@@ -34,7 +34,7 @@ export default function RagStepper() {
   const shown = id === "extract" ? ordered.slice(0, 1) : ordered;
   return (
     <section className="aa-island" aria-label="Retrieval step-through">
-      <h4>Query: “{rag.query}”</h4>
+      <p className="aa-island-label">Query: “{rag.query}”</p>
       <div className="aa-row">
         {STEPS.map((s, i) => (
           <button key={s.id} type="button" className="aa-btn" aria-pressed={i === step} onClick={() => setStep(i)}>
@@ -42,7 +42,7 @@ export default function RagStepper() {
           </button>
         ))}
       </div>
-      <p style={{ fontSize: "0.8rem" }}>{STEPS[step]?.note}</p>
+      <p className="aa-small">{STEPS[step]?.note}</p>
       <ol className="aa-hits">
         {shown.map((h, i) => (
           <li key={h.chunk}>
@@ -50,7 +50,7 @@ export default function RagStepper() {
             <span>
               <code>{h.file}</code> {h.heading ? `› ${h.heading}` : ""}
               <br />
-              <span style={{ opacity: 0.8 }}>{h.text.replace(/\s+/g, " ").slice(0, 120)}…</span>
+              <span>{h.text.replace(/\s+/g, " ").slice(0, 120)}…</span>
             </span>
             <span style={{ textAlign: "right" }}>
               {id === "bm25" ? `BM25 #${h.bm25}` : id === "vector" ? `vector #${h.vector}` : `RRF ${h.score.toFixed(4)}`}

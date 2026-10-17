@@ -3,16 +3,20 @@
 // draft and verified report and a real retrieval trace for the islands; it renders the HTTP API reference from the
 // server's own OpenAPI spec, the report schema from its JSON Schema, and copies the eval results and project docs.
 // Runs before every build (`bun run build`); everything it writes is gitignored.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobManager, runJob } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
+import { type DatasetScore, type RealSuiteResult, summarize } from "@agentic-analytics/eval-runner";
 import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
 import type { JobEvent } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
 import { sql, Workspace } from "@agentic-analytics/store";
+import type { PipelineData } from "../src/components/pipeline-scene.ts";
+import { disagreements, LandingDataError, landingData } from "./landing-data.ts";
+import { PIPELINE_JSON, recordRun } from "./pipeline-data.ts";
 
 const DOCS = join(import.meta.dirname, "..");
 const ROOT = join(DOCS, "..", "..");
@@ -162,5 +166,71 @@ for (const [file, rel, title, description] of [
 // 6. The shared diagrams (the same files the README and ARCHITECTURE.md embed).
 for (const d of ["architecture", "pipeline"])
   writeFileSync(join(DATA, `${d}.mmd`), readFileSync(join(ROOT, "docs/assets/diagrams", `${d}.mmd`), "utf8"));
+
+// 7. The landing page's report: the same web-enabled run the hero animation plays (pipeline-data.ts), so the page
+//    shows one run throughout. The build fails if it disagrees with the committed pipeline.json (re-run
+//    `bun run readme:pipeline`).
+{
+  const landing = landingData((await recordRun()).report);
+  const hero = JSON.parse(readFileSync(PIPELINE_JSON, "utf8")) as PipelineData;
+  const off = disagreements(landing, hero);
+  if (off.length) throw new LandingDataError(`the landing report and pipeline.json disagree: ${off.join("; ")}`);
+  writeFileSync(join(DATA, "landing.json"), JSON.stringify(landing));
+}
+
+// 8. The landing page's eval numbers, from the committed results files (evals/results/*.json): the suite metrics are
+//    computed by the eval runner's own summarize(), the same function that writes evals/RESULTS.md.
+{
+  const RESULTS = join(ROOT, "evals", "results");
+  const latest = (suffix: string) => {
+    const name = readdirSync(RESULTS)
+      .filter((f) => f.endsWith(suffix))
+      .sort()
+      .at(-1);
+    if (!name) throw new Error(`docs: no evals/results/*${suffix}`);
+    return { name, data: JSON.parse(readFileSync(join(RESULTS, name), "utf8")) as unknown };
+  };
+  type SuiteFile = { suite: string; model: string; note?: string; date: string; datasets: number; scores: DatasetScore[] };
+  const suite = (suffix: string) => {
+    const { name, data } = latest(suffix);
+    const s = data as SuiteFile;
+    return {
+      file: `evals/results/${name}`,
+      suite: s.suite,
+      model: s.model,
+      note: s.note ?? null,
+      date: s.date,
+      datasets: s.scores.length,
+      completed: s.scores.filter((x) => x.completed).length,
+      bars: summarize(s.scores),
+    };
+  };
+  const real = latest("-baseline-real.json");
+  const r = real.data as RealSuiteResult;
+  writeFileSync(
+    join(DATA, "evals.json"),
+    JSON.stringify({
+      synthetic: suite("-baseline-full.json"),
+      smoke: suite("-configured-small-smoke.json"),
+      full: suite("-configured-small-full.json"),
+      real: {
+        file: `evals/results/${real.name}`,
+        model: r.model,
+        note: r.note ?? null,
+        date: r.date,
+        datasets: r.datasets.map((d) => ({
+          dataset: d.dataset,
+          title: d.title,
+          publisher: d.publisher,
+          licence: d.licence,
+          page: d.page,
+          completed: d.completed,
+          seconds: d.seconds,
+          checks: d.checks.map((c) => ({ id: c.id, about: c.about, pass: c.pass, detail: c.detail })),
+        })),
+      },
+    }),
+  );
+}
 
 process.stdout.write("docs: generated data and reference pages\n");

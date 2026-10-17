@@ -35,7 +35,7 @@ export default function CitationDemo() {
   if (!finding) return null;
   return (
     <section className="aa-island" aria-label="Citation demo">
-      <h4>Click a citation · {finding.title}</h4>
+      <p className="aa-island-label">Click a citation · {finding.title}</p>
       {finding.claims.slice(0, 5).map((c) => (
         <div key={c.text} className="aa-claim">
           {fill(c.text, facts)}
@@ -92,7 +92,7 @@ export default function CitationDemo() {
           )}
         </div>
       ) : (
-        <p style={{ fontSize: "0.8rem" }}>Every number above is a fact computed by SQL; every citation opens what it points at.</p>
+        <p className="aa-small">Every number above is a fact computed by SQL; every citation opens what it points at.</p>
       )}
     </section>
   );

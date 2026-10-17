@@ -1,0 +1,193 @@
+/* Base and layout for the pages outside Starlight: the landing page and the 404 (DESIGN.md §4–§5). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--aa-space-5);
+}
+body {
+  margin: 0;
+  background: var(--aa-page);
+  color: var(--aa-ink);
+  font: 400 var(--aa-text-body) / 1.6 var(--aa-font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+h1,
+h2,
+h3,
+p,
+ol,
+ul,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+img,
+svg {
+  max-width: 100%;
+}
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--aa-font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+a {
+  color: var(--aa-ink);
+  text-decoration-color: var(--aa-rule-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  text-decoration-color: var(--aa-ink);
+}
+:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+main:focus {
+  outline: none;
+}
+
+.aa-skip {
+  position: absolute;
+  left: var(--aa-space-4);
+  top: -100%;
+  z-index: 100;
+  padding: var(--aa-space-2) var(--aa-space-4);
+  background: var(--aa-ink);
+  color: var(--aa-page);
+  border-radius: var(--aa-radius);
+  font: 500 var(--aa-text-small) / 1.4 var(--aa-font-sans);
+}
+.aa-skip:focus {
+  top: var(--aa-space-4);
+}
+
+.aa-container {
+  max-width: var(--aa-container);
+  margin: 0 auto;
+  padding: 0 var(--aa-gutter);
+}
+
+/* Type */
+.aa-display {
+  font-family: var(--aa-font-display);
+  font-size: var(--aa-text-display);
+  font-weight: 450;
+  font-optical-sizing: auto;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--aa-ink);
+  text-wrap: balance;
+}
+.aa-h2 {
+  font-family: var(--aa-font-display);
+  font-size: var(--aa-text-h2);
+  font-weight: 450;
+  font-optical-sizing: auto;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--aa-ink);
+  text-wrap: balance;
+  max-width: 24ch;
+}
+.aa-h3 {
+  font: 600 var(--aa-text-h3) / 1.4 var(--aa-font-sans);
+  color: var(--aa-ink);
+}
+.aa-lead {
+  font-size: var(--aa-text-lead);
+  line-height: 1.55;
+  color: var(--aa-ink-2);
+  max-width: var(--aa-measure);
+}
+.aa-small {
+  font-size: var(--aa-text-small);
+  line-height: 1.5;
+  color: var(--aa-ink-2);
+}
+.aa-prose {
+  max-width: var(--aa-measure);
+}
+
+/* Sections: a full-width hairline between them, a ledger reference label, a serif heading and a lead. */
+.aa-section {
+  border-top: 1px solid var(--aa-rule);
+  padding: var(--aa-space-9) 0;
+}
+.aa-section-head {
+  display: grid;
+  gap: var(--aa-space-4);
+  margin-bottom: var(--aa-space-7);
+}
+.aa-ref {
+  display: inline-flex;
+  gap: var(--aa-space-3);
+  align-items: baseline;
+}
+.aa-ref b {
+  font-weight: 500;
+  color: var(--aa-ink);
+}
+@media (max-width: 40rem) {
+  .aa-section {
+    padding: var(--aa-space-8) 0;
+  }
+  .aa-section-head {
+    margin-bottom: var(--aa-space-6);
+  }
+}
+
+/* Code on the landing page: a hairline frame on the slate surface, a mono caption. */
+.aa-code {
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-surface);
+  min-width: 0;
+}
+.aa-code-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--aa-space-3);
+  padding: var(--aa-space-2) var(--aa-space-4);
+  border-bottom: 1px solid var(--aa-rule);
+}
+.aa-code pre {
+  margin: 0;
+  padding: var(--aa-space-4);
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--aa-ink);
+}
+.aa-code pre:focus-visible {
+  outline-offset: -2px;
+}
+.aa-code .c {
+  color: var(--aa-ink-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

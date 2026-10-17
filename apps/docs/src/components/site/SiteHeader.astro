@@ -1,0 +1,151 @@
+---
+// The header of the landing page and the 404 (the docs use the same pieces in components/starlight/Header.astro).
+// Under 45rem the links fold into a menu button: aria-expanded/aria-controls, Escape closes it and returns focus.
+// Without JS the links stay visible and wrap.
+import Logo from "./Logo.astro";
+import { DOCS_HOME, GITHUB_URL, withBase } from "./site.ts";
+import ThemeToggle from "./ThemeToggle.astro";
+
+const links = [
+  { href: withBase("/#report"), label: "The report" },
+  { href: withBase("/#evals"), label: "Evals" },
+  { href: withBase(DOCS_HOME), label: "Docs" },
+  { href: GITHUB_URL, label: "GitHub" },
+];
+---
+
+<header class="aa-header">
+  <div class="aa-header-inner">
+    <Logo />
+    <button type="button" class="aa-menu-button" aria-expanded="false" aria-controls="aa-site-menu" data-aa-menu hidden>
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"
+        ><path d="M2 4.5h12M2 8h12M2 11.5h12" stroke="currentColor" stroke-width="1.5"></path></svg
+      >
+      Menu
+    </button>
+    <nav id="aa-site-menu" class="aa-site-menu" aria-label="Main">
+      <ul>
+        {
+          links.map((l) => (
+            <li>
+              <a href={l.href}>{l.label}</a>
+            </li>
+          ))
+        }
+      </ul>
+      <ThemeToggle />
+    </nav>
+  </div>
+</header>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>("[data-aa-menu]");
+  const menu = document.getElementById("aa-site-menu");
+  if (button && menu) {
+    button.hidden = false;
+    document.documentElement.classList.add("aa-has-menu");
+    const set = (open: boolean) => {
+      button.setAttribute("aria-expanded", String(open));
+      menu.dataset.open = String(open);
+    };
+    button.addEventListener("click", () => set(button.getAttribute("aria-expanded") !== "true"));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && button.getAttribute("aria-expanded") === "true") {
+        set(false);
+        button.focus();
+      }
+    });
+    for (const a of menu.querySelectorAll("a")) a.addEventListener("click", () => set(false));
+  }
+</script>
+
+<style>
+  .aa-header {
+    border-bottom: 1px solid var(--aa-rule);
+    background: var(--aa-page);
+  }
+  .aa-header-inner {
+    max-width: var(--aa-container);
+    margin: 0 auto;
+    padding: var(--aa-space-2) var(--aa-gutter);
+    min-height: 3.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--aa-space-2) var(--aa-space-5);
+  }
+  .aa-site-menu {
+    display: flex;
+    align-items: center;
+    gap: var(--aa-space-5);
+  }
+  .aa-site-menu ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--aa-space-1) var(--aa-space-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aa-site-menu a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--aa-ink-2);
+    font: 500 0.9375rem/1 var(--aa-font-sans);
+    text-decoration: none;
+  }
+  .aa-site-menu a:hover {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+  }
+  .aa-menu-button {
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: transparent;
+    color: var(--aa-ink);
+    font: 500 0.875rem/1 var(--aa-font-sans);
+    cursor: pointer;
+  }
+  .aa-menu-button svg {
+    width: 1rem;
+    height: 1rem;
+  }
+  @media (max-width: 45rem) {
+    :global(.aa-has-menu) .aa-menu-button {
+      display: inline-flex;
+    }
+    :global(.aa-has-menu) .aa-site-menu {
+      display: none;
+      flex-basis: 100%;
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--aa-space-3);
+      padding: var(--aa-space-2) 0 var(--aa-space-4);
+      border-top: 1px solid var(--aa-rule);
+    }
+    :global(.aa-has-menu) .aa-site-menu[data-open="true"] {
+      display: flex;
+    }
+    :global(.aa-has-menu) .aa-site-menu ul {
+      flex-direction: column;
+      gap: 0;
+    }
+    :global(.aa-has-menu) .aa-site-menu li + li {
+      border-top: 1px solid var(--aa-rule);
+    }
+    :global(.aa-has-menu) .aa-site-menu :global(.aa-theme) {
+      align-self: flex-start;
+    }
+    .aa-site-menu {
+      flex-wrap: wrap;
+    }
+  }
+</style>

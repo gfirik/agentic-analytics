@@ -1,0 +1,69 @@
+---
+// The frame of the pages outside Starlight (the landing page and the 404): head metadata, the shared tokens, a skip
+// link, the header, <main> and the footer. The docs get the same tokens and pieces through Starlight's overrides.
+import "../../styles/fonts.css";
+import "../../styles/tokens.css";
+import "../../styles/components.css";
+import "../../styles/site.css";
+import SiteFooter from "./SiteFooter.astro";
+import SiteHeader from "./SiteHeader.astro";
+import { OG_IMAGE, OG_IMAGE_ALT, SITE_DESCRIPTION, SITE_NAME, withBase } from "./site.ts";
+
+interface Props {
+  title: string;
+  description?: string;
+  /** False for the 404: no canonical URL, not indexed. */
+  index?: boolean;
+}
+const { title, description = SITE_DESCRIPTION, index = true } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {index ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
+    <link rel="icon" href={withBase("favicon.ico")} sizes="32x32" />
+    <link rel="icon" href={withBase("favicon.svg")} type="image/svg+xml" />
+    <link rel="sitemap" href={withBase("sitemap-index.xml")} />
+    <meta name="theme-color" content="#f7f9fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={OG_IMAGE} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={OG_IMAGE_ALT} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={OG_IMAGE} />
+    <meta name="twitter:image:alt" content={OG_IMAGE_ALT} />
+    <!-- The reader's theme, as the docs store it (Starlight's `starlight-theme`), before first paint. -->
+    <script is:inline>
+      (() => {
+        let t = "";
+        try {
+          t = localStorage.getItem("starlight-theme") || "";
+        } catch {}
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="aa-skip" href="#main">Skip to content</a>
+    <SiteHeader />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

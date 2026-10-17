@@ -7,7 +7,9 @@
 // Sized for a 640×480 canvas that stays legible when the GIF is shown 360 px wide: body text (sentences, quotes,
 // numbers) ≥ 22 px, labels (stage names, ids, captions, counts) ≥ 18 px, a few words per frame (a test enforces
 // the 18 px floor). Colors are CSS custom properties (light by default, dark under `.dark` or Starlight's
-// `data-theme="dark"`), so one frame serves both themes.
+// `data-theme="dark"`), so one frame serves both themes. The classes `fact-chip`, `fact-id` and `verified` carry no
+// style here (the GIF looks as before); they are hooks for the docs site, which draws fact chips as hairline boxes and
+// verified marks in its one green (apps/docs/DESIGN.md §6).
 
 export interface ShownFact {
   readonly id: string;
@@ -218,7 +220,7 @@ function chip(x: number, y: number, id: string, local: number, at: number, cls =
   if (k <= 0) return "";
   const w = 14 + id.length * 12.5;
   const s = r1((1.5 - 0.5 * k) * 100) / 100;
-  return `<g opacity="${r1(k * 100) / 100}" transform="translate(${r1(x)} ${r1(y)}) scale(${s})"><rect x="0" y="-17" width="${r1(w)}" height="26" rx="6" class="${cls}"/>${txt({ x: w / 2, y: 3, size: 19, text: id, cls: "mono on-accent", weight: 700, anchor: "middle" })}</g>`;
+  return `<g opacity="${r1(k * 100) / 100}" transform="translate(${r1(x)} ${r1(y)}) scale(${s})"><rect x="0" y="-17" width="${r1(w)}" height="26" rx="6" class="${cls} fact-chip"/>${txt({ x: w / 2, y: 3, size: 19, text: id, cls: "mono on-accent fact-id", weight: 700, anchor: "middle" })}</g>`;
 }
 
 const RAIL_Y = 40;
@@ -408,7 +410,9 @@ function verify(d: PipelineData, local: number, dur: number): string {
     const ok = c.failed === 0;
     const k = ease((local - at - 0.15) / 0.2);
     const mark =
-      k > 0 ? txt({ x: x + 262, y: y + 6, size: 26, text: ok ? "✓" : "✎", cls: ok ? "accent" : "warn", weight: 800, anchor: "end" }) : "";
+      k > 0
+        ? txt({ x: x + 262, y: y + 6, size: 26, text: ok ? "✓" : "✎", cls: ok ? "accent verified" : "warn", weight: 800, anchor: "end" })
+        : "";
     const count = ok ? `${c.run}` : `${c.failed} flagged`;
     return group(
       local,
@@ -445,12 +449,7 @@ function report(d: PipelineData, local: number, dur: number): string {
   const a = d.action;
   const impactY = top + 78 + act.length * 29;
   return (
-    group(
-      local,
-      0,
-      dur,
-      txt({ x: 40, y: 128, size: 18, text: `${stagesOf(d, "Report")} · verified, cited`, cls: "mono muted", weight: 700 }),
-    ) +
+    group(local, 0, dur, txt({ x: 40, y: 128, size: 18, text: `${stagesOf(d, "Report")} · ${STAMP}`, cls: "mono muted", weight: 700 })) +
     group(local, 0.1, dur, head.map((l, i) => txt({ x: 40, y: 162 + i * 34, size: 26, text: l, weight: 700 })).join("")) +
     group(
       local,
@@ -502,6 +501,13 @@ export interface SceneOptions {
   readonly width?: number | string;
 }
 
+/** The report's stamp. On the site (theme "auto") its words carry the `verified` hook in a <tspan>, so only they turn
+ *  green; the GIF recorder pins a theme and gets the plain text, because a <tspan> split shifts the glyphs by a
+ *  sub-pixel and the README frames must stay byte-identical. */
+const STAMP = "verified, cited";
+const STAMP_TEXT = `· ${STAMP}</text>`;
+const STAMP_SITE = `· <tspan class="verified">${STAMP}</tspan></text>`;
+
 /** The frame at t seconds (looping every LOOP_SECONDS). Pure: same data and t, same SVG. */
 export function sceneSvg(d: PipelineData, t: number, o: SceneOptions = {}): string {
   const { scene, local } = sceneAt(t);
@@ -509,5 +515,7 @@ export function sceneSvg(d: PipelineData, t: number, o: SceneOptions = {}): stri
   const theme = o.theme ?? "auto";
   const cls = theme === "auto" ? "pp" : `pp ${theme}`;
   const w = o.width ?? "100%";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${w}" class="${cls}" role="img" aria-label="${esc(altText(d))}"><style>${THEME_CSS}</style><rect width="${WIDTH}" height="${HEIGHT}" rx="16" class="bg"/>${rail(railOf(d.stages), scene, local)}${RENDER[scene.key]?.(d, local, dur) ?? ""}</svg>`;
+  const body = RENDER[scene.key]?.(d, local, dur) ?? "";
+  const shown = theme === "auto" ? body.replace(STAMP_TEXT, STAMP_SITE) : body;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${w}" class="${cls}" role="img" aria-label="${esc(altText(d))}"><style>${THEME_CSS}</style><rect width="${WIDTH}" height="${HEIGHT}" rx="16" class="bg"/>${rail(railOf(d.stages), scene, local)}${shown}</svg>`;
 }

@@ -1,0 +1,72 @@
+---
+// Starlight's header, rebuilt from the site's pieces (DESIGN.md §6): the same wordmark and links as the landing page,
+// plus Starlight's own local search (Pagefind) and the shared theme control. On small screens the links move into
+// Starlight's mobile menu (its MobileMenuFooter keeps the theme control).
+import Search from "virtual:starlight/components/Search";
+import Logo from "../site/Logo.astro";
+import { GITHUB_URL, withBase } from "../site/site.ts";
+import ThemeToggle from "../site/ThemeToggle.astro";
+---
+
+<div class="aa-sl-header">
+  <div class="aa-sl-title"><Logo /></div>
+  <div class="aa-sl-search print:hidden"><Search /></div>
+  <nav class="aa-sl-nav print:hidden" aria-label="Site">
+    <a href={withBase("/#evals")}>Evals</a>
+    <a href={GITHUB_URL}>GitHub</a>
+    <ThemeToggle />
+  </nav>
+</div>
+
+<style>
+  .aa-sl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--aa-space-4);
+    height: 100%;
+  }
+  .aa-sl-title {
+    min-width: 0;
+    overflow: clip;
+    padding: 0.25rem;
+    margin: -0.25rem;
+  }
+  .aa-sl-search {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .aa-sl-nav {
+    display: none;
+    align-items: center;
+    gap: var(--aa-space-5);
+  }
+  .aa-sl-nav a {
+    color: var(--aa-ink-2);
+    font: 500 0.9375rem/1 var(--aa-font-sans);
+    text-decoration: none;
+  }
+  .aa-sl-nav a:hover {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+  }
+  @media (min-width: 50rem) {
+    .aa-sl-header {
+      display: grid;
+      grid-template-columns: minmax(calc(var(--sl-sidebar-width) - 2 * var(--sl-nav-pad-x)), auto) 1fr auto;
+    }
+    .aa-sl-search {
+      justify-content: flex-start;
+    }
+    .aa-sl-nav {
+      display: flex;
+    }
+  }
+  @media (max-width: 24rem) {
+    .aa-sl-title :global(.aa-logo-name) {
+      font-size: 0.875rem;
+    }
+  }
+</style>
