@@ -10,7 +10,45 @@ export type RawAttempt = (prompt: string) => Promise<{ value: unknown; usage: Us
 
 export const DEFAULT_MAX_RETRIES = 2;
 
-export async function generateValidated<T>(schema: ZodType<T>, prompt: string, attempt: RawAttempt, maxRetries = DEFAULT_MAX_RETRIES) {
+/** With an input budget, retry feedback quotes at most this many characters of the validation error (models §5). */
+export const FEEDBACK_MAX_CHARS = 300;
+
+/** The retry suffix appended to the prompt after a validation failure. */
+export const feedbackSuffix = (error: string): string =>
+  `\n\nYour previous answer was rejected by validation: ${error}\nReturn only JSON that matches the schema.`;
+
+/**
+ * Validation feedback that fits FEEDBACK_MAX_CHARS. The AI SDK's message repeats the model's whole answer before the
+ * reason ("Type validation failed: Value: {…}. Error message: [issues]"), so cutting it from the front would keep
+ * only the echo; the issues are kept instead, as "path: message", then cut to the limit.
+ */
+export function boundedFeedback(error: string): string {
+  const m = /Error message:\s*(\[[\s\S]*\])\s*$/.exec(error);
+  let text = error;
+  if (m?.[1]) {
+    try {
+      const issues = JSON.parse(m[1]) as unknown;
+      if (Array.isArray(issues))
+        text = issues
+          .map((i: { path?: unknown; message?: unknown }) => {
+            const path = Array.isArray(i.path) ? i.path.join(".") : "";
+            return `${path || "(root)"}: ${String(i.message ?? "")}`;
+          })
+          .join("; ");
+    } catch {
+      // Not the SDK's JSON issue list: fall back to the text as given.
+    }
+  }
+  return [...text].slice(0, FEEDBACK_MAX_CHARS).join("");
+}
+
+export async function generateValidated<T>(
+  schema: ZodType<T>,
+  prompt: string,
+  attempt: RawAttempt,
+  maxRetries = DEFAULT_MAX_RETRIES,
+  options: { readonly boundedFeedback?: boolean } = {},
+) {
   let usage = ZERO_USAGE;
   let feedbackPrompt = prompt;
   let lastError = "";
@@ -24,7 +62,8 @@ export async function generateValidated<T>(schema: ZodType<T>, prompt: string, a
     } else {
       lastError = res.invalid;
     }
-    feedbackPrompt = `${prompt}\n\nYour previous answer was rejected by validation: ${lastError}\nReturn only JSON that matches the schema.`;
+    // A budgeted call keeps its retries within the budget: the estimate reserves FEEDBACK_MAX_CHARS for the error.
+    feedbackPrompt = `${prompt}${feedbackSuffix(options.boundedFeedback ? boundedFeedback(lastError) : lastError)}`;
   }
   throw new ModelError("INVALID_OUTPUT", `structured output failed validation after ${maxRetries + 1} attempts: ${lastError}`);
 }

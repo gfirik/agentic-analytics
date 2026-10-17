@@ -10,6 +10,7 @@ import {
   data,
   ExplainOutput,
   extractFromHits,
+  type FactSheet,
   type PromptName,
   quarantinedSources,
   readExtracts,
@@ -442,7 +443,14 @@ describe("DECIDE degrades when the model can't produce valid actions (models §5
       model,
       findings: [finding],
       objective: "Grow profit",
-      factsheet: "{}",
+      factsheet: {
+        objective: "Grow profit",
+        period: { from: "2026-01", to: "2026-06", grain: "month" },
+        metrics: [],
+        insights: [],
+        decompositions: [],
+        quality: [],
+      } satisfies FactSheet,
       periodEnd: "2026-06-30",
       maxRecommendations: 5,
     } as unknown as Parameters<typeof decide>[0]);

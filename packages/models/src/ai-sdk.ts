@@ -5,7 +5,7 @@
 import type { Config, RoleModel, RouteModel } from "@agentic-analytics/schema";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { APICallError, generateText, type LanguageModel, NoObjectGeneratedError, Output, stepCountIs, tool } from "ai";
-import { z } from "zod";
+import { checkInputBudget, schemaInstruction } from "./budget.ts";
 import type { ResponseCache } from "./cache.ts";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
@@ -116,6 +116,7 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
     async generateObject<T>(args: GenerateObjectArgs<T>) {
       // A structured-output call never carries tools; a tool loop never asks for structured output (M13a: two
       // separate calls, enforced in ai-sdk.test.ts).
+      checkInputBudget(args);
       const { object, usage } = await generateValidated(
         args.schema,
         args.prompt,
@@ -124,9 +125,7 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           try {
             return await onRoute(args.role, async (lm, route) => {
               // Without native structured outputs the endpoint only gets json_object mode, so the schema goes in the prompt.
-              const system = supportsStructuredOutputs(route, config)
-                ? args.system
-                : `${args.system}\n\nRespond with JSON only. It must match this JSON Schema:\n${JSON.stringify(z.toJSONSchema(args.schema))}`;
+              const system = supportsStructuredOutputs(route, config) ? args.system : `${args.system}${schemaInstruction(args.schema)}`;
               try {
                 const res = await generateText({
                   model: lm,
@@ -165,6 +164,7 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           }
         },
         args.maxRetries,
+        { boundedFeedback: args.maxInputTokens !== undefined },
       );
       return { object, usage };
     },
