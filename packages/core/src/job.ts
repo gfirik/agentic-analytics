@@ -27,7 +27,15 @@ import {
 } from "@agentic-analytics/agent";
 import { analyzeJob, loadAnalysis, readFacts, type StoredInsight } from "@agentic-analytics/analysis";
 import { type IngestResult, type InputFile, ingest } from "@agentic-analytics/ingest";
-import { draftMetrics, type Grain, loadCatalog, parseMetricsYaml, saveMetricDefs, validateMetrics } from "@agentic-analytics/metrics";
+import {
+  draftMetrics,
+  draftRecord,
+  type Grain,
+  loadCatalog,
+  parseMetricsYaml,
+  saveMetricDefs,
+  validateMetrics,
+} from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
 import { type ProfileSummary, partialLastMonth, periodOf, previousMonth, profileJob } from "@agentic-analytics/profile";
 import { renderReportHtml } from "@agentic-analytics/report";
@@ -106,6 +114,8 @@ export interface JobOutcome {
 }
 
 const DB = "job.duckdb";
+/** Every draft of the job's metrics before validation, with the validation result (accepted, rejected with reasons). */
+export const DRAFTED_METRICS = "metrics.drafted.json";
 
 function readInputs(dir: string): InputFile[] {
   const inputDir = join(dir, "input");
@@ -286,6 +296,8 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             model: deps.model,
             suspicious: screen,
           });
+          // Saved before anything can fail on these definitions, so a later failure can be traced to the draft.
+          writeFileSync(join(dir, DRAFTED_METRICS), `${JSON.stringify(draftRecord(draft), null, 2)}\n`);
           const grain = summary.grain as Grain;
           const bounds = summary.tables.flatMap((t) => (t.date_first && t.date_last ? [t.date_first, t.date_last] : [])).sort();
           const periods = bounds.map((d) => periodOf(d, grain)).sort();
