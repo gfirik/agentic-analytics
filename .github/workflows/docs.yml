@@ -1,8 +1,10 @@
 name: docs
 
 # Builds the docs site on every PR and push; deploys it to GitHub Pages from main (Settings → Pages → Source: GitHub Actions).
-# Pages is unavailable for this private repo (GitHub Free plan): while it is private the upload and deploy are skipped, not failed.
+# Pages needs a public repo on the Free plan: while the repo is private the upload and deploy are skipped, not failed.
+# workflow_dispatch redeploys main by hand (a re-run reuses the old event, including its private flag).
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
@@ -28,13 +30,13 @@ jobs:
           node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run --filter @agentic-analytics/docs build
-      - if: github.event_name == 'push' && !github.event.repository.private
+      - if: github.event_name != 'pull_request' && !github.event.repository.private
         uses: actions/upload-pages-artifact@v3
         with:
           path: apps/docs/dist
 
   deploy:
-    if: github.event_name == 'push' && !github.event.repository.private
+    if: github.event_name != 'pull_request' && !github.event.repository.private
     needs: build
     runs-on: ubuntu-latest
     permissions:
