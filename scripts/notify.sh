@@ -7,7 +7,11 @@ echo "$msg"
 envfile="${AA_TG_ENV:-${XDG_CONFIG_HOME:-$HOME/.config}/agentic-analytics/telegram.env}"
 if { [ -z "${AA_TG_TOKEN:-}" ] || [ -z "${AA_TG_CHAT:-}" ]; } && [ -r "$envfile" ]; then
   # Only the two expected keys are read; the file is never sourced as a script.
-  while IFS='=' read -r k v; do
+  # A last line without a newline still counts; CR and surrounding quotes are dropped.
+  while IFS='=' read -r k v || [ -n "$k" ]; do
+    v="${v%$'\r'}"
+    v="${v#[\"\']}"
+    v="${v%[\"\']}"
     case "$k" in
       AA_TG_TOKEN) [ -n "${AA_TG_TOKEN:-}" ] || AA_TG_TOKEN="$v" ;;
       AA_TG_CHAT) [ -n "${AA_TG_CHAT:-}" ] || AA_TG_CHAT="$v" ;;

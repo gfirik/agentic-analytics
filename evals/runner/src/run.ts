@@ -167,8 +167,13 @@ export function mergeRoutes(uses: readonly RouteUse[]): RouteUse[] {
 }
 const pct = (v: number | undefined) => (v === undefined ? "n/a" : `${(v * 100).toFixed(1)}%`);
 
+const passCell = (b: Bar, partial: boolean) =>
+  partial && b.metric !== "Jobs completed" ? "n/a (partial run)" : b.pass === undefined ? "n/a" : b.pass ? "yes" : "**no**";
+
 /** One model's results as markdown: the bars, then one line per dataset. */
 export function resultsMarkdown(r: SuiteResult): string {
+  // With unfinished jobs every rate counts them as misses, or covers only the finished few: no bar is judged.
+  const partial = r.scores.some((s) => !s.completed);
   const lines = [
     `### ${r.model} · ${r.suite} suite · ${r.date}`,
     "",
@@ -184,8 +189,7 @@ export function resultsMarkdown(r: SuiteResult): string {
     "| Metric | Result | v0.1 bar | Pass |",
     "|---|---|---|---|",
     ...r.bars.map(
-      (b) =>
-        `| ${b.metric} | ${b.metric === "Number mismatches" ? String(b.value) : pct(b.value)} | ${b.bar} | ${b.pass === undefined ? "n/a" : b.pass ? "yes" : "**no**"} |`,
+      (b) => `| ${b.metric} | ${b.metric === "Number mismatches" ? String(b.value) : pct(b.value)} | ${b.bar} | ${passCell(b, partial)} |`,
     ),
     "",
     "<details><summary>Per dataset</summary>",

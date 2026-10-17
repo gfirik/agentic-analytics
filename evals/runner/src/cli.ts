@@ -26,7 +26,7 @@ export interface EvalArgs {
 
 export interface EvalDeps {
   /** Builds a real model client for a model name; absent means only the baseline can run. */
-  readonly modelFor?: (name: string, onCall: (c: CallRecord) => void) => ModelClient;
+  readonly modelFor?: (name: string, onCall?: (c: CallRecord) => void) => ModelClient;
   readonly embedder: Embedder;
   readonly print: (line: string) => void;
   readonly now?: () => Date;
@@ -94,7 +94,7 @@ export async function realEvalCommand(a: RealEvalArgs, d: EvalDeps): Promise<Rea
   if (missing.length)
     throw new EvalRunError("NO_DATA", `real-data files missing for ${missing.join(", ")}; run \`bun run eval:real:fetch\` first`);
   const r = await runRealSuite({
-    model: baseline ? () => baselineModel() : () => (d.modelFor as (n: string) => ModelClient)(a.model),
+    model: baseline ? () => baselineModel() : () => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model),
     modelName: a.model,
     ...(baseline ? { note: REAL_BASELINE_NOTE } : {}),
     embedder: d.embedder,
@@ -141,7 +141,7 @@ export function resultsPage(dir: string): string {
     "",
     "Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variants) with planted events, distractors and data-quality issues. Retrieval recall@8 and the injection suite run separately (`bun run --filter @agentic-analytics/retrieval eval:retrieval`, `bunx vitest run packages/core/test/injection.test.ts`).",
     "",
-    "No held-out set: the engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every score here is optimistic for unseen data. The Groq tables below were run before the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions); the M13a real-model reruns will replace them.",
+    "No held-out set: the engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every score here is optimistic for unseen data. Of the Groq tables, the three single-model smoke runs (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b alone) predate the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions). The \"planner, extractor, judge\" smoke and full runs used the M13a engine, before the merge's representative-rule fix (a template with no measured change keeps its priority), which changes nothing per dataset on the offline baseline. A run with unfinished jobs is partial: its rates count those jobs as misses and its pass column reads n/a.",
     "",
     ...(ordered.length ? ordered.map(resultsMarkdown) : ["No results yet."]),
     "## Real public data",

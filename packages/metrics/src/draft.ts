@@ -86,10 +86,6 @@ const MONEY = /amount|revenue|sales|sum\b|summa|выручка|сумма|tushum
 const REFUND_VALUE = /refund|return|cancel|chargeback|возврат|отмен|qaytar/i;
 const CHANNEL = /channel|segment|канал|сегмент|kanal/i;
 
-/**
- * Deterministic drafts (spec §2.4): money-named currency columns (or quantity × unit price) become `revenue`; refund/return statuses give
- * `refund_rate`; an id column gives `orders`; a channel-like category with 2–5 values gives `<member>_revenue`.
- */
 /** Grouping columns can have many values: the analysis keeps the top members and an "(other)" bucket. */
 export const MAX_GROUPING_VALUES = 2000;
 /** A category with at least this many distinct values per row (and more than 50) is an identifier, not a grouping. */
@@ -156,6 +152,10 @@ function salesAmount(summary: ProfileSummary): { table: ProfiledTable; expressio
   return undefined;
 }
 
+/**
+ * Deterministic drafts (metric-layer §2 item 5): money-named currency columns (or quantity × unit price) become `revenue`; refund/return statuses give
+ * `refund_rate`; an id column gives `orders`; a channel-like category with 2–5 values gives `<member>_revenue`.
+ */
 export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
   const out: MetricDef[] = [];
   const sales = salesAmount(summary);
