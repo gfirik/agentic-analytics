@@ -66,6 +66,31 @@ describe("metrics.drafted.json in the job folder", () => {
     ]);
   }, 180_000);
 
+  it("keeps the model's rejected draft (model_draft) when the fallback replaces it", async () => {
+    const dir = tempDir();
+    const planner = coffeePlanner();
+    const term = { table: "t_t1", expression: "amount" };
+    const only = { id: "amount_share", label: "Amount share", type: "ratio", numerator: term, denominator: term, unit: "ratio" };
+    const model: ModelClient = {
+      generateObject<T>(a: GenerateObjectArgs<T>) {
+        if (a.prompt.startsWith("Propose metric definitions"))
+          return Promise.resolve({ object: { metrics: [only] } as T, usage: { inputTokens: 0, outputTokens: 0, latencyMs: 0 } });
+        // Stop the job after METRICS_DRAFT: only the saved draft matters here.
+        if (a.prompt.includes("Propose the candidate actions")) return Promise.reject(new Error("provider unavailable"));
+        return planner.generateObject(a);
+      },
+      generateWithTools: (a) => planner.generateWithTools(a),
+      embed: (t) => planner.embed(t),
+    };
+    await expect(runJob({ dir, files, options }, { model, embedder: hashEmbedder() })).rejects.toMatchObject({ code: "STAGE_FAILED" });
+    const record = JSON.parse(readFileSync(join(dir, DRAFTED_METRICS), "utf8")) as DraftRecord;
+    expect(record.source).toBe("fallback");
+    expect(record.note).toMatch(/the model proposed no valid metric \(1 rejected\)/);
+    expect(record.accepted.map((m) => m.id)).toContain("revenue");
+    expect(record.model_draft?.proposals).toEqual([only]);
+    expect(record.model_draft?.rejected[0]?.reasons).toEqual(['ratio "amount_share" divides "sum(amount) of t_t1" by itself (always 1)']);
+  }, 180_000);
+
   it("records the fallback drafts when there is no model draft", async () => {
     const dir = tempDir();
     const out = await runJob({ dir, files, options }, { model: coffeePlanner(), embedder: hashEmbedder() });
