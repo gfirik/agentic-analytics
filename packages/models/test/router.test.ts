@@ -256,6 +256,87 @@ describe("cache while every route is limited", () => {
     expect(res.object).toEqual({ reply: "from groq" });
     expect(t.seen).toHaveLength(1);
   });
+
+  const toolStep = () =>
+    Response.json({
+      id: "c",
+      object: "chat.completion",
+      created: 0,
+      model: "m",
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: [{ id: "t1", type: "function", function: { name: "count", arguments: "{}" } }],
+          },
+          finish_reason: "tool_calls",
+        },
+      ],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+  it("waits for a primary that frees up soon rather than committing to a fallback it would not wait for", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+      maxWaitMs: 60_000,
+    });
+    // Run 1 on the fallback (primary limited) records the tool step there. Run 2: primary frees in 30 s with nothing
+    // cached; the fallback is limited for 600 s, past the router's wait, though its first step is cached.
+    const t = hosts({
+      "api.groq.com": [toolStep, () => ok("done")],
+      "integrate.api.nvidia.com": [toolStep, () => ok("done on nim")],
+    });
+    let runs = 0;
+    const tools = { count: { description: "count", inputSchema: z.object({}), execute: async () => ({ n: ++runs }) } };
+    const client = createModelClient(resolveModelConfig(env), { env, fetch: t.f, router, cache: memoryCache() });
+    const nim = { provider: "openai-compatible" as const, endpoint: "nvidia-nim", model: "openai/gpt-oss-120b" };
+    const groq = { provider: "openai-compatible" as const, endpoint: "groq", model: "openai/gpt-oss-120b" };
+    const loop = () =>
+      client.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 3 });
+    router.block(nim, 5_000);
+    await loop();
+    expect(runs).toBe(1);
+    now = 10_000;
+    router.block(nim, 30_000);
+    router.block(groq, 600_000);
+    await loop();
+    // One tool run in the second call, on the primary after its 30 s wait.
+    expect(runs).toBe(2);
+    expect(t.seen.map((s) => s.host)).toEqual(["api.groq.com", "api.groq.com", "integrate.api.nvidia.com", "integrate.api.nvidia.com"]);
+    expect(now).toBeGreaterThanOrEqual(40_000);
+  });
+
+  it("a probe that served a cached step stops with RATE_LIMITED when its route stays limited too long", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+      maxWaitMs: 60_000,
+    });
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:qwen/qwen3.8-27b", GROQ_API_KEY: "g" };
+    const t = hosts({ "api.groq.com": [toolStep, () => ok("done")] });
+    let runs = 0;
+    const tools = { count: { description: "count", inputSchema: z.object({}), execute: async () => ({ n: ++runs }) } };
+    const client = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, router, cache: memoryCache() });
+    const loop = () =>
+      client.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 3 });
+    await loop();
+    router.block({ provider: "openai-compatible", endpoint: "groq", model: "qwen/qwen3.8-27b" }, 600_000);
+    const err = await loop().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ModelError);
+    expect((err as ModelError).code).toBe("RATE_LIMITED");
+    // The cached step ran its tool once; the live step was never sent.
+    expect(runs).toBe(2);
+    expect(t.seen).toHaveLength(2);
+  });
 });
 
 describe("cache and the two kinds of call", () => {

@@ -103,6 +103,8 @@ export interface RouteLease {
    * wait is too long, instead of handing the call back to the router.
    */
   limitedFor(): number;
+  /** The longest the transport may wait for this route before it stops (the router's own cap). */
+  maxWait(): number;
   /** Waits `ms` on the router's clock. */
   pause(ms: number): Promise<void>;
   /** Feed response headers into the route's bucket. */
@@ -179,7 +181,14 @@ export class Router {
         // Only for a transport that honours the lease (providerFetch with a response cache). Every route is tried:
         // the cache key includes the URL and model id, so an answer cached on a fallback is found there.
         if (options.probeCache) {
-          for (const r of [...routes].sort((a, b) => this.state(a).availableIn(now) - this.state(b).availableIn(now))) {
+          // While the router is going to wait anyway, probe only routes it would wait for: a probe that serves a
+          // cached step commits the call to its route, and its next live step must be able to wait there.
+          const budget = Math.min(this.maxWait, deadline === undefined ? this.maxWait : deadline - now);
+          const willWait = soonest <= budget;
+          const probed = [...routes]
+            .filter((r) => !willWait || this.state(r).availableIn(now) <= budget)
+            .sort((a, b) => this.state(a).availableIn(now) - this.state(b).availableIn(now));
+          for (const r of probed) {
             const probe = await this.probeCache(r, call);
             if (probe.hit) return probe.value;
           }
@@ -196,6 +205,7 @@ export class Router {
         route,
         cacheOnly: () => false,
         limitedFor: () => 0,
+        maxWait: () => this.maxWait,
         pause: (ms) => this.sleep(ms),
         observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
         shouldYield: (waitMs) => !sent && others() && waitMs > 0,
@@ -237,6 +247,7 @@ export class Router {
       route,
       cacheOnly: () => !committed,
       limitedFor: () => this.state(route).availableIn(this.now()),
+      maxWait: () => this.maxWait,
       pause: (ms) => this.sleep(ms),
       observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
       shouldYield: () => false,

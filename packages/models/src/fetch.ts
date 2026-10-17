@@ -152,7 +152,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
       if (o.lease.cacheOnly()) throw new RouteBusyError(o.lease.limitedFor());
       // A probe that served earlier steps stays on its route: wait for it, or stop if that is too long.
       const limited = o.lease.limitedFor();
-      if (limited > maxWait)
+      if (limited > Math.min(maxWait, o.lease.maxWait()))
         throw new ModelError(
           "RATE_LIMITED",
           `route rate-limited for ${Math.ceil(limited / 1000)} s after cached steps; rerun later (cached calls are free)`,
