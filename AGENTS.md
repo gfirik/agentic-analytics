@@ -125,3 +125,20 @@ docker compose up -d searxng    # optional: web lane
 bun run check
 bun run dev                     # API on :8080
 ```
+
+## 9. Machine resources (laptop limits)
+
+The maintainer's laptop runs out of RAM when agents work in parallel. These rules apply to every agent and session:
+
+- **Agents:** at most two background agents at a time besides the main session. Queue the rest: nothing is skipped, only serialized.
+- **Heavy jobs one at a time** across all agents and worktrees: `scripts/gate.sh`, full test runs, builds (including the docs build), evals and Playwright.
+  - `gate.sh` takes a machine-wide lock by itself.
+  - Run other heavy commands through it too, e.g. `bash scripts/heavy.sh bun run eval -- --suite smoke` or `bash scripts/heavy.sh bun run site:check:browser`.
+  - If another heavy job holds the lock, wait for it.
+- **Low parallelism inside a job:**
+  - Vitest uses at most 2 workers (`vitest.config.ts`); pass `--maxWorkers=2` if you call it another way.
+  - Turbo runs with `--concurrency=2`.
+  - Playwright runs one browser at a time locally (`workers: 1`).
+- **Check memory first:** before a heavy job, check `free -m`. Below about 1.5 GB available, wait for running jobs to finish. `heavy.sh` waits for this automatically.
+- **Clean up after every job:** make sure its processes are gone (dev and preview servers, watchers, test workers, Chrome/Playwright) and kill leftovers you started.
+- **Worktrees:** remove each one as soon as its PR merges (§5).
