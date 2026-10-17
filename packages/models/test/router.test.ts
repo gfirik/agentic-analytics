@@ -336,6 +336,13 @@ describe("cache while every route is limited", () => {
     // The cached step ran its tool once; the live step was never sent.
     expect(runs).toBe(2);
     expect(t.seen).toHaveLength(2);
+    // Past the router's own cap (60 s) but within providerFetch's (90 s): it stops at once too, without waiting.
+    router.block({ provider: "openai-compatible", endpoint: "groq", model: "qwen/qwen3.8-27b" }, 75_000);
+    const start = now;
+    expect(((await loop().catch((e: unknown) => e)) as ModelError).code).toBe("RATE_LIMITED");
+    expect(runs).toBe(3);
+    expect(t.seen).toHaveLength(2);
+    expect(now).toBe(start);
   });
 });
 
