@@ -9,17 +9,22 @@
     "dev": "tsx scripts/generate.ts && astro dev",
     "build": "tsx scripts/generate.ts && astro build",
     "preview": "astro preview",
-    "generate": "tsx scripts/generate.ts"
+    "generate": "tsx scripts/generate.ts",
+    "assets": "tsx scripts/site-assets.ts"
   },
   "dependencies": {
     "@agentic-analytics/core": "workspace:*",
     "@agentic-analytics/eval-datasets": "workspace:*",
+    "@agentic-analytics/eval-runner": "workspace:*",
     "@agentic-analytics/retrieval": "workspace:*",
     "@agentic-analytics/schema": "workspace:*",
     "@agentic-analytics/server": "workspace:*",
     "@agentic-analytics/store": "workspace:*",
     "@astrojs/react": "^4.4.2",
     "@astrojs/starlight": "^0.36.3",
+    "@fontsource-variable/source-serif-4": "^5.3.1",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "astro": "^5.18.2",
     "mermaid": "^12.2.0",
     "react": "^19.3.1",

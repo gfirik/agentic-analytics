@@ -1,0 +1,205 @@
+/* The ledger motifs shared by the landing page, the docs and the islands (DESIGN.md §6). Tokens: tokens.css. */
+
+.aa-label {
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+
+.aa-fig {
+  font-family: var(--aa-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "liga" 0,
+    "calt" 0;
+  white-space: nowrap;
+}
+
+/* Fact-ID chip: a hairline-boxed mono id that links to the fact's ledger row (or opens its panel with JS). */
+.aa-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 0.3rem;
+  margin-inline: 0.15rem;
+  border: 1px solid var(--aa-rule-strong);
+  border-radius: var(--aa-radius-chip);
+  background: transparent;
+  color: var(--aa-ink-2);
+  font: 500 0.75rem / 1 var(--aa-font-mono);
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  vertical-align: 0.1em;
+  cursor: pointer;
+  transition:
+    border-color var(--aa-fast) var(--aa-ease),
+    background-color var(--aa-fast) var(--aa-ease),
+    color var(--aa-fast) var(--aa-ease);
+}
+.aa-chip:hover {
+  border-color: var(--aa-ink);
+  color: var(--aa-ink);
+}
+.aa-chip[aria-expanded="true"],
+.aa-chip[aria-pressed="true"] {
+  background: var(--aa-ink);
+  border-color: var(--aa-ink);
+  color: var(--aa-page);
+}
+
+/* Verified mark: the one accent. Only on things the verifier (or an eval check) passed. */
+.aa-check {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.12em;
+  color: var(--aa-verified);
+  flex: none;
+}
+.aa-verified {
+  color: var(--aa-verified);
+}
+.aa-badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--aa-radius-chip);
+  background: var(--aa-verified-wash);
+  color: var(--aa-verified);
+  font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.aa-fail {
+  font-family: var(--aa-font-mono);
+  text-decoration: line-through;
+  color: var(--aa-ink);
+}
+
+/* Ruled table: no outer box, a strong rule under the head, hairlines between rows, figures right-aligned. */
+.aa-ledger-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.aa-ledger-wrap:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+table.aa-ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--aa-text-small);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+.aa-ledger th {
+  padding: var(--aa-space-2) var(--aa-space-3);
+  border-bottom: 1px solid var(--aa-rule-strong);
+  text-align: left;
+  vertical-align: bottom;
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+  white-space: nowrap;
+}
+.aa-ledger td {
+  padding: var(--aa-space-2) var(--aa-space-3);
+  border-bottom: 1px solid var(--aa-rule);
+  vertical-align: top;
+  color: var(--aa-ink);
+}
+.aa-ledger th:first-child,
+.aa-ledger td:first-child {
+  padding-left: 0;
+}
+.aa-ledger th:last-child,
+.aa-ledger td:last-child {
+  padding-right: 0;
+}
+.aa-ledger .num {
+  text-align: right;
+  font-family: var(--aa-font-mono);
+  white-space: nowrap;
+}
+.aa-ledger .id {
+  font-family: var(--aa-font-mono);
+  color: var(--aa-ink-2);
+  white-space: nowrap;
+}
+.aa-ledger .muted {
+  color: var(--aa-ink-2);
+}
+.aa-ledger tr:target td,
+.aa-ledger tr.is-current td {
+  background: var(--aa-mark);
+}
+
+/* Buttons */
+.aa-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aa-space-2);
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--aa-ink);
+  border-radius: var(--aa-radius);
+  font: 500 0.9375rem / 1.2 var(--aa-font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--aa-fast) var(--aa-ease),
+    color var(--aa-fast) var(--aa-ease);
+}
+.aa-button-primary {
+  background: var(--aa-ink);
+  color: var(--aa-page);
+}
+.aa-button-primary:hover {
+  background: var(--aa-ink-2);
+  border-color: var(--aa-ink-2);
+}
+.aa-button-secondary {
+  background: transparent;
+  color: var(--aa-ink);
+}
+.aa-button-secondary:hover {
+  background: var(--aa-surface);
+}
+
+/* The pipeline scene (pipeline-scene.ts, shared with the README GIF) re-themed through its own custom properties:
+   ink for progress and fact chips, the slate mark for packets, no warm tones. */
+html .aa-pipe-frame svg.pp:not(.light):not(.dark) {
+  --pp-bg: var(--aa-surface);
+  --pp-card: var(--aa-raised);
+  --pp-ink: var(--aa-ink);
+  --pp-muted: var(--aa-ink-2);
+  --pp-line: var(--aa-rule);
+  --pp-accent: var(--aa-ink);
+  --pp-accent-ink: var(--aa-page);
+  --pp-bad: var(--aa-ink);
+  --pp-web: var(--aa-ink-2);
+  --pp-hl: var(--aa-mark);
+  --pp-warn: var(--aa-ink);
+}
+html .aa-pipe-frame svg.pp text {
+  font-family: var(--aa-font-sans);
+}
+html .aa-pipe-frame svg.pp .mono {
+  font-family: var(--aa-font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aa-chip,
+  .aa-button {
+    transition: none;
+  }
+}

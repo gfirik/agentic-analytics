@@ -1,0 +1,109 @@
+---
+// The footer on every page: the landing page, the 404 and (inside Starlight's footer) every docs page.
+import Logo from "./Logo.astro";
+import { DOCS_HOME, FHSYSTEMS_URL, GITHUB_URL, RELEASES_URL, withBase } from "./site.ts";
+
+interface Props {
+  /** Inside the docs content column: no container, smaller top margin. */
+  compact?: boolean;
+}
+const { compact = false } = Astro.props;
+---
+
+<footer class:list={["aa-footer", { "aa-footer-compact": compact }]}>
+  <div class="aa-footer-inner">
+    <div class="aa-footer-brand">
+      <Logo />
+      <p>Files in, a verified and cited report out. Open source, self-hosted, free models.</p>
+    </div>
+    <nav class="aa-footer-nav" aria-label="Footer">
+      <a href={withBase(DOCS_HOME)}>Docs</a>
+      <a href={withBase("start/quickstart/")}>Quickstart</a>
+      <a href={withBase("quality/evals/")}>Evals</a>
+      <a href={GITHUB_URL}>GitHub</a>
+      <a href={RELEASES_URL}>Releases</a>
+      <a href={withBase("project/security-policy/")}>Security</a>
+    </nav>
+    <p class="aa-footer-legal">
+      <span>Apache-2.0</span>
+      <span aria-hidden="true">·</span>
+      <span>Built by <a href={FHSYSTEMS_URL}>fhsystems</a></span>
+    </p>
+  </div>
+</footer>
+
+<style>
+  .aa-footer {
+    border-top: 1px solid var(--aa-rule);
+    background: var(--aa-page);
+    color: var(--aa-ink-2);
+    font: 400 var(--aa-text-small) / 1.5 var(--aa-font-sans);
+  }
+  .aa-footer-inner {
+    max-width: var(--aa-container);
+    margin: 0 auto;
+    padding: var(--aa-space-7) var(--aa-gutter);
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) auto;
+    gap: var(--aa-space-5) var(--aa-space-6);
+    align-items: start;
+  }
+  .aa-footer-brand p {
+    margin: var(--aa-space-2) 0 0;
+    max-width: 32ch;
+  }
+  .aa-footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--aa-space-1) var(--aa-space-5);
+    padding-top: var(--aa-space-3);
+  }
+  .aa-footer a {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--aa-rule-strong);
+    text-underline-offset: 0.2em;
+  }
+  .aa-footer-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+  }
+  .aa-footer a:hover {
+    text-decoration-color: var(--aa-ink);
+  }
+  .aa-footer :global(.aa-logo) {
+    text-decoration: none;
+  }
+  .aa-footer-legal {
+    margin: 0;
+    padding-top: var(--aa-space-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--aa-space-2);
+    font-family: var(--aa-font-mono);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  .aa-footer-compact {
+    margin-top: var(--aa-space-6);
+  }
+  .aa-footer-compact .aa-footer-inner {
+    padding: var(--aa-space-6) 0 var(--aa-space-5);
+    grid-template-columns: 1fr;
+    gap: var(--aa-space-3);
+  }
+  .aa-footer-compact .aa-footer-nav,
+  .aa-footer-compact .aa-footer-legal {
+    padding-top: 0;
+  }
+  @media (max-width: 56rem) {
+    .aa-footer-inner {
+      grid-template-columns: 1fr;
+    }
+    .aa-footer-nav,
+    .aa-footer-legal {
+      padding-top: 0;
+    }
+  }
+</style>

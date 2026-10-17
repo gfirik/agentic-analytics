@@ -56,10 +56,10 @@ export default function Pipeline() {
   const current = sceneAt(t).scene.node;
   return (
     <section className="aa-island aa-pipe" aria-label="Pipeline animation">
-      <h4>One real run · examples/coffee-roaster · scripted planner, no LLM</h4>
+      <p className="aa-island-label">One real run · examples/coffee-roaster · scripted planner, no LLM</p>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own SVG, built from the committed run data with every string escaped (pipeline-scene.ts) */}
       <div ref={box} className="aa-pipe-frame" dangerouslySetInnerHTML={{ __html: sceneSvg(run, t) }} />
-      <div className="aa-row" style={{ marginTop: "0.6rem" }}>
+      <div className="aa-row">
         <button type="button" className="aa-btn" onClick={() => setPlaying((p) => !p)} aria-pressed={playing}>
           {playing ? "Pause" : "Play"}
         </button>

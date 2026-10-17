@@ -1,0 +1,8 @@
+---
+// Starlight's footer (edit link, last updated, previous/next), followed by the site footer every page carries.
+import Default from "@astrojs/starlight/components/Footer.astro";
+import SiteFooter from "../site/SiteFooter.astro";
+---
+
+<Default {...Astro.props}><slot /></Default>
+<SiteFooter compact />

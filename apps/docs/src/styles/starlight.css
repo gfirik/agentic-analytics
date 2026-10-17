@@ -1,0 +1,343 @@
+/* Starlight, fully on-system (DESIGN.md §5–§6). Starlight's own styles sit in cascade layers, so these unlayered
+   rules win without specificity games. Its colour variables are mapped onto the tokens once: the tokens switch
+   between light and dark themselves (tokens.css), so no per-theme block is needed here. */
+
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --sl-color-white: var(--aa-ink);
+  --sl-color-gray-1: var(--aa-ink);
+  --sl-color-gray-2: var(--aa-ink);
+  --sl-color-gray-3: var(--aa-ink-2);
+  --sl-color-gray-4: var(--aa-ink-3);
+  --sl-color-gray-5: var(--aa-rule);
+  --sl-color-gray-6: var(--aa-surface);
+  --sl-color-gray-7: var(--aa-surface);
+  --sl-color-black: var(--aa-page);
+
+  --sl-color-accent-low: var(--aa-mark);
+  --sl-color-accent: var(--aa-ink);
+  --sl-color-accent-high: var(--aa-ink);
+
+  /* Asides and badges: slate, told apart by their icon and title, never by hue. */
+  --sl-color-orange-low: var(--aa-surface);
+  --sl-color-orange: var(--aa-rule-strong);
+  --sl-color-orange-high: var(--aa-ink);
+  --sl-color-blue-low: var(--aa-surface);
+  --sl-color-blue: var(--aa-rule-strong);
+  --sl-color-blue-high: var(--aa-ink);
+  --sl-color-purple-low: var(--aa-surface);
+  --sl-color-purple: var(--aa-rule-strong);
+  --sl-color-purple-high: var(--aa-ink);
+  --sl-color-red-low: var(--aa-surface);
+  --sl-color-red: var(--aa-ink);
+  --sl-color-red-high: var(--aa-ink);
+  --sl-color-green-low: var(--aa-verified-wash);
+  --sl-color-green: var(--aa-verified);
+  --sl-color-green-high: var(--aa-verified);
+
+  --sl-color-text: var(--aa-ink);
+  --sl-color-text-accent: var(--aa-ink);
+  --sl-color-text-invert: var(--aa-page);
+  --sl-color-bg: var(--aa-page);
+  --sl-color-bg-nav: var(--aa-page);
+  --sl-color-bg-sidebar: var(--aa-page);
+  --sl-color-bg-inline-code: var(--aa-surface);
+  --sl-color-bg-accent: var(--aa-ink);
+  --sl-color-hairline-light: var(--aa-rule);
+  --sl-color-hairline: var(--aa-rule);
+  --sl-color-hairline-shade: var(--aa-rule);
+  --sl-color-backdrop-overlay: color-mix(in srgb, var(--aa-page) 80%, transparent);
+
+  --sl-shadow-sm: none;
+  --sl-shadow-md: none;
+  --sl-shadow-lg: none;
+
+  --sl-font: var(--aa-font-sans);
+  --sl-font-mono: var(--aa-font-mono);
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 1.75rem;
+  --sl-text-h3: 1.25rem;
+  --sl-text-h4: 1.0625rem;
+  --sl-line-height: 1.65;
+  --sl-line-height-headings: 1.2;
+  --sl-nav-height: 3.75rem;
+  --sl-content-width: 46rem;
+  --sl-sidebar-width: 17.5rem;
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --sl-text-h1: 2rem;
+    --sl-text-h2: 1.5rem;
+  }
+}
+
+body {
+  background: var(--aa-page);
+  color: var(--aa-ink);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "liga" 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+
+/* ── Header and frame ── */
+.header {
+  border-bottom: 1px solid var(--aa-rule);
+}
+header.header {
+  background: var(--aa-page);
+}
+.sidebar-pane {
+  background: var(--aa-page);
+  border-inline-end: 1px solid var(--aa-rule);
+}
+
+/* ── Sidebar: section labels as ledger heads, the current page marked by an ink rule ── */
+.sidebar-content .large {
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.sidebar-content summary {
+  padding-block: 0.35rem;
+}
+.sidebar-content a {
+  color: var(--aa-ink-2);
+  border-radius: 0;
+  border-inline-start: 2px solid transparent;
+}
+.sidebar-content a:hover {
+  color: var(--aa-ink);
+  background: var(--aa-surface);
+}
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover,
+.sidebar-content a[aria-current="page"]:focus {
+  color: var(--aa-ink);
+  background: var(--aa-surface);
+  border-inline-start-color: var(--aa-ink);
+  font-weight: 600;
+}
+.sidebar-content ul ul li {
+  border-inline-start: 0;
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+/* ── Table of contents ── */
+starlight-toc h2,
+mobile-starlight-toc .toggle {
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+starlight-toc a {
+  color: var(--aa-ink-2);
+  border-radius: 0;
+  border-inline-start: 1px solid var(--aa-rule);
+}
+starlight-toc a:hover {
+  color: var(--aa-ink);
+}
+starlight-toc a[aria-current="true"] {
+  color: var(--aa-ink);
+  border-inline-start: 2px solid var(--aa-ink);
+  font-weight: 500;
+}
+mobile-starlight-toc nav {
+  background: var(--aa-page);
+  border-bottom: 1px solid var(--aa-rule);
+}
+
+/* ── Page title (components/starlight/PageTitle.astro) ── */
+.aa-page-title h1 {
+  margin-top: var(--aa-space-2);
+  font-family: var(--aa-font-display);
+  font-weight: 450;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+  color: var(--aa-ink);
+}
+
+/* ── Content ── */
+.sl-markdown-content {
+  color: var(--aa-ink);
+}
+.sl-markdown-content :is(h2, h3) {
+  color: var(--aa-ink);
+}
+.sl-markdown-content h2 {
+  font-family: var(--aa-font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding-top: var(--aa-space-5);
+  border-top: 1px solid var(--aa-rule);
+}
+.sl-markdown-content h3 {
+  font-weight: 600;
+}
+.sl-markdown-content :is(p, li) {
+  color: var(--aa-ink);
+}
+.sl-markdown-content a:not(.aa-chip, .aa-button, [class*="sl-link"]) {
+  color: var(--aa-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--aa-rule-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.sl-markdown-content a:not(.aa-chip, .aa-button):hover {
+  text-decoration-color: var(--aa-ink);
+}
+.sl-markdown-content strong {
+  font-weight: 600;
+  color: var(--aa-ink);
+}
+.sl-markdown-content :not(pre) > code {
+  font-size: 0.875em;
+  padding: 0.1em 0.3em;
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius-chip);
+  background: var(--aa-surface);
+  color: var(--aa-ink);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+}
+
+/* Tables in prose are ledgers too: ruled, no outer box, labels for heads; wide ones scroll inside themselves. */
+.sl-markdown-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--aa-text-small);
+  font-variant-numeric: tabular-nums;
+}
+.sl-markdown-content :is(th, td) {
+  border: 0;
+  border-bottom: 1px solid var(--aa-rule);
+  padding: var(--aa-space-2) var(--aa-space-3);
+  background: transparent;
+  vertical-align: top;
+}
+.sl-markdown-content th {
+  border-bottom: 1px solid var(--aa-rule-strong);
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+  text-align: left;
+}
+.sl-markdown-content :is(th, td):first-child {
+  padding-inline-start: 0;
+}
+.sl-markdown-content tr:nth-child(2n) {
+  background: transparent;
+}
+
+/* Asides: a hairline box with an ink rule, no tinted hue. */
+.starlight-aside {
+  border: 1px solid var(--aa-rule);
+  border-inline-start: 2px solid var(--aa-ink);
+  border-radius: 0;
+  background: var(--aa-surface);
+}
+.starlight-aside__title {
+  color: var(--aa-ink);
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Code: the frame from Expressive Code (astro.config.mjs re-bases its themes onto the tokens). */
+.expressive-code .frame {
+  box-shadow: none;
+}
+
+/* ── Pagination and the footer meta ── */
+.pagination-links a {
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  box-shadow: none;
+  color: var(--aa-ink-2);
+}
+.pagination-links a:hover {
+  border-color: var(--aa-ink);
+}
+.pagination-links .link-title {
+  font-family: var(--aa-font-display);
+  font-size: 1.375rem;
+  color: var(--aa-ink);
+}
+.meta,
+.meta a {
+  color: var(--aa-ink-2);
+}
+
+/* ── Search ── */
+site-search button[data-open-modal] {
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-page);
+  color: var(--aa-ink-2);
+  box-shadow: none;
+}
+/* The shortcut hint is visible text the button's accessible name ("Search") doesn't include (WCAG 2.5.3), so it is
+   not shown; Ctrl/Cmd+K still opens search. */
+site-search button[data-open-modal] kbd {
+  display: none !important;
+}
+site-search button[data-open-modal]:hover {
+  border-color: var(--aa-ink);
+  color: var(--aa-ink);
+}
+site-search dialog {
+  border: 1px solid var(--aa-rule-strong);
+  border-radius: var(--aa-radius);
+  background: var(--aa-page);
+  box-shadow: none;
+}
+#starlight__search {
+  --pagefind-ui-primary: var(--aa-ink);
+  --pagefind-ui-text: var(--aa-ink);
+  --pagefind-ui-background: var(--aa-page);
+  --pagefind-ui-border: var(--aa-rule);
+  --pagefind-ui-tag: var(--aa-surface);
+  --pagefind-ui-font: var(--aa-font-sans);
+}
+
+/* ── Mobile menu ── */
+starlight-menu-button button {
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  background: var(--aa-page);
+  color: var(--aa-ink);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,6 +1,5 @@
 // <Decomposition />: the waterfall of a real contribution split (revenue, March → April, by customer). The bars come
-// from the report's facts; the island only draws them.
-import { useEffect, useState } from "react";
+// from the report's facts; the island only draws them. It renders complete on the server (no entrance animation).
 import coffee from "../data/coffee.json";
 import "./islands.css";
 import { type FactLike, formatFact } from "./format.ts";
@@ -13,8 +12,6 @@ const facts = new Map(report.facts.map((f) => [f.id, f]));
 
 export default function Decomposition() {
   const finding = report.findings.find((f) => f.drivers?.length);
-  const [shown, setShown] = useState(false);
-  useEffect(() => setShown(true), []);
   if (!finding?.drivers) return null;
   const first = finding.claims[0]?.facts.map((id) => facts.get(id)).filter((f): f is FactLike => !!f) ?? [];
   const before = first.find((f) => /_\d{4}-\d{2}$/.test(f.label));
@@ -49,22 +46,19 @@ export default function Decomposition() {
   const pct = (v: number) => ((v - min) / (max - min)) * 100;
   return (
     <section className="aa-island" aria-label="Contribution waterfall">
-      <h4>Contribution by customer · {finding.title}</h4>
+      <p className="aa-island-label">Contribution by customer · {finding.title}</p>
       <div className="aa-bars">
         {bars.map((b) => (
           <div key={b.label} className="aa-bar">
             <span>{b.label}</span>
             <span className="track">
-              <span
-                className={`fill ${b.kind}`}
-                style={{ left: `${shown ? pct(b.lo) : pct(b.hi)}%`, width: `${shown ? Math.max(0.6, pct(b.hi) - pct(b.lo)) : 0}%` }}
-              />
+              <span className={`fill ${b.kind}`} style={{ left: `${pct(b.lo)}%`, width: `${Math.max(0.6, pct(b.hi) - pct(b.lo))}%` }} />
             </span>
             <span style={{ textAlign: "right" }}>{b.text}</span>
           </div>
         ))}
       </div>
-      <p style={{ fontSize: "0.8rem" }}>
+      <p className="aa-small">
         The shares and changes are <code>contribution.v1</code> facts recomputed by the verifier; the remainder is shown, not hidden.
       </p>
     </section>
