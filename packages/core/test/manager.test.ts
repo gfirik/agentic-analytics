@@ -113,6 +113,9 @@ describe("JobManager", () => {
     expect((await manager.list()).map((s) => s.job_id)).toEqual(["coffee-review"]);
     await expect(manager.status("../etc")).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(manager.status("nope")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // A refused id leaves no waiter entry behind.
+    await expect(manager.wait("nope")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((manager as unknown as { waiters: Map<string, unknown> }).waiters.has("nope")).toBe(false);
   });
 
   it("wait resolves when the job ends while its status read is still pending (no lost notification)", async () => {

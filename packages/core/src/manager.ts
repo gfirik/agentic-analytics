@@ -219,19 +219,24 @@ export class JobManager {
     const set = this.waiters.get(id) ?? new Set();
     this.waiters.set(id, set);
     let once: (x: JobStatus) => void = () => {};
+    // An id with no waiters left leaves the map, so neither finished jobs nor unknown ids accumulate entries.
+    const drop = () => {
+      set.delete(once);
+      if (!set.size && this.waiters.get(id) === set) this.waiters.delete(id);
+    };
     const ended = new Promise<JobStatus>((resolve) => {
       once = (x: JobStatus) => {
-        set.delete(once);
+        drop();
         resolve(x);
       };
       set.add(once);
     });
     const s = await this.status(id).catch((err: unknown) => {
-      set.delete(once);
+      drop();
       throw err;
     });
     if (TERMINAL.includes(s.status)) {
-      set.delete(once);
+      drop();
       return s;
     }
     return ended;
