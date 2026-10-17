@@ -185,6 +185,77 @@ describe("cache while every route is limited", () => {
     expect(t.seen).toHaveLength(2);
     expect(now).toBe(0);
   });
+
+  it("a tool loop whose first step is cached stays on its route: the tool runs once, the next step waits", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+      maxWaitMs: 60_000,
+    });
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:qwen/qwen3.8-27b", GROQ_API_KEY: "g" };
+    const toolCall = () =>
+      Response.json({
+        id: "c",
+        object: "chat.completion",
+        created: 0,
+        model: "m",
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: null,
+              tool_calls: [{ id: "t1", type: "function", function: { name: "count", arguments: "{}" } }],
+            },
+            finish_reason: "tool_calls",
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      });
+    // Run 1 records the tool step; run 2 replays it from the cache, then its next step (the tool's output differs)
+    // is live while the route is blocked for 10 s.
+    const t = hosts({ "api.groq.com": [toolCall, () => ok("done"), () => ok("done again")] });
+    let runs = 0;
+    const tools = { count: { description: "count", inputSchema: z.object({}), execute: async () => ({ n: ++runs }) } };
+    const client = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, router, cache: memoryCache() });
+    const loop = () =>
+      client.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 3 });
+    await loop();
+    router.block({ provider: "openai-compatible", endpoint: "groq", model: "qwen/qwen3.8-27b" }, 10_000);
+    await loop();
+    // One tool run per loop: re-running the loop after the cached step would have run it a third time.
+    expect(runs).toBe(2);
+    expect(t.seen).toHaveLength(3);
+    expect(now).toBeGreaterThanOrEqual(10_000);
+  });
+
+  it("finds an answer cached on the fallback route while the primary frees up sooner", async () => {
+    let now = 0;
+    const router = new Router({
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+      maxWaitMs: 60_000,
+    });
+    const t = hosts({ "api.groq.com": [() => ok('{"reply":"from groq"}')] });
+    const cache = memoryCache();
+    const client = createModelClient(resolveModelConfig(env), { env, fetch: t.f, router, cache });
+    const nim = { provider: "openai-compatible" as const, endpoint: "nvidia-nim", model: "openai/gpt-oss-120b" };
+    const groq = { provider: "openai-compatible" as const, endpoint: "groq", model: "openai/gpt-oss-120b" };
+    // Recorded on the fallback while the primary was limited.
+    router.block(nim, 5_000);
+    await client.generateObject({ role: "planner", schema, system: "s", prompt: "p" });
+    // Both limited now, the primary sooner (but past the router's wait): the fallback's cached answer is served.
+    router.block(nim, 120_000);
+    router.block(groq, 600_000);
+    const res = await client.generateObject({ role: "planner", schema, system: "s", prompt: "p" });
+    expect(res.object).toEqual({ reply: "from groq" });
+    expect(t.seen).toHaveLength(1);
+  });
 });
 
 describe("cache and the two kinds of call", () => {

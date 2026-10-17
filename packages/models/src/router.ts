@@ -93,10 +93,18 @@ export interface RouterOptions {
 export interface RouteLease {
   readonly route: RouteModel;
   /**
-   * 0 on a route with capacity. Above 0, every route is limited and this lease only probes the cache: the transport
-   * serves a cached answer and throws RouteBusyError(waitMs) instead of sending a request.
+   * True while this lease only probes the cache (every route is limited and no step of the call has been served):
+   * the transport serves a cached answer, and on a miss throws RouteBusyError instead of sending a request.
    */
-  readonly waitMs: number;
+  cacheOnly(): boolean;
+  /**
+   * How long the route stays limited (0 on a route with capacity). A probe that has served a cached step is committed
+   * to its route (tools may have run on that step): the transport waits this long before it sends, or stops if the
+   * wait is too long, instead of handing the call back to the router.
+   */
+  limitedFor(): number;
+  /** Waits `ms` on the router's clock. */
+  pause(ms: number): Promise<void>;
   /** Feed response headers into the route's bucket. */
   observe(h: Headers): void;
   /**
@@ -168,10 +176,13 @@ export class Router {
         const soonest = Math.min(...waits);
         // A limited route still serves its cached answers: "cached calls are free" holds after a 429 too. Without
         // this, one job that hit the daily limit failed every later job in the run, finished ones included (M13h).
-        // Only for a transport that honours the lease (providerFetch with a response cache).
+        // Only for a transport that honours the lease (providerFetch with a response cache). Every route is tried:
+        // the cache key includes the URL and model id, so an answer cached on a fallback is found there.
         if (options.probeCache) {
-          const probe = await this.probeCache(routes[waits.indexOf(soonest)] as RouteModel, soonest, call);
-          if (probe.hit) return probe.value;
+          for (const r of [...routes].sort((a, b) => this.state(a).availableIn(now) - this.state(b).availableIn(now))) {
+            const probe = await this.probeCache(r, call);
+            if (probe.hit) return probe.value;
+          }
         }
         deadline ??= now + this.maxWait;
         if (soonest > this.maxWait || now + soonest > deadline) throw stop(waits);
@@ -183,7 +194,9 @@ export class Router {
       let sent = false;
       const lease: RouteLease = {
         route,
-        waitMs: 0,
+        cacheOnly: () => false,
+        limitedFor: () => 0,
+        pause: (ms) => this.sleep(ms),
         observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
         shouldYield: (waitMs) => !sent && others() && waitMs > 0,
         started: () => {
@@ -210,23 +223,31 @@ export class Router {
     }
   }
 
-  /** Runs `call` on a limited route with a cache-only lease: its value on a cache hit, else no hit (nothing was sent). */
+  /**
+   * Runs `call` on a limited route with a cache-only lease. Its value on a cache hit; no hit when the first step
+   * missed (nothing was sent and no tool ran). Once a step was served the lease is committed: a later miss waits on
+   * this route (see RouteLease.limitedFor) and any error is the call's own, so tools never run twice.
+   */
   private async probeCache<T>(
     route: RouteModel,
-    waitMs: number,
     call: (lease: RouteLease) => Promise<T>,
   ): Promise<{ hit: true; value: T } | { hit: false }> {
+    let committed = false;
     const lease: RouteLease = {
       route,
-      waitMs,
-      observe: () => {},
-      shouldYield: () => true,
-      started: () => {},
+      cacheOnly: () => !committed,
+      limitedFor: () => this.state(route).availableIn(this.now()),
+      pause: (ms) => this.sleep(ms),
+      observe: (h) => this.state(route).observe(readRateHeaders(h), this.now()),
+      shouldYield: () => false,
+      started: () => {
+        committed = true;
+      },
     };
     try {
       return { hit: true, value: await call(lease) };
     } catch (err) {
-      if (causeOf(err, RouteBusyError)) return { hit: false };
+      if (!committed && causeOf(err, RouteBusyError)) return { hit: false };
       throw err;
     }
   }

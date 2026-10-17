@@ -13,6 +13,7 @@
 //    is retried once with `max_tokens` just under the limit.
 
 import { cacheKey, type ResponseCache } from "./cache.ts";
+import { ModelError } from "./errors.ts";
 import { RouteBusyError, type RouteLease } from "./router.ts";
 
 export interface ProviderFetchOptions {
@@ -146,8 +147,18 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         return new Response(hit, { status: 200, headers: { "content-type": "application/json" } });
       }
     }
-    // Every route is limited and this lease only probes the cache: a miss sends nothing.
-    if (o.lease && o.lease.waitMs > 0) throw new RouteBusyError(o.lease.waitMs);
+    if (o.lease) {
+      // Every route is limited and this lease only probes the cache: a miss sends nothing.
+      if (o.lease.cacheOnly()) throw new RouteBusyError(o.lease.limitedFor());
+      // A probe that served earlier steps stays on its route: wait for it, or stop if that is too long.
+      const limited = o.lease.limitedFor();
+      if (limited > maxWait)
+        throw new ModelError(
+          "RATE_LIMITED",
+          `route rate-limited for ${Math.ceil(limited / 1000)} s after cached steps; rerun later (cached calls are free)`,
+        );
+      if (limited > 0) await o.lease.pause(limited + 250);
+    }
     let netRetries = 0;
     for (let attempt = 0; ; attempt++) {
       // The timeout is per request, so the waits between attempts don't count against it.
