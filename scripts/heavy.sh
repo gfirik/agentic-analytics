@@ -27,7 +27,10 @@ if command -v flock >/dev/null; then
   lock="${AA_HEAVY_LOCK:-/tmp/agentic-analytics-heavy.lock}"
   exec 9>>"$lock"
   if ! flock -n 9; then
+    # The holders: look with the lock file closed here, so this shell and its subshells aren't listed.
+    exec 9>&-
     holders=$(command -v fuser >/dev/null && fuser "$lock" 2>/dev/null | tr -s ' ' | sed 's/^ //' || true)
+    exec 9>>"$lock"
     if [ "$if_free" = 1 ]; then
       echo "heavy: another heavy job is running on this machine${holders:+ (pids: $holders)}; skipped" >&2
       exit 75
@@ -46,6 +49,8 @@ available_mb() {
 }
 min="${AA_HEAVY_MIN_MB:-1500}"
 case "$min" in '' | *[!0-9]*) min=1500 ;; esac
+# Kernels without MemAvailable can't answer the question: skip the wait rather than wait 30 min for nothing.
+grep -q '^MemAvailable:' /proc/meminfo 2>/dev/null || min=0
 if [ -r /proc/meminfo ] && [ "$min" -gt 0 ]; then
   for i in $(seq 1 60); do
     [ "$(available_mb)" -ge "$min" ] && break

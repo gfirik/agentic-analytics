@@ -2,15 +2,23 @@
 // lock instead of running beside it, a nested call (gate.sh running evals) reuses the lock it holds, and a machine
 // without flock still runs the job (once, with a warning) instead of looping.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 const which = (bin: string) => spawnSync("sh", ["-c", `command -v ${bin}`], { encoding: "utf8" }).stdout.trim();
 const hasFlock = which("flock") !== "";
 const script = join(import.meta.dirname, "..", "heavy.sh");
-const tmp = () => mkdtempSync(join(tmpdir(), "aa-heavy-"));
+const dirs: string[] = [];
+const tmp = () => {
+  const d = mkdtempSync(join(tmpdir(), "aa-heavy-"));
+  dirs.push(d);
+  return d;
+};
+afterAll(() => {
+  for (const d of dirs) rmSync(d, { recursive: true, force: true });
+});
 
 function env(lock: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const { CI: _ci, AA_HEAVY_LOCKED: _held, ...rest } = process.env;

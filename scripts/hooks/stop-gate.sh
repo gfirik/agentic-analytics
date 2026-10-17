@@ -14,7 +14,7 @@ run=(bun run check)
 out=$("${run[@]}" 2>&1)
 status=$?
 if [ "$status" = 75 ]; then
-  echo "Stop hook: another heavy job is running on this machine; skipped the check this turn." >&2
+  echo "Stop hook: skipped the check this turn ($(echo "$out" | grep '^heavy:' | tail -1 | sed 's/^heavy: //'))." >&2
   exit 0
 fi
 if [ "$status" != 0 ]; then
