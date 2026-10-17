@@ -93,6 +93,8 @@ export function decideRequest(input: {
   readonly factsheet: FactSheet;
   readonly periodEnd: string;
   readonly maxInputTokens?: number;
+  /** Fact ids the findings' claims cite (`claim.facts`); kept by trimming like those in the claim text. */
+  readonly cites?: readonly string[];
 }): DecideRequest {
   return fitToBudget(
     (sheet, findings) => ({
@@ -108,6 +110,7 @@ export function decideRequest(input: {
     input.factsheet,
     input.findings,
     input.maxInputTokens,
+    input.cites,
   );
 }
 
@@ -119,14 +122,23 @@ export async function decide(
 ): Promise<{ recommendations: Recommendation[]; dropped: Dropped[]; request?: Pick<DecideRequest, "estimate" | "untrimmed" | "steps"> }> {
   const dropped: Dropped[] = [];
   if (!input.findings.length) return { recommendations: [], dropped };
-  // Over budget after every trimming step, this throws INPUT_TOO_LARGE before anything is sent.
-  const req = decideRequest({
-    objective: input.objective,
-    findings: input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) })),
-    factsheet: input.factsheet,
-    periodEnd: input.periodEnd,
-    ...(input.maxInputTokens !== undefined ? { maxInputTokens: input.maxInputTokens } : {}),
-  });
+  let req: DecideRequest;
+  try {
+    req = decideRequest({
+      objective: input.objective,
+      findings: input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) })),
+      factsheet: input.factsheet,
+      periodEnd: input.periodEnd,
+      cites: input.findings.flatMap((f) => f.claims.flatMap((c) => c.facts)),
+      ...(input.maxInputTokens !== undefined ? { maxInputTokens: input.maxInputTokens } : {}),
+    });
+  } catch (err) {
+    // Still over the input budget after every trimming step (§8.1): nothing is sent. Like an invalid answer, this
+    // costs the recommendations, not the verified findings; the reason is recorded.
+    if (!(err instanceof Error && "code" in err && err.code === "INPUT_TOO_LARGE")) throw err;
+    dropped.push({ claim: "(candidate actions)", reason: `the DECIDE request was not sent: ${err.message.slice(0, 200)}` });
+    return { recommendations: [], dropped };
+  }
   const request = { estimate: req.estimate, untrimmed: req.untrimmed, steps: req.steps };
   let object: DecideOutput;
   try {

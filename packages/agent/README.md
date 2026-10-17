@@ -29,7 +29,7 @@ EXPLAIN and DECIDE.
   - The planner proposes candidate actions and code computes each impact range (`scenarioFacts`).
   - Candidates are ranked by impact × confidence ÷ effort, and the top 2–5 are kept.
   - Ungrounded or invalid candidates are dropped.
-  - With `maxInputTokens` (small-model mode: `SMALL_MODEL_INPUT_BUDGET`, 6,500), the request is trimmed to fit (§8.1). If it can't fit, DECIDE fails with `INPUT_TOO_LARGE` before sending, and the result reports `request: { estimate, untrimmed, steps }`.
+  - With `maxInputTokens` (small-model mode: `SMALL_MODEL_INPUT_BUDGET`, 6,500), the request is trimmed to fit (§8.1). If it can't fit, nothing is sent (`INPUT_TOO_LARGE`) and DECIDE ships no recommendations, with the reason in `dropped`. The result reports `request: { estimate, untrimmed, steps }`.
 - **`decideRequest(...)`, `trimDecideInput(sheet, findings, steps)`, `fitToBudget`, `TRIM_STEPS`**: the DECIDE request on its own, trimmed in the fixed `TRIM_STEPS` order until it fits.
   - Trimming is pure and deterministic. Kept values are never changed, and facts the findings cite are always kept.
   - Without a budget, the request is byte for byte the untrimmed one.

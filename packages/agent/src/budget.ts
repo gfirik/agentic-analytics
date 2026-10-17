@@ -76,13 +76,17 @@ function topMembers(facts: Facts, cited: ReadonlySet<string>, keep: number): { f
   return { facts: out, omitted: members.size - kept.size };
 }
 
-/** The sheet and findings after the given trimming steps. Pure and deterministic. */
+/**
+ * The sheet and findings after the given trimming steps. Pure and deterministic. A fact counts as cited when a
+ * finding's claim text names it (`{{N…}}`) or it is in `cites` (the claims' `facts` lists); cited facts are kept.
+ */
 export function trimDecideInput(
   sheet: FactSheet,
   findings: readonly DecideFinding[],
   steps: readonly TrimStep[],
+  cites: readonly string[] = [],
 ): { sheet: Sheet; findings: DecideFinding[] } {
-  const cited = new Set(findings.flatMap((f) => f.claims.flatMap((c) => placeholders(c))));
+  const cited = new Set([...cites, ...findings.flatMap((f) => f.claims.flatMap((c) => placeholders(c)))]);
   const has = (s: TrimStep) => steps.includes(s);
   let out: Sheet = {
     ...sheet,
@@ -104,7 +108,9 @@ export function trimDecideInput(
   }
   if (has("insight_labels")) out.insights = out.insights.map((i) => ({ ...i, facts: unlabel(i.facts) }));
   const shorten = (c: string) =>
-    has("short_quotes") && placeholders(c).length === 0 && c.length > QUOTE_MAX_CHARS ? `${c.slice(0, QUOTE_MAX_CHARS - 1)}…` : c;
+    has("short_quotes") && placeholders(c).length === 0 && [...c].length > QUOTE_MAX_CHARS
+      ? `${[...c].slice(0, QUOTE_MAX_CHARS - 1).join("")}…`
+      : c;
   return { sheet: out, findings: findings.map((f) => ({ ...f, claims: f.claims.map(shorten) })) };
 }
 
@@ -124,6 +130,7 @@ export function fitToBudget(
   sheet: FactSheet,
   findings: readonly DecideFinding[],
   budget: number | undefined,
+  cites: readonly string[] = [],
 ): BudgetedRequest {
   const full = build(sheet as Sheet, findings);
   const untrimmed = estimateObjectRequest(full);
@@ -131,7 +138,7 @@ export function fitToBudget(
   let last = untrimmed;
   for (let n = 1; n <= TRIM_STEPS.length; n++) {
     const steps = TRIM_STEPS.slice(0, n);
-    const t = trimDecideInput(sheet, findings, steps);
+    const t = trimDecideInput(sheet, findings, steps, cites);
     const req = build(t.sheet, t.findings);
     const estimate = estimateObjectRequest(req);
     if (estimate <= budget) return { ...req, estimate, untrimmed, steps };

@@ -11,6 +11,7 @@ import {
   decide,
   decideRequest,
   type FactSheet,
+  QUOTE_MAX_CHARS,
   SMALL_MODEL_INPUT_BUDGET,
   TRIM_STEPS,
   trimDecideInput,
@@ -84,7 +85,7 @@ describe("DECIDE input budget, printing_shop-v1 (small-model mode)", () => {
     }
   });
 
-  it("refuses before sending when even the last step doesn't fit (INPUT_TOO_LARGE)", async () => {
+  it("refuses before sending when even the last step doesn't fit; DECIDE then ships no recommendations", async () => {
     expect(() => decideRequest({ ...input, maxInputTokens: 1500 })).toThrow(expect.objectContaining({ code: "INPUT_TOO_LARGE" }));
     const model = new FakeModel([{ role: "planner", repeat: true, object: { candidates: [] } }]);
     const finding = {
@@ -93,18 +94,37 @@ describe("DECIDE input budget, printing_shop-v1 (small-model mode)", () => {
       title: "Revenue fell",
       claims: [{ text: "Revenue fell.", facts: [], citations: [], causal_grade: "observed", verified: false }],
     };
-    await expect(
-      decide({
-        model,
-        findings: [finding],
-        objective: fx.objective,
-        factsheet: fx.factsheet,
-        periodEnd: fx.period_end,
-        maxRecommendations: 2,
-        maxInputTokens: 1500,
-      } as unknown as Parameters<typeof decide>[0]),
-    ).rejects.toMatchObject({ code: "INPUT_TOO_LARGE" });
+    const r = await decide({
+      model,
+      findings: [finding],
+      objective: fx.objective,
+      factsheet: fx.factsheet,
+      periodEnd: fx.period_end,
+      maxRecommendations: 2,
+      maxInputTokens: 1500,
+    } as unknown as Parameters<typeof decide>[0]);
+    // Degrades like an invalid answer: the findings stand, no recommendations, and the reason is recorded.
+    expect(r.recommendations).toEqual([]);
+    expect(r.dropped).toEqual([
+      { claim: "(candidate actions)", reason: expect.stringMatching(/^the DECIDE request was not sent: .*1500/) },
+    ]);
     expect(model.calls).toEqual([]);
+  });
+
+  it("keeps facts a claim cites only in its facts list (claim.facts), not just those in its text", () => {
+    // N317 (Northgate School) is not among the top members of X1 and no claim text names it.
+    const steps = TRIM_STEPS.slice(0, 2);
+    const ids = (t: ReturnType<typeof trimDecideInput>) => new Set(sheetFacts(t.sheet as never).map((f) => f.id));
+    expect(ids(trimDecideInput(fx.factsheet, fx.findings, steps)).has("N317")).toBe(false);
+    expect(ids(trimDecideInput(fx.factsheet, fx.findings, steps, ["N317"])).has("N317")).toBe(true);
+  });
+
+  it("cuts quotes by characters, never splitting one", () => {
+    const quote = `“${"é😀".repeat(200)}”`;
+    const t = trimDecideInput(fx.factsheet, [{ id: "F1", type: "x", title: "t", claims: [quote] }], ["short_quotes"]);
+    const c = t.findings[0]?.claims[0] ?? "";
+    expect([...c].length).toBe(QUOTE_MAX_CHARS);
+    expect(c).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
   });
 
   it("without a budget (normal mode) the request is untouched, however large", () => {
