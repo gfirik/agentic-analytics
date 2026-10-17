@@ -117,7 +117,8 @@ const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-window
             </dd>
           </div>
         </dl>
-        <p class="aa-small">In the run shown here: {pipeline.run.example}, {pipeline.run.model.replace(/ \(.*?\)/, "")}.</p>
+        <p class="aa-small">One run on this page: {pipeline.run.example}, {pipeline.run.model.replace(/ \(.*?\)/, "")}, web lane on (offline
+          fixture).</p>
       </div>
       <div class="aa-hero-figure">
         <Pipeline client:visible />
@@ -131,8 +132,8 @@ const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-window
         <p class="aa-label aa-ref"><b>§1</b> The report</p>
         <h2 id="aa-report-title" class="aa-h2">Every number has an ID. Every ID opens its working.</h2>
         <p class="aa-lead">
-          This is the first finding from a real run on the example coffee roaster (a scripted planner, no LLM, so the page is
-          reproducible). Choose a fact ID to see what produced the number: the SQL that ran, or the function and the facts it was
+          This is the first finding of the same run the animation plays: the example coffee roaster, with a scripted planner and no
+          LLM so the page is reproducible, and the web lane on against an offline fixture. Choose a fact ID to see what produced the number: the SQL that ran, or the function and the facts it was
           computed from. You also see the rows it cites, and whether the verifier recomputed it.
         </p>
       </div>
@@ -326,6 +327,10 @@ const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-window
         <li>
           <b>Full suite on the free tier</b> ({full.date}): partial. {full.completed} of {full.datasets} jobs finished before the daily
           token quota ran out, so it is not a quality score yet.
+        </li>
+        <li>
+          <b>Engine version:</b> both Groq runs predate the representative-rule fix merged since; it changes nothing per dataset on
+          the offline baseline.
         </li>
       </ul>
       <p class="aa-small aa-under">

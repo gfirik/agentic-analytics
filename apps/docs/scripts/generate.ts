@@ -11,9 +11,12 @@ import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { type DatasetScore, type RealSuiteResult, summarize } from "@agentic-analytics/eval-runner";
 import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
-import type { JobEvent, Report } from "@agentic-analytics/schema";
+import type { JobEvent } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
 import { sql, Workspace } from "@agentic-analytics/store";
+import type { PipelineData } from "../src/components/pipeline-scene.ts";
+import { disagreements, LandingDataError, landingData } from "./landing-data.ts";
+import { PIPELINE_JSON, recordRun } from "./pipeline-data.ts";
 
 const DOCS = join(import.meta.dirname, "..");
 const ROOT = join(DOCS, "..", "..");
@@ -31,7 +34,6 @@ const write = (rel: string, text: string) => {
 // 1. A real run on the example, for the CitationDemo, Decomposition and VerifierDiff islands. (The Pipeline island
 //    plays the README GIF's checked-in data instead: scripts/pipeline-data.ts.)
 const dir = mkdtempSync(join(tmpdir(), "aa-docs-"));
-let coffeeReport: Report | undefined;
 try {
   const events: JobEvent[] = [];
   const files = Object.entries(coffeeRoasterFiles()).map(([name, bytes]) => ({ name, bytes }));
@@ -40,7 +42,6 @@ try {
     { model: coffeePlanner(), embedder: hashEmbedder(), onEvent: (e) => events.push(e), now: () => new Date("2026-07-01T09:00:00Z") },
   );
   writeFileSync(join(DATA, "coffee.json"), JSON.stringify({ events, draft: out.draft, report: out.report }));
-  coffeeReport = out.report;
 
   // 2. A real retrieval trace (BM25 rank, vector rank, fused score) for the RagStepper.
   const ws = await Workspace.open(join(dir, "job.duckdb"));
@@ -166,96 +167,15 @@ for (const [file, rel, title, description] of [
 for (const d of ["architecture", "pipeline"])
   writeFileSync(join(DATA, `${d}.mmd`), readFileSync(join(ROOT, "docs/assets/diagrams", `${d}.mmd`), "utf8"));
 
-// 7. The landing page's report (src/pages/index.astro): the first finding of the same real run, every fact its claims
-//    and its top recommendation use, and the facts those are computed from (so each chip opens a fact whose inputs
-//    open too). Values are the facts' stored values; the page only formats them.
-if (!coffeeReport) throw new Error("docs: the coffee-roaster run produced no report");
+// 7. The landing page's report: the same web-enabled run the hero animation plays (pipeline-data.ts), so the page
+//    shows one run throughout. The build fails if it disagrees with the committed pipeline.json (re-run
+//    `bun run readme:pipeline`).
 {
-  const report = coffeeReport;
-  const byId = new Map(report.facts.map((f) => [f.id, f]));
-  const file = (id: string) => report.sources.find((s) => s.id === id)?.file ?? id;
-  const finding = report.findings[0];
-  const rec = report.recommendations[0];
-  if (!finding || !rec) throw new Error("docs: the coffee-roaster report has no finding or recommendation");
-  const direct = [
-    ...finding.claims.flatMap((c) => c.facts),
-    ...[rec.impact?.low, rec.impact?.high].filter((x): x is string => typeof x === "string"),
-  ].filter((id, i, a) => a.indexOf(id) === i);
-  const closure = new Set<string>();
-  const visit = (id: string) => {
-    if (closure.has(id)) return;
-    const f = byId.get(id);
-    if (!f) throw new Error(`docs: unknown fact ${id} in the landing finding`);
-    closure.add(id);
-    if (f.computation.kind === "function") for (const input of f.computation.inputs ?? []) visit(input);
-  };
-  for (const id of direct) visit(id);
-  const facts = Object.fromEntries(
-    [...closure].map((id) => {
-      const f = byId.get(id) as (typeof report.facts)[number];
-      return [
-        id,
-        {
-          id,
-          label: f.label,
-          value: f.value,
-          unit: f.unit,
-          currency: f.currency ?? null,
-          verified: f.verified ?? false,
-          computation: f.computation,
-          citations: f.citations.map((c) => ({
-            source_id: c.source_id,
-            file: file(c.source_id),
-            rows: (c.rows ?? []).slice(0, 12),
-            count: c.rows?.length ?? 0,
-          })),
-        },
-      ];
-    }),
-  );
-  const v = report.verification;
-  writeFileSync(
-    join(DATA, "landing.json"),
-    JSON.stringify({
-      run: { example: "examples/coffee-roaster", model: "scripted planner, no LLM", today: "2026-07-01" },
-      finding: {
-        id: finding.id,
-        type: finding.type,
-        severity: finding.severity,
-        title: finding.title,
-        method: finding.method ?? null,
-        confidence: finding.confidence,
-        claims: finding.claims.map((c) => ({
-          text: c.text,
-          facts: c.facts,
-          grade: c.causal_grade,
-          verified: c.verified ?? false,
-          citations: c.citations.map((x) => ({ source_id: x.source_id, file: file(x.source_id), quote: x.quote ?? null })),
-        })),
-      },
-      recommendation: {
-        id: rec.id,
-        action: rec.action,
-        low: rec.impact?.low ?? null,
-        high: rec.impact?.high ?? null,
-        horizon: rec.impact?.horizon ?? null,
-        confidence: rec.confidence,
-        not_advised: rec.not_advised ?? null,
-      },
-      direct,
-      facts,
-      verification: {
-        numbers_checked: v.numbers_checked,
-        numbers_mismatched: v.numbers_mismatched,
-        rederived_metrics: v.rederived_metrics,
-        rederivation_mismatches: v.rederivation_mismatches,
-        citations_checked: v.citations_checked,
-        citations_unsupported: v.citations_unsupported,
-        claims_dropped: v.claims_dropped.length,
-        claims_downgraded: v.claims_downgraded.length,
-      },
-    }),
-  );
+  const landing = landingData((await recordRun()).report);
+  const hero = JSON.parse(readFileSync(PIPELINE_JSON, "utf8")) as PipelineData;
+  const off = disagreements(landing, hero);
+  if (off.length) throw new LandingDataError(`the landing report and pipeline.json disagree: ${off.join("; ")}`);
+  writeFileSync(join(DATA, "landing.json"), JSON.stringify(landing));
 }
 
 // 8. The landing page's eval numbers, from the committed results files (evals/results/*.json): the suite metrics are
