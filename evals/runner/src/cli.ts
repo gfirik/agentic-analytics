@@ -2,12 +2,13 @@
 // writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md` from every results file.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Dataset } from "@agentic-analytics/eval-generator";
 import type { CallRecord, ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
 import { EvalRunError } from "./errors.ts";
 import { missingRealData, type RealSuiteResult, realResultsMarkdown, runRealSuite } from "./real.ts";
-import { resultsMarkdown, runSuite, type Suite, type SuiteResult } from "./run.ts";
+import { mergeResults, resultsMarkdown, runSuite, type Suite, type SuiteResult, suiteDatasets } from "./run.ts";
 
 export { EvalRunError };
 
@@ -22,6 +23,15 @@ export interface EvalArgs {
   readonly resultsPage?: string;
   /** Keep each dataset's report.json in this folder. */
   readonly keepReports?: string;
+  /**
+   * The model as RESULTS.md and the README name it, e.g. "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ": its own row, apart
+   * from other runs of `configured`. It also names the results file (evalSlug). Default: the --model value.
+   */
+  readonly label?: string;
+  /** A note shown above the run's table in RESULTS.md (hardware, mode, caveats). */
+  readonly note?: string;
+  /** Run only these datasets of the suite (ids like saas-v2): one chunk of a long run, filling the response cache. */
+  readonly only?: readonly string[];
 }
 
 export interface EvalDeps {
@@ -35,17 +45,72 @@ export interface EvalDeps {
 const BASELINE_NOTE =
   'Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-overlap judge), not a language model. Its rules were written knowing the generator\'s document templates (e.g. it treats a sentence with "after" and "pausing" as a stated cause), so its cause-grade and action scores are optimistic. It checks the harness end to end; it is not evidence of model quality.';
 
+/**
+ * The results file name, without `.json`: `<date>-<model>[-small]-<suite>`. A label is lower-cased with every run of
+ * other characters turned into "-" ("vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ" → "vllm-kaggle-2-t4-qwen3.8-27b-awq"); a
+ * model name keeps its old spelling, so earlier results files keep their names.
+ */
+export function evalSlug(date: string, a: Pick<EvalArgs, "model" | "label" | "smallModel" | "suite">): string {
+  const name = a.label
+    ? a.label
+        .toLowerCase()
+        .replace(/[^a-z0-9.]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    : a.model.replace(/[^\w.-]+/g, "_");
+  return `${date}-${name}${a.smallModel ? "-small" : ""}-${a.suite}`;
+}
+
+/** The suite's datasets, or the ones `only` names; an id outside the suite is an error, never silently skipped. */
+export function selectDatasets(suite: Suite, only?: readonly string[], from?: readonly Dataset[]): Dataset[] {
+  const all = from ? suiteDatasets(suite, from) : suiteDatasets(suite);
+  if (!only?.length) return all;
+  const unknown = only.filter((id) => !all.some((d) => d.id === id));
+  if (unknown.length)
+    throw new EvalRunError(
+      "UNKNOWN_DATASET",
+      `not in the ${suite} suite: ${unknown.join(", ")} (ids look like coffee_roaster-v1; the ${suite} suite has ${all.length})`,
+    );
+  return all.filter((d) => only.includes(d.id));
+}
+
+/**
+ * `bun run eval:merge`: checks the arguments against the chunks, then mergeResults. The suite must be smoke or full,
+ * and every chunk must have run in the mode `smallModel` says (its model name carries the small-model suffix).
+ */
+export function mergeChunks(
+  a: { readonly label: string; readonly note?: string; readonly smallModel?: boolean; readonly suite: string },
+  parts: readonly SuiteResult[],
+  order?: readonly string[],
+): SuiteResult {
+  if (a.suite !== "smoke" && a.suite !== "full") throw new EvalRunError("USAGE", `--suite must be smoke or full, not "${a.suite}"`);
+  const small = a.smallModel === true;
+  const mismatched = parts.filter((p) => p.model.endsWith(" (small-model mode)") !== small);
+  if (mismatched.length)
+    throw new EvalRunError(
+      "USAGE",
+      `${small ? "--small-model is set but" : "--small-model is not set but"} these runs ${small ? "were not" : "were"} in small-model mode: ${mismatched.map((p) => p.model).join(", ")}`,
+    );
+  return mergeResults(parts, {
+    suite: a.suite,
+    modelName: a.label + (small ? " (small-model mode)" : ""),
+    ...(a.note ? { note: a.note } : {}),
+    order: order ?? suiteDatasets(a.suite).map((d) => d.id),
+  });
+}
+
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
+  const datasets = selectDatasets(a.suite, a.only);
   const make = baseline
     ? () => baselineModel({ small: a.smallModel === true })
     : (onCall: (c: CallRecord) => void) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
   const r = await runSuite({
     suite: a.suite,
     model: make,
-    modelName: a.model + (a.smallModel ? " (small-model mode)" : ""),
-    ...(baseline ? { note: BASELINE_NOTE } : {}),
+    modelName: (a.label ?? a.model) + (a.smallModel ? " (small-model mode)" : ""),
+    ...(a.note ? { note: a.note } : baseline ? { note: BASELINE_NOTE } : {}),
+    datasets,
     embedder: d.embedder,
     ...(a.smallModel ? { smallModel: true } : {}),
     ...(a.keepReports ? { keepReports: a.keepReports } : {}),
@@ -56,7 +121,7 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
       ),
   });
   mkdirSync(a.resultsDir, { recursive: true });
-  const slug = `${r.date}-${a.model.replace(/[^\w.-]+/g, "_")}${a.smallModel ? "-small" : ""}-${a.suite}`;
+  const slug = evalSlug(r.date, a);
   writeFileSync(join(a.resultsDir, `${slug}.json`), `${JSON.stringify(r, null, 2)}\n`);
   writeFileSync(a.resultsPage ?? join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
   d.print("");

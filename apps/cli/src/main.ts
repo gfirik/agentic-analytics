@@ -29,7 +29,7 @@ import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
-import { embedderChoice, isStandalone, resultsLocation, runtimeVersion } from "./standalone.ts";
+import { embedderChoice, isStandalone, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -378,6 +378,15 @@ const evalCmd = defineCommand({
       type: "string",
       description: "Where results files and RESULTS.md go (default evals/results; ./eval-results with --answers)",
     },
+    label: {
+      type: "string",
+      description: 'The model name in RESULTS.md, the README and the results file name, e.g. "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ"',
+    },
+    note: { type: "string", description: "A note shown above the run's table in RESULTS.md (hardware, caveats)" },
+    only: {
+      type: "string",
+      description: "Comma-separated dataset ids to run (a chunk of a long run; needs --results-dir so it never lands in evals/results)",
+    },
     answers: {
       type: "string",
       description: "With --suite real: a folder of your own answer files (<dataset>.yaml) instead of evals/real/answers",
@@ -390,14 +399,15 @@ const evalCmd = defineCommand({
   async run({ args }) {
     const model = args.model ?? "baseline";
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
+    if ((args.label || args.note || args.only !== undefined) && args.suite === "real")
+      throw new Error("--label, --note and --only go with --suite smoke|full");
+    const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
+    // A chunk is a partial run: it must never become the published row in evals/results.
+    const refused = onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults);
+    if (refused) throw new Error(refused);
+    const only = args.only === undefined ? undefined : onlyIds(args.only);
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const where = resultsLocation(
-      args["results-dir"],
-      process.env,
-      process.cwd(),
-      fileURLToPath(new URL("../../../evals/results", import.meta.url)),
-      Boolean(args.answers),
-    );
+    const where = resultsLocation(args["results-dir"], process.env, process.cwd(), checkoutResults, Boolean(args.answers));
     const evalRouter = new Router();
     const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
     const deps = {
@@ -440,6 +450,9 @@ const evalCmd = defineCommand({
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+        ...(args.label ? { label: args.label } : {}),
+        ...(args.note ? { note: args.note } : {}),
+        ...(only?.length ? { only } : {}),
         resultsDir: where.dir,
         ...(where.page ? { resultsPage: where.page } : {}),
       },

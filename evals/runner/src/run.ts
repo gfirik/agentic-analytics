@@ -9,6 +9,7 @@ import { type Dataset, generatedDatasets } from "@agentic-analytics/eval-generat
 import type { CallRecord, ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import type { Report } from "@agentic-analytics/schema";
+import { EvalRunError } from "./errors.ts";
 import { type Bar, type DatasetScore, scoreReport, summarize } from "./score.ts";
 
 export type Suite = "smoke" | "full";
@@ -160,6 +161,77 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
     bars: summarize(scores),
     routes: mergeRoutes(scores.flatMap((s) => s.routes ?? [])),
     seconds: (Date.now() - t0) / 1000,
+    tokens: {
+      input: scores.reduce((a, s) => a + s.tokens.input, 0),
+      output: scores.reduce((a, s) => a + s.tokens.output, 0),
+    },
+  };
+}
+
+/**
+ * The model a route (`provider[:endpoint]:model`, as routeSummary writes it) served, as the router compares models:
+ * the id after the last "/", lower-cased (models' canonicalModel).
+ */
+function routeModel(route: string): string {
+  const [provider, ...rest] = route.split(":");
+  // An openai-compatible route always names its endpoint (the config refuses one without, models §4), so the model
+  // starts after it; a route written without one keeps everything after the provider rather than losing a segment.
+  const model = (provider === "openai-compatible" && rest.length > 1 ? rest.slice(1) : rest).join(":");
+  return (model.split("/").pop() ?? model).toLowerCase().replace(/:(free|latest)$/, "");
+}
+
+/**
+ * One suite result from runs of parts of it (`aa eval --only`, e.g. the Kaggle notebook's one-business-per-run
+ * chunks that fit a session limit). Scores are taken as each run recorded them, so timings and tokens are the real
+ * ones; the bars are computed again over all of them. Every dataset of the suite must be there exactly once, all
+ * runs must name the same model, and the result has the same shape as a single run's.
+ */
+export function mergeResults(
+  parts: readonly SuiteResult[],
+  o: { readonly suite: Suite; readonly modelName: string; readonly note?: string; readonly order: readonly string[] },
+): SuiteResult {
+  const models = new Set(parts.map((p) => p.model));
+  if (models.size > 1) throw new EvalRunError("USAGE", `the runs name different models: ${[...models].join(", ")}`);
+  const suites = new Set(parts.map((p) => p.suite));
+  if ([...suites].some((s) => s !== o.suite))
+    throw new EvalRunError("USAGE", `the runs are not all ${o.suite} runs: ${[...suites].join(", ")}`);
+  // "configured" names no model: the routes say what served each run. Per role, every run must have been served by
+  // the same model; a route may differ only as a fallback provider of that model (the router never switches models).
+  // A run that never called a role (a job that failed early) says nothing about it.
+  const served = new Map<string, Set<string>>();
+  for (const p of parts)
+    for (const u of p.routes ?? []) {
+      const set = served.get(u.role) ?? new Set<string>();
+      set.add(routeModel(u.route));
+      served.set(u.role, set);
+    }
+  for (const [role, models] of served)
+    if (models.size > 1) throw new EvalRunError("USAGE", `the runs' ${role} was served by different models: ${[...models].join(", ")}`);
+  const byId = new Map<string, DatasetScore>();
+  for (const p of parts)
+    for (const s of p.scores) {
+      if (byId.has(s.dataset)) throw new EvalRunError("USAGE", `${s.dataset} is in more than one run`);
+      byId.set(s.dataset, s);
+    }
+  const missing = o.order.filter((id) => !byId.has(id));
+  if (missing.length) throw new EvalRunError("USAGE", `missing from the runs: ${missing.join(", ")}`);
+  const extra = [...byId.keys()].filter((id) => !o.order.includes(id));
+  if (extra.length) throw new EvalRunError("UNKNOWN_DATASET", `not in the ${o.suite} suite: ${extra.join(", ")}`);
+  const scores = o.order.map((id) => byId.get(id) as DatasetScore);
+  return {
+    suite: o.suite,
+    model: o.modelName,
+    ...(o.note ? { note: o.note } : {}),
+    date:
+      parts
+        .map((p) => p.date)
+        .sort()
+        .at(-1) ?? "",
+    datasets: scores.length,
+    scores,
+    bars: summarize(scores),
+    routes: mergeRoutes(scores.flatMap((s) => s.routes ?? [])),
+    seconds: scores.reduce((a, s) => a + s.seconds, 0),
     tokens: {
       input: scores.reduce((a, s) => a + s.tokens.input, 0),
       output: scores.reduce((a, s) => a + s.tokens.output, 0),

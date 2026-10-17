@@ -25,6 +25,10 @@ Its rules were written knowing the generator's document templates: a sentence wi
 - `runSuite({ suite, model, modelName, embedder, smallModel?, datasets?, keepReports? })` and `suiteDatasets(suite)`. With `keepReports` (`aa eval --keep-reports dir`), each report is kept as `<dir>/<dataset>.json` and each job's drafted metrics as `<dir>/<dataset>.metrics.drafted.json`, also when the job failed (`keepDraftedMetrics`; the job folder itself is temporary). The real-data tier does the same. The smoke suite is coffee_roaster-v1, saas-v2 and restaurant-v3; the full suite is all 30 datasets.
 - `scoreReport(report, key, run)`, `subjectOf`, `matchesPlanted`, `matchesDistractor`, `sliceOf`, `summarize(scores)`: the bars.
 - `evalCommand(args, deps)` (typed `EvalRunError`), `resultsPage(dir)`, `resultsMarkdown(result)`. Full-suite results are committed in `evals/results/`; smoke runs stay local.
+- `EvalArgs.label` / `note` / `only` (`aa eval --label --note --only`):
+  - **Label.** It names the model row and, through `evalSlug(date, args)`, the file. A label is lower-cased with every other run of characters turned into "-", so `vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ` becomes `<date>-vllm-kaggle-2-t4-qwen3.8-27b-awq-full.json`. A plain `--model` keeps its old file name.
+  - **Only.** `selectDatasets(suite, only)` picks the datasets and refuses an id outside the suite (`UNKNOWN_DATASET`).
+  - **Merging.** `mergeResults(parts, { suite, modelName, note?, order })` joins runs over parts of a suite into one `SuiteResult`: suite order, real timings, bars recomputed. It refuses a missing or repeated dataset, runs of another suite, and runs whose role was served by a different model (a fallback provider of the same model is fine). The merged `seconds` is the sum of the per-dataset times, not the wall time across sessions. `mergeChunks` adds the script's checks: `--suite` is smoke or full, and every chunk ran in the mode `--small-model` says. `bun run eval:merge` (scripts/merge.ts) writes it to `evals/results` and rebuilds RESULTS.md. The Kaggle notebook (evals/README.md) uses all three.
 - Real-data tier (evals/real/README.md): `runRealSuite({ model, modelName, embedder, dataDir, answersDir })`, `scoreCheck(check, report)`, `scoreRealReport`, `loadRealAnswers`, `missingRealData`, `realEvalCommand(args, deps)` (`NO_DATA` when a file has not been fetched) and `realResultsMarkdown(result)`. `resultsPage` adds the "Real public data" section from `*-real.json` results.
 - Your own data (`aa eval --suite real --answers <dir> [--data <dir>]`): an answer file whose `dataset` is not one of the public `REAL_DATASETS` must carry a `title`, or `runRealSuite` throws `UNKNOWN_DATASET` (so a typo in a public id still fails). Its result (`RealDatasetResult`) has `own: true`, the title from the answer file, empty publisher, licence and citation, and the SHA-256 of the file actually read; `realResultsMarkdown` heads such a run "your data" instead of "real public data". The worked example is `examples/my-evals/coffee-roaster.yaml`.
 
@@ -35,6 +39,9 @@ bun run eval -- --suite full --model baseline                 # one command, off
 bun run eval -- --suite full --model ollama:qwen3.5:9b        # a local model (every role)
 bun run eval -- --suite full --model configured               # the models in .env / config
 bun run eval:real:fetch && bun run eval:real                 # public datasets (evals/real), offline baseline
+# one business per run (e.g. to fit a session limit), then one published row:
+bun run eval -- --suite full --model configured --only saas-v2 --results-dir data/chunks/saas-v2
+bun run eval:merge -- --label "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ" data/chunks/*/*-full.json
 ```
 
 `EvalArgs.resultsPage` sets where the RESULTS.md page is written. It defaults to beside the results folder (`evals/RESULTS.md` in a checkout); `aa eval --results-dir dir` and the standalone binary put it inside the results folder instead, never in the user's working directory.

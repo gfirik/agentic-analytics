@@ -28,6 +28,7 @@
     "profile": "tsx packages/profile/scripts/demo.ts",
     "analyze": "tsx packages/analysis/scripts/demo.ts",
     "eval": "node apps/cli/bin/aa.js eval",
+    "eval:merge": "tsx evals/runner/scripts/merge.ts",
     "eval:real:fetch": "tsx evals/real/scripts/fetch.ts",
     "eval:real": "node apps/cli/bin/aa.js eval --suite real",
     "readme:assets": "tsx scripts/readme-assets/assets.ts --write",

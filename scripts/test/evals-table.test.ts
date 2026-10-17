@@ -26,4 +26,19 @@ describe("evalsTable", () => {
     expect(rows[1]).toContain("| smoke (3) |");
     expect(rows[1]).not.toContain("partial");
   });
+
+  it("shows a labelled self-hosted vLLM run (aa eval --label) as its own row, with the hardware from its label", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-evals-table-"));
+    writeFileSync(join(dir, "2026-10-17-configured-small-full.json"), JSON.stringify(result("full", 30, 0.1)));
+    writeFileSync(
+      join(dir, "2026-10-20-vllm-kaggle-2-t4-qwen3.8-27b-awq-full.json"),
+      JSON.stringify({ ...result("full", 30, 1), model: "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ", date: "2026-10-20" }),
+    );
+    const rows = evalsTable(dir).split("\n").slice(2);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain("| groq:qwen/qwen3.8-27b (small-model mode) |");
+    expect(rows[0]).toContain("| Groq free tier (hosted) |");
+    expect(rows[1]).toMatch(/^\| vllm \(Kaggle 2×T4\) Qwen3\.8-27B-AWQ \| full \(30\) \| 100% \|/);
+    expect(rows[1]).toContain("| Kaggle 2×T4 (self-hosted vLLM) | 2026-10-20 |");
+  });
 });
