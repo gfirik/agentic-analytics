@@ -45,7 +45,8 @@ describe("metrics.drafted.json in the job folder", () => {
     const planner = coffeePlanner();
     const model: ModelClient = {
       generateObject<T>(a: GenerateObjectArgs<T>) {
-        if (a.prompt.startsWith("Propose metric definitions")) return Promise.resolve({ object: DRAFT as T });
+        if (a.prompt.startsWith("Propose metric definitions"))
+          return Promise.resolve({ object: DRAFT as T, usage: { inputTokens: 0, outputTokens: 0, latencyMs: 0 } });
         // DECIDE's model call fails (the provider went down), after METRICS_DRAFT has run.
         if (a.prompt.includes("Propose the candidate actions")) return Promise.reject(new Error("provider unavailable"));
         return planner.generateObject(a);
