@@ -15,10 +15,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "biome check . && turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json && vitest run && bun run schema:drift && bun run prompts:check && bun run readme:check",
+    "check": "biome check . && turbo run typecheck --concurrency=2 && tsc --noEmit -p scripts/tsconfig.json && vitest run && bun run schema:drift && bun run prompts:check && bun run readme:check",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "turbo run typecheck && tsc --noEmit -p scripts/tsconfig.json",
+    "typecheck": "turbo run typecheck --concurrency=2 && tsc --noEmit -p scripts/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "schema:drift": "tsx scripts/schema-drift.ts",
