@@ -1,10 +1,8 @@
-/* Starlight, fully on-system (DESIGN.md §5–§6). Starlight's own styles sit in cascade layers, so these unlayered
-   rules win without specificity games. Its colour variables are mapped onto the tokens once: the tokens switch
-   between light and dark themselves (tokens.css), so no per-theme block is needed here. */
+/* Starlight, fully on-system (DESIGN.md §5–§7): "the bound appendix". Starlight's own styles sit in cascade layers,
+   so these unlayered rules win without specificity games. Its colour variables are mapped onto the tokens once; the
+   site is light only (tokens.css). */
 
-:root,
-:root[data-theme="light"],
-:root[data-theme="dark"] {
+:root {
   --sl-color-white: var(--aa-ink);
   --sl-color-gray-1: var(--aa-ink);
   --sl-color-gray-2: var(--aa-ink);
@@ -19,8 +17,8 @@
   --sl-color-accent: var(--aa-ink);
   --sl-color-accent-high: var(--aa-ink);
 
-  /* Asides and badges: slate, told apart by their icon and title, never by hue. Starlight's green ("tip", "success")
-     is slate too: the site's green means "verified" and only the site's own components use it. */
+  /* Asides and badges: neutral, told apart by their icon and title, never by hue. Starlight's green ("tip",
+     "success") is neutral too: the site's green means "verified" and only the site's own components use it. */
   --sl-color-orange-low: var(--aa-surface);
   --sl-color-orange: var(--aa-rule-strong);
   --sl-color-orange-high: var(--aa-ink);
@@ -42,7 +40,7 @@
   --sl-color-text-invert: var(--aa-page);
   --sl-color-bg: var(--aa-page);
   --sl-color-bg-nav: var(--aa-page);
-  --sl-color-bg-sidebar: var(--aa-page);
+  --sl-color-bg-sidebar: var(--aa-surface);
   --sl-color-bg-inline-code: var(--aa-surface);
   --sl-color-bg-accent: var(--aa-ink);
   --sl-color-hairline-light: var(--aa-rule);
@@ -58,13 +56,19 @@
   --sl-font-mono: var(--aa-font-mono);
   --sl-text-h1: 2.5rem;
   --sl-text-h2: 1.75rem;
-  --sl-text-h3: 1.25rem;
+  --sl-text-h3: 1.1875rem;
   --sl-text-h4: 1.0625rem;
   --sl-line-height: 1.65;
   --sl-line-height-headings: 1.2;
   --sl-nav-height: 3.75rem;
-  --sl-content-width: 46rem;
-  --sl-sidebar-width: 17.5rem;
+  --sl-sidebar-width: 15rem; /* 240px */
+
+  /* The reading frame: article (≈ 64ch of the serif at 17px) | gap | margin column. The margin column narrows a little
+     between 1000 and 1200px so the article keeps a readable measure next to the sidebar. */
+  --aa-article: 36rem;
+  --aa-margin-col: clamp(11rem, 100vw - var(--sl-sidebar-width) - 3rem - var(--aa-article) - var(--aa-margin-gap), 16.25rem);
+  --sl-content-width: calc(var(--aa-article) + var(--aa-margin-gap) + var(--aa-margin-col));
+  --sl-content-margin-inline: 0 auto;
 }
 
 @media (max-width: 40rem) {
@@ -94,16 +98,16 @@ header.header {
   background: var(--aa-page);
 }
 .sidebar-pane {
-  background: var(--aa-page);
+  background: var(--aa-surface);
   border-inline-end: 1px solid var(--aa-rule);
 }
 
-/* ── Sidebar: section labels as ledger heads, the current page marked by an ink rule ── */
+/* ── Sidebar: mono section labels, sans items, the current page marked by a 2px ink rule ── */
 .sidebar-content .large {
   font-family: var(--aa-font-mono);
   font-size: var(--aa-text-label);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
 }
@@ -117,13 +121,13 @@ header.header {
 }
 .sidebar-content a:hover {
   color: var(--aa-ink);
-  background: var(--aa-surface);
+  background: var(--aa-mark);
 }
 .sidebar-content a[aria-current="page"],
 .sidebar-content a[aria-current="page"]:hover,
 .sidebar-content a[aria-current="page"]:focus {
   color: var(--aa-ink);
-  background: var(--aa-surface);
+  background: transparent;
   border-inline-start-color: var(--aa-ink);
   font-weight: 600;
 }
@@ -133,20 +137,90 @@ header.header {
   padding-inline-start: 0;
 }
 
+/* ── The margin column and its TOC (TwoColumnContent.astro, PageSidebar.astro) ── */
+.aa-two-col {
+  position: relative;
+}
+.main-pane {
+  isolation: isolate;
+}
+/* Under 1200px the aside holds only Starlight's TOC bar, which is fixed under the header. */
+.aa-toc-margin {
+  display: none;
+}
+@media (min-width: 72rem) and (max-width: 74.99rem) {
+  /* Starlight drops its mobile TOC bar at 72rem; the site keeps it until 1200px. */
+  :root {
+    --sl-mobile-toc-height: 3rem;
+  }
+  [data-has-toc] {
+    scroll-padding-top: calc(1.5rem + var(--sl-nav-height) + var(--sl-mobile-toc-height));
+  }
+}
+@media (min-width: 75rem) {
+  .aa-toc-mobile {
+    display: none;
+  }
+  .aa-toc-margin {
+    display: block;
+  }
+  /* Laid over the margin column of the article, the full height of the page, so its inner box can stick. Only the
+     TOC itself takes pointer events: sidenotes beside it stay selectable. */
+  .aa-margin-toc {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--sl-content-pad-x) + var(--aa-article) + var(--aa-margin-gap));
+    width: var(--aa-margin-col);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .aa-margin-toc-inner {
+    position: sticky;
+    top: var(--sl-nav-height);
+    max-height: min(20rem, 40vh);
+    overflow-y: auto;
+    padding: var(--aa-space-5) 0 var(--aa-space-3);
+    border-bottom: 1px solid var(--aa-rule);
+    background: var(--aa-page);
+    pointer-events: auto;
+    scrollbar-width: thin;
+    transition: opacity var(--aa-fast) var(--aa-ease);
+  }
+  .aa-margin-toc-inner.is-covered {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 /* ── Table of contents ── */
 starlight-toc h2,
 mobile-starlight-toc .toggle {
   font-family: var(--aa-font-mono);
   font-size: var(--aa-text-label);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
 }
+starlight-toc h2 {
+  margin: 0 0 var(--aa-space-2);
+}
+starlight-toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 starlight-toc a {
+  display: block;
+  padding: 0.2rem 0 0.2rem 0.65rem;
+  font-size: var(--aa-text-note);
+  line-height: 1.4;
+  text-decoration: none;
   color: var(--aa-ink-2);
   border-radius: 0;
   border-inline-start: 1px solid var(--aa-rule);
+  overflow-wrap: anywhere;
 }
 starlight-toc a:hover {
   color: var(--aa-ink);
@@ -154,14 +228,21 @@ starlight-toc a:hover {
 starlight-toc a[aria-current="true"] {
   color: var(--aa-ink);
   border-inline-start: 2px solid var(--aa-ink);
+  padding-inline-start: calc(0.65rem - 1px);
   font-weight: 500;
 }
 mobile-starlight-toc nav {
   background: var(--aa-page);
   border-bottom: 1px solid var(--aa-rule);
 }
+mobile-starlight-toc .toggle {
+  border-radius: var(--aa-radius);
+}
 
 /* ── Page title (components/starlight/PageTitle.astro) ── */
+.aa-page-title {
+  max-width: var(--aa-article);
+}
 .aa-page-title h1 {
   margin-top: var(--aa-space-2);
   font-family: var(--aa-font-display);
@@ -171,25 +252,43 @@ mobile-starlight-toc nav {
   color: var(--aa-ink);
 }
 
-/* ── Content ── */
-.sl-markdown-content {
-  color: var(--aa-ink);
+/* ── Content: book-like reading in the serif, 62–66ch ── */
+.content-panel + .content-panel {
+  border-top: 1px solid var(--aa-rule);
 }
-.sl-markdown-content :is(h2, h3) {
+.sl-markdown-content {
+  max-width: min(var(--aa-article), 100%);
+  color: var(--aa-ink);
+  font-family: var(--aa-font-display);
+  font-optical-sizing: auto;
+  font-size: var(--aa-text-reading);
+  line-height: 1.65;
+}
+.sl-markdown-content :is(h2, h3, h4) {
   color: var(--aa-ink);
 }
 .sl-markdown-content h2 {
   font-family: var(--aa-font-display);
   font-weight: 500;
   letter-spacing: -0.01em;
-  padding-top: var(--aa-space-5);
-  border-top: 1px solid var(--aa-rule);
+  margin-top: 2.5rem;
+}
+.sl-markdown-content :is(h3, h4) {
+  font-family: var(--aa-font-sans);
+  font-weight: 600;
 }
 .sl-markdown-content h3 {
-  font-weight: 600;
+  font-size: var(--sl-text-h4);
 }
 .sl-markdown-content :is(p, li) {
   color: var(--aa-ink);
+}
+/* UI inside the article stays in the UI faces: tables, figures, asides, islands and code. */
+.sl-markdown-content
+:is(table, figure, .starlight-aside, .aa-island, .aa-flow, .aa-transcript, .aa-ledger-wrap, .expressive-code, .sl-steps, .card, button) {
+  font-family: var(--aa-font-sans);
+  font-size: var(--aa-text-small);
+  line-height: 1.55;
 }
 .sl-markdown-content a:not(.aa-chip, .aa-button, [class*="sl-link"]) {
   color: var(--aa-ink);
@@ -206,7 +305,7 @@ mobile-starlight-toc nav {
   color: var(--aa-ink);
 }
 .sl-markdown-content :not(pre) > code {
-  font-size: 0.875em;
+  font-size: 0.8125em;
   padding: 0.1em 0.3em;
   border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius-chip);
@@ -222,8 +321,13 @@ mobile-starlight-toc nav {
   max-width: 100%;
   overflow-x: auto;
   border-collapse: collapse;
-  font-size: var(--aa-text-small);
   font-variant-numeric: tabular-nums;
+}
+/* A table in its own focusable scroll wrapper (.aa-ledger-wrap) is laid out as a table; the wrapper scrolls. */
+.sl-markdown-content .aa-ledger-wrap table {
+  display: table;
+  overflow: visible;
+  min-width: 100%;
 }
 .sl-markdown-content :is(th, td) {
   border: 0;
@@ -237,7 +341,7 @@ mobile-starlight-toc nav {
   font-family: var(--aa-font-mono);
   font-size: var(--aa-text-label);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
   text-align: left;
@@ -261,21 +365,49 @@ mobile-starlight-toc nav {
   font-family: var(--aa-font-mono);
   font-size: var(--aa-text-label);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
 }
 
-/* Code: the frame from Expressive Code (astro.config.mjs re-bases its themes onto the tokens). */
+/* Code: a raised panel with a hairline frame and a mono caption (astro.config.mjs re-bases github-light onto it). */
 .expressive-code .frame {
   box-shadow: none;
 }
+.expressive-code .frame .header {
+  border-bottom: 1px solid var(--aa-rule);
+}
+.expressive-code .frame :is(.title, figcaption) {
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  letter-spacing: var(--aa-label-tracking);
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+
+/* Full-width figures (diagrams that need room): from 1000px they run across the margin column too, and clear any
+   sidenote beside them. */
+@media (min-width: 62.5rem) {
+  /* Article + gap + margin column always fit beside the sidebar: between 1000 and ~1072px the article gives up a
+     little measure rather than letting notes and figures run off the page. */
+  .sl-markdown-content {
+    max-width: min(var(--aa-article), 100% - var(--aa-margin-gap) - var(--aa-margin-col));
+  }
+  .sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-pipe) {
+    clear: right;
+    margin-right: calc(-1 * (var(--aa-margin-gap) + var(--aa-margin-col)));
+  }
+}
 
 /* ── Pagination and the footer meta ── */
+.pagination-links {
+  max-width: var(--aa-article);
+}
 .pagination-links a {
   border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius);
   box-shadow: none;
   color: var(--aa-ink-2);
+  background: var(--aa-raised);
 }
 .pagination-links a:hover {
   border-color: var(--aa-ink);
@@ -290,11 +422,11 @@ mobile-starlight-toc nav {
   color: var(--aa-ink-2);
 }
 
-/* ── Search ── */
+/* ── Search (Pagefind) ── */
 site-search button[data-open-modal] {
   border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius);
-  background: var(--aa-page);
+  background: var(--aa-raised);
   color: var(--aa-ink-2);
   box-shadow: none;
 }

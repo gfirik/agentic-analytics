@@ -1,8 +1,10 @@
 ---
 title: The verifier (V1–V8)
 description: Eight checks every report passes before you see it, what each one caught on the example, and why a wrong number stops the job.
+epigraph: "Fluent text is persuasive whether or not it is true, so every report is re-checked by code before you read it."
 ---
 
+import Sidenote from "../../../../components/learn/Sidenote.astro";
 import VerifierDiff from "../../../../components/VerifierDiff.tsx";
 import StageFlow from "../../../../components/learn/StageFlow.tsx";
 import { learn } from "../../../../components/learn/data.ts";
@@ -60,11 +62,11 @@ The model's text is treated as a draft from a junior colleague: useful, and chec
 
 ### Causal grades
 
-Saying *why* something happened is the riskiest thing an analyst does. Every claim carries a [causal grade](../../glossary/#causal-grade): `observed` (the numbers themselves), `correlated` (two things happened together), `document_supported` (a document says so, with a quote). V6 enforces the vocabulary: causal words need a document.
+Saying *why* something happened is the riskiest thing an analyst does. Every claim carries a [causal grade](../../glossary/#causal-grade).<Sidenote>`observed`: the numbers themselves. `correlated`: two things happened together. `document_supported`: a document says so, with a quote.</Sidenote> V6 enforces the vocabulary: causal words need a document.
 
 ### Hallucination
 
-When a model states something not supported by its input, that is called a [hallucination](../../glossary/#hallucination). You can't make a model stop; you can make sure nothing it states unsupported is shown to the reader as fact.
+When a model states something not supported by its input, that is called a [hallucination](../../glossary/#hallucination).<Sidenote>Ji et al. survey the kinds of hallucination and how they are measured; see Further reading.</Sidenote> You can't make a model stop; you can make sure nothing it states unsupported is shown to the reader as fact.
 
 ## Try it
 

@@ -1,9 +1,12 @@
-// Screenshots of the built site for review (docs/assets/site/): the landing page and a docs page, in light and dark,
-// at desktop (1440) and mobile (390) widths. Serve the build first (`bun run --filter @agentic-analytics/docs preview`).
-//   tsx scripts/site-screenshots.ts [--url http://127.0.0.1:4321/agentic-analytics] [--out dir] [--full]
-//   tsx scripts/site-screenshots.ts --learn   → the Learn overview, a stage guide and a tutorial (docs/assets/site/learn/)
+// Screenshots of the built site for review (docs/assets/site/): the landing page, a Learn stage page and a docs page,
+// at desktop (1440) and mobile (390) widths. The site is light only. Serve the build first
+// (`bun run --filter @agentic-analytics/docs preview`).
+//   tsx scripts/site-screenshots.ts [--url http://127.0.0.1:4321/agentic-analytics] [--out dir] [--full] [--only name]
+//   tsx scripts/site-screenshots.ts --record   → hero.webm and hero.gif: the hero's verification replay, then a
+//                                                figure's margin note opening on hover (needs ffmpeg for the GIF)
 // PW_CHANNEL=chrome uses an installed Chrome instead of Playwright's own build.
-import { mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium } from "@playwright/test";
@@ -14,28 +17,18 @@ const { values } = parseArgs({
     out: { type: "string", default: join(import.meta.dirname, "..", "..", "..", "docs", "assets", "site") },
     full: { type: "boolean", default: false },
     only: { type: "string" },
-    sections: { type: "boolean", default: false },
-    compare: { type: "string" },
-    learn: { type: "boolean", default: false },
+    record: { type: "boolean", default: false },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
-const out =
-  values.learn && values.out === join(import.meta.dirname, "..", "..", "..", "docs", "assets", "site")
-    ? join(values.out, "learn")
-    : (values.out as string);
+const out = values.out as string;
 mkdirSync(out, { recursive: true });
 
-const pages: { name: string; path: string; at?: string }[] = values.learn
-  ? [
-      { name: "learn-overview", path: "/learn/" },
-      { name: "learn-stage-analysis", path: "/learn/stages/analysis/", at: "#what-happens-on-the-example" },
-      { name: "learn-tutorial-confirm-metrics", path: "/learn/tutorials/confirm-metrics/", at: "#3-review-during-a-job" },
-    ]
-  : [
-      { name: "landing", path: "/" },
-      { name: "docs", path: "/how-it-works/verifier/" },
-    ];
+const pages: { name: string; path: string; at?: string }[] = [
+  { name: "landing", path: "/" },
+  { name: "learn-stage-analysis", path: "/learn/stages/analysis/" },
+  { name: "docs-verifier", path: "/how-it-works/verifier/" },
+];
 const sizes = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -43,15 +36,52 @@ const sizes = [
 
 const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 try {
-  for (const p of pages)
-    for (const s of sizes)
-      for (const scheme of ["light", "dark"] as const) {
-        const name = `${p.name}-${scheme}-${s.name}`;
+  if (values.record) {
+    // The one moment of motion: load (the replay runs once, ≤ 2.5 s), then hover two figures in turn.
+    const tmp = join(out, ".video");
+    rmSync(tmp, { recursive: true, force: true });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 760 },
+      recordVideo: { dir: tmp, size: { width: 1440, height: 760 } },
+    });
+    const page = await ctx.newPage();
+    await page.goto(`${base}/`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(3200);
+    for (const id of ["N30", "N12", "D1"]) {
+      const chip = page.locator(`.aa-exhibit a.aa-chip[data-note="${id}"]`);
+      await chip.hover();
+      await page.waitForTimeout(2200);
+    }
+    await page.mouse.move(10, 10);
+    await page.waitForTimeout(600);
+    await ctx.close();
+    const [video] = readdirSync(tmp).filter((f) => f.endsWith(".webm"));
+    if (!video) throw new Error("no video recorded");
+    renameSync(join(tmp, video), join(out, "hero.webm"));
+    rmSync(tmp, { recursive: true, force: true });
+    try {
+      execFileSync("ffmpeg", [
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        join(out, "hero.webm"),
+        "-vf",
+        "fps=10,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=48:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle",
+        join(out, "hero.gif"),
+      ]);
+      rmSync(join(out, "hero.webm"));
+    } catch {
+      process.stdout.write("ffmpeg not available: kept hero.webm only\n");
+    }
+  } else
+    for (const p of pages)
+      for (const s of sizes) {
+        const name = `${p.name}-${s.name}`;
         if (values.only && !name.includes(values.only as string)) continue;
         const ctx = await browser.newContext({
           viewport: { width: s.width, height: s.height },
           deviceScaleFactor: 1,
-          colorScheme: scheme,
           reducedMotion: "reduce",
         });
         const page = await ctx.newPage();
@@ -59,45 +89,9 @@ try {
         await page.evaluate(async () => {
           await document.fonts.ready;
         });
-        // A section of the page, not its top: scroll its heading just under the header.
-        if (p.at && !values.full)
-          await page.evaluate((sel) => {
-            const el = document.getElementById(sel.slice(1));
-            if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80);
-          }, p.at);
         await page.screenshot({ path: join(out, `${name}.png`), fullPage: Boolean(values.full) });
-        if (values.sections) {
-          const parts = page.locator("main > section, main .sl-markdown-content, body > footer");
-          for (let i = 0; i < (await parts.count()); i++) await parts.nth(i).screenshot({ path: join(out, `${name}-part${i}.png`) });
-        }
         await ctx.close();
       }
-  // --compare <url>: our landing page next to another site's, both light, desktop, above the fold.
-  if (values.compare) {
-    const shot = async (url: string, scheme: "light" | "dark") => {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme, reducedMotion: "reduce" });
-      const page = await ctx.newPage();
-      await page.goto(url, { waitUntil: "networkidle" });
-      await page.evaluate(async () => {
-        await document.fonts.ready;
-      });
-      const png = (await page.screenshot({ type: "png" })).toString("base64");
-      await ctx.close();
-      return `data:image/png;base64,${png}`;
-    };
-    const rows: string[] = [];
-    for (const scheme of ["light", "dark"] as const) {
-      const [ours, theirs] = [await shot(`${base}/`, scheme), await shot(values.compare as string, scheme)];
-      rows.push(
-        `<div class="row"><figure><img src="${ours}"><figcaption>agentic-analytics · ${scheme}</figcaption></figure><figure><img src="${theirs}"><figcaption>pas-agent · ${scheme}</figcaption></figure></div>`,
-      );
-    }
-    const page = await browser.newPage({ viewport: { width: 1480, height: 400 } });
-    await page.setContent(
-      `<!doctype html><style>body{margin:0;padding:12px;background:#ffffff;font:500 14px/1.4 monospace;color:#333}.row{display:flex;gap:16px;margin-bottom:12px}figure{margin:0;width:720px}img{width:720px;display:block;border:1px solid #ccc}figcaption{padding:4px 0}</style>${rows.join("")}`,
-    );
-    await page.screenshot({ path: join(out, "compare-pas-agent.png"), fullPage: true });
-  }
 } finally {
   await browser.close();
 }

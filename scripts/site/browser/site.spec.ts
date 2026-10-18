@@ -1,6 +1,7 @@
 // The product site in a real browser and its build (apps/docs/DESIGN.md §10): no request leaves the site, WCAG 2 A/AA has no
-// violations in light and dark, nothing scrolls sideways at 360 px, the page works without JS and with reduced
-// motion, and the site files (favicons, OG image, sitemap, 404) are served.
+// violations, the site is light only, nothing scrolls sideways at 360 px, the page works without JS and with reduced
+// motion, the hero exhibit replays its verification once and opens margin notes, and Learn sidenotes sit in the
+// margin (inline under 1000 px).
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -62,17 +63,26 @@ test("the build references no external script, stylesheet, font or image", () =>
 });
 
 test.describe("WCAG 2 A/AA (axe)", () => {
-  for (const scheme of ["light", "dark"] as const)
-    for (const path of [LANDING, DOCS[0] as string, MISSING]) {
-      test(`${path} · ${scheme}`, async ({ page }) => {
-        await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
-        await page.goto(path, { waitUntil: "networkidle" });
-        await expect(page.locator("html")).toHaveAttribute("data-theme", scheme);
-        const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-        const found = result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
-        expect(found).toEqual([]);
-      });
-    }
+  for (const path of [LANDING, DOCS[0] as string, `${BASE}/learn/stages/analysis/`, MISSING]) {
+    test(path, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(path, { waitUntil: "networkidle" });
+      const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      const found = result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+      expect(found).toEqual([]);
+    });
+  }
+});
+
+test("light only, even when the reader's system is dark or an old stored theme says dark", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => localStorage.setItem("starlight-theme", "dark"));
+  for (const path of [LANDING, DOCS[0] as string]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(248, 248, 246)");
+    await expect(page.locator("[data-aa-theme], starlight-theme-select")).toHaveCount(0);
+  }
 });
 
 test.describe("no horizontal scroll at 360 px", () => {
@@ -83,6 +93,15 @@ test.describe("no horizontal scroll at 360 px", () => {
       const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(wide).toBeLessThanOrEqual(0);
     });
+  }
+});
+
+test("no horizontal scroll where the docs' margin column is narrowest (1000–1100 px)", async ({ page }) => {
+  for (const width of [1000, 1024, 1072, 1100]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(over, `${width} px`).toBeLessThanOrEqual(0);
   }
 });
 
@@ -99,17 +118,15 @@ test("no horizontal scroll at 360 px on any page in the sitemap", async ({ page,
   expect(wide).toEqual([]);
 });
 
-test("WCAG 2 A/AA (axe) on every page in the sitemap, light and dark", async ({ page, request }) => {
+test("WCAG 2 A/AA (axe) on every page in the sitemap", async ({ page, request }) => {
   test.setTimeout(600_000);
   const paths = [...(await sitemapPaths(request)), MISSING];
   const found: string[] = [];
-  for (const scheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
-    for (const path of paths) {
-      await page.goto(path, { waitUntil: "networkidle" });
-      const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-      for (const v of result.violations) found.push(`${path} · ${scheme} · ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
-    }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const path of paths) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    for (const v of result.violations) found.push(`${path} · ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
   }
   expect(found).toEqual([]);
 });
@@ -128,20 +145,65 @@ test("docs pages carry the fhsystems footer too", async ({ page }) => {
   }
 });
 
-test("a fact chip opens the fact's working, and Escape closes it", async ({ page }) => {
+test("hero: the verification replays once, figure by figure, within 2.5 s", async ({ page }) => {
+  await page.goto(LANDING);
+  const wrap = page.locator("[data-exhibit]");
+  const chips = page.locator(".aa-exhibit a.aa-chip");
+  const n = await chips.count();
+  expect(n).toBeGreaterThan(5);
+  expect(n).toBeLessThanOrEqual(10);
+  await expect(wrap).toHaveAttribute("data-anim", "pending");
+  // Mid-replay, some figures are verified and some not yet.
+  await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).not.toHaveCount(0);
+  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 3_500 });
+  await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).toHaveCount(n);
+});
+
+test("hero: reduced motion shows the verified state at once, with no replay", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(LANDING, { waitUntil: "networkidle" });
-  const chip = page.locator("#report .aa-claims a.aa-chip", { hasText: "N30" }).first();
-  await chip.scrollIntoViewIfNeeded();
-  await expect(chip).toHaveAttribute("aria-expanded", "false");
-  await chip.click();
+  await expect(page.locator("[data-exhibit]")).not.toHaveAttribute("data-anim", /.*/);
+  await expect(page.locator(".aa-exhibit a.aa-chip .aa-check").first()).toBeVisible();
+  expect(
+    await page
+      .locator(".aa-exhibit a.aa-chip .aa-check")
+      .first()
+      .evaluate((el) => getComputedStyle(el).opacity),
+  ).toBe("1");
+});
+
+test("hero: hovering a figure opens its margin note (SQL and cited rows); Escape closes it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const chip = page.locator('.aa-exhibit a.aa-chip[data-note="N12"]');
+  await chip.hover();
+  const note = page.locator("#aa-note-N12");
+  await expect(note).toBeVisible();
   await expect(chip).toHaveAttribute("aria-expanded", "true");
-  const panel = page.locator("#aa-fact-panel");
-  await expect(panel).toContainText("pct_change");
-  await panel.locator("a.aa-chip", { hasText: "N11" }).click();
-  await expect(panel).toContainText("SQL, run in DuckDB");
+  await expect(note.locator(".aa-note-sql")).toContainText("FROM");
+  await expect(note.locator("tr.is-cited")).not.toHaveCount(0);
+  await expect(page.locator(".aa-leader")).toBeVisible();
+  // Beside the exhibit, level with its figure.
+  const [c, b, e] = await Promise.all([chip.boundingBox(), note.boundingBox(), page.locator(".aa-exhibit").boundingBox()]);
+  expect(b && e && b.x).toBeGreaterThanOrEqual((e?.x ?? 0) + (e?.width ?? 0));
+  expect(Math.abs((b?.y ?? 0) - (c?.y ?? 0))).toBeLessThan(24);
   await page.keyboard.press("Escape");
-  await expect(chip).toHaveAttribute("aria-expanded", "false");
-  await expect(chip).toBeFocused();
+  await expect(note).toBeHidden();
+  // Keyboard: focus opens it too; a function fact shows its inputs.
+  await page.locator('.aa-exhibit a.aa-chip[data-note="N30"]').focus();
+  await expect(page.locator("#aa-note-N30")).toContainText("pct_change");
+});
+
+test("hero: under 900 px the margin note opens below the exhibit, on tap", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').click();
+  const note = page.locator("#aa-note-N12");
+  await expect(note).toBeVisible();
+  const [b, e] = await Promise.all([note.boundingBox(), page.locator(".aa-exhibit").boundingBox()]);
+  expect(b?.y ?? 0).toBeGreaterThan((e?.y ?? 0) + (e?.height ?? 0) - 1);
 });
 
 test("without JS the landing page is complete and chips link into the fact ledger", async ({ browser }) => {
@@ -149,11 +211,61 @@ test("without JS the landing page is complete and chips link into the fact ledge
   const page = await ctx.newPage();
   await page.goto(LANDING);
   await expect(page.locator(".aa-pipe-frame svg")).toHaveCount(1);
-  const href = await page.locator("#report a.aa-chip").first().getAttribute("href");
+  await expect(page.locator(".aa-exhibit a.aa-chip .aa-check").first()).toBeVisible();
+  const chip = page.locator(".aa-exhibit a.aa-chip").first();
+  const href = await chip.getAttribute("href");
   expect(href).toMatch(/^#fact-N\d+$/);
-  await expect(page.locator(href as string)).toHaveCount(1);
-  await expect(page.locator("#evals table tbody tr")).not.toHaveCount(0);
+  await expect(page.locator("#ledger")).toBeHidden();
+  await chip.click();
+  await expect(page.locator(href as string)).toBeVisible();
+  await expect(page.locator("#results table tbody tr")).not.toHaveCount(0);
   await ctx.close();
+});
+
+test("the status strip shows the generated release, tests, real-data checks and full eval", async ({ page }) => {
+  await page.goto(LANDING);
+  await expect(page.locator(".aa-strip")).toContainText(
+    /v\d+\.\d+\.\d+ (pre-)?release\s*·\s*\d+ test files\s*·\s*\d+\/\d+ real-data checks\s*·\s*full real-model eval: \d+\/\d+/,
+  );
+});
+
+test("Learn: sidenotes sit in the margin beside their line at 1440 px, and expand inline on tap under 1000 px", async ({ page }) => {
+  const path = `${BASE}/learn/stages/analysis/`;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(path, { waitUntil: "networkidle" });
+  const note = page.locator(".aa-sn:not(.aa-mn) .aa-sn-note").first();
+  const ref = page.locator(".aa-sn:not(.aa-mn) .aa-sn-ref").first();
+  await note.scrollIntoViewIfNeeded();
+  const [n, r, article] = await Promise.all([note.boundingBox(), ref.boundingBox(), page.locator(".sl-markdown-content").boundingBox()]);
+  expect(n?.x ?? 0).toBeGreaterThanOrEqual((article?.x ?? 0) + (article?.width ?? 0));
+  expect(Math.abs((n?.y ?? 0) - (r?.y ?? 0))).toBeLessThan(40);
+  await expect(ref).toHaveText(/1$/);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(note).toBeHidden();
+  await ref.scrollIntoViewIfNeeded();
+  await ref.click();
+  await expect(note).toBeVisible();
+  // The checkbox behind it takes the keyboard too.
+  await ref.click();
+  await expect(note).toBeHidden();
+  await page.locator(".aa-sn-toggle").first().focus();
+  await page.keyboard.press("Space");
+  await expect(note).toBeVisible();
+});
+
+test("Learn: a stage page opens with its epigraph, and the TOC sits in the margin column from 1200 px", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${BASE}/learn/stages/analysis/`);
+  await expect(page.locator(".aa-epigraph")).toHaveCount(1);
+  const toc = page.locator(".aa-margin-toc starlight-toc");
+  await expect(toc).toBeVisible();
+  const [t, article] = await Promise.all([toc.boundingBox(), page.locator(".sl-markdown-content").boundingBox()]);
+  expect(t?.x ?? 0).toBeGreaterThan((article?.x ?? 0) + (article?.width ?? 0));
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await expect(toc).toBeHidden();
+  await expect(page.locator("mobile-starlight-toc summary")).toBeVisible();
 });
 
 test("Learn: every fact chip on every Learn page lands on a row of that page's fact ledger", async ({ page, request }) => {
@@ -194,10 +306,10 @@ test("Learn: a stage diagram is complete without JS, and a step marks what it pr
   await expect(live.locator(".aa-flow-col").nth(2).locator("li.is-current")).not.toHaveCount(0);
 });
 
-test("reduced motion: the pipeline does not play", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
+test("the pipeline scene is still until Play is pressed (the hero is the one moment of motion)", async ({ page }) => {
   await page.goto(LANDING, { waitUntil: "networkidle" });
   const frame = page.locator(".aa-pipe-frame");
+  await frame.scrollIntoViewIfNeeded();
   const before = await frame.innerHTML();
   await page.waitForTimeout(1500);
   expect(await frame.innerHTML()).toBe(before);

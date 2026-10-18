@@ -30,7 +30,7 @@
   padding-bottom: var(--aa-space-2);
   border-bottom: 1px solid var(--aa-rule-strong);
   font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
 }
@@ -102,7 +102,7 @@
 .aa-term-label {
   margin-bottom: var(--aa-space-2);
   font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
 }
@@ -177,7 +177,7 @@
 .sl-markdown-content .aa-map-lane-head {
   margin: 0 0 var(--aa-space-2);
   font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
 }
@@ -222,7 +222,7 @@
 }
 .aa-map-step {
   font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
 }

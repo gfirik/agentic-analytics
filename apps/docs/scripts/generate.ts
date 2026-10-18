@@ -14,8 +14,18 @@ import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
 import type { JobEvent } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
 import { sql, Workspace } from "@agentic-analytics/store";
+import vitestConfig from "../../../vitest.config.ts";
 import type { PipelineData } from "../src/components/pipeline-scene.ts";
-import { disagreements, LandingDataError, landingData } from "./landing-data.ts";
+import {
+  disagreements,
+  exhibitData,
+  exhibitIds,
+  exhibitRows,
+  globToRegExp,
+  LandingDataError,
+  landingData,
+  statusStrip,
+} from "./landing-data.ts";
 import { PIPELINE_JSON, recordRun } from "./pipeline-data.ts";
 
 const DOCS = join(import.meta.dirname, "..");
@@ -171,11 +181,13 @@ for (const d of ["architecture", "pipeline"])
 //    shows one run throughout. The build fails if it disagrees with the committed pipeline.json (re-run
 //    `bun run readme:pipeline`).
 {
-  const landing = landingData((await recordRun()).report);
+  const run = await recordRun(async (ws, report) => exhibitRows(ws, report, exhibitIds(report).facts));
+  const landing = landingData(run.report);
   const hero = JSON.parse(readFileSync(PIPELINE_JSON, "utf8")) as PipelineData;
   const off = disagreements(landing, hero);
   if (off.length) throw new LandingDataError(`the landing report and pipeline.json disagree: ${off.join("; ")}`);
   writeFileSync(join(DATA, "landing.json"), JSON.stringify(landing));
+  writeFileSync(join(DATA, "exhibit.json"), JSON.stringify(exhibitData(run.report, run.extra ?? {})));
 }
 
 // 8. The landing page's eval numbers, from the committed results files (evals/results/*.json): the suite metrics are
@@ -207,12 +219,29 @@ for (const d of ["architecture", "pipeline"])
   };
   const real = latest("-baseline-real.json");
   const r = real.data as RealSuiteResult;
+  const full = suite("-configured-small-full.json");
+  // The status strip (landing page, DESIGN.md §4): every item generated. Tests are counted as the test files vitest's
+  // own include globs select (an exact count of test cases needs a vitest run, too heavy for every generate).
+  const include = vitestConfig.test?.include ?? [];
+  const globs = include.map(globToRegExp);
+  const walk = (rel: string): string[] =>
+    readdirSync(join(ROOT, rel), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? (["node_modules", "dist", ".astro"].includes(e.name) ? [] : walk(`${rel}/${e.name}`)) : [`${rel}/${e.name}`],
+    );
+  const testFiles = ["packages", "apps", "evals", "scripts"].flatMap(walk).filter((f) => globs.some((g) => g.test(f))).length;
+  const strip = statusStrip({
+    changelog: readFileSync(join(ROOT, "CHANGELOG.md"), "utf8"),
+    testFiles,
+    real: r,
+    full,
+  });
   writeFileSync(
     join(DATA, "evals.json"),
     JSON.stringify({
+      strip,
       synthetic: suite("-baseline-full.json"),
       smoke: suite("-configured-small-smoke.json"),
-      full: suite("-configured-small-full.json"),
+      full,
       real: {
         file: `evals/results/${real.name}`,
         model: r.model,

@@ -1,0 +1,102 @@
+/* Sidenotes and margin notes (src/components/learn/Sidenote.astro, MarginNote.astro; DESIGN.md §7). From 1000px the
+   note floats out of the article into the margin column beside its line; under 1000px it is a tap-to-expand inline
+   note behind a visually hidden checkbox (focusable, and complete without JS). */
+
+.aa-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.aa-sn-toggle {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.aa-sn-ref {
+  display: inline;
+  margin-inline-start: 0.05rem;
+  padding: 0.35rem 0.3rem 0.35rem 0;
+  font: 500 0.6875rem / 1 var(--aa-font-mono);
+  font-variant-numeric: tabular-nums;
+  vertical-align: super;
+  color: var(--aa-ink-2);
+  text-align: center;
+  cursor: pointer;
+}
+.aa-sn-toggle:focus-visible + .aa-sn-ref {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+.aa-sn-note {
+  display: none;
+  font-family: var(--aa-font-sans);
+  font-size: var(--aa-text-note);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--aa-ink-2);
+  text-align: left;
+}
+.aa-sn-num {
+  font: 500 0.6875rem / 1 var(--aa-font-mono);
+  color: var(--aa-ink-3);
+  vertical-align: 0.1em;
+}
+.aa-sn-note .aa-chip {
+  min-height: 1.35rem;
+}
+.aa-sn-note :is(a:not(.aa-chip)) {
+  color: var(--aa-ink);
+}
+.aa-sn-note code {
+  font-size: 0.9em;
+}
+
+/* Inline, tap-to-expand (under 1000px). */
+.aa-sn-toggle:checked ~ .aa-sn-note {
+  display: block;
+  margin: var(--aa-space-2) 0;
+  padding: var(--aa-space-2) var(--aa-space-3);
+  border-inline-start: 2px solid var(--aa-ink);
+  background: var(--aa-surface);
+}
+.aa-sn-toggle:checked + .aa-sn-ref {
+  color: var(--aa-page);
+  background: var(--aa-ink);
+  border-radius: var(--aa-radius-chip);
+}
+
+/* In the margin (from 1000px). */
+@media (min-width: 62.5rem) {
+  .aa-sn-ref {
+    cursor: default;
+  }
+  .aa-sn-toggle {
+    display: none;
+  }
+  .aa-sn-note,
+  .aa-sn-toggle:checked ~ .aa-sn-note {
+    display: block;
+    float: right;
+    clear: right;
+    position: relative;
+    width: var(--aa-margin-col);
+    margin: 0.2rem calc(-1 * (var(--aa-margin-gap) + var(--aa-margin-col))) var(--aa-space-3) 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .aa-sn-toggle:checked + .aa-sn-ref {
+    color: var(--aa-ink-2);
+    background: transparent;
+  }
+  .aa-mn-ref {
+    display: none;
+  }
+}

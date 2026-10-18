@@ -1,8 +1,10 @@
 ---
 title: Metric layer
 description: Why "revenue" is written down as a definition you can read and confirm, and compiled to one SQL query, before any number is computed.
+epigraph: "The costliest mistake is not bad arithmetic but the right arithmetic on the wrong thing."
 ---
 
+import Sidenote from "../../../../components/learn/Sidenote.astro";
 import Fact from "../../../../components/learn/Fact.astro";
 import FactLedger from "../../../../components/learn/FactLedger.astro";
 import StageFlow from "../../../../components/learn/StageFlow.tsx";
@@ -55,7 +57,7 @@ Analysts call this a *semantic layer* or *metric layer*: the meaning of each bus
 
 ### The model drafts, code decides
 
-When a model is configured, it drafts the definitions from the column names and profile, because naming things is what language models are good at. The output is [structured](../../glossary/#structured-output): YAML that must parse and pass validation. With no model, deterministic rules draft the same kind of definitions (that is what happened in the [tutorial](../../tutorials/confirm-metrics/)). Either way, a person can confirm, edit or drop each one.
+When a model is configured, it drafts the definitions from the column names and profile, because naming things is what language models are good at. The output is [structured](../../glossary/#structured-output): YAML that must parse and pass validation.<Sidenote>Validation is code, not a model: every table and column must exist, a summed column must be a number, units must fit the aggregation, and a ratio may not divide a metric by itself.</Sidenote> With no model, deterministic rules draft the same kind of definitions (that is what happened in the [tutorial](../../tutorials/confirm-metrics/)). Either way, a person can confirm, edit or drop each one.
 
 ### Parameterised SQL
 

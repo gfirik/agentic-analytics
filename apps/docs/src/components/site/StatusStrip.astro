@@ -1,0 +1,36 @@
+---
+// The status strip (DESIGN.md §4): one quiet mono line above the header, not a marquee. Its items come from
+// generated data (scripts/landing-data.ts statusStrip(), written into src/data/evals.json), never typed.
+interface Props {
+  items: string[];
+}
+const { items } = Astro.props;
+---
+
+<div class="aa-strip" role="note" aria-label="Project status">
+  <p class="aa-strip-inner">
+    {
+      items.map((item, i) => (
+        <>
+          {i > 0 ? <span aria-hidden="true"> · </span> : null}
+          <span>{item}</span>
+        </>
+      ))
+    }
+  </p>
+</div>
+
+<style>
+  .aa-strip {
+    border-bottom: 1px solid var(--aa-rule);
+    background: var(--aa-surface);
+  }
+  .aa-strip-inner {
+    max-width: var(--aa-container);
+    margin: 0 auto;
+    padding: 0.45rem var(--aa-gutter);
+    font: 400 var(--aa-text-label) / 1.5 var(--aa-font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--aa-ink-2);
+  }
+</style>

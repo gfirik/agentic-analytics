@@ -1,6 +1,7 @@
 ---
 // The docs page title: the section it belongs to as a ledger label, the serif title (the page's one h1), and the
-// page's description as its lead, so every page opens by saying what it is for.
+// page's description as its lead, so every page opens by saying what it is for. Learn stage pages add an epigraph:
+// one sentence on the problem the stage solves, in serif italic (DESIGN.md §7).
 // Starlight links "Overview" in the TOC to this id (its PAGE_TITLE_ID, not exported).
 const PAGE_TITLE_ID = "_top";
 
@@ -8,7 +9,7 @@ type Entry = { type: string; label: string; isCurrent?: boolean; entries?: Entry
 const route = Astro.locals.starlightRoute;
 const holds = (e: Entry): boolean => (e.type === "link" ? Boolean(e.isCurrent) : (e.entries ?? []).some(holds));
 const section = (route.sidebar as Entry[]).find((e) => e.type === "group" && holds(e))?.label;
-const { title, description } = route.entry.data;
+const { title, description, epigraph } = route.entry.data as typeof route.entry.data & { epigraph?: string };
 /** The description as the lead, with `code` spans as <code>. */
 const lead = description ? description.split(/`([^`]+)`/) : [];
 ---
@@ -16,6 +17,7 @@ const lead = description ? description.split(/`([^`]+)`/) : [];
 <div class="aa-page-title">
   {section ? <p class="aa-label">{section}</p> : null}
   <h1 id={PAGE_TITLE_ID}>{title}</h1>
+  {epigraph ? <p class="aa-epigraph">{epigraph}</p> : null}
   {lead.length ? <p class="aa-page-lead">{lead.map((part, i) => (i % 2 ? <code>{part}</code> : part))}</p> : null}
 </div>
 
@@ -36,6 +38,16 @@ const lead = description ? description.split(/`([^`]+)`/) : [];
     line-height: 1.5;
     color: var(--aa-ink-2);
     max-width: 60ch;
+  }
+  .aa-epigraph {
+    margin: var(--aa-space-2) 0 0;
+    max-width: 52ch;
+    font-family: var(--aa-font-display);
+    font-optical-sizing: auto;
+    font-size: 1.25rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: var(--aa-ink-2);
   }
   .aa-page-lead :global(code) {
     font-size: 0.9em;

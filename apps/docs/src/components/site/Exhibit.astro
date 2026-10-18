@@ -1,0 +1,740 @@
+---
+// The hero exhibit (DESIGN.md §5): a real report page from the recorded run (src/data/exhibit.json, written by
+// scripts/generate.ts from the same run as the pipeline scene), rendered by the server in its final, verified state.
+// With JS it does two things, and nothing else:
+//   1. Once per load, and only without prefers-reduced-motion, it replays the verification: each figure's chip box
+//      draws in, then its check appears, top to bottom (~250 ms per figure, ≤ 2.5 s in all).
+//   2. Hovering or focusing a figure's chip slides its margin note out beside the exhibit (below it under 900px), on a
+//      hairline leader: the fact's label and value, its SQL (or function and inputs), and the sheet rows it cites.
+//      Esc or blur closes it; a click pins it (for touch).
+// Without JS every chip is a link to its row in the fact ledger at the end of the hero.
+import exhibit from "../../data/exhibit.json";
+import landing from "../../data/landing.json";
+import { formatWithCurrency } from "../format.ts";
+import { type SqlToken, sqlTokens } from "./exhibit.ts";
+
+type Part = { text?: string; fact?: string; source?: string };
+interface Note {
+  id: string;
+  kind: "sql" | "function" | "source";
+  label: string;
+  value: string;
+  verified: boolean;
+  sql?: string[];
+  params?: [string, string][];
+  fn?: string;
+  inputs?: { id: string; label: string; value: string }[];
+  rows?: { file: string; columns: string[]; rows: { row: number; cells: string[]; cited: boolean }[]; count: number };
+  quote?: string;
+  section?: string;
+}
+const data = exhibit as unknown as { title: string; lines: Part[][]; order: string[]; notes: Record<string, Note> };
+const notes = data.notes;
+const v = landing.verification;
+const ledger = Object.values(
+  landing.facts as Record<
+    string,
+    {
+      id: string;
+      label: string;
+      value: number;
+      unit: string;
+      currency: string | null;
+      verified: boolean;
+      computation: { kind: string; fn?: string; inputs?: string[] };
+    }
+  >,
+).sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
+const tint = (t: SqlToken) => (t.kind === "plain" ? t.text : `<span class="t-${t.kind}">${escapeHtml(t.text)}</span>`);
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+const sqlHtml = (lines: string[]) =>
+  lines
+    .map((l) =>
+      sqlTokens(l)
+        .map((t) => (t.kind === "plain" ? escapeHtml(t.text) : tint(t)))
+        .join(""),
+    )
+    .join("\n");
+const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+---
+
+<div class="aa-exhibit-wrap" data-exhibit>
+  <figure class="aa-exhibit" aria-labelledby="aa-exhibit-title">
+    <div class="aa-exhibit-page">
+      <p id="aa-exhibit-title" class="aa-exhibit-title">{data.title}</p>
+      {
+        data.lines.map((line) => (
+          <p class="aa-exhibit-line">
+            {line.map((p) =>
+              p.fact ? (
+                <span class="aa-num"><span class="aa-fig">{notes[p.fact]?.value ?? p.fact}</span><a
+                    class="aa-chip"
+                    href={`#fact-${p.fact}`}
+                    data-note={p.fact}
+                    aria-describedby={`aa-note-${p.fact}-sum`}
+                    aria-label={`${p.fact}${notes[p.fact]?.verified ? ", verified" : ""}: how this number was computed`}
+                  >{notes[p.fact]?.verified ? <Fragment set:html={check} /> : null}{p.fact}</a></span>
+              ) : p.source ? (
+                <>
+                  {" "}
+                  <a
+                    class="aa-chip"
+                    href={`#source-${p.source}`}
+                    data-note={p.source}
+                    aria-describedby={`aa-note-${p.source}-sum`}
+                    aria-label={`${p.source}${notes[p.source]?.verified ? ", verified" : ""}: the cited source`}
+                  >
+                    {notes[p.source]?.verified ? <Fragment set:html={check} /> : null}
+                    {p.source}
+                  </a>
+                </>
+              ) : (
+                p.text
+              ),
+            )}
+          </p>
+        ))
+      }
+      <p class="aa-exhibit-foot">
+        <Fragment set:html={check} /><span class="aa-sr">verified:</span>
+        {v.numbers_checked} numbers recomputed, {v.numbers_mismatched} mismatched · {v.citations_checked} citations checked
+      </p>
+    </div>
+    <figcaption class="aa-exhibit-caption">
+      Recorded from a real engine run. Hover any number to see how it was computed. <a href="#ledger">Fact ledger</a>
+    </figcaption>
+  </figure>
+  <script is:inline>
+    // Before first paint: hold the figures unverified for the replay, only when motion is welcome. A safety net
+    // shows the final state if the replay script never runs.
+    (() => {
+      const el = document.currentScript?.parentElement;
+      if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      el.dataset.anim = "pending";
+      setTimeout(() => {
+        if (el.dataset.anim === "pending") el.dataset.anim = "done";
+      }, 4000);
+    })();
+  </script>
+
+  <div class="aa-notes">
+    <p class="aa-notes-hint" aria-hidden="true">Margin · hover or focus a figure</p>
+    <span class="aa-leader" aria-hidden="true"></span>
+    {
+      Object.values(notes).map((n) => (
+        <aside class="aa-note" id={`aa-note-${n.id}`} data-note-for={n.id} hidden>
+          <p class="aa-note-head" id={`aa-note-${n.id}-sum`}>
+            <span class="aa-note-id">{n.id}</span>
+            <span class="aa-note-label">{n.label}</span>
+          </p>
+          {n.kind !== "source" ? (
+            <p class="aa-note-value">
+              <span class="aa-fig">{n.value}</span>
+              {n.verified ? (
+                <span class="aa-note-ok">
+                  <Fragment set:html={check} /> recomputed
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          {n.sql ? (
+            <>
+              <p class="aa-note-cap">SQL, run in DuckDB</p>
+              <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
+              {n.params?.length ? <p class="aa-note-params">{n.params.map(([k, val]) => `${k} = ${val}`).join(" · ")}</p> : null}
+            </>
+          ) : null}
+          {n.fn ? (
+            <>
+              <p class="aa-note-cap">Function, in code</p>
+              <pre class="aa-note-sql"><code set:html={`<span class="t-fn">${escapeHtml(n.fn)}</span>(${(n.inputs ?? []).map((i) => i.id).join(", ")})`} /></pre>
+              <table class="aa-note-table">
+                <caption class="aa-sr">Inputs</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Input</th>
+                    <th scope="col">Fact</th>
+                    <th scope="col" class="num">
+                      Value
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(n.inputs ?? []).map((i) => (
+                    <tr>
+                      <td class="id">{i.id}</td>
+                      <td>{i.label}</td>
+                      <td class="num">{i.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : null}
+          {n.rows ? (
+            <>
+              <p class="aa-note-cap">
+                Cited rows · {n.rows.file} · {n.rows.count} cited
+              </p>
+              <table class="aa-note-table">
+                <caption class="aa-sr">Rows of {n.rows.file} around the first cited row</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Row</th>
+                    {n.rows.columns.map((c) => (
+                      <th scope="col">{c}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {n.rows.rows.map((r) => (
+                    <tr class:list={{ "is-cited": r.cited }}>
+                      <td class="id">
+                        {r.row}
+                        {r.cited ? <span class="aa-sr"> (cited)</span> : null}
+                      </td>
+                      {r.cells.map((c) => (
+                        <td>{c}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : null}
+          {n.quote ? (
+            <>
+              <p class="aa-note-cap">
+                Quoted from {n.value}
+                {n.section ? ` · ${n.section}` : ""}
+              </p>
+              <blockquote class="aa-note-quote">{n.quote}</blockquote>
+              {n.verified ? (
+                <p class="aa-note-ok">
+                  <Fragment set:html={check} /> quote checked against the source
+                </p>
+              ) : null}
+            </>
+          ) : null}
+          <p class="aa-note-more">
+            <a href={n.kind === "source" ? `#source-${n.id}` : `#fact-${n.id}`}>In the fact ledger</a>
+          </p>
+        </aside>
+      ))
+    }
+  </div>
+</div>
+
+<section id="ledger" class="aa-exhibit-ledger" aria-labelledby="aa-ledger-title">
+  <h2 id="aa-ledger-title" class="aa-label">Fact ledger · every fact behind the exhibit</h2>
+  <div class="aa-ledger-wrap" role="region" aria-label="Fact ledger" tabindex="0">
+    <table class="aa-ledger">
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col" class="num">Value</th>
+          <th scope="col">Fact</th>
+          <th scope="col">Computed by</th>
+          <th scope="col">Verified</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          ledger.map((f) => (
+            <tr id={`fact-${f.id}`}>
+              <td class="id">{f.id}</td>
+              <td class="num aa-ledger-value">{formatWithCurrency(f)}</td>
+              <td class="aa-ledger-label">{f.label}</td>
+              <td class="aa-ledger-how">
+                {f.computation.kind === "sql" ? "SQL in DuckDB" : `${f.computation.fn}(${(f.computation.inputs ?? []).join(", ")})`}
+              </td>
+              <td class="aa-ledger-ok">
+                {f.verified ? (
+                  <span class="aa-verified">
+                    <Fragment set:html={check} /> recomputed
+                  </span>
+                ) : (
+                  "no"
+                )}
+              </td>
+            </tr>
+          ))
+        }
+        {
+          Object.values(notes)
+            .filter((n) => n.kind === "source")
+            .map((n) => (
+              <tr id={`source-${n.id}`}>
+                <td class="id">{n.id}</td>
+                <td class="num aa-ledger-value">quote</td>
+                <td class="aa-ledger-label">{n.label}</td>
+                <td>
+                  <q>{n.quote}</q>
+                </td>
+                <td class="aa-ledger-ok">
+                  {n.verified ? (
+                    <span class="aa-verified">
+                      <Fragment set:html={check} /> checked
+                    </span>
+                  ) : (
+                    "no"
+                  )}
+                </td>
+              </tr>
+            ))
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  const wrap = document.querySelector<HTMLElement>("[data-exhibit]");
+  if (wrap) {
+    const chips = [...wrap.querySelectorAll<HTMLAnchorElement>(".aa-exhibit a.aa-chip[data-note]")];
+    const col = wrap.querySelector<HTMLElement>(".aa-notes");
+    const leader = wrap.querySelector<HTMLElement>(".aa-leader");
+
+    // 1. The verification replay: one figure every ~250 ms, top to bottom; the last check lands by 2.5 s (each chip's
+    //    box takes 160 ms to draw, then its check 120 ms).
+    if (wrap.dataset.anim === "pending") {
+      const step = Math.min(250, 2200 / Math.max(chips.length, 1));
+      chips.forEach((chip, i) => setTimeout(() => chip.classList.add("is-verified"), i * step));
+      setTimeout(() => {
+        wrap.dataset.anim = "done";
+      }, chips.length * step + 300);
+    }
+
+    // 2. Margin notes.
+    let open: { chip: HTMLAnchorElement; note: HTMLElement } | undefined;
+    let pinned = false;
+    let returning = false; // focus going back to a chip after Esc: don't reopen its note
+    let hideTimer = 0;
+    const side = () => matchMedia("(min-width: 56.25rem)").matches; // beside the exhibit from 900px
+    const place = () => {
+      if (!open || !col || !leader) return;
+      const { chip, note } = open;
+      if (!side()) {
+        note.style.top = "";
+        leader.hidden = true;
+        return;
+      }
+      const c = chip.getBoundingClientRect();
+      const box = col.getBoundingClientRect();
+      const top = Math.max(0, c.top - box.top - 10);
+      note.style.top = `${top}px`;
+      // The leader runs from the exhibit's edge, level with the figure, to the note: it never crosses the text.
+      const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page")?.getBoundingClientRect();
+      const from = page ? page.right : c.right;
+      const y = c.top + c.height / 2 - box.top;
+      leader.hidden = false;
+      leader.style.top = `${y}px`;
+      leader.style.left = `${from - box.left}px`;
+      leader.style.width = `${Math.max(0, box.left - from)}px`;
+    };
+    const close = () => {
+      if (!open) return;
+      open.note.hidden = true;
+      open.chip.setAttribute("aria-expanded", "false");
+      open = undefined;
+      pinned = false;
+      if (leader) leader.hidden = true;
+    };
+    const show = (chip: HTMLAnchorElement) => {
+      clearTimeout(hideTimer);
+      const note = document.getElementById(`aa-note-${chip.dataset.note}`);
+      if (!note) return;
+      if (open?.chip !== chip) close();
+      open = { chip, note };
+      note.hidden = false;
+      chip.setAttribute("aria-expanded", "true");
+      place();
+    };
+    const later = () => {
+      clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => {
+        if (!pinned) close();
+      }, 220);
+    };
+    for (const chip of chips) {
+      chip.setAttribute("aria-expanded", "false");
+      chip.setAttribute("aria-controls", `aa-note-${chip.dataset.note}`);
+      chip.addEventListener("mouseenter", () => show(chip));
+      chip.addEventListener("mouseleave", later);
+      chip.addEventListener("focus", () => {
+        if (!returning) show(chip);
+      });
+      chip.addEventListener("blur", (e) => {
+        const to = e.relatedTarget as Node | null;
+        if (!(to && open?.note.contains(to))) later();
+      });
+      chip.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (pinned && open?.chip === chip) return close();
+        show(chip);
+        pinned = true;
+        if (!side()) open?.note.scrollIntoView({ block: "nearest" });
+      });
+    }
+    col?.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+    col?.addEventListener("mouseleave", later);
+    col?.addEventListener("focusout", (e) => {
+      const to = e.relatedTarget as Node | null;
+      if (!(to && (col.contains(to) || open?.chip === to))) later();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !open) return;
+      const { chip, note } = open;
+      const active = document.activeElement;
+      const hadFocus = active === chip || (active !== null && note.contains(active));
+      close();
+      if (!hadFocus) return;
+      returning = true;
+      chip.focus();
+      returning = false;
+    });
+    document.addEventListener("click", (e) => {
+      const t = e.target as Node;
+      if (pinned && open && !open.note.contains(t) && !chips.some((c) => c.contains(t))) close();
+    });
+    window.addEventListener("resize", place);
+  }
+</script>
+
+<style>
+  /* The exhibit: a raised report page with a hairline. */
+  .aa-exhibit {
+    margin: 0;
+    min-width: 0;
+  }
+  .aa-exhibit-page {
+    display: grid;
+    gap: var(--aa-space-4);
+    padding: var(--aa-space-5) var(--aa-space-5) var(--aa-space-4);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+  }
+  .aa-exhibit-title {
+    padding-bottom: var(--aa-space-3);
+    border-bottom: 1px solid var(--aa-rule-strong);
+    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+  }
+  .aa-exhibit-line {
+    font-size: 0.9375rem;
+    line-height: 1.75;
+    color: var(--aa-ink);
+  }
+  .aa-exhibit-line + .aa-exhibit-line {
+    padding-top: var(--aa-space-3);
+    border-top: 1px solid var(--aa-rule);
+  }
+  .aa-num {
+    white-space: nowrap;
+  }
+  .aa-exhibit-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-top: var(--aa-space-3);
+    border-top: 1px solid var(--aa-rule-strong);
+    font: 400 0.75rem / 1.4 var(--aa-font-mono);
+    color: var(--aa-ink-2);
+  }
+  .aa-exhibit-caption {
+    margin-top: var(--aa-space-3);
+    font: 400 0.75rem / 1.5 var(--aa-font-mono);
+    color: var(--aa-ink-3);
+  }
+
+  /* The verification replay. The server renders the final state; [data-anim="pending"] (set before first paint by
+     the inline script, never under reduced motion) holds each chip unverified until the script marks it. The chip's
+     box is drawn by an outline layer that wipes in; the check then appears in the space it already holds, so nothing
+     reflows. */
+  .aa-exhibit .aa-chip {
+    position: relative;
+    border-color: transparent;
+  }
+  .aa-exhibit .aa-chip::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border: 1px solid var(--aa-rule-strong);
+    border-radius: var(--aa-radius-chip);
+    pointer-events: none;
+  }
+  .aa-exhibit .aa-chip:hover::before,
+  .aa-exhibit .aa-chip[aria-expanded="true"]::before {
+    border-color: var(--aa-ink);
+  }
+  .aa-exhibit .aa-chip[aria-expanded="true"] {
+    background: var(--aa-ink);
+    color: var(--aa-page);
+  }
+  .aa-exhibit .aa-chip[aria-expanded="true"] :global(.aa-check) {
+    color: var(--aa-page);
+  }
+  [data-anim="pending"] .aa-exhibit .aa-chip::before {
+    clip-path: inset(0 100% 0 0);
+  }
+  [data-anim="pending"] .aa-exhibit .aa-chip :global(.aa-check) {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  [data-anim="pending"] .aa-exhibit .aa-chip.is-verified::before {
+    animation: aa-draw 160ms var(--aa-ease) forwards;
+  }
+  [data-anim="pending"] .aa-exhibit .aa-chip.is-verified :global(.aa-check) {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 120ms var(--aa-ease) 140ms,
+      transform 120ms var(--aa-ease) 140ms;
+  }
+  [data-anim="pending"] .aa-exhibit-foot {
+    opacity: 0;
+  }
+  .aa-exhibit-foot {
+    transition: opacity 200ms var(--aa-ease);
+  }
+  @keyframes aa-draw {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aa-exhibit .aa-chip::before {
+      clip-path: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* The margin notes: a column to the right of the exhibit (below it under 900px). One note shows at a time, aligned
+     to its figure, joined to it by a hairline leader. */
+  .aa-notes {
+    position: relative;
+    min-width: 0;
+    align-self: stretch;
+  }
+  .aa-notes-hint {
+    padding: var(--aa-space-3) 0 0 var(--aa-space-3);
+    border-left: 1px solid var(--aa-rule);
+    font: 400 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+    min-height: 6rem;
+  }
+  .aa-notes:has(.aa-note:not([hidden])) .aa-notes-hint {
+    visibility: hidden;
+  }
+  .aa-leader {
+    position: absolute;
+    height: 0;
+    border-top: 1px solid var(--aa-rule-strong);
+    pointer-events: none;
+  }
+  .aa-leader[hidden] {
+    display: none;
+  }
+  .aa-note {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    display: grid;
+    gap: var(--aa-space-2);
+    padding: var(--aa-space-3) 0 var(--aa-space-3) var(--aa-space-3);
+    border-left: 1px solid var(--aa-ink);
+    background: var(--aa-page);
+    font: 400 var(--aa-text-note) / 1.45 var(--aa-font-sans);
+    color: var(--aa-ink-2);
+    animation: aa-slide 150ms var(--aa-ease);
+  }
+  .aa-note[hidden] {
+    display: none;
+  }
+  @keyframes aa-slide {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aa-note {
+      animation: none;
+    }
+  }
+  .aa-note-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.5rem;
+    align-items: baseline;
+  }
+  .aa-note-id {
+    font: 500 0.75rem / 1.3 var(--aa-font-mono);
+    color: var(--aa-ink);
+  }
+  .aa-note-label {
+    font: 400 0.75rem / 1.3 var(--aa-font-mono);
+    color: var(--aa-ink-3);
+    overflow-wrap: anywhere;
+  }
+  .aa-note-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 1.0625rem;
+    color: var(--aa-ink);
+  }
+  .aa-note-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font: 400 0.75rem / 1.3 var(--aa-font-mono);
+    color: var(--aa-verified);
+  }
+  .aa-note-cap {
+    margin-top: var(--aa-space-1);
+    font: 500 0.6875rem / 1.3 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+  }
+  .aa-note-sql {
+    margin: 0;
+    padding: var(--aa-space-2);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+    font: 400 0.6875rem / 1.55 var(--aa-font-mono);
+    color: var(--aa-ink-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  /* Syntax tinted in ink shades only. */
+  .aa-note-sql :global(.t-kw) {
+    color: var(--aa-ink);
+    font-weight: 500;
+  }
+  .aa-note-sql :global(.t-fn) {
+    color: var(--aa-ink);
+  }
+  .aa-note-sql :global(.t-id),
+  .aa-note-sql :global(.t-str) {
+    color: var(--aa-ink-2);
+  }
+  .aa-note-sql :global(.t-param) {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--aa-rule-strong);
+  }
+  .aa-note-params {
+    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
+    color: var(--aa-ink-2);
+    overflow-wrap: anywhere;
+  }
+  .aa-note-table {
+    width: 100%;
+    border-collapse: collapse;
+    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--aa-ink);
+  }
+  .aa-note-table th {
+    padding: 0.2rem 0.3rem 0.2rem 0;
+    border-bottom: 1px solid var(--aa-rule-strong);
+    font-weight: 500;
+    color: var(--aa-ink-3);
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .aa-note-table td {
+    padding: 0.2rem 0.3rem 0.2rem 0;
+    border-bottom: 1px solid var(--aa-rule);
+    overflow-wrap: anywhere;
+  }
+  .aa-note-table .num {
+    text-align: right;
+  }
+  .aa-note-table tr.is-cited td {
+    background: var(--aa-mark);
+  }
+  .aa-note-quote {
+    margin: 0;
+    padding-left: var(--aa-space-2);
+    border-left: 1px solid var(--aa-rule-strong);
+    font-family: var(--aa-font-display);
+    font-style: italic;
+    font-size: 0.9375rem;
+    color: var(--aa-ink);
+  }
+  .aa-note-more {
+    font-size: 0.75rem;
+  }
+  .aa-note-more a::after {
+    content: " →";
+  }
+  @media (max-width: 56.24rem) {
+    .aa-notes {
+      align-self: auto;
+    }
+    .aa-notes-hint {
+      display: none;
+    }
+    .aa-note {
+      position: static;
+      border-left: 0;
+      border-top: 1px solid var(--aa-ink);
+      padding: var(--aa-space-3) 0 0;
+    }
+  }
+
+  /* The fact ledger: the no-JS home of every chip. Collapsed to its link until something in it is the target. */
+  .aa-exhibit-ledger {
+    display: none;
+    grid-column: 1 / -1;
+    margin-top: var(--aa-space-6);
+    gap: var(--aa-space-3);
+    padding: var(--aa-space-4) 0;
+    background: var(--aa-page);
+  }
+  .aa-ledger-value,
+  .aa-ledger-ok {
+    white-space: nowrap;
+  }
+  .aa-ledger-label {
+    min-width: 10rem;
+    overflow-wrap: anywhere;
+  }
+  .aa-exhibit-ledger:target,
+  .aa-exhibit-ledger:has(:target) {
+    display: grid;
+  }
+  .aa-exhibit-ledger tr:target td {
+    background: var(--aa-mark);
+  }
+  .aa-ledger-how {
+    font-family: var(--aa-font-mono);
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  .aa-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>

@@ -39,16 +39,16 @@ const og = `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:"OgSans";src:url(${font("@fontsource/ibm-plex-sans", "ibm-plex-sans-latin-600-normal.woff2")});font-weight:600}
 @font-face{font-family:"OgMono";src:url(${font("@fontsource/ibm-plex-mono", "ibm-plex-mono-latin-500-normal.woff2")});font-weight:500}
 *{box-sizing:border-box;margin:0}
-body{width:1200px;height:630px;background:#f7f9fb;color:#0e1a2b;font-family:"OgSans";padding:72px 88px;display:flex;flex-direction:column;justify-content:space-between}
+body{width:1200px;height:630px;background:#f8f8f6;color:#121417;font-family:"OgSans";padding:72px 88px;display:flex;flex-direction:column;justify-content:space-between}
 .top{display:flex;align-items:center;gap:16px;font-weight:600;font-size:28px;letter-spacing:-.01em}
 .top svg{width:44px;height:44px}
 h1{font-family:"OgSerif";font-weight:450;font-size:84px;line-height:1.02;letter-spacing:-.02em;max-width:900px}
 .ledger span{white-space:nowrap}
-.ledger{border-top:2px solid #8696a9;border-bottom:1px solid #d8dfe7;display:flex;align-items:center;gap:28px;padding:20px 0;font-size:26px;color:#46566b}
-.fig{font-family:"OgMono";font-weight:500;color:#0e1a2b;font-size:34px}
-.chip{display:inline-flex;align-items:center;gap:6px;font-family:"OgMono";font-weight:500;font-size:22px;border:1.5px solid #8696a9;border-radius:3px;padding:4px 9px;color:#46566b}
+.ledger{border-top:2px solid #8b8f94;border-bottom:1px solid #dcdcd6;display:flex;align-items:center;gap:28px;padding:20px 0;font-size:26px;color:#4a4f57}
+.fig{font-family:"OgMono";font-weight:500;color:#121417;font-size:34px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:"OgMono";font-weight:500;font-size:22px;border:1.5px solid #8b8f94;border-radius:3px;padding:4px 9px;color:#4a4f57}
 .chip svg{width:20px;height:20px}
-.foot{display:flex;justify-content:space-between;font-family:"OgMono";font-weight:500;font-size:20px;letter-spacing:.06em;text-transform:uppercase;color:#5a6a7e}
+.foot{display:flex;justify-content:space-between;font-family:"OgMono";font-weight:500;font-size:20px;letter-spacing:.08em;text-transform:uppercase;color:#5f646c}
 </style></head><body>
 <div class="top">${mark}<span>agentic-analytics</span></div>
 <h1>An AI analyst you can audit.</h1>

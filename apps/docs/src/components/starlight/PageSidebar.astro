@@ -1,0 +1,20 @@
+---
+// The on-page TOC (DESIGN.md §7): in the margin column from 1200px (TwoColumnContent.astro), and under 1200px
+// Starlight's own collapsible TOC bar. Starlight switches at 72rem; the site switches at 75rem (1200px), so
+// starlight.css keeps the mobile bar's height until then.
+import MobileTableOfContents from "virtual:starlight/components/MobileTableOfContents";
+import TableOfContents from "virtual:starlight/components/TableOfContents";
+---
+
+{
+  Astro.locals.starlightRoute.toc && (
+    <>
+      <div class="aa-toc-mobile">
+        <MobileTableOfContents />
+      </div>
+      <div class="aa-toc-margin">
+        <TableOfContents />
+      </div>
+    </>
+  )
+}

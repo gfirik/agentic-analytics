@@ -1,10 +1,10 @@
 // <Pipeline />: the animated pipeline, the same scene as the README GIF (pipeline-scene.ts), fed by the same run
 // data (docs/assets/readme/pipeline.json: a real engine run on examples/coffee-roaster, scripted planner, no LLM).
-// It loops while on screen; under reduced motion it shows the finished report and steps through the stages on demand.
+// It is still until the reader presses Play or a stage (DESIGN.md §8: the hero exhibit is the site's one moment of
+// motion): the server renders the finished report, and Play loops the run while it is on screen.
 import { useEffect, useRef, useState } from "react";
 import data from "../../../../docs/assets/readme/pipeline.json";
 import "./islands.css";
-import { reducedMotion } from "./format.ts";
 import { LOOP_SECONDS, type PipelineData, POSTER_SECONDS, railOf, SCENES, sceneAt, sceneSvg } from "./pipeline-scene.ts";
 
 const run = data as PipelineData;
@@ -22,13 +22,6 @@ export default function Pipeline() {
   const [playing, setPlaying] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const visible = useRef(true);
-
-  // Read after mount: the server render can't know the reader's motion setting, so it renders the still frame.
-  useEffect(() => {
-    if (reducedMotion()) return;
-    setT(0);
-    setPlaying(true);
-  }, []);
 
   // Animate only while the island is on screen.
   useEffect(() => {

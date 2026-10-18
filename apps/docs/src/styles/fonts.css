@@ -1,5 +1,8 @@
 /* The three faces of the site (DESIGN.md §4), self-hosted through @fontsource: no request leaves the site. */
-@import "@fontsource-variable/source-serif-4/opsz.css";
+/* The serif's weight-axis file (51 KB) rather than its optical-size file (122 KB): the docs' first paint is serif prose,
+   and the larger file kept the Learn pages under Lighthouse 95 (M13i). The italic is for epigraphs and emphasis. */
+@import "@fontsource-variable/source-serif-4/wght.css";
+@import "@fontsource-variable/source-serif-4/wght-italic.css";
 @import "@fontsource/ibm-plex-sans/400.css";
 @import "@fontsource/ibm-plex-sans/400-italic.css";
 @import "@fontsource/ibm-plex-sans/500.css";

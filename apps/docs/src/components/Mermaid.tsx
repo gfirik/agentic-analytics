@@ -1,6 +1,5 @@
 // <Mermaid />: renders a shared diagram (docs/assets/diagrams/*.mmd, the same files the README embeds) in the site's
-// colours and type (src/styles/tokens.css): the tokens are read from the page, so light and dark both follow the
-// theme. The source stays readable if scripts are off. Mermaid is bundled with the site: no request leaves it.
+// colours and type (src/styles/tokens.css, light only): the tokens are read from the page. The source stays readable if scripts are off. Mermaid is bundled with the site: no request leaves it.
 import { useEffect, useState } from "react";
 import "./islands.css";
 
@@ -46,11 +45,8 @@ export default function Mermaid({ code, title }: { code: string; title: string }
       if (!cancelled) setSvg(svg);
     };
     void draw();
-    const obs = new MutationObserver(() => void draw());
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => {
       cancelled = true;
-      obs.disconnect();
     };
   }, [code]);
   return (

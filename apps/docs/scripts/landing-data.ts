@@ -1,9 +1,12 @@
-// The landing page's report data (src/pages/index.astro, <LedgerReport />), from the same web-enabled run the hero
-// animation plays (pipeline-data.ts recordRun(), docs/assets/readme/pipeline.json), so the whole page shows ONE run:
+// The landing page's report data (src/pages/index.astro: the hero exhibit, Exhibit.astro, and its fact ledger), from the
+// same web-enabled run the pipeline scene plays (pipeline-data.ts recordRun(), docs/assets/readme/pipeline.json), so the whole page shows ONE run:
 // the first finding, every fact its claims and its top recommendation use, the facts those are computed from (so each
 // chip opens a fact whose inputs open too), and the verification counts. Values are the facts' stored values.
 import type { Report } from "@agentic-analytics/schema";
+import { ident, idents, sql, type Workspace } from "@agentic-analytics/store";
+import { type FactLike, formatWithCurrency } from "../src/components/format.ts";
 import type { PipelineData } from "../src/components/pipeline-scene.ts";
+import { monthName, sqlLines } from "../src/components/site/exhibit.ts";
 
 export class LandingDataError extends Error {
   readonly code = "LANDING_DATA";
@@ -123,4 +126,223 @@ export function disagreements(landing: LandingData, hero: PipelineData): string[
   if (landing.recommendation.id !== hero.action.id) out.push(`recommendation: report ${landing.recommendation.id}, hero ${hero.action.id}`);
   if (!landing.direct.includes(hero.change.pct.id)) out.push(`the headline change ${hero.change.pct.id} is not in the report card`);
   return out;
+}
+
+// ── The hero exhibit (DESIGN.md §5) ──────────────────────────────────────────────────────────────────────────────
+// The landing page's one live exhibit: the same run's headline claims, the document-supported cause and the top
+// recommendation, each figure with its margin note (the fact's SQL or function, and the sheet rows it cites, read back
+// from the run's own DuckDB). Text is the report's own; figures are the facts' stored values, formatted for reading.
+
+/** A cited sheet row and the rows around it, with the columns the fact's SQL reads. */
+export interface ExhibitRows {
+  readonly file: string;
+  readonly columns: readonly string[];
+  readonly rows: readonly { readonly row: number; readonly cells: readonly string[]; readonly cited: boolean }[];
+  /** How many rows the fact cites in all. */
+  readonly count: number;
+}
+
+const tableOf = (q: string) => /\bFROM\s+"(t_[a-z0-9_]+)"/.exec(q)?.[1];
+const columnsOf = (q: string, table: string) =>
+  [...q.matchAll(/"([a-z_][a-z0-9_]*)"/g)].map((m) => m[1] as string).filter((c, i, a) => c !== table && a.indexOf(c) === i);
+
+/**
+ * For each SQL fact in `ids`: its first cited row with the row before and after it (those in the table), and the
+ * columns its SQL reads. Identifiers come from the recorded SQL and go through ident(), never into SQL as text.
+ */
+export async function exhibitRows(ws: Workspace, report: Report, ids: readonly string[]): Promise<Record<string, ExhibitRows>> {
+  const out: Record<string, ExhibitRows> = {};
+  for (const id of ids) {
+    const f = report.facts.find((x) => x.id === id);
+    const c = f?.citations[0];
+    const q = f?.computation.kind === "sql" ? f.computation.sql : undefined;
+    const first = c?.rows?.[0];
+    const table = q ? tableOf(q) : undefined;
+    if (!f || !c || !q || !table || first === undefined) continue;
+    const columns = columnsOf(q, table);
+    const cited = new Set(c.rows ?? []);
+    const found = await ws.all<Record<string, unknown>>(
+      sql`SELECT _row, ${idents(columns.map((col) => col))} FROM ${ident(table)} WHERE _row BETWEEN ${first - 1} AND ${first + 1} ORDER BY _row`,
+    );
+    out[id] = {
+      file: report.sources.find((s) => s.id === c.source_id)?.file ?? c.source_id,
+      columns,
+      rows: found.map((r) => ({
+        row: Number(r._row),
+        cells: columns.map((col) => cell(r[col])),
+        cited: cited.has(Number(r._row)),
+      })),
+      count: c.rows?.length ?? 0,
+    };
+  }
+  return out;
+}
+
+const cell = (v: unknown): string => {
+  if (v === null || v === undefined) return "";
+  const text = v instanceof Date ? v.toISOString() : String(v);
+  // A date-only value read back as midnight UTC is shown as the date the sheet holds.
+  return /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z$/.test(text) ? text.slice(0, 10) : text;
+};
+
+/** A vitest include glob (`packages/*\/test/**\/*.test.ts`) as a RegExp over repo-relative paths. */
+export function globToRegExp(glob: string): RegExp {
+  const re = glob
+    .split(/(\*\*\/|\*)/)
+    .map((part) => (part === "**/" ? "(?:.*/)?" : part === "*" ? "[^/]*" : part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")))
+    .join("");
+  return new RegExp(`^${re}$`);
+}
+
+export type ExhibitPart = { readonly text: string } | { readonly fact: string } | { readonly source: string };
+
+export interface ExhibitNote {
+  readonly id: string;
+  readonly kind: "sql" | "function" | "source";
+  readonly label: string;
+  /** The value for reading (presentation only), or the source file for a document citation. */
+  readonly value: string;
+  readonly verified: boolean;
+  readonly sql?: readonly string[];
+  readonly params?: readonly (readonly [string, string])[];
+  readonly fn?: string;
+  readonly inputs?: readonly { readonly id: string; readonly label: string; readonly value: string }[];
+  readonly rows?: ExhibitRows;
+  readonly quote?: string;
+  readonly section?: string;
+}
+
+/** Facts and sources the exhibit shows, in reading order: the verification sequence follows this order. */
+export function exhibitIds(report: Report): { claims: Report["findings"][number]["claims"]; facts: string[]; sources: string[] } {
+  const finding = report.findings[0];
+  const rec = report.recommendations[0];
+  if (!finding || !rec) throw new LandingDataError("the report has no finding or recommendation");
+  const withFacts = finding.claims.filter((c) => c.facts.length > 0).slice(0, 2);
+  const cause = finding.claims.find((c) => c.causal_grade === "document_supported" && c.citations.some((x) => x.quote));
+  const claims = cause ? [...withFacts, cause] : withFacts;
+  const facts = [
+    ...claims.flatMap((c) => c.facts),
+    ...[rec.impact?.low, rec.impact?.high].filter((x): x is string => typeof x === "string"),
+  ];
+  const sources = cause ? cause.citations.filter((x) => x.quote).map((x) => x.source_id) : [];
+  return { claims, facts, sources };
+}
+
+const order = (ids: readonly string[]) => ids.filter((id, i) => ids.indexOf(id) === i);
+
+export function exhibitData(report: Report, rows: Record<string, ExhibitRows>) {
+  const byId = new Map(report.facts.map((f) => [f.id, f]));
+  const rec = report.recommendations[0];
+  if (!rec) throw new LandingDataError("the report has no recommendation");
+  const { claims, facts: ids, sources } = exhibitIds(report);
+  const fact = (id: string) => {
+    const f = byId.get(id);
+    if (!f) throw new LandingDataError(`unknown fact ${id} in the exhibit`);
+    return f;
+  };
+  const shownValue = (id: string) => formatWithCurrency(fact(id) as FactLike & { currency?: string | null });
+  const parts = (text: string): ExhibitPart[] =>
+    text
+      .split(/\{\{(N\d+)\}\}/)
+      .map((p, i) => (i % 2 ? { fact: p } : { text: p }))
+      .filter((p) => !("text" in p) || p.text !== "");
+  const lines: ExhibitPart[][] = claims.map((c) => [
+    ...parts(c.text),
+    ...c.citations.filter((x) => x.quote).map((x) => ({ source: x.source_id })),
+  ]);
+  if (rec.impact?.low && rec.impact?.high)
+    lines.push([
+      { text: `Recommended: ${rec.action.replace(/^./, (ch) => ch.toLowerCase())}, ` },
+      { fact: rec.impact.low },
+      { text: " to " },
+      { fact: rec.impact.high },
+      { text: rec.impact.horizon ? ` over the ${rec.impact.horizon}.` : "." },
+    ]);
+
+  const notes: Record<string, ExhibitNote> = {};
+  for (const id of ids) {
+    const f = fact(id);
+    const base = { id, label: f.label, value: shownValue(id), verified: f.verified ?? false };
+    if (f.computation.kind === "sql" && f.computation.sql) {
+      const params = Object.entries(f.computation.params ?? {})
+        .filter(([k]) => k.startsWith("$"))
+        .map(([k, v]) => [k, typeof v === "string" ? `'${v}'` : String(v)] as const);
+      notes[id] = { ...base, kind: "sql", sql: sqlLines(f.computation.sql), params, ...(rows[id] ? { rows: rows[id] } : {}) };
+    } else {
+      notes[id] = {
+        ...base,
+        kind: "function",
+        fn: f.computation.fn ?? "function",
+        inputs: (f.computation.inputs ?? []).map((i) => ({ id: i, label: fact(i).label, value: shownValue(i) })),
+      };
+    }
+  }
+  for (const sid of sources) {
+    const src = report.sources.find((s) => s.id === sid);
+    const claim = claims.find((c) => c.citations.some((x) => x.source_id === sid));
+    const quote = claim?.citations.find((x) => x.source_id === sid)?.quote;
+    if (!src || !quote) continue;
+    const section = (src.locator as { section?: string } | undefined)?.section;
+    notes[sid] = {
+      id: sid,
+      kind: "source",
+      label: `${src.kind} · ${src.file}`,
+      value: src.file,
+      verified: claim?.verified ?? false,
+      quote,
+      ...(section ? { section } : {}),
+    };
+  }
+  // The metric's compiled SQL as two lines, for the landing page's "Definitions you confirm" cell: the SELECT and
+  // FROM lines of the first SQL fact's recorded query (the metric's own query, as the engine ran it).
+  const firstSql = order(ids)
+    .map((id) => notes[id])
+    .find((n) => n?.kind === "sql");
+  const compiled = (firstSql?.sql ?? [])
+    .map((l) => l.trim())
+    .filter((l) => /^(SELECT|FROM) /.test(l))
+    .slice(0, 2);
+  if (compiled.length !== 2 || !compiled[0]?.startsWith("SELECT ") || !compiled[1]?.startsWith("FROM "))
+    throw new LandingDataError(`no SELECT/FROM pair in the first SQL fact's query (${firstSql?.id ?? "none"})`);
+  const headline = fact(claims[0]?.facts.find((id) => fact(id).unit === "percent") ?? ids[0] ?? "");
+  const period = /(\d{4}-\d{2})/.exec(headline.label)?.[1] ?? "";
+  return {
+    title: `Report · coffee-roaster · ${monthName(period)}`,
+    lines,
+    // Reading order, top to bottom: the verification replay follows it.
+    order: lines
+      .flat()
+      .flatMap((p) => ("fact" in p ? [p.fact] : "source" in p ? [p.source] : []))
+      .filter((id, i, a) => a.indexOf(id) === i && id in notes),
+    notes,
+    compiled: { fact: firstSql?.id ?? "", label: firstSql?.label ?? "", lines: compiled },
+  };
+}
+
+export type ExhibitData = ReturnType<typeof exhibitData>;
+
+// ── The status strip (DESIGN.md §4) ──────────────────────────────────────────────────────────────────────────────
+
+export interface StatusInputs {
+  /** CHANGELOG.md's first release heading, e.g. "## v0.1.0 (unreleased)". */
+  readonly changelog: string;
+  /** The test files vitest runs (its include globs). */
+  readonly testFiles: number;
+  readonly real: { readonly datasets: readonly { readonly checks: readonly { readonly pass: boolean }[] }[] };
+  readonly full: { readonly completed: number; readonly datasets: number };
+}
+
+/** The strip's items, each from generated data: the release heading, the test files, the real-data checks, the full eval. */
+export function statusStrip(s: StatusInputs): string[] {
+  const m = /^##\s+(v\d+\.\d+\.\d+)\s*(\(unreleased\))?/m.exec(s.changelog);
+  if (!m) throw new LandingDataError("CHANGELOG.md has no release heading");
+  const checks = s.real.datasets.flatMap((d) => d.checks);
+  const passed = checks.filter((c) => c.pass).length;
+  const partial = s.full.completed < s.full.datasets;
+  return [
+    `${m[1]} ${m[2] ? "pre-release" : "release"}`,
+    `${s.testFiles} test files`,
+    `${passed}/${checks.length} real-data checks`,
+    `full real-model eval: ${s.full.completed}/${s.full.datasets}${partial ? " (partial, in progress)" : ""}`,
+  ];
 }
