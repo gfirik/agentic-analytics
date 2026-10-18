@@ -141,6 +141,21 @@ describe("providerFetch", () => {
     expect(calls.map((c) => c.status)).toEqual([413, 200]);
   });
 
+  it("a second 413 refusal, after max_tokens was lowered, is returned as it is: no wait, no third request", async () => {
+    const waits: number[] = [];
+    let n = 0;
+    const f = providerFetch(
+      (async () => {
+        n++;
+        return new Response("output tokens per minute (OTPM): Limit 1000, Requested 1047", { status: 413 });
+      }) as typeof fetch,
+      { sleep: async (ms) => void waits.push(ms) },
+    );
+    expect((await f("https://x", post())).status).toBe(413);
+    expect(n).toBe(2);
+    expect(waits).toEqual([]);
+  });
+
   it("an OTPM 429 rate limit (Used + Requested within the limit) waits, or hands off, like any 429", async () => {
     const bodies: string[] = [];
     const waits: number[] = [];

@@ -566,6 +566,7 @@ describe("router bounds", () => {
       "Rate limit reached in organization `org_***` service tier on_demand",
     );
     // Only Groq's ULID form: identifiers that merely contain or start with "org_" stay readable.
+    expect(maskSecrets("org_01jabcdefghjkmnpqrstvwxyz0_x")).toBe("org_***_x");
     expect(maskSecrets("column my_org_name, org_id, org_name and org_region_code")).toBe(
       "column my_org_name, org_id, org_name and org_region_code",
     );

@@ -303,7 +303,7 @@ export function maskSecrets(text: string, secrets: readonly string[] = []): stri
     .replace(/\b(gsk_|c?sk-|sk_|AIza|nvapi-)[\w.-]{4,}/g, "$1***")
     .replace(/\b(bearer\s+)[\w.~+/=-]{4,}/gi, "$1***")
     // Long enough that identifiers like `org_name` or `org_region_code` stay readable.
-    .replace(/\borg_[0-9a-z]{20,}\b/g, "org_***");
+    .replace(/\borg_[0-9a-z]{20,}(?![0-9a-z])/g, "org_***");
   for (const s of secrets) if (s.length >= 8) out = out.split(s).join("***");
   return out;
 }
