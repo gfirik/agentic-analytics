@@ -53,12 +53,8 @@ const notes = (
 const headline = notes[pipeline.change.pct.id];
 const cause = Object.values(notes).find((n) => n.quote);
 const metric = pipeline.metric;
-// The metric's compiled SQL, as the first SQL fact in the exhibit ran it: its SELECT and FROM lines (sqlLines()).
-const compiled =
-  Object.values(notes)
-    .find((n) => n.sql)
-    ?.sql?.slice(1, 3)
-    .map((l) => l.trim()) ?? [];
+// The metric's compiled SQL, two lines from the first SQL fact's recorded query (landing-data.ts exhibitData()).
+const compiled = (exhibit as unknown as { compiled: { fact: string; lines: string[] } }).compiled;
 
 const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
 const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-windows-x64.exe", "SHA256SUMS"];
@@ -159,7 +155,7 @@ const doors = [
           <p class="aa-proof-def">
             <code>{metric.id}</code>: {metric.formula}, per {metric.grain} · {metric.status} · compiles to
           </p>
-          <pre class="aa-proof-code"><code>{compiled.join("\n")}</code></pre>
+          <pre class="aa-proof-code"><code>{compiled.lines.join("\n")}</code></pre>
           <a class="aa-more" href={withBase("how-it-works/metrics/")}>The metric layer</a>
         </li>
         <li class="aa-cell">

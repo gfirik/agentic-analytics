@@ -41,7 +41,6 @@
     const check = () => {
       frame = 0;
       if (getComputedStyle(toc).position !== "sticky") return;
-      toc.classList.remove("is-covered");
       const t = toc.getBoundingClientRect();
       const covered = wide.some((el) => {
         if (el.matches(".aa-sn-note") && getComputedStyle(el).float !== "right") return false;

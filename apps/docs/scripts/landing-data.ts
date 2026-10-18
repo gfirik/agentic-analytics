@@ -228,6 +228,8 @@ export function exhibitIds(report: Report): { claims: Report["findings"][number]
   return { claims, facts, sources };
 }
 
+const order = (ids: readonly string[]) => ids.filter((id, i) => ids.indexOf(id) === i);
+
 export function exhibitData(report: Report, rows: Record<string, ExhibitRows>) {
   const byId = new Map(report.facts.map((f) => [f.id, f]));
   const rec = report.recommendations[0];
@@ -291,6 +293,17 @@ export function exhibitData(report: Report, rows: Record<string, ExhibitRows>) {
       ...(section ? { section } : {}),
     };
   }
+  // The metric's compiled SQL as two lines, for the landing page's "Definitions you confirm" cell: the SELECT and
+  // FROM lines of the first SQL fact's recorded query (the metric's own query, as the engine ran it).
+  const firstSql = order(ids)
+    .map((id) => notes[id])
+    .find((n) => n?.kind === "sql");
+  const compiled = (firstSql?.sql ?? [])
+    .map((l) => l.trim())
+    .filter((l) => /^(SELECT|FROM) /.test(l))
+    .slice(0, 2);
+  if (compiled.length !== 2 || !compiled[0]?.startsWith("SELECT ") || !compiled[1]?.startsWith("FROM "))
+    throw new LandingDataError(`no SELECT/FROM pair in the first SQL fact's query (${firstSql?.id ?? "none"})`);
   const headline = fact(claims[0]?.facts.find((id) => fact(id).unit === "percent") ?? ids[0] ?? "");
   const period = /(\d{4}-\d{2})/.exec(headline.label)?.[1] ?? "";
   return {
@@ -302,6 +315,7 @@ export function exhibitData(report: Report, rows: Record<string, ExhibitRows>) {
       .flatMap((p) => ("fact" in p ? [p.fact] : "source" in p ? [p.source] : []))
       .filter((id, i, a) => a.indexOf(id) === i && id in notes),
     notes,
+    compiled: { fact: firstSql?.id ?? "", label: firstSql?.label ?? "", lines: compiled },
   };
 }
 

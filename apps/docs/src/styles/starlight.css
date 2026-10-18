@@ -178,7 +178,7 @@ header.header {
   .aa-margin-toc-inner {
     position: sticky;
     top: var(--sl-nav-height);
-    max-height: min(26rem, 45vh);
+    max-height: min(20rem, 40vh);
     overflow-y: auto;
     padding: var(--aa-space-5) 0 var(--aa-space-3);
     border-bottom: 1px solid var(--aa-rule);

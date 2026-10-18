@@ -21,7 +21,7 @@
 .aa-sn-ref {
   display: inline;
   margin-inline-start: 0.05rem;
-  padding: 0.35rem 0.3rem;
+  padding: 0.35rem 0.3rem 0.35rem 0;
   font: 500 0.6875rem / 1 var(--aa-font-mono);
   font-variant-numeric: tabular-nums;
   vertical-align: super;

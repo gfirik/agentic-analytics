@@ -89,6 +89,16 @@ describe("hero exhibit (from the recorded run)", () => {
     }
   }, 120_000);
 
+  it("the definitions cell's two SQL lines are the first SQL fact's own SELECT and FROM", async () => {
+    const { report, exhibit } = await recorded();
+    const f = report.facts.find((x) => x.id === exhibit.compiled.fact);
+    expect(f?.computation.kind).toBe("sql");
+    expect(exhibit.compiled.lines).toHaveLength(2);
+    expect(exhibit.compiled.lines[0]).toMatch(/^SELECT /);
+    expect(exhibit.compiled.lines[1]).toMatch(/^FROM /);
+    for (const l of exhibit.compiled.lines) expect(flat(f?.computation.sql ?? "")).toContain(l);
+  }, 120_000);
+
   it("the cited document's quote is the claim's own citation", async () => {
     const { report, exhibit } = await recorded();
     const quotes = report.findings[0]?.claims.flatMap((c) => c.citations.map((x) => x.quote)) ?? [];
@@ -101,7 +111,7 @@ describe("hero exhibit (from the recorded run)", () => {
 describe("landing markup", () => {
   // Every figure on the page is an expression over generated data; the markup itself types no figures. Allowed: step
   // and cell numbers, the Node version, the local port and address, and the first release with binaries.
-  const ALLOWED = /Step [123]|0[123] ·|Node 22|127\.0\.0\.1:8080|v0\.1\.0|§\{|aa-|h[1-6]|\b[a-z]+[0-9]+\b/g;
+  const ALLOWED = /Step [123]|0[123] ·|Node 22|127\.0\.0\.1:8080|v0\.1\.0|§\{|aa-|\bh[1-6]\b/g;
   const markup = (file: string) => {
     let s = readFileSync(join(import.meta.dirname, "..", "..", "apps", "docs", "src", file), "utf8");
     s = s
