@@ -9,8 +9,10 @@
 // 5. Successful responses are cached by hash(URL, body) when a cache is given, and every call is reported with the
 //    provider and model that served it. A cached answer is served even while every route is rate-limited.
 // 3. Some free tiers also cap output tokens per minute and refuse a request whose possible output exceeds it
-//    (HTTP 413 "Request too large … output tokens per minute (OTPM): Limit 1000"). Waiting doesn't help; the request
-//    is retried once with `max_tokens` just under the limit.
+//    (HTTP 413 "Request too large … output tokens per minute (OTPM): Limit 1000"; Groq sometimes sends the same
+//    refusal as a 429). Waiting doesn't help; the request is retried once, at once, with `max_tokens` just under the
+//    limit. A 429 that names an OTPM limit takes this path before any rate-limit handling, so it neither waits nor
+//    hands the call to the router (which would block the route for the requested wait).
 
 import { cacheKey, type ResponseCache } from "./cache.ts";
 import { ModelError } from "./errors.ts";
@@ -77,7 +79,7 @@ const usageOf = (text: string): { inputTokens?: number; outputTokens?: number } 
 
 const sleepFor = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** The output-tokens-per-minute limit a 413 names, if any. */
+/** The output-tokens-per-minute limit a 413 (or Groq's 429) names, if any. */
 export function outputLimit(body: string): number | undefined {
   const m = /output tokens per minute[^\n]*?Limit\s+(\d+)/i.exec(body);
   return m ? Number(m[1]) : undefined;
@@ -186,7 +188,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         record(res.status, false, text);
         return res;
       }
-      if (res.status === 413 && attempt === 0 && req?.body) {
+      if ((res.status === 413 || res.status === 429) && attempt === 0 && req?.body) {
         const limit = outputLimit(await res.clone().text());
         if (limit && limit > 64) {
           req = { ...req, body: withMaxTokens(req.body, Math.floor(limit * 0.95)) as string };
@@ -271,12 +273,13 @@ export function transientNetworkError(err: unknown): boolean {
 
 /**
  * Masks key-like strings in text that leaves the process (logs, job status, API and chat replies): known key prefixes
- * (Groq `gsk_`, OpenAI-style `sk-`/`csk-`, Google `AIza`, NVIDIA `nvapi-`, bearer tokens) and, exactly, any of the
- * given secret values (the configured API keys, whatever their format).
+ * (Groq `gsk_`, OpenAI-style `sk-`/`csk-`, Google `AIza`, NVIDIA `nvapi-`, bearer tokens), the provider's
+ * organization id (Groq: "in organization `org_01…`", as `org_***`) and, exactly, any of the given secret values (the
+ * configured API keys, whatever their format).
  */
 export function maskSecrets(text: string, secrets: readonly string[] = []): string {
   // Word-bounded, so "whisk-large" or "task-12" stay readable; "bearer" in any case.
-  let out = text.replace(/\b(gsk_|c?sk-|sk_|AIza|nvapi-)[\w.-]{4,}/g, "$1***").replace(/\b(bearer\s+)[\w.~+/=-]{4,}/gi, "$1***");
+  let out = text.replace(/\b(gsk_|c?sk-|sk_|AIza|nvapi-|org_)[\w.-]{4,}/g, "$1***").replace(/\b(bearer\s+)[\w.~+/=-]{4,}/gi, "$1***");
   for (const s of secrets) if (s.length >= 8) out = out.split(s).join("***");
   return out;
 }

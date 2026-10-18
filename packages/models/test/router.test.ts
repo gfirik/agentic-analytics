@@ -561,4 +561,31 @@ describe("router bounds", () => {
     expect(JSON.stringify(calls)).not.toContain("Zq9mistralKEY77");
     expect(calls[0]?.error).toBe("key *** is not activated");
   });
+  it("masks the provider's organization id like a key, in call records and in the error a client throws", async () => {
+    expect(maskSecrets("Rate limit reached in organization `org_01jabcdefXYZ` service tier on_demand")).toBe(
+      "Rate limit reached in organization `org_***` service tier on_demand",
+    );
+    // Word-bounded: an identifier that merely contains "org_" stays readable.
+    expect(maskSecrets("column my_org_name and org_id")).toBe("column my_org_name and org_id");
+    const message = "Request too large in organization `org_01jabcdefXYZ` on tokens per minute (TPM): Limit 8000";
+    const t = hosts({ "api.groq.com": [() => Response.json({ error: { message } }, { status: 400 })] });
+    const calls: CallRecord[] = [];
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:openai/gpt-oss-20b", GROQ_API_KEY: "g" };
+    const lm = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f, onCall: (c) => calls.push(c) });
+    const err = await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch((e: unknown) => e);
+    let chain = "";
+    for (let e: unknown = err; e instanceof Error; e = e.cause) chain += ` ${e.message}`;
+    expect(chain).not.toContain("org_01jabcdefXYZ");
+    expect(JSON.stringify(calls)).not.toContain("org_01jabcdefXYZ");
+    expect(calls[0]?.error).toBe("Request too large in organization `org_***` on tokens per minute (TPM): Limit 8000");
+  });
+  it("masks keys and org ids in INVALID_OUTPUT, which quotes the last answer's validation error", async () => {
+    const t = hosts({ "api.groq.com": [() => ok("not json: org_01jabcdefXYZ gsk_leakedKey123")] });
+    const genv = { PLANNER_MODEL: "openai-compatible:groq:openai/gpt-oss-20b", GROQ_API_KEY: "g" };
+    const lm = createModelClient(resolveModelConfig(genv), { env: genv, fetch: t.f });
+    const err = await lm.generateObject({ role: "planner", schema, system: "s", prompt: "p", maxRetries: 0 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ModelError);
+    expect((err as ModelError).code).toBe("INVALID_OUTPUT");
+    expect((err as Error).message).not.toMatch(/org_01jabcdefXYZ|gsk_leakedKey123/);
+  });
 });
