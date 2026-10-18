@@ -3,8 +3,8 @@
 The product site: a custom landing page and the Astro Starlight docs, deployed to GitHub Pages at https://gfirik.github.io/agentic-analytics/.
 
 - **Design:** `DESIGN.md` ("an AI analyst you can audit"). The tokens are in `src/styles/tokens.css`, and the shared ledger motifs (fact-ID chips, check marks, ruled tables) in `src/styles/components.css`.
-- **Landing page and 404:** `src/pages/index.astro` and `src/pages/404.astro`, on `src/components/site/` (BaseLayout, header, footer, theme control).
-- **Docs:** Starlight, themed by `src/styles/starlight.css` and the overrides in `src/components/starlight/` (Header, Footer, ThemeSelect, PageTitle). Code blocks use Expressive Code re-based onto the token surfaces (`astro.config.mjs`).
+- **Landing page and 404:** `src/pages/index.astro` and `src/pages/404.astro`, on `src/components/site/` (BaseLayout, header, footer, the status strip, section labels and the hero exhibit).
+- **Docs:** Starlight, themed by `src/styles/starlight.css` and the overrides in `src/components/starlight/` (Header, Footer, PageTitle; ThemeProvider and ThemeSelect keep the site light only; TwoColumnContent and PageSidebar make the article and margin columns). Code blocks use Expressive Code re-based onto the token surfaces (`astro.config.mjs`).
 
 - **Status:** built in M12. The site deploys once the repo is public and Pages is enabled (docs/LAUNCH.md).
 - **Spec:** docs/DOCS-SITE.md
@@ -35,12 +35,13 @@ Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the READM
 - `RagStepper`: BM25 → vectors → RRF → rerank → extract.
 - `VerifierDiff`: the draft against the verified report.
 - `Mermaid`: the shared diagrams, in the site's colours and type.
-- `LedgerReport` (landing page): the report with clickable fact IDs. Without JS the chips link into the static fact ledger.
+- `Exhibit.astro` (landing page): the report page, its verification replay and margin notes. Without JS the chips link into the static fact ledger.
+- `Sidenote.astro` / `MarginNote.astro` (Learn): notes in the margin column, inline under 1000px.
 - `learn/StageFlow` (Learn): one stage as in → stage → out with the run's real numbers, stepped through; `learn/Transcript`, `learn/Fact`, `learn/FactLedger`, `learn/Claim` and `learn/LearnMap` are static Astro components.
 
 All of them:
 
-- use the site tokens (light and dark);
+- use the site tokens (light only);
 - render their final state on the server;
 - turn motion off under `prefers-reduced-motion`.
 

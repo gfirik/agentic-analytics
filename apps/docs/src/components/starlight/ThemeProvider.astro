@@ -1,0 +1,10 @@
+---
+// The site is light only (DESIGN.md §3). Starlight's provider would pick dark from the system or a stored choice; this
+// one always sets light, before first paint, and reads no storage. `updatePickers` stays as a no-op because
+// Starlight's own scripts may call it.
+---
+
+<script is:inline>
+  document.documentElement.dataset.theme = "light";
+  window.StarlightThemeProvider = { updatePickers() {} };
+</script>

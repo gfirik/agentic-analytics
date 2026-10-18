@@ -1,20 +1,17 @@
 ---
 // Starlight's header, rebuilt from the site's pieces (DESIGN.md §6): the same wordmark and links as the landing page,
-// plus Starlight's own local search (Pagefind) and the shared theme control. On small screens the links move into
-// Starlight's mobile menu (its MobileMenuFooter keeps the theme control).
+// plus Starlight's own local search (Pagefind). The site is light only, so there is no theme control.
 import Search from "virtual:starlight/components/Search";
 import Logo from "../site/Logo.astro";
 import { GITHUB_URL, withBase } from "../site/site.ts";
-import ThemeToggle from "../site/ThemeToggle.astro";
 ---
 
 <div class="aa-sl-header">
   <div class="aa-sl-title"><Logo /></div>
   <div class="aa-sl-search print:hidden"><Search /></div>
   <nav class="aa-sl-nav print:hidden" aria-label="Site">
-    <a href={withBase("/#evals")}>Evals</a>
+    <a href={withBase("/#results")}>Results</a>
     <a href={GITHUB_URL}>GitHub</a>
-    <ThemeToggle />
   </nav>
 </div>
 

@@ -9,25 +9,37 @@ const SITE = "https://gfirik.github.io";
 const BASE = "/agentic-analytics";
 const OG_IMAGE = `${SITE}${BASE}/og.png`;
 
-// Code blocks: GitHub's light/dark syntax colours, re-based onto the site's slate surface (tokens.css
-// --aa-surface), so Expressive Code's contrast correction measures against the background readers actually see.
-const SURFACE = { light: "#eef2f6", dark: "#101a2b" };
+// Code blocks: GitHub's light syntax colours, re-based onto the site's raised panel (tokens.css --aa-raised), so
+// Expressive Code's contrast correction measures against the background readers actually see. Light only.
+const RAISED = "#ffffff";
 
 export default defineConfig({
   site: SITE,
   base: BASE,
   trailingSlash: "ignore",
+  // Inline each page's CSS: no stylesheet request blocks the first paint (Lighthouse ≥ 95 on / and the Learn pages, M13i).
+  build: { inlineStylesheets: "always" },
   integrations: [
     starlight({
       title: "agentic-analytics",
       description: "An AI analyst you can audit: files in, a verified and cited report out. Open source and self-hosted.",
       favicon: "/favicon.svg",
       disable404Route: true,
-      customCss: ["./src/styles/fonts.css", "./src/styles/tokens.css", "./src/styles/components.css", "./src/styles/starlight.css"],
+      customCss: [
+        "./src/styles/fonts.css",
+        "./src/styles/tokens.css",
+        "./src/styles/components.css",
+        "./src/styles/starlight.css",
+        "./src/styles/notes.css",
+      ],
       components: {
+        Head: "./src/components/starlight/Head.astro",
         Header: "./src/components/starlight/Header.astro",
         Footer: "./src/components/starlight/Footer.astro",
         ThemeSelect: "./src/components/starlight/ThemeSelect.astro",
+        ThemeProvider: "./src/components/starlight/ThemeProvider.astro",
+        TwoColumnContent: "./src/components/starlight/TwoColumnContent.astro",
+        PageSidebar: "./src/components/starlight/PageSidebar.astro",
         PageTitle: "./src/components/starlight/PageTitle.astro",
       },
       head: [
@@ -36,15 +48,14 @@ export default defineConfig({
         { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
         { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
         { tag: "meta", attrs: { name: "twitter:image", content: OG_IMAGE } },
-        { tag: "meta", attrs: { name: "theme-color", content: "#f7f9fb", media: "(prefers-color-scheme: light)" } },
-        { tag: "meta", attrs: { name: "theme-color", content: "#0b1220", media: "(prefers-color-scheme: dark)" } },
+        { tag: "meta", attrs: { name: "theme-color", content: "#f8f8f6" } },
       ],
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/gfirik/agentic-analytics" }],
       expressiveCode: {
-        themes: ["github-dark", "github-light"],
+        themes: ["github-light"],
         minSyntaxHighlightingColorContrast: 5,
         customizeTheme: (theme) => {
-          const bg = theme.type === "dark" ? SURFACE.dark : SURFACE.light;
+          const bg = RAISED;
           theme.bg = bg;
           theme.colors["editor.background"] = bg;
           theme.colors["editorGroupHeader.tabsBackground"] = bg;
@@ -58,7 +69,7 @@ export default defineConfig({
           borderColor: "var(--aa-rule)",
           codeFontFamily: "var(--aa-font-mono)",
           uiFontFamily: "var(--aa-font-sans)",
-          codeFontSize: "0.8125rem",
+          codeFontSize: "0.875rem",
           codeLineHeight: "1.7",
           frames: {
             frameBoxShadowCssValue: "none",

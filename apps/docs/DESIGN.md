@@ -1,81 +1,93 @@
 # agentic-analytics site design
 
-This is the design system for the product site in `apps/docs`: the landing page, the docs and the 404. Every token lives in one file, `src/styles/tokens.css`. If this document and that file disagree, fix whichever is wrong in the same PR: they must agree.
+This is the design system for the product site in `apps/docs`: the landing page, the docs (including Learn) and the 404. Every token lives in one file, `src/styles/tokens.css`. If this document and that file disagree, fix whichever is wrong in the same PR: they must agree (`scripts/test/site-light.test.ts` checks the colour table).
 
 ## 1. Identity: an AI analyst you can audit
 
-The site should feel like a well-kept ledger: calm, precise, and checkable line by line. The product's promise is that every number can be traced, so the site shows numbers the same way the report does. Each one sits next to the ID of the fact it came from, and a mark shows that it was recomputed.
+The site is an **audited working paper**:
+
+- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself when you touch it.
+- **The docs are the bound appendix.** They are long-form, quiet and built for reading, with evidence in the margin.
+
+The product's promise is that every number can be traced, so the site shows numbers the same way the report does. Each one sits next to the ID of the fact it came from, and a mark shows that it was recomputed.
 
 - **It is:** an audited statement, a lab notebook, an engineer's reference. Quiet surfaces, ruled lines, exact figures.
 - **It is not:**
-  - an AI startup page (no gradients, glow, robots or brains);
+  - an AI startup page (no gradients, glow, blobs, 3D, robots or brains);
   - a BI dashboard (no chart wall);
-  - a warm "paper" site. Our sibling project pas-agent uses cream and amber; this site is deliberately cool.
-- **Tone:** plain statements that can be checked. "Recomputed by the verifier", never "powered by AI". Caveats sit next to the number they qualify, not in a footnote.
+  - a warm "paper" site. Our sibling project pas-agent uses cream and amber; this site is neutral off-white and ink.
+- **Tone:** plain statements that can be checked. "Recomputed by the verifier", never "powered by AI". Caveats sit next to the number they qualify, in the margin when there is one.
 
 ## 2. Principles
 
-1. **Typography leads.** A serif display face for statements, a neutral sans for reading, a mono for every figure and identifier. Hierarchy comes from size and face, not from colour.
-2. **Hairlines over shadows.** Separation comes from 1px rules and two surface tones. Nothing floats, so there is no elevation.
-3. **One accent, and it means "verified".** Green appears only on things the verifier passed:
+1. **Light only.** There is one theme: no dark tokens, no theme control, no `prefers-color-scheme` rules and no stored theme. Starlight's own theme provider and picker are overridden (`components/starlight/ThemeProvider.astro`, `ThemeSelect.astro`).
+2. **Typography leads.** A serif for statements and for reading, a neutral sans for the interface, a mono for every figure and identifier. Hierarchy comes from size and face, not from colour.
+3. **Hairlines over shadows.** Separation comes from 1px rules and two surface tones. Nothing floats, so there is no elevation and there are no cards with shadows: content blocks are cells of a frame.
+4. **One accent, and it means "verified".** Green appears only on things the verifier passed:
    - the check mark on a recomputed number;
    - V1–V8 pass states;
    - passed eval checks;
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
-4. **Every number is real.**
-   - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`.
-   - Each figure carries its fact ID or its source file. Nothing is typed by hand.
+5. **One moment of motion.** The hero exhibit's verification replay is the only animation on the landing page. Everything else is still, apart from 150ms hover and focus changes (§7).
+6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji.
+7. **Every number is real.**
+   - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
+   - Each figure carries its fact ID or its source file. Nothing is typed by hand (`scripts/test/landing-exhibit.test.ts`, `scripts/test/learn.test.ts`).
    - There are no fake metrics and no testimonials.
-5. **Every command exists.** A test extracts each `aa …` and `bun run …` command from the site sources and checks it against the CLI and package scripts.
-6. **Complete without JavaScript and without motion.**
-   - Islands render their final state on the server.
+8. **Every command exists.** A test extracts each `aa …` and `bun run …` command from the site sources and checks it against the CLI and package scripts.
+9. **Complete without JavaScript and without motion.**
+   - The server renders the final state: the exhibit already verified, sidenotes in place.
    - Fact chips are links into a static fact ledger.
    - Motion only replays what is already there.
-7. **Local, even for the site.**
-   - Fonts are self-hosted through `@fontsource`.
-   - There are no third-party requests at runtime: no analytics, no CDN, no embeds.
+10. **Local, even for the site.**
+    - Fonts are self-hosted through `@fontsource`.
+    - There are no third-party requests at runtime: no analytics, no CDN, no embeds.
 
-## 3. Colour
+## 3. Colour (light only)
 
-Light is the default. Dark applies under `prefers-color-scheme: dark` (with no JS), or when the user picks it: the choice is saved under Starlight's own `starlight-theme` key, so it is shared between the landing page and the docs.
-
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `--aa-page` | `#f7f9fb` | `#0b1220` | Page background |
-| `--aa-surface` | `#eef2f6` | `#101a2b` | Slate surfaces: code, sidebars, ledger header rows |
-| `--aa-raised` | `#ffffff` | `#142036` | Panels that hold a report or a fact |
-| `--aa-mark` | `#e2e9f1` | `#1c2a42` | Highlighted cited rows, hover washes (not an accent) |
-| `--aa-rule` | `#d8dfe7` | `#24324a` | Hairlines, table rules, chip boxes |
-| `--aa-rule-strong` | `#8696a9` | `#566781` | Ledger header rules, input borders (≥ 2.5:1, decorative) |
-| `--aa-ink` | `#0e1a2b` | `#e7edf4` | Primary text, primary buttons, focus ring |
-| `--aa-ink-2` | `#46566b` | `#a8b5c5` | Secondary text |
-| `--aa-ink-3` | `#5a6a7e` | `#8f9db0` | Labels and captions; on `page` and `raised` only |
-| `--aa-verified` | `#0b6b3a` | `#4cc38a` | The accent: verified marks and pass states, as text or icon |
-| `--aa-verified-wash` | `#e6f2ea` | `#0f2a20` | Background of a verified badge only |
+| Token | Value | Use |
+|---|---|---|
+| `--aa-page` | `#f8f8f6` | Page background (neutral off-white, not cream) |
+| `--aa-grid` | `#ecece8` | Graph-paper lines (decorative only) |
+| `--aa-raised` | `#ffffff` | Exhibits, panels, code |
+| `--aa-surface` | `#f1f2f0` | Sidebars, the status strip, ledger header rows, inline code |
+| `--aa-mark` | `#e8ecef` | Highlighted cited rows, hover washes (not an accent) |
+| `--aa-rule` | `#dcdcd6` | Hairlines, frames |
+| `--aa-rule-strong` | `#8b8f94` | Header rules, chip boxes, corner ticks (≥ 2.7:1, decorative) |
+| `--aa-ink` | `#121417` | Primary text, primary buttons, focus ring |
+| `--aa-ink-2` | `#4a4f57` | Secondary text |
+| `--aa-ink-3` | `#5f646c` | Labels, captions |
+| `--aa-verified` | `#0b6b3a` | The accent: verified marks and pass states only |
+| `--aa-verified-wash` | `#e7f2ea` | Background of a verified badge only |
 
 Contrast ratios (WCAG relative luminance; axe re-checks them in CI). All text pairs pass AA (4.5:1):
 
-- `ink`: 16.6:1 on page (light) and 15.9:1 (dark).
-- `ink-2`: 7.1:1 and 9.0:1.
-- `ink-3`: 5.2:1 and 6.8:1 on page, and 4.9:1 and 6.3:1 on surface.
-- `verified`: 6.3:1 on page (light), 5.7:1 on its wash, and 8.5:1 on page (dark).
+- `ink`: 17.4:1 on page, 18.5:1 on raised.
+- `ink-2`: 7.8:1 on page, 6.9:1 on mark.
+- `ink-3`: 5.6:1 on page, 5.3:1 on surface, 5.0:1 on mark.
+- `verified`: 6.2:1 on page, 6.6:1 on raised, 5.8:1 on its wash.
 
 Rules:
 
-- **No cream, no amber, no gradients.** The only hue outside the slate/navy family is the verified green.
-- **Failure is not a colour.** Dropped claims are struck through and labelled "dropped". Negative contributions are solid ink, positive ones are outlined. Shape and text carry the meaning, so it survives greyscale and colour blindness.
+- **No cream, no amber, no gradients.** The only hue is the verified green.
+- **Failure is never a colour.** Dropped claims are struck through and labelled "dropped". A failed check is a struck-through "fail" in ink. Negative contributions are solid ink, positive ones are outlined. Shape and text carry the meaning, so it survives greyscale and colour blindness.
 - **Links are ink with a hairline underline** that turns ink on hover. Their underline and position make them visible, not their colour.
 
 ## 4. Typography
 
 All three faces are self-hosted through `@fontsource` and imported once, in `src/styles/fonts.css`.
 
+- **Serif file.** The serif uses its weight-axis file (51 KB) with its italic, not the optical-size file (122 KB). The docs' first paint is serif prose, and the larger file kept the Learn pages under Lighthouse 95.
+- **Preloads.** The serif is preloaded on every page and Plex Sans 400 on the landing page (`FontPreloads.astro`).
+- **CSS.** Page CSS is inlined (`astro.config.mjs`).
+
 | Role | Face | Use |
 |---|---|---|
-| Display | **Source Serif 4** (variable, optical size) | `h1`, `h2`, the landing statements. It gives the book or ledger voice. |
-| Text and UI | **IBM Plex Sans** 400 / 500 / 600 | Body, navigation, buttons, `h3` and below |
-| Figures and code | **IBM Plex Mono** 400 / 500 | Every number, fact-ID chip, code, labels. Always `tabular-nums`, ligatures off. |
+| Display | **Source Serif 4** (variable, weight axis) | The hero statement, section headings, docs `h1`/`h2` |
+| Reading (docs body) | **Source Serif 4** text, 1.0625rem / 1.65 | Docs and Learn article prose: book-like, Tufte-style |
+| UI | **IBM Plex Sans** 400 / 500 / 600 | Navigation, buttons, landing body copy, captions, docs `h3`, sidenotes, tables and islands inside articles |
+| Figures, labels, code | **IBM Plex Mono** 400 / 500 | Every number, fact-ID chip, label, code. Always `tabular-nums`, ligatures off. |
 
 The scale (rem, root 16px; mobile values apply under 640px):
 
@@ -83,33 +95,61 @@ The scale (rem, root 16px; mobile values apply under 640px):
 |---|---|---|---|
 | `--aa-text-display` | 3.5 / 1.05 (2.25 mobile), −0.02em | Serif 450 | The hero statement (one per page) |
 | `--aa-text-h2` | 2.25 / 1.15 (1.75), −0.015em | Serif 450 | Section headings |
-| `--aa-text-h3` | 1.125 / 1.4 | Sans 600 | Card, row and step titles |
+| `--aa-text-h3` | 1.125 / 1.4 | Sans 600 | Cell, row and step titles |
 | `--aa-text-lead` | 1.1875 / 1.55 | Sans 400, `ink-2` | Lead paragraphs |
-| `--aa-text-body` | 1 / 1.6 | Sans 400 | Body copy |
+| `--aa-text-reading` | 1.0625 / 1.65 | Serif | Docs and Learn prose |
+| `--aa-text-body` | 1 / 1.6 | Sans 400 | Landing body copy |
 | `--aa-text-small` | 0.875 / 1.5 | Sans 400 | Captions, caveats |
-| `--aa-text-label` | 0.75 / 1.3, +0.06em, uppercase | Mono 500, `ink-3` | Eyebrows, ledger column heads, section references |
-| `--aa-text-figure` | inherits | Mono, `tabular-nums` | Inline numbers |
+| `--aa-text-note` | 0.8125 / 1.5 | Sans 400, `ink-2` | Sidenotes, margin notes, the TOC |
+| `--aa-text-label` | 0.75 / 1.3, uppercase, `--aa-label-tracking` (+0.08em) | Mono 500, `ink-3` | Labels, ledger column heads, section references |
 
-Prose is capped at `--aa-measure` (68ch). Docs articles follow Starlight's content width.
+- **Labels:** Plex Mono at 0.6875–0.75rem, uppercase, +0.08em tracking, in `ink-3`.
+- **Bracketed section labels** on the landing page: `⊣ §1 HOW IT WORKS ⊢`, in mono, centred on a hairline (`SectionLabel.astro`).
+- **Measures:** docs prose is 62–66ch (`--aa-article`, 36rem ≈ 64ch of the serif at 17px). Landing copy is 56ch (`--aa-measure`).
 
 ## 5. Layout and spacing
 
 - **Spacing scale:** `--aa-space-1` … `--aa-space-9` = 4, 8, 12, 16, 24, 32, 48, 64, 96 px. Never use a value outside the scale.
 - **Container:** 1180px max, 24px side gutters (16px under 480px).
-- **Landing sections** are separated by a full-width hairline, with `--aa-space-9` of vertical padding (`--aa-space-8` on mobile). Each section opens with a ledger reference label (`§1 The report`), a serif heading and a lead.
-- **Docs:** Starlight's three-column frame (sidebar | content | TOC), re-themed:
-  - the sidebar sits on `surface` with a hairline edge;
-  - the TOC marks the current heading with an ink rule;
-  - the header is shared with the landing page.
 - **Radii:** 2px for chips, 4px for buttons, panels and code. Nothing rounder.
 - **Width:** at 360px nothing scrolls sideways. Wide tables and code scroll inside their own container.
+
+### The landing page (the cover sheet)
+
+- **The frame.** The page content sits inside one long vertical frame, running the full height of the page:
+  - 1px `rule` lines left and right of the 1180px container;
+  - sections divided by full-width hairlines that meet the frame;
+  - a small `+` tick in `rule-strong` where the lines cross.
+
+  This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain.
+- **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero and the section heads only. It fades to the plain page at the edges through a CSS mask (no image) and is never behind long text.
+- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee: the release, the test files, the real-data checks and the full real-model eval, partial runs labelled. Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
+- **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
+  1. Status strip, header, hero exhibit (above the fold on 1440×900).
+  2. `§1 HOW IT WORKS`: the pipeline scene, full container width, inside the frame, no extra box, one sentence above it.
+  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, a metric definition, a citation.
+  4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, with the model rows and the real-data checks. Partial runs are labelled partial, and there is a link to RESULTS.md.
+  5. `§4 QUICKSTART`: three steps (install, model, analyze) with code, the binary downloads and the Docker line, and the four doors (CLI, API, MCP, Telegram) as a ruled list.
+  6. The footer.
+
+### Docs and Learn (the bound appendix)
+
+- **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (≈ 64ch) | **margin column** (~260px, narrowing to 176px between 1000 and 1200px) for sidenotes.
+  - Built by overriding Starlight's `TwoColumnContent` and `PageSidebar`.
+  - The article is left-aligned next to the sidebar.
+- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure scrolls beneath it, it steps aside (JS); without JS it stays on top.
+- **Sidenotes** for fact IDs and sources, definitions of terms (with a glossary link) and caveats (§6). From 1000px they sit in the margin; under 1000px they are tap-to-expand inline notes.
+- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline scene) run across the margin column from 1000px, clearing any sidenote beside them.
+- **Epigraph-style lead** at the top of each Learn stage page: one sentence on the problem the stage solves, in serif italic (`epigraph` frontmatter, rendered by `PageTitle.astro`).
+- **Headings:** `h1`/`h2` in the serif, no rule under `h2`; `h3` in Plex Sans 600.
+- **The header** is shared with the landing page. Search (Pagefind) stays. There is no theme control.
 
 ## 6. Ledger motifs (components)
 
 - **Fact-ID chip** (`.aa-chip`):
   - mono 0.75rem in `ink-2`, inside a 1px `rule-strong` box with a 2px radius, e.g. `N30`; a verified fact's chip starts with the green check (`✓N30`);
   - it follows the figure it backs: `−17.9% N30`;
-  - it is a link to that fact's row in the fact ledger (`#fact-N30`), so it works without JS. With JS it opens the fact panel in place (`aria-expanded`, `aria-controls`; Escape closes it);
+  - it is a link to that fact's row in a fact ledger (`#fact-N30`), so it works without JS;
   - hover and focus show an `ink` box, and the open chip is filled `ink` with `page` text.
 - **Verified mark** (`.aa-check`):
   - a 0.9em check-mark SVG in `--aa-verified`, after a recomputed figure or a passed check;
@@ -119,62 +159,87 @@ Prose is capped at `--aa-measure` (68ch). Docs articles follow Starlight's conte
   - no outer box: a 1px `rule-strong` line under the header, `rule` hairlines between rows, a label-style header;
   - IDs in the first column in mono, figures right-aligned in mono with tabular numbers;
   - on narrow screens it scrolls inside a wrapper (`.aa-ledger-wrap`) that is keyboard-focusable, has a label, and shows its edge with a hairline.
-- **Fact panel:** a `raised` panel with a hairline. It shows:
-  - the fact's label, value and unit;
-  - its computation (SQL and parameters, or the function and its inputs);
-  - the cited rows;
-  - its verification state.
+- **The hero exhibit** (`components/site/Exhibit.astro`):
+  - **What it is.** A `raised` panel with a hairline, styled like a report page and titled in mono (`REPORT · COFFEE-ROASTER · APRIL`).
+    - It shows the recorded run's first finding (`src/data/exhibit.json`): its two headline claims, the document-supported cause with its source chip, and the top recommendation with its impact range.
+    - This is the report's own text, with every figure a fact's stored value.
+  - **The verification replay.** Once per load, and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
+  - **Margin notes.** Hovering or focusing a figure slides a Tufte-style margin note out to the right of the exhibit, joined to the figure by a hairline leader. From 900px it sits beside the exhibit; under 900px it sits below. The note shows:
+    - the fact's ID and label, its value and its recomputed mark;
+    - the SQL that computed it, laid out one clause per line and tinted in ink shades only, with its parameters; or, for a function fact, the function and its input facts as a ruled table;
+    - the cited sheet rows: the first cited row and its neighbours, read back from the run's DuckDB, with the cited rows in the `mark` wash;
+    - for a document, the exact quote and where it is.
+
+    Esc or blur closes it, and a click pins it (for touch). The empty margin column carries a small mono hint.
+  - **The fact ledger.** It holds every fact behind the exhibit and is collapsed under the hero until one of its rows is the link target (`:has(:target)`). The chips link to it without JS.
+  - **Caption.** A small mono caption: "Recorded from a real engine run. Hover any number to see how it was computed."
+- **Sidenote** (`components/learn/Sidenote.astro`, MDX):
+  - It shows as a numbered superscript in the text (numbered per page, in reading order).
+  - The note sits in the margin column beside its line, in Plex Sans 0.8125rem `ink-2`.
+  - Under 1000px it is a tap-to-expand inline note on a `surface` wash with an ink rule. A visually hidden checkbox makes it keyboard-focusable, and it works without JS.
+  - Keep its content inline: text, links, `<Fact />`, code.
+- **Margin note** (`components/learn/MarginNote.astro`): the same without a number. Under 1000px a small ⊕ toggles it.
 - **Buttons:**
-  - `.aa-btn` is Plex Sans 500 at 0.9375rem, 10×16 padding, 4px radius;
-  - the primary is `ink` filled with `page` text, the secondary is a 1px `ink` outline;
+  - `.aa-button` is Plex Sans 500 at 0.9375rem, 10×16 padding, 4px radius;
+  - the primary is `ink` filled with `page` text, the secondary is a 1px `ink` outline, and a third action is a plain text link;
   - hover changes the background tone only.
 - **Code:**
-  - Expressive Code with `github-light` / `github-dark`, re-based onto `surface` (so its contrast correction targets our real background);
-  - a hairline frame, a mono 0.875rem body, no window dots;
-  - terminal frames are labelled with a mono caption.
+  - Expressive Code with `github-light` only, re-based onto `raised` (so its contrast correction targets our real background);
+  - a hairline frame, a mono 0.875rem body, a mono caption label, no window dots.
 - **Diagrams:**
   - Mermaid is initialised with the token colours and Plex Sans.
-  - The pipeline scene (`pipeline-scene.ts`) is shared with the README GIF, so the site re-themes it rather than changing its colours. It does this through the scene's `--pp-*` custom properties and three class hooks the scene carries for the site (the GIF doesn't style them):
-    - `ink` for progress (the rail, the current stage, headings);
+  - The pipeline scene (`pipeline-scene.ts`) is shared with the README GIF, so the site re-themes it rather than changing its colours. It does this through the scene's `--pp-*` custom properties and class hooks:
+    - `ink` for progress;
     - `mark` for packets;
-    - fact IDs (`.fact-chip`, `.fact-id`) as hairline chips: a `rule-strong` stroke, `ink-2` text and a 2px radius, the same as the Fact-ID chip above;
-    - V1–V8 pass marks and the "verified, cited" stamp (`.verified`) in `--aa-verified`;
+    - fact IDs as hairline chips;
+    - V1–V8 pass marks and the "verified, cited" stamp in `--aa-verified`;
     - corners at 4px.
-  - The scene is its own frame, with a hairline and no island box around it.
-  - Under 30rem its type is too small to read, so the island also tells the same run as a ruled list of steps, from the same data.
-- **Stage diagram** (`StageFlow`, Learn): three ruled columns, In → the stage's steps → Out, on a `raised` panel. Figures in mono with their fact chips; a selected step and the outputs it produced take the `mark` wash (not a colour). The server renders every step done; buttons step through it, and Play is offered only without reduced motion. Under 50rem the columns stack, with ↓ between them.
-- **Recorded output** (`Transcript`, Learn): a `surface` block in mono with a label-style caption; long lines scroll inside it, and a note names what was replaced (durations, job ids, paths).
-- **Header:** the wordmark, a mark (a ruled square with a check, `aria-hidden`, drawn in `currentColor`: it is the brand, not a verified state, so it is never green; the favicon is the same mark in ink), then Docs, Evals and GitHub. In the docs it adds search and the theme control. Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`, Escape closes it and returns focus).
+  - The scene's own dark variant exists only for the README's dark mode; the site never asks for it.
+  - The scene is still until the reader presses Play or a stage. Under 30rem the island also tells the same run as a ruled list of steps.
+- **Stage diagram** (`StageFlow`, Learn):
+  - three ruled columns on a `raised` panel: In → the stage's steps → Out, full width;
+  - figures in mono with their fact chips; a selected step and its outputs take the `mark` wash;
+  - the server renders every step done; buttons step through it, and Play is offered only without reduced motion;
+  - under 50rem the columns stack, with ↓ between them.
+- **Recorded output** (`Transcript`, Learn): a `surface` block in mono with a label-style caption; long lines scroll inside it, and a note names what was replaced.
+- **Header:**
+  - The wordmark, a mark, then the links. The mark is a ruled square with a check, `aria-hidden`, drawn in `currentColor`. It is the brand, not a verified state, so it is never green; the favicon is the same mark in ink.
+  - Landing: How it works, Results, Docs, GitHub. Docs: search, Results, GitHub.
+  - Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`; Escape closes it and returns focus).
 - **Footer (every page):** project links, the licence, and "Built by fhsystems", linking to https://fhsystems.dev.
 
 ## 7. Motion
 
-- **Hover and focus:** 120–160ms changes to colour, background or border only.
-- **The pipeline:**
-  - it plays the README scene while on screen, and has Play/Pause and per-stage stops;
-  - under `prefers-reduced-motion: reduce` it never autoplays and shows the finished frame (the server render);
-  - without JS the same still frame is in the HTML.
-- **Nothing else moves:** no entrance animations, no parallax, no looping decoration.
-- **Reduced motion** also turns off smooth scrolling and every transition.
+- **Landing:** the hero verification replay only, plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
+- **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
+- **The pipeline scene** never plays by itself: Play loops it while it is on screen. Without JS the same still frame is in the HTML.
+- **No other motion:** no entrance animations, no parallax, no looping decoration.
+- **Reduced motion** turns off the replay, smooth scrolling and every transition. Everything renders its final state without JS.
 
 ## 8. Accessibility
 
-- WCAG 2.1 AA, checked by axe in CI on the landing page, a docs page and the 404, in light and dark.
+- WCAG 2.1 AA, checked by axe in CI on every page in the sitemap and the 404.
 - A skip link on every page, landmarks (`header`, `nav`, `main`, `footer`), one `h1` per page, and headings in order.
 - A visible `:focus-visible` ring on everything: 2px `ink`, 2px offset.
-- Targets are at least 24×24px (the chips have padding plus spacing).
-- Decorative SVGs are `aria-hidden`. The pipeline and the report have text labels.
+- Targets are at least 24×24px (the chips and sidenote numbers have padding).
+- Decorative SVGs and the graph paper are `aria-hidden` or background-only. The pipeline and the exhibit have text labels.
+- Margin notes are tied to their chips with `aria-describedby` and `aria-expanded`/`aria-controls`.
 
 ## 9. What we don't use
 
-- **Look:** gradients, glow, glassmorphism, shadows, cream or amber, rounded "bubbly" cards, emoji, stock imagery, third-party logos.
+- **Look:**
+  - gradients, glow, blobs, 3D, glassmorphism, shadows;
+  - cream or amber, a dark theme;
+  - rounded "bubbly" cards;
+  - emoji, stock imagery, third-party logos.
 - **Claims:** fake metrics or testimonials, a pricing table, a newsletter pop-up, a chat widget, a cookie banner. Nothing on the page is there only because "landing pages have it".
 
 ## 10. Checklist before shipping a page
 
 1. Does every number come from generated data, and does every command exist (`scripts/test/site-commands.test.ts`)?
 2. Is the page complete with JS off and with reduced motion on?
-3. Does axe report no WCAG A/AA violations in light and in dark?
+3. Does axe report no WCAG A/AA violations?
 4. Is there no horizontal scroll at 360px?
 5. Are there no requests to any origin but the site's own?
 6. Is green used only for "verified"?
+7. Is it light only (`scripts/test/site-light.test.ts`)?

@@ -4,11 +4,10 @@
 // Without JS the links stay visible and wrap.
 import Logo from "./Logo.astro";
 import { DOCS_HOME, GITHUB_URL, withBase } from "./site.ts";
-import ThemeToggle from "./ThemeToggle.astro";
 
 const links = [
-  { href: withBase("/#report"), label: "The report" },
-  { href: withBase("/#evals"), label: "Evals" },
+  { href: withBase("/#how"), label: "How it works" },
+  { href: withBase("/#results"), label: "Results" },
   { href: withBase(DOCS_HOME), label: "Docs" },
   { href: GITHUB_URL, label: "GitHub" },
 ];
@@ -33,7 +32,6 @@ const links = [
           ))
         }
       </ul>
-      <ThemeToggle />
     </nav>
   </div>
 </header>
@@ -140,9 +138,6 @@ const links = [
     }
     :global(.aa-has-menu) .aa-site-menu li + li {
       border-top: 1px solid var(--aa-rule);
-    }
-    :global(.aa-has-menu) .aa-site-menu :global(.aa-theme) {
-      align-self: flex-start;
     }
     .aa-site-menu {
       flex-wrap: wrap;

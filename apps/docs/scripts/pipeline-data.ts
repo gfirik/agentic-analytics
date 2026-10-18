@@ -191,7 +191,11 @@ export function extractPipelineData(run: RunRecord): PipelineData {
 }
 
 /** Runs the engine once (offline, deterministic) and records what the animation needs. */
-export async function recordRun(): Promise<RunRecord> {
+/**
+ * The web-enabled run on the example. `read`, when given, reads more from the run's DuckDB before it is deleted (the
+ * landing exhibit's cited sheet rows); its result is `extra`.
+ */
+export async function recordRun<T = undefined>(read?: (ws: Workspace, report: Report) => Promise<T>): Promise<RunRecord & { extra?: T }> {
   const dir = mkdtempSync(join(tmpdir(), "aa-pipeline-"));
   try {
     const events: JobEvent[] = [];
@@ -213,7 +217,8 @@ export async function recordRun(): Promise<RunRecord> {
       const prefixes = await ws.all<{ source_id: string; prefix: string }>(
         sql`SELECT source_id, any_value(prefix) AS prefix FROM chunks GROUP BY source_id ORDER BY source_id`,
       );
-      return { events, report: out.report, checks, prefixes };
+      const extra = read ? await read(ws, out.report) : undefined;
+      return { events, report: out.report, checks, prefixes, ...(extra === undefined ? {} : { extra }) };
     } finally {
       ws.close();
     }

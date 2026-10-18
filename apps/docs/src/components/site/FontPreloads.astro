@@ -1,0 +1,15 @@
+---
+import sans from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
+// Preloads the two faces the first screen paints in (Lighthouse, M13i): the serif (statements, docs prose) and Plex
+// Sans 400 (landing copy). Same files as fonts.css, resolved by Vite, so the URLs carry the build's hashes.
+import serif from "@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2?url";
+
+interface Props {
+  /** The docs paint their first screen (the article) in the serif only. */
+  serifOnly?: boolean;
+}
+const { serifOnly = false } = Astro.props;
+---
+
+<link rel="preload" href={serif} as="font" type="font/woff2" crossorigin fetchpriority="high" />
+{serifOnly ? null : <link rel="preload" href={sans} as="font" type="font/woff2" crossorigin />}

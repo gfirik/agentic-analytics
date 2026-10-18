@@ -128,6 +128,30 @@ describe("Learn pages", () => {
     expect([...new Set(used)].filter((a) => !anchors.has(a))).toEqual([]);
   });
 
+  it("every stage guide opens with a one-sentence epigraph (DESIGN.md §7)", () => {
+    const stages = pages.filter((p) => p.includes("/stages/"));
+    const missing = stages.filter((p) => !/^epigraph: "[^"]+[.?]"$/m.test(readFileSync(p, "utf8")));
+    expect(missing).toEqual([]);
+  });
+
+  it("sidenotes and margin notes hold no typed figures: numbers come from <Fact /> chips or {data}", () => {
+    const notes = [...all.matchAll(/<(Sidenote|MarginNote)>([\s\S]*?)<\/\1>/g)].map((m) => m[2] as string);
+    expect(notes.length).toBeGreaterThanOrEqual(6);
+    // The method's own constants, stated as definitions (not results): the noise band's 2 × 1.4826 × MAD, and 100%.
+    const CONSTANTS = /\b2 × 1\.4826\b|\b100%|\bV\d\b/g;
+    const typed = notes
+      .map((n) =>
+        n
+          .replace(/<Fact[^>]*\/>/g, "")
+          .replace(/\{[^}]*\}/g, "")
+          .replace(/`[^`]*`/g, "")
+          .replace(/\]\([^)]*\)/g, "]")
+          .replace(CONSTANTS, ""),
+      )
+      .filter((n) => /\d/.test(n));
+    expect(typed).toEqual([]);
+  });
+
   it("has the overview, ten stage guides, five tutorials and the glossary", () => {
     const rel = pages.map((p) => p.slice(LEARN.length + 1)).sort();
     expect(rel.filter((p) => p.startsWith("stages/"))).toHaveLength(10);

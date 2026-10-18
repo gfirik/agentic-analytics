@@ -1,0 +1,55 @@
+---
+// The docs' reading frame (DESIGN.md §7): the article column and, to its right, a margin column for sidenotes. The
+// on-page TOC sits at the top of that margin column and stays there while you scroll (from 1200px; below that it
+// collapses into Starlight's mobile TOC bar, see PageSidebar.astro). The TOC is laid over the margin column rather
+// than given a column of its own, so sidenotes (floated out of the article, Sidenote.astro) and the TOC share it.
+---
+
+<div class="aa-two-col">
+  <div class="main-pane"><slot /></div>
+  {
+    Astro.locals.starlightRoute.toc && (
+      <aside class="aa-margin-toc print:hidden" aria-label="On this page">
+        <div class="aa-margin-toc-inner">
+          <slot name="right-sidebar" />
+        </div>
+      </aside>
+    )
+  }
+</div>
+
+<script>
+  // A prose table wider than the article scrolls inside itself (starlight.css): give it a keyboard stop and a name, so
+  // the scrollable region is reachable (WCAG 2.1.1). Only tables that actually overflow get one.
+  for (const t of document.querySelectorAll<HTMLTableElement>(".sl-markdown-content > table")) {
+    if (t.scrollWidth <= t.clientWidth + 1) continue;
+    t.tabIndex = 0;
+    t.setAttribute("role", "region");
+    const head = [...t.querySelectorAll("th")].map((th) => th.textContent?.trim()).filter(Boolean).slice(0, 3).join(", ");
+    t.setAttribute("aria-label", `Table: ${head || "data"} (scrolls sideways)`);
+  }
+
+  // Full-width figures run across the margin column, under the sticky TOC: while one passes beneath it, the TOC
+  // steps aside (fades out and takes no clicks) so the figure is never covered. Without JS the TOC stays on top.
+  const toc = document.querySelector<HTMLElement>(".aa-margin-toc-inner");
+  const wide = [...document.querySelectorAll<HTMLElement>(".sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-pipe)")];
+  if (toc && wide.length) {
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      if (getComputedStyle(toc).position !== "sticky") return;
+      const t = toc.getBoundingClientRect();
+      const covered = wide.some((el) => {
+        const r = el.getBoundingClientRect();
+        return r.bottom > t.top && r.top < t.bottom && r.right > t.left;
+      });
+      toc.classList.toggle("is-covered", covered);
+    };
+    const queue = () => {
+      if (!frame) frame = requestAnimationFrame(check);
+    };
+    addEventListener("scroll", queue, { passive: true });
+    addEventListener("resize", queue);
+    check();
+  }
+</script>

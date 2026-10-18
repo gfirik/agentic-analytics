@@ -13,7 +13,7 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 
 | Section | Pages |
 |---|---|
-| Landing page (`/`) | The one-liner and the pipeline animation (the README GIF scene); the coffee-roaster report with clickable fact IDs (`LedgerReport`); the real-data checks (Online Retail II, Stats NZ); why it's different (with V1–V8 from the pipeline run); eval numbers with their caveats; quickstart and binaries; the four doors |
+| Landing page (`/`) | Website v2 (M13i, apps/docs/DESIGN.md): the status strip; the statement and the hero exhibit (the coffee-roaster report, verified figure by figure, with a margin note per figure); §1 how it works (the pipeline scene); §2 three proofs; §3 results as they are (model rows and real-data checks, partial runs labelled); §4 quickstart, binaries and the four doors |
 | Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / Bun / Ollama / free endpoint), Your first report (coffee-roaster walkthrough), Running on free models (the Models page, listed here since M13f) |
 | How it works | Pipeline overview (interactive, ported from `docs/assets/blueprint.html`); Ingest & table detection; Profiling & data quality; Metric layer; Detecting changes; Finding drivers (PVM, contribution, rate/mix, Simpson, DIFF), with worked examples and animated bar breakdowns; Documents lane (RAG: chunking, BM25, vectors, RRF, rerank, with a step-through visual); Web lane & privacy; Explain & causal grades; Decisions & impact ranges; The verifier (V1–V8 with a before/after draft example); Security & prompt injection |
 | Learn (M13g) | The beginner path, all on the coffee-roaster example: the big-picture overview (the pipeline animation and a map of every stage with its real in/out); ten stage guides (ingestion & profiling, metric layer, analysis, retrieval, web lane, planner, verifier, report & fact IDs, model router & free providers, security), each with the problem it solves, a step-through diagram, the ideas behind it, a try-it command, repo links and further reading; five tutorials (first file, confirm metrics, documents as evidence, Claude via MCP, evals on your own data); a glossary. Each guide links "Go deeper" to its How it works page |
@@ -30,9 +30,14 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 - **`<RagStepper />`:** walks a query through BM25, vectors, RRF, rerank and extract, showing ranks changing.
 - **`<VerifierDiff />`:** shows a draft report vs the verified report, with dropped and downgraded claims highlighted.
 - **Mermaid** for architecture and state diagrams.
-- **`<LedgerReport />`** (landing page): the first finding of the real coffee-roaster run, each number followed by its fact-ID chip. A chip links to the fact's row in a static fact ledger, so it works without JS. With JS it opens the fact in place: its SQL and parameters, or its function and input facts (which open in turn), the rows it cites, and its verification state.
+- **The hero exhibit** (`components/site/Exhibit.astro`, landing page):
+  - It shows the first finding of the real coffee-roaster run, each number followed by its fact-ID chip.
+  - It replays its verification once, unless reduced motion is on.
+  - Hovering or focusing a figure opens its margin note: the SQL and parameters (or the function and its inputs), and the cited sheet rows.
+  - A chip links to the fact's row in a static fact ledger, so it works without JS.
+- **`<Sidenote>` / `<MarginNote>`** (Learn, MDX): Tufte-style notes in the margin column, tap-to-expand under 1000px.
 - **Learn components** (`src/components/learn/`): `StageFlow` (in → stage → out, stepped through, final state server-rendered), `Transcript` (a recorded terminal session), `Fact` and `FactLedger` (a figure with its chip, and the page's fact ledger the chips link to), `Claim` (placeholders filled with chips), `LearnMap` (the overview). All read `docs/assets/learn/learn.json`.
-- **Accessibility:** every component respects `prefers-reduced-motion`, works in light and dark, and renders its final state on the server.
+- **Accessibility:** every component respects `prefers-reduced-motion` and renders its final state on the server. The site is light only (M13i).
 - **Theme:** every component uses the site tokens (`src/styles/tokens.css`). The pipeline scene keeps its own colours for the README GIF; the site re-themes it through its `--pp-*` custom properties, so `pipeline-scene.ts` (hash-checked against the GIFs) is unchanged.
 
 ## 3. README visuals
@@ -96,12 +101,12 @@ The README is the first thing people see on GitHub. It carries five visuals, and
 - **Commands.** `scripts/test/site-commands.test.ts` (in `bun run check`) extracts every `aa …`, `bun run …` and `./aa-<os>-<arch> …` command from the site's sources and checks it against the citty definitions in `apps/cli/src/main.ts` and the package.json scripts, plus the command of every recorded Learn transcript.
 - **Browser** (`bun run site:check:browser`, the `site-browser` CI job, after a site build):
   - no request to any origin but the site's own;
-  - axe WCAG 2 A/AA with no violations on every page in the sitemap and on the 404, in light and in dark;
+  - axe WCAG 2 A/AA with no violations on every page in the sitemap and on the 404 (light only since M13i);
   - no horizontal scroll at 360 px on every page;
   - the fact panel opens and Escape closes it; the page is complete without JS; the pipeline doesn't play under reduced motion; the mobile menu sets aria-expanded and Escape closes it;
   - the favicons, OG image and sitemaps are served, with an absolute og:image;
   - on every Learn page each fact chip lands on a row of that page's ledger, and a stage diagram is complete without JS and marks a step's outputs.
-- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` (with `--compare <url>` for a side-by-side) writes `docs/assets/site/`; `--learn` shoots the Learn overview, a stage guide and a tutorial into `docs/assets/site/learn/`.
+- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` writes `docs/assets/site/`. It shoots the landing page, a Learn stage guide and a docs page at 1440 and 390. With `--record` it writes `hero.gif`, recorded as WebM and encoded with ffmpeg: the hero's verification replay, then margin notes opening.
 
 ## 5. Rules
 
