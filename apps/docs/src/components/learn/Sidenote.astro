@@ -3,7 +3,8 @@
 // line, from 1000px. Under 1000px it is a tap-to-expand inline note: a real checkbox (keyboard-focusable, works without
 // JS) toggles it. Use it for fact IDs and sources, definitions of terms (link to the glossary) and caveats. Keep the
 // content inline (text, links, <Fact />, code): it sits inside the paragraph.
-// Numbers count per page, in reading order (Astro.locals is per page).
+// Numbers count per page, in reading order (Astro.locals is per page). A word joiner (U+2060) keeps the number on the
+// line of the word before it.
 import { nextNote } from "./notes.ts";
 
 const n = nextNote(Astro.locals as Record<string, unknown>);
@@ -11,7 +12,7 @@ const id = `aa-sn-${n}`;
 ---
 
 <span class="aa-sn"
-  ><input type="checkbox" id={id} class="aa-sn-toggle" /><label for={id} class="aa-sn-ref" title={`Note ${n}`}
+  >&#8288;<input type="checkbox" id={id} class="aa-sn-toggle" /><label for={id} class="aa-sn-ref" title={`Note ${n}`}
     ><span class="aa-sr">Note </span>{n}</label
   ><span class="aa-sn-note" role="note"><span class="aa-sn-num" aria-hidden="true">{n}</span> <slot /></span></span
 >

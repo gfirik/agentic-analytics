@@ -1,8 +1,8 @@
-// Per-page note numbering for <Sidenote /> and <MarginNote /> (Astro.locals is one object per rendered page).
-const KEY = "aaNoteCount";
-
-export function nextNote(locals: Record<string, unknown>): number {
-  const n = (typeof locals[KEY] === "number" ? (locals[KEY] as number) : 0) + 1;
-  locals[KEY] = n;
+// Per-page numbering for <Sidenote /> and <MarginNote /> (Astro.locals is one object per rendered page). Sidenote
+// numbers and margin-note ids count separately, so a margin note never skips a sidenote number.
+export function nextNote(locals: Record<string, unknown>, kind: "sidenote" | "margin" = "sidenote"): number {
+  const key = kind === "sidenote" ? "aaSidenoteCount" : "aaMarginNoteCount";
+  const n = (typeof locals[key] === "number" ? (locals[key] as number) : 0) + 1;
+  locals[key] = n;
   return n;
 }

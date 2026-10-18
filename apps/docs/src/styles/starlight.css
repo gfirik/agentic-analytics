@@ -387,6 +387,11 @@ mobile-starlight-toc .toggle {
 /* Full-width figures (diagrams that need room): from 1000px they run across the margin column too, and clear any
    sidenote beside them. */
 @media (min-width: 62.5rem) {
+  /* Article + gap + margin column always fit beside the sidebar: between 1000 and ~1072px the article gives up a
+     little measure rather than letting notes and figures run off the page. */
+  .sl-markdown-content {
+    max-width: min(var(--aa-article), 100% - var(--aa-margin-gap) - var(--aa-margin-col));
+  }
   .sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-pipe) {
     clear: right;
     margin-right: calc(-1 * (var(--aa-margin-gap) + var(--aa-margin-col)));

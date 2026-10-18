@@ -1,5 +1,5 @@
-// The landing page's report data (src/pages/index.astro, <LedgerReport />), from the same web-enabled run the hero
-// animation plays (pipeline-data.ts recordRun(), docs/assets/readme/pipeline.json), so the whole page shows ONE run:
+// The landing page's report data (src/pages/index.astro: the hero exhibit, Exhibit.astro, and its fact ledger), from the
+// same web-enabled run the pipeline scene plays (pipeline-data.ts recordRun(), docs/assets/readme/pipeline.json), so the whole page shows ONE run:
 // the first finding, every fact its claims and its top recommendation use, the facts those are computed from (so each
 // chip opens a fact whose inputs open too), and the verification counts. Values are the facts' stored values.
 import type { Report } from "@agentic-analytics/schema";

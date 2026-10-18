@@ -3,11 +3,11 @@
 // toggles it inline (a real checkbox, so it works without JS). Keep the content inline.
 import { nextNote } from "./notes.ts";
 
-const id = `aa-mn-${nextNote(Astro.locals as Record<string, unknown>)}`;
+const id = `aa-mn-${nextNote(Astro.locals as Record<string, unknown>, "margin")}`;
 ---
 
 <span class="aa-sn aa-mn"
-  ><input type="checkbox" id={id} class="aa-sn-toggle" /><label for={id} class="aa-sn-ref aa-mn-ref" title="Margin note"
+  >&#8288;<input type="checkbox" id={id} class="aa-sn-toggle" /><label for={id} class="aa-sn-ref aa-mn-ref" title="Margin note"
     ><span class="aa-sr">Margin note</span><span aria-hidden="true">⊕</span></label
   ><span class="aa-sn-note" role="note"><slot /></span></span
 >

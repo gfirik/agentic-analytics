@@ -73,7 +73,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
                     class="aa-chip"
                     href={`#fact-${p.fact}`}
                     data-note={p.fact}
-                    aria-describedby={`aa-note-${p.fact}`}
+                    aria-describedby={`aa-note-${p.fact}-sum`}
                     aria-label={`${p.fact}${notes[p.fact]?.verified ? ", verified" : ""}: how this number was computed`}
                   >{notes[p.fact]?.verified ? <Fragment set:html={check} /> : null}{p.fact}</a></span>
               ) : p.source ? (
@@ -83,7 +83,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
                     class="aa-chip"
                     href={`#source-${p.source}`}
                     data-note={p.source}
-                    aria-describedby={`aa-note-${p.source}`}
+                    aria-describedby={`aa-note-${p.source}-sum`}
                     aria-label={`${p.source}${notes[p.source]?.verified ? ", verified" : ""}: the cited source`}
                   >
                     {notes[p.source]?.verified ? <Fragment set:html={check} /> : null}
@@ -125,7 +125,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     {
       Object.values(notes).map((n) => (
         <aside class="aa-note" id={`aa-note-${n.id}`} data-note-for={n.id} hidden>
-          <p class="aa-note-head">
+          <p class="aa-note-head" id={`aa-note-${n.id}-sum`}>
             <span class="aa-note-id">{n.id}</span>
             <span class="aa-note-label">{n.label}</span>
           </p>
@@ -234,8 +234,8 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
       <thead>
         <tr>
           <th scope="col">ID</th>
-          <th scope="col">Fact</th>
           <th scope="col" class="num">Value</th>
+          <th scope="col">Fact</th>
           <th scope="col">Computed by</th>
           <th scope="col">Verified</th>
         </tr>
@@ -245,12 +245,12 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
           ledger.map((f) => (
             <tr id={`fact-${f.id}`}>
               <td class="id">{f.id}</td>
-              <td>{f.label}</td>
-              <td class="num">{formatWithCurrency(f)}</td>
+              <td class="num aa-ledger-value">{formatWithCurrency(f)}</td>
+              <td class="aa-ledger-label">{f.label}</td>
               <td class="aa-ledger-how">
                 {f.computation.kind === "sql" ? "SQL in DuckDB" : `${f.computation.fn}(${(f.computation.inputs ?? []).join(", ")})`}
               </td>
-              <td>
+              <td class="aa-ledger-ok">
                 {f.verified ? (
                   <span class="aa-verified">
                     <Fragment set:html={check} /> recomputed
@@ -268,12 +268,12 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
             .map((n) => (
               <tr id={`source-${n.id}`}>
                 <td class="id">{n.id}</td>
-                <td>{n.label}</td>
-                <td class="num">quote</td>
+                <td class="num aa-ledger-value">quote</td>
+                <td class="aa-ledger-label">{n.label}</td>
                 <td>
                   <q>{n.quote}</q>
                 </td>
-                <td>
+                <td class="aa-ledger-ok">
                   {n.verified ? (
                     <span class="aa-verified">
                       <Fragment set:html={check} /> checked
@@ -386,8 +386,11 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape" || !open) return;
-      const chip = open.chip;
+      const { chip, note } = open;
+      const active = document.activeElement;
+      const hadFocus = active === chip || (active !== null && note.contains(active));
       close();
+      if (!hadFocus) return;
       returning = true;
       chip.focus();
       returning = false;
@@ -703,6 +706,16 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     grid-column: 1 / -1;
     margin-top: var(--aa-space-6);
     gap: var(--aa-space-3);
+    padding: var(--aa-space-4) 0;
+    background: var(--aa-page);
+  }
+  .aa-ledger-value,
+  .aa-ledger-ok {
+    white-space: nowrap;
+  }
+  .aa-ledger-label {
+    min-width: 10rem;
+    overflow-wrap: anywhere;
   }
   .aa-exhibit-ledger:target,
   .aa-exhibit-ledger:has(:target) {

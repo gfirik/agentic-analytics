@@ -127,7 +127,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
   1. Status strip, header, hero exhibit (above the fold on 1440×900).
   2. `§1 HOW IT WORKS`: the pipeline scene, full container width, inside the frame, no extra box, one sentence above it.
-  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, a metric definition, a citation.
+  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, the metric's definition with the 2-line SQL it compiles to, a citation.
   4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, with the model rows and the real-data checks. Partial runs are labelled partial, and there is a link to RESULTS.md.
   5. `§4 QUICKSTART`: three steps (install, model, analyze) with code, the binary downloads and the Docker line, and the four doors (CLI, API, MCP, Telegram) as a ruled list.
   6. The footer.
@@ -137,7 +137,9 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (≈ 64ch) | **margin column** (~260px, narrowing to 176px between 1000 and 1200px) for sidenotes.
   - Built by overriding Starlight's `TwoColumnContent` and `PageSidebar`.
   - The article is left-aligned next to the sidebar.
-- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure scrolls beneath it, it steps aside (JS); without JS it stays on top.
+- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap; it marks the current heading with an ink rule. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure or a sidenote passes beneath it, it steps aside (JS), so neither is covered; without JS it stays on top.
+- **Sidebar:** mono section labels, sans items, the active item marked with a 2px ink rule on the left.
+- **Measure between 1000 and ~1072px:** article, gap and margin column always fit beside the sidebar; the article gives up a little measure there rather than letting notes and figures run off the page.
 - **Sidenotes** for fact IDs and sources, definitions of terms (with a glossary link) and caveats (§6). From 1000px they sit in the margin; under 1000px they are tap-to-expand inline notes.
 - **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline scene) run across the margin column from 1000px, clearing any sidenote beside them.
 - **Epigraph-style lead** at the top of each Learn stage page: one sentence on the problem the stage solves, in serif italic (`epigraph` frontmatter, rendered by `PageTitle.astro`).

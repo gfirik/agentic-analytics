@@ -19,11 +19,9 @@
   pointer-events: none;
 }
 .aa-sn-ref {
-  display: inline-block;
-  min-width: 1.5rem;
-  min-height: 1.5rem;
-  margin-inline-start: 0.1rem;
-  padding: 0 0.15rem;
+  display: inline;
+  margin-inline-start: 0.05rem;
+  padding: 0.35rem 0.3rem;
   font: 500 0.6875rem / 1 var(--aa-font-mono);
   font-variant-numeric: tabular-nums;
   vertical-align: super;

@@ -96,6 +96,15 @@ test.describe("no horizontal scroll at 360 px", () => {
   }
 });
 
+test("no horizontal scroll where the docs' margin column is narrowest (1000–1100 px)", async ({ page }) => {
+  for (const width of [1000, 1024, 1072, 1100]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(over, `${width} px`).toBeLessThanOrEqual(0);
+  }
+});
+
 test("no horizontal scroll at 360 px on any page in the sitemap", async ({ page, request }) => {
   const paths = await sitemapPaths(request);
   expect(paths.length).toBeGreaterThan(30);

@@ -2,6 +2,8 @@
 // data. The exhibit's figures are the recorded run's facts (the same run as the pipeline scene), its SQL is the
 // facts' own SQL laid out on lines, its cited rows are the facts' cited rows read back from the run's DuckDB, and the
 // strip's items are counts from the committed results and the repository.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type ExhibitData, exhibitData, exhibitIds, exhibitRows, globToRegExp, statusStrip } from "../../apps/docs/scripts/landing-data.ts";
 import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
@@ -31,7 +33,10 @@ describe("hero exhibit (from the recorded run)", () => {
     }
     // The claim lines are the report's text with the facts in place of their placeholders.
     const claimTexts = finding?.claims.map((c) => c.text) ?? [];
-    for (const line of exhibit.lines.slice(0, -1)) {
+    const recFacts = new Set([report.recommendations[0]?.impact?.low, report.recommendations[0]?.impact?.high]);
+    const claimLines = exhibit.lines.filter((line) => !line.some((p) => "fact" in p && recFacts.has(p.fact)));
+    expect(claimLines.length).toBeGreaterThanOrEqual(2);
+    for (const line of claimLines) {
       const text = line.map((p) => ("text" in p ? p.text : "fact" in p ? `{{${p.fact}}}` : "")).join("");
       expect(claimTexts).toContain(text);
     }
@@ -91,6 +96,42 @@ describe("hero exhibit (from the recorded run)", () => {
     expect(sources.length).toBe(1);
     for (const s of sources) expect(quotes).toContain(s.quote);
   }, 120_000);
+});
+
+describe("landing markup", () => {
+  // Every figure on the page is an expression over generated data; the markup itself types no figures. Allowed: step
+  // and cell numbers, the Node version, the local port and address, and the first release with binaries.
+  const ALLOWED = /Step [123]|0[123] ·|Node 22|127\.0\.0\.1:8080|v0\.1\.0|§\{|aa-|h[1-6]|\b[a-z]+[0-9]+\b/g;
+  const markup = (file: string) => {
+    let s = readFileSync(join(import.meta.dirname, "..", "..", "apps", "docs", "src", file), "utf8");
+    s = s
+      .replace(/^---[\s\S]*?\n---\n/, "")
+      .replace(/<style[\s\S]*?<\/style>/g, "")
+      .replace(/<script[\s\S]*?<\/script>/g, "");
+    // Drop {expressions}, nested braces included.
+    let out = "";
+    let depth = 0;
+    for (const ch of s) {
+      if (ch === "{") depth++;
+      else if (ch === "}") depth = Math.max(0, depth - 1);
+      else if (depth === 0) out += ch;
+    }
+    // Attributes are not reading text; SVG path data is drawing.
+    return out.replace(/\s[a-z-]+="[^"]*"/g, "").replace(ALLOWED, "");
+  };
+
+  it("index.astro and Exhibit.astro type no figures in their text", () => {
+    for (const [f, known] of [
+      ["pages/index.astro", "An AI analyst you can audit."],
+      ["components/site/Exhibit.astro", "Recorded from a real engine run."],
+    ] as const) {
+      const text = markup(f);
+      expect(text).toContain(known); // the scan reads the page's text, not nothing
+      expect(text.match(/.{0,30}\d.{0,30}/g) ?? [], f).toEqual([]);
+    }
+    // And it would catch one.
+    expect(/\d/.test("<p>Revenue fell 17.9% in April</p>".replace(ALLOWED, ""))).toBe(true);
+  });
 });
 
 describe("exhibit helpers", () => {

@@ -7,8 +7,8 @@ interface Props {
 const { items } = Astro.props;
 ---
 
-<div class="aa-strip">
-  <p class="aa-strip-inner" aria-label="Project status">
+<div class="aa-strip" role="note" aria-label="Project status">
+  <p class="aa-strip-inner">
     {
       items.map((item, i) => (
         <>

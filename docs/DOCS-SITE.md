@@ -102,8 +102,14 @@ The README is the first thing people see on GitHub. It carries five visuals, and
 - **Browser** (`bun run site:check:browser`, the `site-browser` CI job, after a site build):
   - no request to any origin but the site's own;
   - axe WCAG 2 A/AA with no violations on every page in the sitemap and on the 404 (light only since M13i);
-  - no horizontal scroll at 360 px on every page;
-  - the fact panel opens and Escape closes it; the page is complete without JS; the pipeline doesn't play under reduced motion; the mobile menu sets aria-expanded and Escape closes it;
+  - no horizontal scroll at 360 px on every page, and at 1024 px on a Learn page (the margin column's narrowest);
+  - light only, even under a dark OS with a stored dark theme;
+  - the hero replays its verification once within 2.5 s, and not under reduced motion;
+  - a margin note opens on hover and focus, beside its figure, and Escape closes it; under 900 px it opens below the exhibit;
+  - without JS the page is complete and chips land on the fact ledger;
+  - the status strip carries its generated items;
+  - Learn sidenotes sit in the margin at 1440 px and expand inline under 1000 px (mouse and keyboard); the epigraph is there, and the TOC is in the margin from 1200 px and in the bar below;
+  - the pipeline scene is still until Play; the mobile menu sets aria-expanded and Escape closes it;
   - the favicons, OG image and sitemaps are served, with an absolute og:image;
   - on every Learn page each fact chip lands on a row of that page's ledger, and a stage diagram is complete without JS and marks a step's outputs.
 - **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` writes `docs/assets/site/`. It shoots the landing page, a Learn stage guide and a docs page at 1440 and 390. With `--record` it writes `hero.gif`, recorded as WebM and encoded with ffmpeg: the hero's verification replay, then margin notes opening.
