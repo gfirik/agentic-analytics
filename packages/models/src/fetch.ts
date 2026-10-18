@@ -9,8 +9,12 @@
 // 5. Successful responses are cached by hash(URL, body) when a cache is given, and every call is reported with the
 //    provider and model that served it. A cached answer is served even while every route is rate-limited.
 // 3. Some free tiers also cap output tokens per minute and refuse a request whose possible output exceeds it
-//    (HTTP 413 "Request too large … output tokens per minute (OTPM): Limit 1000"). Waiting doesn't help; the request
-//    is retried once with `max_tokens` just under the limit.
+//    (HTTP 413 "Request too large … output tokens per minute (OTPM): Limit 1000"; Groq sometimes sends the same
+//    refusal as a 429). Waiting doesn't help; the request is retried once, at once, with `max_tokens` just under the
+//    limit. A 429 takes this path only when it refuses the request outright ("Request too large", or Requested >
+//    Limit), before any rate-limit handling, so it neither waits nor hands the call to the router (which would block
+//    the route for the requested wait). An OTPM *rate limit* ("Rate limit reached … Used 800, Requested 300") is
+//    waited out like any 429. The refusal is logged as a failed call before the re-send.
 
 import { cacheKey, type ResponseCache } from "./cache.ts";
 import { ModelError } from "./errors.ts";
@@ -77,10 +81,23 @@ const usageOf = (text: string): { inputTokens?: number; outputTokens?: number } 
 
 const sleepFor = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** The output-tokens-per-minute limit a 413 names, if any. */
+/** The output-tokens-per-minute limit a 413 (or Groq's 429) names, if any. */
 export function outputLimit(body: string): number | undefined {
   const m = /output tokens per minute[^\n]*?Limit\s+(\d+)/i.exec(body);
   return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * The OTPM limit of a response that refuses the request for its possible output, which a lower `max_tokens` fixes:
+ * any 413 naming the limit, or a 429 that says "Request too large" or asks for more than the limit. A 429 "Rate limit
+ * reached … OTPM: Limit 1000, Used 800, Requested 300" is a real rate limit (it fits once the minute passes): none.
+ */
+export function otpmRefusalLimit(status: number, body: string): number | undefined {
+  if (status !== 413 && status !== 429) return undefined;
+  const limit = outputLimit(body);
+  if (limit === undefined || status === 413) return limit;
+  const requested = /output tokens per minute[^\n]*?Requested\s+(\d+)/i.exec(body);
+  return /request too large/i.test(body) || (requested && Number(requested[1]) > limit) ? limit : undefined;
 }
 
 function withMaxTokens(body: unknown, max: number): unknown {
@@ -160,6 +177,8 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
       if (limited > 0) await o.lease.pause(limited + 250);
     }
     let netRetries = 0;
+    // One re-send with a lower max_tokens per call, whenever the refusal comes (also after an ordinary 429's wait).
+    let lowered = false;
     for (let attempt = 0; ; attempt++) {
       // The timeout is per request, so the waits between attempts don't count against it.
       const signals = [req?.signal, o.timeoutMs ? AbortSignal.timeout(o.timeoutMs) : undefined].filter((x): x is AbortSignal => !!x);
@@ -186,9 +205,12 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         record(res.status, false, text);
         return res;
       }
-      if (res.status === 413 && attempt === 0 && req?.body) {
-        const limit = outputLimit(await res.clone().text());
+      if ((res.status === 413 || res.status === 429) && !lowered && req?.body) {
+        const limit = otpmRefusalLimit(res.status, await res.clone().text());
         if (limit && limit > 64) {
+          // Logged like any failed call, so the call log's 413/429 counts stay true.
+          await fail(res);
+          lowered = true;
           req = { ...req, body: withMaxTokens(req.body, Math.floor(limit * 0.95)) as string };
           continue;
         }
@@ -271,12 +293,17 @@ export function transientNetworkError(err: unknown): boolean {
 
 /**
  * Masks key-like strings in text that leaves the process (logs, job status, API and chat replies): known key prefixes
- * (Groq `gsk_`, OpenAI-style `sk-`/`csk-`, Google `AIza`, NVIDIA `nvapi-`, bearer tokens) and, exactly, any of the
- * given secret values (the configured API keys, whatever their format).
+ * (Groq `gsk_`, OpenAI-style `sk-`/`csk-`, Google `AIza`, NVIDIA `nvapi-`, bearer tokens), the provider's
+ * organization id (Groq's ULID form, "in organization `org_01…`": `org_` + 20 or more lowercase letters and digits, as
+ * `org_***`) and, exactly, any of the given secret values (the configured API keys, whatever their format).
  */
 export function maskSecrets(text: string, secrets: readonly string[] = []): string {
   // Word-bounded, so "whisk-large" or "task-12" stay readable; "bearer" in any case.
-  let out = text.replace(/\b(gsk_|c?sk-|sk_|AIza|nvapi-)[\w.-]{4,}/g, "$1***").replace(/\b(bearer\s+)[\w.~+/=-]{4,}/gi, "$1***");
+  let out = text
+    .replace(/\b(gsk_|c?sk-|sk_|AIza|nvapi-)[\w.-]{4,}/g, "$1***")
+    .replace(/\b(bearer\s+)[\w.~+/=-]{4,}/gi, "$1***")
+    // Long enough that identifiers like `org_name` or `org_region_code` stay readable.
+    .replace(/\borg_[0-9a-z]{20,}(?![0-9a-z])/g, "org_***");
   for (const s of secrets) if (s.length >= 8) out = out.split(s).join("***");
   return out;
 }

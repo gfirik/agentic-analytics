@@ -165,7 +165,10 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
         },
         args.maxRetries,
         { boundedFeedback: args.maxInputTokens !== undefined },
-      );
+      ).catch((err: unknown) => {
+        // INVALID_OUTPUT quotes the last validation error, which can quote the endpoint's own text; masked like the rest.
+        throw providerError(err);
+      });
       return { object, usage };
     },
 
