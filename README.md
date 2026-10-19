@@ -14,7 +14,15 @@ Give it a business's real files: spreadsheets, CSV exports, PDFs, Word documents
 
 It runs **fully locally, at $0**: models through Ollama (or a free endpoint such as Groq), and web search through self-hosted SearXNG. There's no telemetry.
 
-> **Status: v0.1, early.** The engine, the verifier and all four doors work end to end. The eval bars are not all met yet, and the results below are shown as they are. See [evals/RESULTS.md](evals/RESULTS.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+<!-- status:start -->
+> **Status: v0.1, early.** What is proven so far:
+>
+> - **Real public data:** 12 of 12 checks pass on 2 public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).
+> - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge on the Groq free tier finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision ([details](#real-model-runs)).
+> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.
+>
+> 30 generated businesses with planted events run every night as the regression check; the latest pass is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
+<!-- status:end -->
 
 ![A scripted, deterministic run of `aa analyze examples/coffee-roaster --open`: live stages, the summary, then the report opening and a citation click highlighting the source rows.](docs/assets/readme/demo.gif)
 
@@ -154,25 +162,11 @@ stateDiagram-v2
 | MCP server | `aa mcp`: Claude Desktop, Cursor or any agent calls `analyze_files` and gets the verified report back |
 | Telegram demo | Send files to your bot and get the summary and `report.html` back |
 
-## Eval results
-
-Thirty generated businesses with planted events, distractors and data-quality issues. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
-
-<!-- table:evals:start -->
-| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |
-|---|---|---|---|---|---|---|---|---|---|
-| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | smoke (3) | 100% | 80% | 100% | 0 | 100% | 1 min, 98k tokens | Groq free tier (hosted) | 2026-10-16 |
-| groq:openai/gpt-oss-120b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) | 2026-10-16 |
-| groq:openai/gpt-oss-20b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) | 2026-10-16 |
-| groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) | 2026-10-16 |
-| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 8 of 30 jobs finished** | 27% | 20% | 100% | 0 | 100% | 15 min, 489k tokens | Groq free tier (hosted) | 2026-10-17 |
-<!-- table:evals:end -->
-
-Only the "planner, extractor, judge" rows ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
+## Results
 
 ### Real public data
 
-The same engine on two public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines) and New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities and suppressed values are reported, whether the seasonal peak lands in the right month, and whether a part-month or the regular January fall is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
+The engine on two public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines) and New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities and suppressed values are reported, whether the seasonal peak lands in the right month, and whether a part-month or the regular January fall is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
 
 <!-- table:real-data:start -->
 12 of 12 checks pass (offline baseline, no language model, 2026-10-17). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
@@ -195,6 +189,22 @@ The same engine on two public datasets with their real mess left in: a UK online
 - Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.
 - Online Retail II (UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.
 <!-- table:real-data:end -->
+
+### Real-model runs
+
+Free models on generated businesses with planted events, distractors and data-quality issues, scored against an answer key. The smoke suite (3 businesses) is the quick check of a model; the full suite (30 businesses) runs every night as the regression check, one pass a night within the free tier's daily quota, so its latest pass can be partial. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
+
+<!-- table:evals:start -->
+| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |
+|---|---|---|---|---|---|---|---|---|---|
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | smoke (3) | 100% | 80% | 100% | 0 | 100% | 1 min, 98k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:openai/gpt-oss-120b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | n/a | 0 | n/a | 3 min, 31k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:openai/gpt-oss-20b (small-model mode) | smoke (3), **partial: 1 of 3 jobs finished** | 33% | 0% | 0% | 0 | 100% | 12 min, 91k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:qwen/qwen3.8-27b (small-model mode) | smoke (3) | 100% | 0% | 0% | 0 | 100% | 20 min, 101k tokens | Groq free tier (hosted) | 2026-10-16 |
+| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 8 of 30 jobs finished** | 27% | 20% | 100% | 0 | 100% | 15 min, 489k tokens | Groq free tier (hosted) | 2026-10-17 |
+<!-- table:evals:end -->
+
+Only the "planner, extractor, judge" rows ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
 
 ## Stack
 

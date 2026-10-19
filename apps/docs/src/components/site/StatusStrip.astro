@@ -1,8 +1,10 @@
 ---
 // The status strip (DESIGN.md §4): one quiet mono line above the header, not a marquee. Its items come from
 // generated data (scripts/landing-data.ts statusStrip(), written into src/data/evals.json), never typed.
+import { withBase } from "./site.ts";
+
 interface Props {
-  items: string[];
+  items: { text: string; href?: string }[];
 }
 const { items } = Astro.props;
 ---
@@ -13,7 +15,7 @@ const { items } = Astro.props;
       items.map((item, i) => (
         <>
           {i > 0 ? <span aria-hidden="true"> · </span> : null}
-          <span>{item}</span>
+          {item.href ? <a href={item.href.startsWith("#") ? item.href : withBase(item.href)}>{item.text}</a> : <span>{item.text}</span>}
         </>
       ))
     }
@@ -32,5 +34,15 @@ const { items } = Astro.props;
     font: 400 var(--aa-text-label) / 1.5 var(--aa-font-mono);
     font-variant-numeric: tabular-nums;
     color: var(--aa-ink-2);
+  }
+  .aa-strip-inner a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--aa-rule-strong);
+    text-underline-offset: 0.2em;
+  }
+  .aa-strip-inner a:hover {
+    color: var(--aa-ink);
+    text-decoration-color: currentColor;
   }
 </style>

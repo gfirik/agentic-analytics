@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { evalsTable } from "../readme-assets/assets.ts";
+import { evalsTable, statusBlock } from "../readme-assets/assets.ts";
 
 const result = (suite: string, datasets: number, completed: number) => ({
   suite,
@@ -40,5 +40,40 @@ describe("evalsTable", () => {
     expect(rows[0]).toContain("| Groq free tier (hosted) |");
     expect(rows[1]).toMatch(/^\| vllm \(Kaggle 2×T4\) Qwen3\.8-27B-AWQ \| full \(30\) \| 100% \|/);
     expect(rows[1]).toContain("| Kaggle 2×T4 (self-hosted vLLM) | 2026-10-20 |");
+  });
+});
+
+describe("statusBlock", () => {
+  it("leads with the real data and the smoke run, and links the full suite as the nightly regression check", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-status-"));
+    const check = (pass: boolean) => ({ id: "c", about: "a", pass });
+    writeFileSync(
+      join(dir, "2026-10-17-baseline-real.json"),
+      JSON.stringify({
+        suite: "real",
+        model: "baseline",
+        date: "2026-10-17",
+        datasets: [{ checks: [check(true), check(true)] }, { checks: [check(false)] }],
+      }),
+    );
+    const smoke = {
+      ...result("smoke", 3, 1),
+      bars: [
+        { metric: "Jobs completed", value: 1 },
+        { metric: "Number mismatches", value: 0 },
+        { metric: "Citation precision", value: 1 },
+      ],
+    };
+    writeFileSync(join(dir, "2026-10-16-configured-small-smoke.json"), JSON.stringify(smoke));
+    writeFileSync(join(dir, "2026-10-17-configured-small-full.json"), JSON.stringify(result("full", 30, 0.1)));
+    const text = statusBlock(dir);
+    const lines = text.split("\n");
+    expect(lines[2]).toContain("2 of 3 checks pass on 2 public datasets");
+    expect(lines[3]).toContain(
+      "qwen/qwen3.8-27b on the Groq free tier finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision",
+    );
+    expect(lines.at(-1)).toContain("30 generated businesses with planted events run every night as the regression check");
+    // The full suite's partial pass is linked, never headlined.
+    expect(text).not.toMatch(/partial|3 of 30|in progress/);
   });
 });

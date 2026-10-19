@@ -144,6 +144,52 @@ export function realDataTable(dir = join(ROOT, "evals/results")): string {
   ].join("\n");
 }
 
+/**
+ * The README's status line (M13j): what is proven leads (the real public data, a free real model's smoke run, the
+ * verifier), and the generated-business suite is described as the nightly regression check, its latest pass linked
+ * rather than headlined. Every number comes from the committed results files.
+ */
+export function statusBlock(dir = join(ROOT, "evals/results")): string {
+  const names = existsSync(dir)
+    ? readdirSync(dir)
+        .filter((f) => f.endsWith(".json"))
+        .sort()
+    : [];
+  const read = <T>(suffix: string) => {
+    const f = names.filter((n) => n.endsWith(suffix)).at(-1);
+    return f ? (JSON.parse(readFileSync(join(dir, f), "utf8")) as T) : undefined;
+  };
+  const real = read<RealResultFile>("-baseline-real.json");
+  const smoke = read<ResultFile>("-configured-small-smoke.json");
+  const full = read<ResultFile>("-configured-small-full.json");
+  const value = (r: ResultFile, m: string) => r.bars.find((b) => b.metric === m)?.value;
+  const lines = ["> **Status: v0.1, early.** What is proven so far:", ">"];
+  if (real) {
+    const checks = real.datasets.flatMap((d) => d.checks);
+    lines.push(
+      `> - **Real public data:** ${checks.filter((c) => c.pass).length} of ${checks.length} checks pass on ${real.datasets.length} public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).`,
+    );
+  }
+  if (smoke) {
+    const done = Math.round((value(smoke, "Jobs completed") ?? 0) * smoke.datasets);
+    const wrong = value(smoke, "Number mismatches");
+    const precision = value(smoke, "Citation precision");
+    const model = smoke.model.replace(/^openai-compatible:groq:/, "").replace(/ \(small-model mode\)$/, "");
+    lines.push(
+      `> - **A free real model:** ${model} on the Groq free tier finished ${done} of ${smoke.datasets} smoke jobs${wrong === undefined ? "" : ` with ${wrong} wrong number${wrong === 1 ? "" : "s"}`}${precision === undefined ? "" : ` and ${(precision * 100).toFixed(0)}% citation precision`} ([details](#real-model-runs)).`,
+    );
+  }
+  lines.push(
+    "> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.",
+  );
+  if (full)
+    lines.push(
+      ">",
+      `> ${full.datasets} generated businesses with planted events run every night as the regression check; the latest pass is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
+    );
+  return lines.join("\n");
+}
+
 const LICENCES: Record<string, string> = { "CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/" };
 const licenceLink = (name: string) => (LICENCES[name] ? `[${name}](${LICENCES[name]})` : name);
 
@@ -156,6 +202,7 @@ export function expected(): Map<string, string> {
   readme = inject(readme, "diagram:pipeline-gif", pipelinePicture(readPipelineData()));
   readme = inject(readme, "diagram:architecture", mermaid("architecture.mmd"));
   readme = inject(readme, "diagram:pipeline", mermaid("pipeline.mmd"));
+  readme = inject(readme, "status", statusBlock());
   readme = inject(readme, "table:problems", problemsTable());
   readme = inject(readme, "table:evals", evalsTable());
   readme = inject(readme, "table:real-data", realDataTable());
