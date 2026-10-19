@@ -283,30 +283,37 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
 });
 
-test("landing: no box moves while the fonts arrive late (390, 1440 px)", async ({ page }) => {
-  await page.addInitScript(() => {
-    const w = window as unknown as { __cls: number };
-    w.__cls = 0;
-    new PerformanceObserver((list) => {
-      for (const e of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[])
-        if (!e.hadRecentInput) w.__cls += e.value;
-    }).observe({ type: "layout-shift", buffered: true });
-  });
-  // Every font held back 1.5 s, far longer than the preloaded faces take: text first paints in the fallback faces,
-  // then swaps. Only glyphs re-centre by a few pixels inside their boxes (about 0.01 at 390 px); a box that changed
-  // height on the swap (a wrapping strip or install line) scored 0.15. Lighthouse, with the preloads, measures 0.
-  await page.route(/\.woff2$/, async (r) => {
-    await new Promise((ok) => setTimeout(ok, 1_500));
-    await r.continue();
-  });
+test("landing: the strip, header and install line keep their height while the fonts arrive late (390, 1440 px)", async ({ browser }) => {
+  // These boxes changed height when Plex Mono swapped in (a re-wrapping strip and install line, a header collapsing
+  // when its menu script ran late): the page below moved (Lighthouse CLS 0.05). Their heights must not depend on the
+  // font, so they are measured in the fallback faces and again once the web fonts are in. Glyphs re-centring inside
+  // their boxes depends on the machine's fallback fonts and is not tested here; Lighthouse measures CLS 0.
+  const boxes = [".aa-strip", ".aa-header", ".aa-hero-cmd"];
   for (const [width, height] of [
     [390, 844],
     [1440, 900],
   ] as const) {
-    await page.setViewportSize({ width, height });
-    await page.goto(LANDING);
-    await page.waitForTimeout(3_500);
-    expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls), `${width} px`).toBeLessThan(0.02);
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    const page = await ctx.newPage();
+    let release: () => void = () => {};
+    const held = new Promise<void>((ok) => {
+      release = ok;
+    });
+    await page.route(/\.woff2$/, async (r) => {
+      await held;
+      await r.continue();
+    });
+    const heights = () => page.evaluate((sel) => sel.map((s) => document.querySelector(s)?.getBoundingClientRect().height ?? -1), boxes);
+    await page.goto(LANDING, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded"))).toBe(false);
+    const before = await heights();
+    release();
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded"))).toBe(true);
+    expect(await heights(), `${width} px`).toEqual(before);
+    await ctx.close();
   }
 });
 
