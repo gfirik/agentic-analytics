@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { evalsTable, statusBlock } from "../readme-assets/assets.ts";
+import { evalsTable, hostOf, statusBlock } from "../readme-assets/assets.ts";
 
 const result = (suite: string, datasets: number, completed: number) => ({
   suite,
@@ -70,10 +70,19 @@ describe("statusBlock", () => {
     const lines = text.split("\n");
     expect(lines[2]).toContain("2 of 3 checks pass on 2 public datasets");
     expect(lines[3]).toContain(
-      "qwen/qwen3.8-27b on the Groq free tier finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision",
+      "qwen/qwen3.8-27b (Groq free tier) finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision",
     );
-    expect(lines.at(-1)).toContain("30 generated businesses with planted events run every night as the regression check");
+    expect(lines.at(-1)).toContain("30 generated businesses with planted events are the nightly regression check");
     // The full suite's partial pass is linked, never headlined.
     expect(text).not.toMatch(/partial|3 of 30|in progress/);
+  });
+});
+
+describe("hostOf", () => {
+  it("names where a run's model ran: a vLLM label's hardware, Groq, local Ollama, or hosted", () => {
+    expect(hostOf("vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ")).toBe("Kaggle 2×T4 (self-hosted vLLM)");
+    expect(hostOf("openai-compatible:groq:qwen/qwen3.8-27b")).toBe("Groq free tier (hosted)");
+    expect(hostOf("ollama:qwen3.5:9b")).toBe("local (see note)");
+    expect(hostOf("openai-compatible:openrouter:openai/gpt-oss-120b")).toBe("hosted");
   });
 });

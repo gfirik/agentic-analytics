@@ -80,15 +80,7 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
   return [
     ...head,
     ...files.map((r) => {
-      // A self-hosted vLLM run names its hardware in its label: "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ" (aa eval --label).
-      const vllm = /^vllm \(([^)]+)\)/i.exec(r.model);
-      const hosted = vllm
-        ? `${vllm[1]} (self-hosted vLLM)`
-        : r.model.includes(":groq:")
-          ? "Groq free tier (hosted)"
-          : r.model.startsWith("ollama")
-            ? "local (see note)"
-            : "hosted";
+      const hosted = hostOf(r.model);
       const tokens = r.tokens.input + r.tokens.output;
       // A run whose jobs didn't all finish (a free tier's daily quota) is labelled partial: its rates count the
       // unfinished jobs as misses, so they are not the model's quality.
@@ -100,6 +92,15 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
       return `| ${r.model.replace(/^openai-compatible:/, "")} | ${suite} | ${pct(r, "Jobs completed")} | ${pct(r, "Planted recall@5")} | ${pct(r, "Driver accuracy")} | ${num(r, "Number mismatches")} | ${pct(r, "Citation precision")} | ${Math.round(r.seconds / 60)} min, ${Math.round(tokens / 1000)}k tokens | ${hosted} | ${r.date ?? "n/a"} |`;
     }),
   ].join("\n");
+}
+
+/** Where a run's model ran, from its model string: a vLLM label names its hardware (aa eval --label). */
+export function hostOf(model: string): string {
+  const vllm = /^vllm \(([^)]+)\)/i.exec(model);
+  if (vllm) return `${vllm[1]} (self-hosted vLLM)`;
+  if (model.includes(":groq:")) return "Groq free tier (hosted)";
+  if (model.startsWith("ollama")) return "local (see note)";
+  return "hosted";
 }
 
 interface RealResultFile {
@@ -175,8 +176,9 @@ export function statusBlock(dir = join(ROOT, "evals/results")): string {
     const wrong = value(smoke, "Number mismatches");
     const precision = value(smoke, "Citation precision");
     const model = smoke.model.replace(/^openai-compatible:groq:/, "").replace(/ \(small-model mode\)$/, "");
+    const host = hostOf(smoke.model).replace(/ \((hosted|see note)\)$/, "");
     lines.push(
-      `> - **A free real model:** ${model} on the Groq free tier finished ${done} of ${smoke.datasets} smoke jobs${wrong === undefined ? "" : ` with ${wrong} wrong number${wrong === 1 ? "" : "s"}`}${precision === undefined ? "" : ` and ${(precision * 100).toFixed(0)}% citation precision`} ([details](#real-model-runs)).`,
+      `> - **A free real model:** ${model} (${host}) finished ${done} of ${smoke.datasets} smoke jobs${wrong === undefined ? "" : ` with ${wrong} wrong number${wrong === 1 ? "" : "s"}`}${precision === undefined ? "" : ` and ${(precision * 100).toFixed(0)}% citation precision`} ([details](#real-model-runs)).`,
     );
   }
   lines.push(
@@ -185,7 +187,7 @@ export function statusBlock(dir = join(ROOT, "evals/results")): string {
   if (full)
     lines.push(
       ">",
-      `> ${full.datasets} generated businesses with planted events run every night as the regression check; the latest pass is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
+      `> ${full.datasets} generated businesses with planted events are the nightly regression check (one scheduled pass a night, within the free tier's daily quota); the latest published pass is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
     );
   return lines.join("\n");
 }

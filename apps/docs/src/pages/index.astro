@@ -42,7 +42,11 @@ const full = evals.full as Suite;
 // nightly regression check, and the offline baseline only checks the harness.
 const rows = [
   { run: "Free-tier model, smoke", note: `${model(smoke.model).split(" planner")[0]} on Groq, small-model mode`, suite: smoke },
-  { run: "Nightly regression", note: `${full.datasets} generated businesses, same roles, one pass a night on the free tier`, suite: full },
+  {
+    run: "Nightly regression",
+    note: `${full.datasets} generated businesses, same roles, one scheduled pass a night on the free tier; latest published`,
+    suite: full,
+  },
   { run: "Offline baseline", note: "scripted heuristic, no LLM: checks the harness", suite: synthetic },
 ];
 const realChecks = evals.real.datasets.flatMap((d) => d.checks);
@@ -187,7 +191,8 @@ const doors = [
         <h2 id="aa-results-title" class="aa-h2 aa-center">Measured, with the caveats next to the numbers.</h2>
         <p class="aa-lead aa-center">
           Real public data first, checked against SQL written separately, then a real model on the smoke suite. The generated businesses
-          with planted events run every night as the regression check; a pass the free tier cut short is labelled partial.
+          with planted events are the nightly regression check; the latest published pass is shown, and one the free tier cut short is
+          labelled partial.
         </p>
       </div>
       <div class="aa-cell">

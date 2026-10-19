@@ -338,6 +338,8 @@ export interface StatusInputs {
 export interface StripItem {
   readonly text: string;
   readonly href?: string;
+  /** Said after the text to screen readers: where a link leads. */
+  readonly more?: string;
 }
 
 /**
@@ -357,6 +359,6 @@ export function statusStrip(s: StatusInputs): StripItem[] {
     { text: `real-model smoke: ${s.smoke.completed}/${s.smoke.datasets} jobs${wrong}` },
     { text: `${s.testFiles} test files` },
     { text: "verifier on every report" },
-    { text: `nightly regression: ${s.full.datasets} generated businesses`, href: "#results" },
+    { text: `nightly regression: ${s.full.datasets} generated businesses`, href: "#results", more: "latest results in section 3" },
   ];
 }

@@ -4,7 +4,7 @@
 import { withBase } from "./site.ts";
 
 interface Props {
-  items: { text: string; href?: string }[];
+  items: { text: string; href?: string; more?: string }[];
 }
 const { items } = Astro.props;
 ---
@@ -15,7 +15,14 @@ const { items } = Astro.props;
       items.map((item, i) => (
         <>
           {i > 0 ? <span aria-hidden="true"> · </span> : null}
-          {item.href ? <a href={item.href.startsWith("#") ? item.href : withBase(item.href)}>{item.text}</a> : <span>{item.text}</span>}
+          {item.href ? (
+            <a href={item.href.startsWith("#") ? item.href : withBase(item.href)}>
+              {item.text}
+              {item.more ? <span class="aa-sr">, {item.more}</span> : null}
+            </a>
+          ) : (
+            <span>{item.text}</span>
+          )}
         </>
       ))
     }
@@ -40,6 +47,14 @@ const { items } = Astro.props;
     text-decoration: underline;
     text-decoration-color: var(--aa-rule-strong);
     text-underline-offset: 0.2em;
+  }
+  .aa-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .aa-strip-inner a:hover {
     color: var(--aa-ink);
