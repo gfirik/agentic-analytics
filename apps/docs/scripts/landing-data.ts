@@ -387,7 +387,13 @@ export function walkthrough(x: {
     });
   }
   const source = Object.values(notes).find((n) => n.kind === "source");
-  if (source) steps.push({ id: source.id, title: "The cause", figures: [], how: `quoted from ${source.value}, checked against the file` });
+  if (source)
+    steps.push({
+      id: source.id,
+      title: "The cause",
+      figures: [],
+      how: `quoted from ${source.value}${source.verified ? ", checked against the file" : ""}`,
+    });
   return steps;
 }
 

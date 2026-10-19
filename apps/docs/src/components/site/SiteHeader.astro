@@ -14,6 +14,11 @@ const links = [
 ---
 
 <header class="aa-header">
+  <script is:inline>
+    // Before first paint: with JS the links fold into the menu under 45rem, so the header has its final height from
+    // the first frame (the bundled script below runs deferred; collapsing then moved the page, CLS 0.056, M13k).
+    document.documentElement.classList.add("aa-has-menu");
+  </script>
   <div class="aa-header-inner">
     <Logo />
     <button type="button" class="aa-menu-button" aria-expanded="false" aria-controls="aa-site-menu" data-aa-menu hidden>

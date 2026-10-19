@@ -109,7 +109,9 @@ const doors = [
           <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
           <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
         </div>
-        <pre class="aa-hero-cmd" tabindex="0" aria-label="Install"><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+        <div class="aa-hero-cmd" role="region" aria-label="Install command" tabindex="0">
+          <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+        </div>
       </div>
     </section>
 
@@ -456,8 +458,11 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     border-radius: var(--aa-radius);
     background: var(--aa-raised);
     overflow-x: auto;
-    white-space: pre;
     text-align: left;
+  }
+  .aa-hero-cmd pre {
+    margin: 0;
+    white-space: pre;
   }
   .aa-hero-cmd code {
     font: 400 0.8125rem / 1.5 var(--aa-font-mono);

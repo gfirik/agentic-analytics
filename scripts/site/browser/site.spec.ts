@@ -198,14 +198,46 @@ test("hero: scrolling steps through the walkthrough on desktop, each step openin
       await expect(open.locator("tr.is-cited")).not.toHaveCount(0);
     }
   }
-  await expect(page.locator("[data-walk-next]")).toBeDisabled();
+  await expect(page.locator("[data-walk-next]")).toHaveAttribute("aria-disabled", "true");
   await page.locator("[data-walk-prev]").click();
   await expect(cap(steps.length - 1)).toBeVisible();
+  // Exploring mid-walkthrough: hovering another figure opens its note; leaving returns to the step's note.
+  const stepNote = await open.getAttribute("id");
+  await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').hover();
+  await expect(page.locator("#aa-note-N12")).toHaveClass(/is-open/);
+  await page.mouse.move(5, 5);
+  await expect(open).toHaveAttribute("id", stepNote ?? "");
   await page.locator("[data-walk-replay]").click();
   await expect(cap(0)).toBeVisible();
   await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  await page.waitForTimeout(1_200);
+  await expect(cap(0)).toBeVisible();
   await page.locator("[data-walk-next]").click();
   await expect(cap(1)).toBeVisible();
+});
+
+test("hero: from 1100 × 704 px (where scroll drives the steps) every step's note fits on screen", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 704 });
+  await page.goto(LANDING);
+  const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
+  const start = await page.evaluate(() => {
+    const w = document.querySelector("[data-exhibit]") as HTMLElement;
+    const s = document.querySelector(".aa-walk-stick") as HTMLElement;
+    return window.scrollY + w.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(s).top);
+  });
+  for (let k = 1; k <= steps.length; k++) {
+    await page.evaluate((y) => window.scrollTo(0, y), start + k * 352 + 20);
+    await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toBeVisible();
+    await expect(page.locator(".aa-note.is-open")).toBeInViewport({ ratio: 1 });
+  }
+});
+
+test("hero: on a landscape phone (667 × 375) the figures still verify as the exhibit comes into view", async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 375 });
+  await page.goto(LANDING);
+  await page.locator(".aa-exhibit-page").evaluate((el) => el.scrollIntoView({ block: "start" }));
+  await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).toHaveCount(await page.locator(".aa-exhibit a.aa-chip").count());
 });
 
 test("hero: under 900 px the walkthrough advances by itself, its notes below the figure, without moving the page", async ({ page }) => {
@@ -229,11 +261,19 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   const before = await below();
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible({ timeout: 6_000 });
   expect(await below()).toBe(before);
-  // By hand: next stops the timer.
-  await page.locator("[data-walk-next]").click();
-  await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible();
+  // Pause stops the timer (WCAG 2.2.2), Play resumes it; stepping by hand pauses too.
+  const pause = page.locator("[data-walk-pause]");
+  await pause.click();
+  await expect(pause).toHaveAttribute("aria-pressed", "true");
   await page.waitForTimeout(5_000);
-  await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible();
+  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
+  await pause.click();
+  await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible({ timeout: 6_000 });
+  await page.locator("[data-walk-prev]").click();
+  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
+  await expect(pause).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(5_000);
+  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
 });
 
 test("landing: no box moves while the fonts arrive late (390, 1440 px)", async ({ page }) => {

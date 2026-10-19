@@ -33,7 +33,7 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 - **The hero exhibit** (`components/site/Exhibit.astro`, landing page):
   - It shows the first finding of the real coffee-roaster run, each number followed by its fact-ID chip.
   - It replays its verification as it comes into view, unless reduced motion is on.
-  - It walks through its key figures by itself (M13k): the change, its SQL input and sheet rows, the driver, the quoted cause (`walkthrough()` in `scripts/landing-data.ts`, chosen by role from the run's data). Scroll drives the steps on desktop (a sticky section); smaller screens advance on a timer while the notes are on screen. Previous, next and replay are always there; reduced motion or no JS shows the steps as a static ruled list.
+  - It walks through its key figures by itself (M13k): the change, its SQL input and sheet rows, the driver, the quoted cause (`walkthrough()` in `scripts/landing-data.ts`, chosen by role from the run's data). Scroll drives the steps from 1100×704 px (a sticky section); smaller screens advance on a timer while the notes are on screen, with Pause, waiting while the reader hovers or focuses inside. Previous, next and replay are always there; reduced motion or no JS shows the steps as a static ruled list.
   - Hovering or focusing a figure opens its margin note: the SQL and parameters (or the function and its inputs), and the cited sheet rows.
   - A chip links to the fact's row in a static fact ledger, so it works without JS.
 - **`<Sidenote>` / `<MarginNote>`** (Learn, MDX): Tufte-style notes in the margin column, tap-to-expand under 1000px.
