@@ -167,7 +167,7 @@ The README table (`statusBlock()`, `## Results`) stays as it is.
 **Change.** `.aa-chip` becomes lighter:
 - `ink-3` text;
 - a `rule` box instead of `rule-strong`;
-- a tighter visual box (padding 0 4px) that does not raise the line height, while the hit area stays at least 24×24px (DESIGN.md §8) through a transparent `::after` hit box (`inset: -4px 0`) instead of `min-height: 1.5rem`;
+- a tighter visual box (padding 0 4px) that does not raise the line height, while the hit area stays at least 24×24px (DESIGN.md §8) through a transparent `::after` hit box (`inset: -4px 0`) instead of `min-height: 1.5rem` (the chip gets `position: relative`; at 13px the content box is about 17px, so the hit box is about 25px, and a browser test measures it at ≥ 24px);
 - the check appears only once verified, as now in the exhibit;
 - hover, focus and open states unchanged.
 
@@ -175,7 +175,7 @@ The size follows D1: the chip sits inside a figure, so under the maintainer's ru
 
 **Files:** `src/styles/components.css` (`.aa-chip`), and the `Exhibit.astro` scoped chip rules.
 
-**DESIGN.md:** §6 "Fact-ID chip" (colour, box, size).
+**DESIGN.md:** §6 "Fact-ID chip" (colour, box, size) and §8 (the chips reach 24×24 through a hit box, not padding).
 
 **Risks:**
 - **Contrast.** `ink-3` on `raised` is above 4.5:1 (5.6:1 on page), so fine.
@@ -259,7 +259,7 @@ Keyboard focus, the focus ring and scrolling are unchanged (`role="region"`, `ta
 - **Bars:** start total → each driver's delta → end total, with 1px `rule-strong` connectors from each bar's end to the next one's start.
 - **Scale:** deltas on a readable scale through an axis break. The two total bars are drawn broken (a ≈ mark on a white gap near their base), with no numeric tick: the break mark shows the axis is truncated, and the only numbers are the two totals and the deltas, each with its fact chip. Bar geometry is layout only, never shown as a number.
 - **Title:** from the decomposition's dimension ("Contribution by channel"), not the hard-coded "by customer".
-- **"Everyone else":** the island computes it today (`after − before − known`), which is arithmetic in the UI. The row is dropped when the decomposition lists a driver for every member (the decomposition's member count equals the driver count, read from the report, with no subtraction); here that is wholesale and retail. When a remainder exists, it is shown only from the engine's own remainder fact, if `contribution.v1` emits one; if not, the plan for that is a follow-up, not a UI subtraction.
+- **"Everyone else":** the island computes it today (`after − before − known`), which is arithmetic in the UI. The row is dropped when the decomposition lists a driver for every member (the decomposition's member count equals the driver count, read from the report, with no subtraction: the driver count against the length of the `delta:total` fact's `computation.inputs`, e.g. N143 = `sum(N142, N141)`, two inputs for two drivers); here that is wholesale and retail. When a remainder exists, it is shown only from the engine's own remainder fact, if `contribution.v1` emits one; if not, the plan for that is a follow-up, not a UI subtraction.
 - **Readability:** text sizes in the figure are ≥ 0.8125rem, and negative deltas are solid ink, positive outlined (DESIGN §3).
 
 **Files:** `src/components/Decomposition.tsx` and `islands.css`, also used on `start/first-report` and `how-it-works/drivers`.
@@ -315,11 +315,13 @@ This is closed by the rebuild: the stage labels are the buttons and Play sits in
 ### Finding 12 (minor): StageFlow step descriptions are at label size. PR 5.
 
 **Change.** Descriptions go from 0.75rem to `--aa-text-note`, and every other StageFlow text under 0.8125rem rises to it, per the figure rule:
-- StageFlow: `learn.css` lines 25 and 32 (column heads, `--aa-text-label`) and 80 (`.aa-flow-note`).
+- StageFlow: `learn.css` lines 25 (the column arrow), 32 (`.aa-flow-head`, the column heads at `--aa-text-label`) and 80 (`.aa-flow-note`).
 
 The same figure rule (D6) also raises the other figures' small text, in this PR:
 - FactLedger SQL and params: `learn.css` lines 159 and 164;
-- LearnMap: `learn.css` line 239 (`.aa-map-io b`);
+- LearnMap: `learn.css` lines 179 (`.aa-map-lane-head`), 224 (`.aa-map-step`) and 239 (`.aa-map-io b`);
+- island labels and figcaptions, which count as inside the frame: `islands.css` lines 15 (`.aa-island-label`) and 201 (`.aa-diagram figcaption`, Mermaid);
+- Transcript: `learn.css` line 104 (`.aa-term-label`);
 - CitationDemo: `islands.css` lines 57 (`.aa-grade`, 0.6875rem) and 72 (`.aa-ev table`);
 - VerifierDiff: `islands.css` line 164 (`.aa-diff .reason`);
 - Transcript and RagStepper, wherever they set text under 0.8125rem (checked by a browser test that reads computed font sizes inside every figure).
@@ -359,7 +361,7 @@ Defaults are marked; if you say nothing, they apply.
 - **D1. The figure size rule vs the brief.**
   - The brief asks for code in notes at 0.75rem and chips at label size. Your rule says nothing inside a figure is smaller than `--aa-text-note`.
   - **Default:** your rule wins. There is one code size, 0.8125rem, site-wide including docs code. Chips are 0.8125rem everywhere, docs prose included, deliberately: one chip size. They are lightened by colour and box; the slight size increase in prose is the cost of one chip size. Mono labels inside figures (the exhibit title, ledger column heads in notes, StageFlow heads) are 0.8125rem too.
-  - Labels outside figures stay at `--aa-text-label` (0.75rem). DESIGN.md §4's "Labels: Plex Mono at 0.6875–0.75rem" line is edited to match.
+  - Labels outside figures stay at `--aa-text-label` (0.75rem). DESIGN.md §4's "Labels: Plex Mono at 0.6875–0.75rem" line and the `--aa-text-label` row's use column ("Labels, ledger column heads": now outside figures only) are edited to match.
 - **D2. The walkthrough at ≥ 1100px: scroll-pinned or in view + click?**
   - **Default:** keep it scroll-pinned, as you asked in #34, but at 40vh per step with the label in the sticky block. That is about 16% less scroll (2,824 → about 2,374px at 900px tall).
   - The brief's alternative (steps advance on a timer once in view, with no pinning) is a smaller change to motion. It would make desktop and mobile one mode.
@@ -376,7 +378,7 @@ Defaults are marked; if you say nothing, they apply.
 
 ## 5. Before screenshots
 
-All are in [`site-v3/before/`](site-v3/before/): JPEG. Viewport and section shots are 1440 or 390 wide (1440×900 or 390×844 viewports; a tall section is taller). The figure shots are cropped to the figure element, so they are narrower. The landing and its walkthrough were captured with motion allowed. The figures are element shots.
+All are in [`site-v3/before/`](site-v3/before/): JPEG. Viewport and section shots are 1440 or 390 wide (1440×900 or 390×844 viewports; a tall section is taller). The figure shots are cropped to the figure element, so they are narrower. The landing and its walkthrough were captured with motion allowed.
 
 - **Landing (`/`):**
   - top (strip, header, hero): `landing-01-top-{1440,390}`;
