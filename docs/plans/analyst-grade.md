@@ -1,6 +1,6 @@
 # Analyst-grade analysis: plan
 
-**Status: DRAFT for the maintainer's review. Nothing in this plan is built yet.** It proposes milestones M14–M20; each starts only after the maintainer approves it.
+**Status: DRAFT for the maintainer's review. Nothing in this plan is built yet.** It proposes milestones M14–M21 (§5); each starts only after the maintainer approves it. Decisions needed from the maintainer are in §6.
 
 ## 0. Goal
 
