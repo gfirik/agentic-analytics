@@ -439,6 +439,11 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
           if (!auto || held || !notesOnScreen || scrolled.matches) return;
           setStep(current + 1);
           if (current < n) tick(DWELL);
+          else {
+            // The end: nothing advances any more, so the button offers Play (which starts again from step 1).
+            auto = false;
+            showPause();
+          }
         }, delay);
       };
       // Scroll mode: one half-screen of track per step after the verification's own half-screen.
@@ -541,7 +546,8 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       pause?.addEventListener("click", () => {
         auto = !auto;
         showPause();
-        if (auto && current < n) tick(DWELL);
+        if (auto && current >= n) setStep(1);
+        if (auto) tick(DWELL);
         else clearTimeout(stepTimer);
       });
       replay?.addEventListener("click", () => {
@@ -628,6 +634,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     color: var(--aa-ink);
     cursor: pointer;
     transition: background-color var(--aa-fast) var(--aa-ease);
+  }
+  /* Wide enough for "Pause" and "Play" alike, so Replay never moves when the label flips. */
+  .aa-walk-pause {
+    min-width: 4.5rem;
   }
   .aa-walk-btn:hover:not([aria-disabled="true"]) {
     background: var(--aa-surface);
