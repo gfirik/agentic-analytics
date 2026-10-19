@@ -106,7 +106,7 @@ The README is the first thing people see on GitHub. It carries five visuals, and
   - no horizontal scroll at 360 px on every page, and at 1024 px on a Learn page (the margin column's narrowest);
   - light only, even under a dark OS with a stored dark theme;
   - the hero replays its verification once within 2.5 s, and not under reduced motion, also on a 667×375 landscape phone;
-  - the walkthrough (M13k): scrolling steps through it on desktop, each step opening its note with the section on screen, plus prev, next and Replay, and a hover mid-walkthrough returning to the step's note; every step's note fits on screen at 1100×704; under 900 px it advances by itself with the notes below, without moving the page, with Pause/Play, a hover hold and manual steps; under reduced motion and without JS it is a static list;
+  - the walkthrough (M13k): scrolling steps through it on desktop, each step opening its note with the section on screen, plus prev, next and Replay, and a hover mid-walkthrough returning to the step's note; every step's note fits on screen at 1100×704; under 900 px it advances by itself with the notes below, without moving the page, with a Pause/Play button, a hover hold and manual steps; under reduced motion and without JS it is a static list;
   - no box moves while the fonts arrive late (390 and 1440 px);
   - a margin note opens on hover and focus, beside its figure, and Escape closes it; under 900 px it opens below the exhibit;
   - without JS the page is complete and chips land on the fact ledger;

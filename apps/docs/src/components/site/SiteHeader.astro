@@ -17,7 +17,9 @@ const links = [
   <script is:inline>
     // Before first paint: with JS the links fold into the menu under 45rem, so the header has its final height from
     // the first frame (the bundled script below runs deferred; collapsing then moved the page, CLS 0.056, M13k).
-    // If the menu script never runs, the links come back rather than a Menu button that does nothing.
+    // If the menu script never runs, the links come back rather than a Menu button that does nothing. A module that
+    // only arrives after 4 s (a very slow network) flips the header back to the menu: two shifts, accepted for a case
+    // that rare (review round 3).
     document.documentElement.classList.add("aa-has-menu");
     setTimeout(() => {
       if (!document.documentElement.dataset.menuReady) document.documentElement.classList.remove("aa-has-menu");

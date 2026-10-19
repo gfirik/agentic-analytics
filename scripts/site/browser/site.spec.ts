@@ -264,12 +264,12 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   // Pause stops the timer (WCAG 2.2.2), Play resumes it; stepping by hand pauses too.
   const pause = page.locator("[data-walk-pause]");
   await pause.click();
-  await expect(pause).toHaveAttribute("aria-pressed", "true");
-  await expect(pause).toHaveText("Pause");
+  // The button names what it will do next, so the paused state is visible: Play while paused.
+  await expect(pause).toHaveText("Play");
   await page.waitForTimeout(5_000);
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
   await pause.click();
-  await expect(pause).toHaveAttribute("aria-pressed", "false");
+  await expect(pause).toHaveText("Pause");
   // Exploring holds the timer: while the pointer is inside the exhibit no step passes; leaving lets it run again.
   await page.locator(".aa-walk-grid").hover();
   await page.waitForTimeout(5_500);
@@ -278,7 +278,7 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible({ timeout: 6_000 });
   await page.locator("[data-walk-prev]").click();
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
-  await expect(pause).toHaveAttribute("aria-pressed", "true");
+  await expect(pause).toHaveText("Play");
   await page.waitForTimeout(5_000);
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
 });
