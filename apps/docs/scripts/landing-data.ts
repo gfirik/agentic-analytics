@@ -306,6 +306,7 @@ export function exhibitData(report: Report, rows: Record<string, ExhibitRows>) {
     throw new LandingDataError(`no SELECT/FROM pair in the first SQL fact's query (${firstSql?.id ?? "none"})`);
   const headline = fact(claims[0]?.facts.find((id) => fact(id).unit === "percent") ?? ids[0] ?? "");
   const period = /(\d{4}-\d{2})/.exec(headline.label)?.[1] ?? "";
+  const walk = walkthrough({ headline: headline.id, metric: headline.metric_id ?? metricOf(headline.label), lines, notes });
   return {
     title: `Report · coffee-roaster · ${monthName(period)}`,
     lines,
@@ -316,8 +317,87 @@ export function exhibitData(report: Report, rows: Record<string, ExhibitRows>) {
       .filter((id, i, a) => a.indexOf(id) === i && id in notes),
     notes,
     compiled: { fact: firstSql?.id ?? "", label: firstSql?.label ?? "", lines: compiled },
+    walk,
   };
 }
+
+/** One step of the hero's guided walkthrough: the figure whose margin note opens, and what the step says. */
+export interface WalkStep {
+  /** The fact or source id whose chip is highlighted and whose note opens. */
+  readonly id: string;
+  /** What the step points at, e.g. "Revenue fell" + the figure's stored value. */
+  readonly title: string;
+  /** Facts whose stored values follow the title, in order (never typed); a figure with a note reads "(value note)". */
+  readonly figures: readonly { readonly id: string; readonly note?: string }[];
+  /** Where the note takes the reader, e.g. "how it was computed". */
+  readonly how: string;
+}
+
+const metricOf = (label: string) => /(?:^|\s)([a-z_]+)(?:_\d{4}-\d{2}|\s\d{4}-\d{2})/.exec(label)?.[1] ?? "metric";
+const titleCase = (id: string) => id.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+/**
+ * The hero's guided walkthrough (DESIGN.md §6): the exhibit's story in four figures, each opening its margin note.
+ *   1. the headline change → how it was computed (the function and its input facts);
+ *   2. the headline's current-period SQL input → the SQL and the sheet rows it read;
+ *   3. the driver's share of the change → the split by dimension, in code;
+ *   4. the cited document → the quote, checked against the file.
+ * Every step is chosen from the run's data by its role, never by a typed id; a missing role drops its step.
+ */
+export function walkthrough(x: {
+  headline: string;
+  metric: string;
+  lines: readonly ExhibitPart[][];
+  notes: Record<string, ExhibitNote>;
+}): WalkStep[] {
+  const { notes } = x;
+  const head = notes[x.headline];
+  if (!head) throw new LandingDataError(`the headline fact ${x.headline} has no note`);
+  const steps: WalkStep[] = [];
+  const falling = head.value.startsWith("−") || head.value.startsWith("-");
+  steps.push({
+    id: head.id,
+    title: `${titleCase(x.metric)} ${falling ? "fell" : "rose"}`,
+    figures: [{ id: head.id }],
+    how: "how it was computed",
+  });
+  // The current period's SQL input of the headline (the newest period among its SQL inputs that cite sheet rows).
+  const sqlInput = (head.inputs ?? [])
+    .map((i) => notes[i.id])
+    .filter((n): n is ExhibitNote => n?.kind === "sql" && n.rows !== undefined)
+    .sort((a, b) => (periodOf(b.label) ?? "").localeCompare(periodOf(a.label) ?? ""))[0];
+  if (sqlInput)
+    steps.push({
+      id: sqlInput.id,
+      title: `${monthName(periodOf(sqlInput.label) ?? "")} ${x.metric.replace(/_/g, " ")},`,
+      figures: [{ id: sqlInput.id }],
+      how: "the SQL and the sheet rows it read",
+    });
+  // The driver: the line's first contribution delta, with its share of the change when the line has one.
+  const shown = x.lines.flat().flatMap((p) => ("fact" in p ? [p.fact] : []));
+  const delta = shown.map((id) => notes[id]).find((n) => n?.fn === "delta" && /contribution\.v1 .* by (\w+):delta:/.test(n.label));
+  if (delta) {
+    const m = /by (\w+):delta:(.+)$/.exec(delta.label);
+    const share = shown.map((id) => notes[id]).find((n) => n?.fn === "contribution.v1" && n.inputs?.some((i) => i.id === delta.id));
+    steps.push({
+      id: delta.id,
+      title: `${titleCase(m?.[2] ?? "the driver")}:`,
+      figures: share ? [{ id: delta.id }, { id: share.id, note: "of the change" }] : [{ id: delta.id }],
+      how: `the change split by ${m?.[1] ?? "dimension"}`,
+    });
+  }
+  const source = Object.values(notes).find((n) => n.kind === "source");
+  if (source)
+    steps.push({
+      id: source.id,
+      title: "The cause",
+      figures: [],
+      how: `quoted from ${source.value}${source.verified ? ", checked against the file" : ""}`,
+    });
+  return steps;
+}
+
+const periodOf = (label: string) => /(\d{4}-\d{2})/.exec(label)?.[1];
 
 export type ExhibitData = ReturnType<typeof exhibitData>;
 

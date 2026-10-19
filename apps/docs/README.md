@@ -35,7 +35,8 @@ Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the READM
 - `RagStepper`: BM25 → vectors → RRF → rerank → extract.
 - `VerifierDiff`: the draft against the verified report.
 - `Mermaid`: the shared diagrams, in the site's colours and type.
-- `Exhibit.astro` (landing page): the report page, its verification replay and margin notes. Without JS the chips link into the static fact ledger.
+- `Exhibit.astro` (landing page): the report page, its verification as it comes into view, and its guided walkthrough (M13k): the steps from `walkthrough()` in `scripts/landing-data.ts`, each opening a margin note under a step bar (← → Pause/Play, Replay). Scroll drives the steps from 1100×704 px (a sticky section), a timer drives them on smaller screens, and reduced motion or no JS shows them as a static ruled list. Hover and focus open any figure's note. Without JS the chips link into the static fact ledger.
+- `ExhibitNote.astro`: a margin note's body (the fact's value, its SQL or function, the cited sheet rows, or a document's quote), shared by the margin column and the static list.
 - `Sidenote.astro` / `MarginNote.astro` (Learn): notes in the margin column, inline under 1000px.
 - `learn/StageFlow` (Learn): one stage as in → stage → out with the run's real numbers, stepped through; `learn/Transcript`, `learn/Fact`, `learn/FactLedger`, `learn/Claim` and `learn/LearnMap` are static Astro components.
 

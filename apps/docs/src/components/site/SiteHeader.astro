@@ -14,6 +14,17 @@ const links = [
 ---
 
 <header class="aa-header">
+  <script is:inline>
+    // Before first paint: with JS the links fold into the menu under 45rem, so the header has its final height from
+    // the first frame (the bundled script below runs deferred; collapsing then moved the page, CLS 0.056, M13k).
+    // If the menu script never runs, the links come back rather than a Menu button that does nothing. A module that
+    // only arrives after 4 s (a very slow network) flips the header back to the menu: two shifts, accepted for a case
+    // that rare (review round 3).
+    document.documentElement.classList.add("aa-has-menu");
+    setTimeout(() => {
+      if (!document.documentElement.dataset.menuReady) document.documentElement.classList.remove("aa-has-menu");
+    }, 4000);
+  </script>
   <div class="aa-header-inner">
     <Logo />
     <button type="button" class="aa-menu-button" aria-expanded="false" aria-controls="aa-site-menu" data-aa-menu hidden>
@@ -42,6 +53,7 @@ const links = [
   if (button && menu) {
     button.hidden = false;
     document.documentElement.classList.add("aa-has-menu");
+    document.documentElement.dataset.menuReady = "1";
     const set = (open: boolean) => {
       button.setAttribute("aria-expanded", String(open));
       menu.dataset.open = String(open);
