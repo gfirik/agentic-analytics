@@ -186,22 +186,32 @@ describe("status strip", () => {
     changelog: "# Changelog\n\n## v0.1.0 (unreleased)\n\ntext",
     testFiles: 94,
     real: { datasets: [{ checks: [{ pass: true }, { pass: true }] }, { checks: [{ pass: true }, { pass: false }] }] },
-    full: { completed: 8, datasets: 30 },
+    smoke: { completed: 3, datasets: 3, mismatches: 0 },
+    full: { datasets: 30 },
   };
+  const text = (s: Parameters<typeof statusStrip>[0]) => statusStrip(s).map((i) => i.text);
 
-  it("reads every item from its source and labels a partial run", () => {
-    expect(statusStrip(base)).toEqual([
+  it("leads with what is proven and links the generated-business suite as the nightly regression check", () => {
+    expect(text(base)).toEqual([
       "v0.1.0 pre-release",
+      "real public data: 3/4 checks",
+      "real-model smoke: 3/3 jobs, 0 wrong numbers",
       "94 test files",
-      "3/4 real-data checks",
-      "full real-model eval: 8/30 (partial, in progress)",
+      "verifier on every report",
+      "nightly regression: 30 generated businesses",
     ]);
-    expect(statusStrip({ ...base, changelog: "## v0.1.0\n", full: { completed: 30, datasets: 30 } })).toEqual([
+    expect(statusStrip(base).at(-1)?.href).toBe("#results");
+    expect(statusStrip(base).filter((i) => i.href)).toHaveLength(1);
+    expect(text({ ...base, changelog: "## v0.1.0\n", smoke: { completed: 2, datasets: 3, mismatches: 1 } }).slice(0, 3)).toEqual([
       "v0.1.0 release",
-      "94 test files",
-      "3/4 real-data checks",
-      "full real-model eval: 30/30",
+      "real public data: 3/4 checks",
+      "real-model smoke: 2/3 jobs, 1 wrong number",
     ]);
+    expect(text({ ...base, smoke: { completed: 0, datasets: 3, mismatches: null } })[2]).toBe("real-model smoke: 0/3 jobs");
+  });
+
+  it("never headlines the regression suite's partial pass", () => {
+    expect(text(base).join(" · ")).not.toMatch(/in progress|partial|\/30/);
   });
 
   it("globToRegExp matches vitest's include globs", () => {

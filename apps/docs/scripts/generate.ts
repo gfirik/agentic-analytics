@@ -219,6 +219,7 @@ for (const d of ["architecture", "pipeline"])
   };
   const real = latest("-baseline-real.json");
   const r = real.data as RealSuiteResult;
+  const smoke = suite("-configured-small-smoke.json");
   const full = suite("-configured-small-full.json");
   // The status strip (landing page, DESIGN.md §4): every item generated. Tests are counted as the test files vitest's
   // own include globs select (an exact count of test cases needs a vitest run, too heavy for every generate).
@@ -233,6 +234,11 @@ for (const d of ["architecture", "pipeline"])
     changelog: readFileSync(join(ROOT, "CHANGELOG.md"), "utf8"),
     testFiles,
     real: r,
+    smoke: {
+      completed: smoke.completed,
+      datasets: smoke.datasets,
+      mismatches: smoke.bars.find((b) => b.metric === "Number mismatches")?.value ?? null,
+    },
     full,
   });
   writeFileSync(
@@ -240,7 +246,7 @@ for (const d of ["architecture", "pipeline"])
     JSON.stringify({
       strip,
       synthetic: suite("-baseline-full.json"),
-      smoke: suite("-configured-small-smoke.json"),
+      smoke,
       full,
       real: {
         file: `evals/results/${real.name}`,

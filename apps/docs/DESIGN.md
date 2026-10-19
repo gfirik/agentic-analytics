@@ -123,7 +123,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
   This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain.
 - **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero and the section heads only. It fades to the plain page at the edges through a CSS mask (no image) and is never behind long text.
-- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee: the release, the test files, the real-data checks and the full real-model eval, partial runs labelled. Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
+- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
   1. Status strip, header, hero exhibit (above the fold on 1440×900).
   2. `§1 HOW IT WORKS`: the pipeline scene, full container width, inside the frame, no extra box, one sentence above it.

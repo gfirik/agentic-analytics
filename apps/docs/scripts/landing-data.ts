@@ -329,20 +329,36 @@ export interface StatusInputs {
   /** The test files vitest runs (its include globs). */
   readonly testFiles: number;
   readonly real: { readonly datasets: readonly { readonly checks: readonly { readonly pass: boolean }[] }[] };
-  readonly full: { readonly completed: number; readonly datasets: number };
+  /** The latest real-model smoke run: jobs finished, and numbers the verifier found wrong. */
+  readonly smoke: { readonly completed: number; readonly datasets: number; readonly mismatches: number | null };
+  /** The latest pass of the generated-business suite: the nightly regression check, linked, not headlined. */
+  readonly full: { readonly datasets: number };
 }
 
-/** The strip's items, each from generated data: the release heading, the test files, the real-data checks, the full eval. */
-export function statusStrip(s: StatusInputs): string[] {
+export interface StripItem {
+  readonly text: string;
+  readonly href?: string;
+  /** Said after the text to screen readers: where a link leads. */
+  readonly more?: string;
+}
+
+/**
+ * The strip's items, proven results first: the release, the real public data, the real-model smoke run, the test
+ * files, the verifier, then the generated-business suite as the nightly regression check (its numbers are a link to
+ * §3, never the headline: a partial pass reads as failure next to results that are proven).
+ */
+export function statusStrip(s: StatusInputs): StripItem[] {
   const m = /^##\s+(v\d+\.\d+\.\d+)\s*(\(unreleased\))?/m.exec(s.changelog);
   if (!m) throw new LandingDataError("CHANGELOG.md has no release heading");
   const checks = s.real.datasets.flatMap((d) => d.checks);
   const passed = checks.filter((c) => c.pass).length;
-  const partial = s.full.completed < s.full.datasets;
+  const wrong = s.smoke.mismatches === null ? "" : `, ${s.smoke.mismatches} wrong number${s.smoke.mismatches === 1 ? "" : "s"}`;
   return [
-    `${m[1]} ${m[2] ? "pre-release" : "release"}`,
-    `${s.testFiles} test files`,
-    `${passed}/${checks.length} real-data checks`,
-    `full real-model eval: ${s.full.completed}/${s.full.datasets}${partial ? " (partial, in progress)" : ""}`,
+    { text: `${m[1]} ${m[2] ? "pre-release" : "release"}` },
+    { text: `real public data: ${passed}/${checks.length} checks` },
+    { text: `real-model smoke: ${s.smoke.completed}/${s.smoke.datasets} jobs${wrong}` },
+    { text: `${s.testFiles} test files` },
+    { text: "verifier on every report" },
+    { text: `nightly regression: ${s.full.datasets} generated businesses`, href: "#results", more: "latest results in section 3" },
   ];
 }

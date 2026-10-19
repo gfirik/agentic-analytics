@@ -222,11 +222,13 @@ test("without JS the landing page is complete and chips link into the fact ledge
   await ctx.close();
 });
 
-test("the status strip shows the generated release, tests, real-data checks and full eval", async ({ page }) => {
+test("the status strip leads with proven results and links the nightly regression suite to §3", async ({ page }) => {
   await page.goto(LANDING);
   await expect(page.locator(".aa-strip")).toContainText(
-    /v\d+\.\d+\.\d+ (pre-)?release\s*·\s*\d+ test files\s*·\s*\d+\/\d+ real-data checks\s*·\s*full real-model eval: \d+\/\d+/,
+    /v\d+\.\d+\.\d+ (pre-)?release\s*·\s*real public data: \d+\/\d+ checks\s*·\s*real-model smoke: \d+\/\d+ jobs[^·]*·\s*\d+ test files\s*·\s*verifier on every report\s*·\s*nightly regression: \d+ generated businesses/,
   );
+  await expect(page.locator(".aa-strip")).not.toContainText(/in progress|partial/);
+  await expect(page.locator(".aa-strip a")).toHaveAttribute("href", "#results");
 });
 
 test("Learn: sidenotes sit in the margin beside their line at 1440 px, and expand inline on tap under 1000 px", async ({ page }) => {
