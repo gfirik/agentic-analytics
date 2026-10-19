@@ -398,10 +398,8 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       };
       // Prev and next stay focusable at the ends (aria-disabled), so a keyboard reader never loses focus.
       const able = (b: HTMLButtonElement | null, on: boolean) => b?.setAttribute("aria-disabled", String(!on));
-      const showPause = () => {
-        pause?.setAttribute("aria-pressed", String(!auto));
-        if (pause) pause.textContent = auto ? "Pause" : "Play";
-      };
+      // A toggle button keeps its label; aria-pressed says whether the walkthrough is paused.
+      const showPause = () => pause?.setAttribute("aria-pressed", String(!auto));
       const setStep = (k: number) => {
         current = Math.max(0, Math.min(n, k));
         caps.forEach((c, i) => {
@@ -455,11 +453,15 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         const top = window.scrollY + wrap.getBoundingClientRect().top - stickTop() + k * seg() + 2;
         if (quiet) {
           // Replay: the steps it scrolls back through aren't flashed; scrolling is followed again once it settles.
+          // Followed again when the scroll ends (scrollend), or after 1.5 s where that event isn't supported.
           clearTimeout(jumping);
-          jumping = window.setTimeout(() => {
+          const settleScroll = () => {
+            clearTimeout(jumping);
             jumping = 0;
             fromScroll();
-          }, 900);
+          };
+          jumping = window.setTimeout(settleScroll, 1500);
+          window.addEventListener("scrollend", settleScroll, { once: true });
         }
         window.scrollTo({ top, behavior: "smooth" });
       };

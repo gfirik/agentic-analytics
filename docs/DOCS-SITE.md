@@ -105,7 +105,9 @@ The README is the first thing people see on GitHub. It carries five visuals, and
   - axe WCAG 2 A/AA with no violations on every page in the sitemap and on the 404 (light only since M13i);
   - no horizontal scroll at 360 px on every page, and at 1024 px on a Learn page (the margin column's narrowest);
   - light only, even under a dark OS with a stored dark theme;
-  - the hero replays its verification once within 2.5 s, and not under reduced motion;
+  - the hero replays its verification once within 2.5 s, and not under reduced motion, also on a 667×375 landscape phone;
+  - the walkthrough (M13k): scrolling steps through it on desktop, each step opening its note with the section on screen, plus prev, next and Replay, and a hover mid-walkthrough returning to the step's note; every step's note fits on screen at 1100×704; under 900 px it advances by itself with the notes below, without moving the page, with Pause/Play, a hover hold and manual steps; under reduced motion and without JS it is a static list;
+  - no box moves while the fonts arrive late (390 and 1440 px);
   - a margin note opens on hover and focus, beside its figure, and Escape closes it; under 900 px it opens below the exhibit;
   - without JS the page is complete and chips land on the fact ledger;
   - the status strip carries its generated items;
@@ -113,7 +115,7 @@ The README is the first thing people see on GitHub. It carries five visuals, and
   - the pipeline scene is still until Play; the mobile menu sets aria-expanded and Escape closes it;
   - the favicons, OG image and sitemaps are served, with an absolute og:image;
   - on every Learn page each fact chip lands on a row of that page's ledger, and a stage diagram is complete without JS and marks a step's outputs.
-- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` writes `docs/assets/site/`. It shoots the landing page, a Learn stage guide and a docs page at 1440 and 390. With `--record` it writes `hero.gif`, recorded as WebM and encoded with ffmpeg: the hero's verification replay, then margin notes opening.
+- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` writes `docs/assets/site/`. It shoots the landing page, a Learn stage guide and a docs page at 1440 and 390. It also shoots the live walkthrough at each step (`hero-step-<k>-desktop.png` scrolled, `hero-step-<k>-mobile.png` stepped). With `--record` it writes `hero.gif`, recorded as WebM and encoded with ffmpeg: the verification as the exhibit comes into view, the walkthrough scrolled step by step, a hover, then Replay.
 
 ## 5. Rules
 

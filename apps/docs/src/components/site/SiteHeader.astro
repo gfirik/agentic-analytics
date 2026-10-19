@@ -17,7 +17,11 @@ const links = [
   <script is:inline>
     // Before first paint: with JS the links fold into the menu under 45rem, so the header has its final height from
     // the first frame (the bundled script below runs deferred; collapsing then moved the page, CLS 0.056, M13k).
+    // If the menu script never runs, the links come back rather than a Menu button that does nothing.
     document.documentElement.classList.add("aa-has-menu");
+    setTimeout(() => {
+      if (!document.documentElement.dataset.menuReady) document.documentElement.classList.remove("aa-has-menu");
+    }, 4000);
   </script>
   <div class="aa-header-inner">
     <Logo />
@@ -47,6 +51,7 @@ const links = [
   if (button && menu) {
     button.hidden = false;
     document.documentElement.classList.add("aa-has-menu");
+    document.documentElement.dataset.menuReady = "1";
     const set = (open: boolean) => {
       button.setAttribute("aria-expanded", String(open));
       menu.dataset.open = String(open);

@@ -265,9 +265,16 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   const pause = page.locator("[data-walk-pause]");
   await pause.click();
   await expect(pause).toHaveAttribute("aria-pressed", "true");
+  await expect(pause).toHaveText("Pause");
   await page.waitForTimeout(5_000);
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
   await pause.click();
+  await expect(pause).toHaveAttribute("aria-pressed", "false");
+  // Exploring holds the timer: while the pointer is inside the exhibit no step passes; leaving lets it run again.
+  await page.locator(".aa-walk-grid").hover();
+  await page.waitForTimeout(5_500);
+  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
+  await page.mouse.move(195, 5);
   await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible({ timeout: 6_000 });
   await page.locator("[data-walk-prev]").click();
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
