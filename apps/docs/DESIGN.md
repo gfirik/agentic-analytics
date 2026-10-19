@@ -6,7 +6,7 @@ This is the design system for the product site in `apps/docs`: the landing page,
 
 The site is an **audited working paper**:
 
-- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself when you touch it.
+- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself as you scroll, and again when you touch it.
 - **The docs are the bound appendix.** They are long-form, quiet and built for reading, with evidence in the margin.
 
 The product's promise is that every number can be traced, so the site shows numbers the same way the report does. Each one sits next to the ID of the fact it came from, and a mark shows that it was recomputed.
@@ -29,7 +29,7 @@ The product's promise is that every number can be traced, so the site shows numb
    - passed eval checks;
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
-5. **One moment of motion.** The hero exhibit's verification replay is the only animation on the landing page. Everything else is still, apart from 150ms hover and focus changes (§7).
+5. **One moment of motion.** The hero exhibit's verification replay and its guided walkthrough are the only motion on the landing page. Everything else is still, apart from 150ms hover and focus changes (§7).
 6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji.
 7. **Every number is real.**
    - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
@@ -125,7 +125,9 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero and the section heads only. It fades to the plain page at the edges through a CSS mask (no image) and is never behind long text.
 - **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
-  1. Status strip, header, hero exhibit (above the fold on 1440×900).
+  1. Status strip, header, then the hero, in hex.tech's structure rather than two columns:
+     - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
+     - below it, **the exhibit as its own framed section**, full container width, its top visible above the fold on 1440×900.
   2. `§1 HOW IT WORKS`: the pipeline scene, full container width, inside the frame, no extra box, one sentence above it.
   3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, the metric's definition with the 2-line SQL it compiles to, a citation.
   4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, with the model rows and the real-data checks. Partial runs are labelled partial, and there is a link to RESULTS.md.
@@ -165,16 +167,23 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - **What it is.** A `raised` panel with a hairline, styled like a report page and titled in mono (`REPORT · COFFEE-ROASTER · APRIL`).
     - It shows the recorded run's first finding (`src/data/exhibit.json`): its two headline claims, the document-supported cause with its source chip, and the top recommendation with its impact range.
     - This is the report's own text, with every figure a fact's stored value.
-  - **The verification replay.** Once per load, and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
+  - **The verification replay.** As the exhibit comes into view, and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
+  - **The guided walkthrough.** The exhibit demonstrates itself, with no hover needed. After the verification it steps through the story's key figures, opening each one's margin note under a step indicator (`1/4 Revenue fell −17.9% → how it was computed`), with a progress rule and previous, next and replay buttons.
+    - The steps are chosen from the run's data by role (`walkthrough()` in `scripts/landing-data.ts`), never by typed id: the headline change and how it was computed; its current-period SQL input with the SQL and the sheet rows it read; the driver's share of the change; the quoted document.
+    - From 900px wide and 640px tall, scroll drives the steps: the exhibit section is sticky while a track of half a screen per step (plus one for the verification) scrolls past. Previous and next scroll to their step.
+    - On smaller screens the same steps advance every few seconds while the exhibit is on screen, the notes below the figure; stepping by hand stops the timer. The notes share one grid cell as tall as the tallest, so stepping never moves the page.
+    - The step's figure takes the `mark` wash in the text, and its chip shows open.
+    - Under reduced motion, or without JS, the steps are a static ruled list under the exhibit, each with its note; no sticky track, no step bar.
+    - The walkthrough is switched on before first paint (`data-walk="live"`), so the track and the list never shift the layout.
   - **Margin notes.** Hovering or focusing a figure slides a Tufte-style margin note out to the right of the exhibit, joined to the figure by a hairline leader. From 900px it sits beside the exhibit; under 900px it sits below. The note shows:
     - the fact's ID and label, its value and its recomputed mark;
     - the SQL that computed it, laid out one clause per line and tinted in ink shades only, with its parameters; or, for a function fact, the function and its input facts as a ruled table;
     - the cited sheet rows: the first cited row and its neighbours, read back from the run's DuckDB, with the cited rows in the `mark` wash;
     - for a document, the exact quote and where it is.
 
-    Esc or blur closes it, and a click pins it (for touch). The empty margin column carries a small mono hint.
+    Esc or blur closes it, and a click pins it (for touch); letting go returns to the walkthrough's current note. The empty margin column carries a small mono hint.
   - **The fact ledger.** It holds every fact behind the exhibit and is collapsed under the hero until one of its rows is the link target (`:has(:target)`). The chips link to it without JS.
-  - **Caption.** A small mono caption: "Recorded from a real engine run. Hover any number to see how it was computed."
+  - **Caption.** A small mono caption: "Recorded from a real engine run. Any number opens how it was computed."
 - **Sidenote** (`components/learn/Sidenote.astro`, MDX):
   - It shows as a numbered superscript in the text (numbered per page, in reading order).
   - The note sits in the margin column beside its line, in Plex Sans 0.8125rem `ink-2`.
@@ -212,11 +221,11 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ## 7. Motion
 
-- **Landing:** the hero verification replay only, plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
+- **Landing:** the hero verification replay and its walkthrough only (scroll-linked on desktop, timed on small screens), plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
 - **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
 - **The pipeline scene** never plays by itself: Play loops it while it is on screen. Without JS the same still frame is in the HTML.
 - **No other motion:** no entrance animations, no parallax, no looping decoration.
-- **Reduced motion** turns off the replay, smooth scrolling and every transition. Everything renders its final state without JS.
+- **Reduced motion** turns off the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
 
 ## 8. Accessibility
 

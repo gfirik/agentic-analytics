@@ -48,6 +48,43 @@ describe("hero exhibit (from the recorded run)", () => {
     expect(typed).not.toMatch(/\d/);
   }, 120_000);
 
+  it("walks through the story's key figures by role: the change, its SQL and rows, the driver, the cause", async () => {
+    const { report, exhibit } = await recorded();
+    const facts = new Map(report.facts.map((f) => [f.id, f]));
+    const walk = exhibit.walk;
+    expect(walk.length).toBeGreaterThanOrEqual(3);
+    expect(walk.length).toBeLessThanOrEqual(4);
+    // Every step opens a note of a chip the exhibit shows.
+    for (const s of walk) {
+      expect(exhibit.order, s.id).toContain(s.id);
+      expect(exhibit.notes[s.id], s.id).toBeDefined();
+      for (const f of s.figures) expect(exhibit.notes[f.id], f.id).toBeDefined();
+    }
+    const [change, input, driver, cause] = walk;
+    // 1. The headline percent change, said with its direction.
+    const head = facts.get(change?.id ?? "");
+    expect(head?.unit).toBe("percent");
+    expect(change?.title).toBe(head && head.value < 0 ? "Revenue fell" : "Revenue rose");
+    expect(change?.how).toBe("how it was computed");
+    // 2. One of the headline's inputs, an SQL fact with cited rows: the newest period.
+    expect(head?.computation.inputs).toContain(input?.id);
+    expect(exhibit.notes[input?.id ?? ""]?.kind).toBe("sql");
+    expect(exhibit.notes[input?.id ?? ""]?.rows?.rows.some((r) => r.cited)).toBe(true);
+    const inputPeriods = (head?.computation.inputs ?? []).map((i) => /(\d{4}-\d{2})/.exec(facts.get(i)?.label ?? "")?.[1] ?? "");
+    const period = /(\d{4}-\d{2})/.exec(facts.get(input?.id ?? "")?.label ?? "")?.[1] ?? "";
+    expect(period).toBe([...inputPeriods].sort().at(-1));
+    expect(input?.title).toBe(`${monthName(period)} revenue,`);
+    // 3. The driver's contribution, with its share of the change.
+    expect(facts.get(driver?.id ?? "")?.computation.fn).toBe("delta");
+    expect(driver?.figures.map((f) => facts.get(f.id)?.computation.fn)).toEqual(["delta", "contribution.v1"]);
+    expect(driver?.how).toMatch(/^the change split by \w+$/);
+    // 4. The quoted document.
+    expect(exhibit.notes[cause?.id ?? ""]?.kind).toBe("source");
+    expect(cause?.how).toContain(exhibit.notes[cause?.id ?? ""]?.value ?? "?");
+    // No typed figures: the step texts carry no digits except the source file's name; values come from the notes.
+    for (const s of walk) expect(`${s.title} ${s.how.replace(exhibit.notes[s.id]?.value ?? "", "")}`).not.toMatch(/\d/);
+  }, 120_000);
+
   it("verifies one figure at a time, at most 10 (≤ 2.5 s at 250 ms each), in reading order", async () => {
     const { exhibit } = await recorded();
     const chips = exhibit.lines.flat().flatMap((p) => ("fact" in p ? [p.fact] : "source" in p ? [p.source] : []));

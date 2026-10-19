@@ -1,35 +1,38 @@
 ---
-// The hero exhibit (DESIGN.md §5): a real report page from the recorded run (src/data/exhibit.json, written by
-// scripts/generate.ts from the same run as the pipeline scene), rendered by the server in its final, verified state.
-// With JS it does two things, and nothing else:
-//   1. Once per load, and only without prefers-reduced-motion, it replays the verification: each figure's chip box
-//      draws in, then its check appears, top to bottom (~250 ms per figure, ≤ 2.5 s in all).
-//   2. Hovering or focusing a figure's chip slides its margin note out beside the exhibit (below it under 900px), on a
-//      hairline leader: the fact's label and value, its SQL (or function and inputs), and the sheet rows it cites.
-//      Esc or blur closes it; a click pins it (for touch).
-// Without JS every chip is a link to its row in the fact ledger at the end of the hero.
+// The hero exhibit (DESIGN.md §5–§6): a real report page from the recorded run (src/data/exhibit.json, written by
+// scripts/generate.ts from the same run as the pipeline scene), rendered by the server in its final, verified state,
+// full container width in its own framed section. It demonstrates itself, with no hover needed:
+//   1. As it comes into view (only without prefers-reduced-motion) the figures verify one by one: each chip's box
+//      draws in, then its check appears (~250 ms per figure, ≤ 2.5 s in all).
+//   2. A guided walkthrough then steps through the story's key figures (walkthrough() in scripts/landing-data.ts),
+//      opening each figure's margin note (its SQL or function, the sheet rows it read, or the quoted source) under a
+//      step indicator. From 900px wide and 640px tall, scroll drives the steps: the section is sticky while a track
+//      of one half-screen per step scrolls past. Smaller screens advance every few seconds while the exhibit is in
+//      view, the notes below the figure. Previous, next and replay are always there.
+//   3. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
+// With reduced motion or without JS the steps are a static ruled list under the exhibit, and every chip is a link to
+// its row in the fact ledger.
 import exhibit from "../../data/exhibit.json";
 import landing from "../../data/landing.json";
 import { formatWithCurrency } from "../format.ts";
-import { type SqlToken, sqlTokens } from "./exhibit.ts";
+import ExhibitNote, { type Note } from "./ExhibitNote.astro";
 
 type Part = { text?: string; fact?: string; source?: string };
-interface Note {
+interface Step {
   id: string;
-  kind: "sql" | "function" | "source";
-  label: string;
-  value: string;
-  verified: boolean;
-  sql?: string[];
-  params?: [string, string][];
-  fn?: string;
-  inputs?: { id: string; label: string; value: string }[];
-  rows?: { file: string; columns: string[]; rows: { row: number; cells: string[]; cited: boolean }[]; count: number };
-  quote?: string;
-  section?: string;
+  title: string;
+  figures: { id: string; note?: string }[];
+  how: string;
 }
-const data = exhibit as unknown as { title: string; lines: Part[][]; order: string[]; notes: Record<string, Note> };
+const data = exhibit as unknown as {
+  title: string;
+  lines: Part[][];
+  order: string[];
+  notes: Record<string, Note>;
+  walk: Step[];
+};
 const notes = data.notes;
+const steps = data.walk;
 const v = landing.verification;
 const ledger = Object.values(
   landing.facts as Record<
@@ -45,186 +48,142 @@ const ledger = Object.values(
     }
   >,
 ).sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
-const tint = (t: SqlToken) => (t.kind === "plain" ? t.text : `<span class="t-${t.kind}">${escapeHtml(t.text)}</span>`);
-function escapeHtml(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-const sqlHtml = (lines: string[]) =>
-  lines
-    .map((l) =>
-      sqlTokens(l)
-        .map((t) => (t.kind === "plain" ? escapeHtml(t.text) : tint(t)))
-        .join(""),
-    )
-    .join("\n");
 const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+const figure = (f: { id: string; note?: string }, i: number) => {
+  const value = notes[f.id]?.value ?? f.id;
+  return f.note ? ` (${value} ${f.note})` : `${i === 0 ? " " : ", "}${value}`;
+};
+const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
 ---
 
-<div class="aa-exhibit-wrap" data-exhibit>
-  <figure class="aa-exhibit" aria-labelledby="aa-exhibit-title">
-    <div class="aa-exhibit-page">
-      <p id="aa-exhibit-title" class="aa-exhibit-title">{data.title}</p>
-      {
-        data.lines.map((line) => (
-          <p class="aa-exhibit-line">
-            {line.map((p) =>
-              p.fact ? (
-                <span class="aa-num"><span class="aa-fig">{notes[p.fact]?.value ?? p.fact}</span><a
-                    class="aa-chip"
-                    href={`#fact-${p.fact}`}
-                    data-note={p.fact}
-                    aria-describedby={`aa-note-${p.fact}-sum`}
-                    aria-label={`${p.fact}${notes[p.fact]?.verified ? ", verified" : ""}: how this number was computed`}
-                  >{notes[p.fact]?.verified ? <Fragment set:html={check} /> : null}{p.fact}</a></span>
-              ) : p.source ? (
-                <>
-                  {" "}
-                  <a
-                    class="aa-chip"
-                    href={`#source-${p.source}`}
-                    data-note={p.source}
-                    aria-describedby={`aa-note-${p.source}-sum`}
-                    aria-label={`${p.source}${notes[p.source]?.verified ? ", verified" : ""}: the cited source`}
-                  >
-                    {notes[p.source]?.verified ? <Fragment set:html={check} /> : null}
-                    {p.source}
-                  </a>
-                </>
-              ) : (
-                p.text
-              ),
-            )}
-          </p>
-        ))
-      }
-      <p class="aa-exhibit-foot">
-        <Fragment set:html={check} /><span class="aa-sr">verified:</span>
-        {v.numbers_checked} numbers recomputed, {v.numbers_mismatched} mismatched · {v.citations_checked} citations checked
-      </p>
-    </div>
-    <figcaption class="aa-exhibit-caption">
-      Recorded from a real engine run. Hover any number to see how it was computed. <a href="#ledger">Fact ledger</a>
-    </figcaption>
-  </figure>
+<div class="aa-walk" data-exhibit data-steps={JSON.stringify(steps.map((s) => s.id))} style={`--aa-steps: ${steps.length}`}>
   <script is:inline>
-    // Before first paint: hold the figures unverified for the replay, only when motion is welcome. A safety net
-    // shows the final state if the replay script never runs.
+    // Before first paint: when motion is welcome, hold the figures unverified for the replay and switch the
+    // walkthrough on (its sticky track and step bar), so nothing shifts once the script runs. A safety net shows the
+    // final state if the walkthrough script never runs.
     (() => {
       const el = document.currentScript?.parentElement;
       if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       el.dataset.anim = "pending";
+      el.dataset.walk = "live";
       setTimeout(() => {
-        if (el.dataset.anim === "pending") el.dataset.anim = "done";
+        if (!el.dataset.ready) {
+          el.dataset.anim = "done";
+          delete el.dataset.walk;
+        }
       }, 4000);
     })();
   </script>
+  <div class="aa-walk-stick">
+    <div class="aa-walk-bar">
+      <p class="aa-walk-status" aria-live="polite">
+        <span class="aa-walk-cap" data-step="0">
+          <span class="aa-walk-n">{data.order.length} figures</span> each recomputed by the verifier · {steps.length} of them, step by step
+        </span>
+        {
+          steps.map((s, i) => (
+            <span class="aa-walk-cap" data-step={i + 1} hidden>
+              <span class="aa-walk-n">
+                {i + 1}/{steps.length}
+              </span>{" "}
+              {caption(s)} <span aria-hidden="true">→</span> <span class="aa-walk-how">{s.how}</span>
+            </span>
+          ))
+        }
+      </p>
+      <div class="aa-walk-controls" role="group" aria-label="Walkthrough">
+        <span class="aa-walk-dots" aria-hidden="true">
+          {steps.map((_, i) => <span class="aa-walk-dot" data-dot={i + 1} />)}
+        </span>
+        <button type="button" class="aa-walk-btn" data-walk-prev aria-label="Previous step">←</button>
+        <button type="button" class="aa-walk-btn" data-walk-next aria-label="Next step">→</button>
+        <button type="button" class="aa-walk-btn aa-walk-replay" data-walk-replay>Replay</button>
+      </div>
+    </div>
+    <div class="aa-walk-grid">
+      <figure class="aa-exhibit" aria-labelledby="aa-exhibit-title">
+        <div class="aa-exhibit-page">
+          <p id="aa-exhibit-title" class="aa-exhibit-title">{data.title}</p>
+          {
+            data.lines.map((line) => (
+              <p class="aa-exhibit-line">
+                {line.map((p) =>
+                  p.fact ? (
+                    <span class="aa-num"><span class="aa-fig">{notes[p.fact]?.value ?? p.fact}</span><a
+                        class="aa-chip"
+                        href={`#fact-${p.fact}`}
+                        data-note={p.fact}
+                        aria-describedby={`aa-note-${p.fact}-sum`}
+                        aria-label={`${p.fact}${notes[p.fact]?.verified ? ", verified" : ""}: how this number was computed`}
+                      >{notes[p.fact]?.verified ? <Fragment set:html={check} /> : null}{p.fact}</a></span>
+                  ) : p.source ? (
+                    <>
+                      {" "}
+                      <a
+                        class="aa-chip"
+                        href={`#source-${p.source}`}
+                        data-note={p.source}
+                        aria-describedby={`aa-note-${p.source}-sum`}
+                        aria-label={`${p.source}${notes[p.source]?.verified ? ", verified" : ""}: the cited source`}
+                      >
+                        {notes[p.source]?.verified ? <Fragment set:html={check} /> : null}
+                        {p.source}
+                      </a>
+                    </>
+                  ) : (
+                    p.text
+                  ),
+                )}
+              </p>
+            ))
+          }
+          <p class="aa-exhibit-foot">
+            <Fragment set:html={check} /><span class="aa-sr">verified:</span>
+            {v.numbers_checked} numbers recomputed, {v.numbers_mismatched} mismatched · {v.citations_checked} citations checked
+          </p>
+        </div>
+        <figcaption class="aa-exhibit-caption">
+          Recorded from a real engine run. Any number opens how it was computed. <a href="#ledger">Fact ledger</a>
+        </figcaption>
+      </figure>
 
-  <div class="aa-notes">
-    <p class="aa-notes-hint" aria-hidden="true">Margin · hover or focus a figure</p>
-    <span class="aa-leader" aria-hidden="true"></span>
-    {
-      Object.values(notes).map((n) => (
-        <aside class="aa-note" id={`aa-note-${n.id}`} data-note-for={n.id} hidden>
-          <p class="aa-note-head" id={`aa-note-${n.id}-sum`}>
-            <span class="aa-note-id">{n.id}</span>
-            <span class="aa-note-label">{n.label}</span>
-          </p>
-          {n.kind !== "source" ? (
-            <p class="aa-note-value">
-              <span class="aa-fig">{n.value}</span>
-              {n.verified ? (
-                <span class="aa-note-ok">
-                  <Fragment set:html={check} /> recomputed
-                </span>
-              ) : null}
-            </p>
-          ) : null}
-          {n.sql ? (
-            <>
-              <p class="aa-note-cap">SQL, run in DuckDB</p>
-              <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
-              {n.params?.length ? <p class="aa-note-params">{n.params.map(([k, val]) => `${k} = ${val}`).join(" · ")}</p> : null}
-            </>
-          ) : null}
-          {n.fn ? (
-            <>
-              <p class="aa-note-cap">Function, in code</p>
-              <pre class="aa-note-sql"><code set:html={`<span class="t-fn">${escapeHtml(n.fn)}</span>(${(n.inputs ?? []).map((i) => i.id).join(", ")})`} /></pre>
-              <table class="aa-note-table">
-                <caption class="aa-sr">Inputs</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Input</th>
-                    <th scope="col">Fact</th>
-                    <th scope="col" class="num">
-                      Value
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(n.inputs ?? []).map((i) => (
-                    <tr>
-                      <td class="id">{i.id}</td>
-                      <td>{i.label}</td>
-                      <td class="num">{i.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          ) : null}
-          {n.rows ? (
-            <>
-              <p class="aa-note-cap">
-                Cited rows · {n.rows.file} · {n.rows.count} cited
-              </p>
-              <table class="aa-note-table">
-                <caption class="aa-sr">Rows of {n.rows.file} around the first cited row</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Row</th>
-                    {n.rows.columns.map((c) => (
-                      <th scope="col">{c}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {n.rows.rows.map((r) => (
-                    <tr class:list={{ "is-cited": r.cited }}>
-                      <td class="id">
-                        {r.row}
-                        {r.cited ? <span class="aa-sr"> (cited)</span> : null}
-                      </td>
-                      {r.cells.map((c) => (
-                        <td>{c}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          ) : null}
-          {n.quote ? (
-            <>
-              <p class="aa-note-cap">
-                Quoted from {n.value}
-                {n.section ? ` · ${n.section}` : ""}
-              </p>
-              <blockquote class="aa-note-quote">{n.quote}</blockquote>
-              {n.verified ? (
-                <p class="aa-note-ok">
-                  <Fragment set:html={check} /> quote checked against the source
-                </p>
-              ) : null}
-            </>
-          ) : null}
-          <p class="aa-note-more">
-            <a href={n.kind === "source" ? `#source-${n.id}` : `#fact-${n.id}`}>In the fact ledger</a>
-          </p>
-        </aside>
-      ))
-    }
+      <div class="aa-notes">
+        <p class="aa-notes-hint" aria-hidden="true">Margin · hover or focus a figure</p>
+        <span class="aa-leader" aria-hidden="true" hidden></span>
+        {
+          Object.values(notes).map((n) => (
+            <aside class="aa-note" id={`aa-note-${n.id}`} data-note-for={n.id}>
+              <ExhibitNote n={n} sumId={`aa-note-${n.id}-sum`} />
+            </aside>
+          ))
+        }
+      </div>
+    </div>
   </div>
+  <div class="aa-walk-track" aria-hidden="true"></div>
+
+  <ol class="aa-walk-list" aria-label="Walkthrough: how the key figures were computed">
+    {
+      steps.map((s, i) => {
+        const n = notes[s.id];
+        return (
+          <li class="aa-walk-item">
+            <p class="aa-walk-item-head">
+              <span class="aa-walk-n">
+                {i + 1}/{steps.length}
+              </span>{" "}
+              {caption(s)} <span aria-hidden="true">→</span> <span class="aa-walk-how">{s.how}</span>
+            </p>
+            {n ? (
+              <div class="aa-walk-item-note">
+                <ExhibitNote n={n} />
+              </div>
+            ) : null}
+          </li>
+        );
+      })
+    }
+  </ol>
 </div>
 
 <section id="ledger" class="aa-exhibit-ledger" aria-labelledby="aa-ledger-title">
@@ -293,50 +252,52 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
 <script>
   const wrap = document.querySelector<HTMLElement>("[data-exhibit]");
   if (wrap) {
+    wrap.dataset.ready = "1";
     const chips = [...wrap.querySelectorAll<HTMLAnchorElement>(".aa-exhibit a.aa-chip[data-note]")];
     const col = wrap.querySelector<HTMLElement>(".aa-notes");
     const leader = wrap.querySelector<HTMLElement>(".aa-leader");
+    const stick = wrap.querySelector<HTMLElement>(".aa-walk-stick");
+    const caps = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-cap")];
+    const dots = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-dot")];
+    const prev = wrap.querySelector<HTMLButtonElement>("[data-walk-prev]");
+    const next = wrap.querySelector<HTMLButtonElement>("[data-walk-next]");
+    const replay = wrap.querySelector<HTMLButtonElement>("[data-walk-replay]");
+    const stepIds = JSON.parse(wrap.dataset.steps ?? "[]") as string[];
+    const n = stepIds.length;
+    const live = wrap.dataset.walk === "live";
+    // Scroll drives the steps where the section can stay on screen while its track scrolls past.
+    const scrolled = matchMedia("(min-width: 56.25rem) and (min-height: 40rem)");
+    const beside = matchMedia("(min-width: 56.25rem)"); // the notes sit beside the exhibit from 900px
+    const chipFor = (id: string) => chips.find((c) => c.dataset.note === id);
 
-    // 1. The verification replay: one figure every ~250 ms, top to bottom; the last check lands by 2.5 s (each chip's
-    //    box takes 160 ms to draw, then its check 120 ms).
-    if (wrap.dataset.anim === "pending") {
-      const step = Math.min(250, 2200 / Math.max(chips.length, 1));
-      chips.forEach((chip, i) => setTimeout(() => chip.classList.add("is-verified"), i * step));
-      setTimeout(() => {
-        wrap.dataset.anim = "done";
-      }, chips.length * step + 300);
-    }
-
-    // 2. Margin notes.
+    // ── Notes ─────────────────────────────────────────────────────────────────────────────────────────────────
     let open: { chip: HTMLAnchorElement; note: HTMLElement } | undefined;
     let pinned = false;
     let returning = false; // focus going back to a chip after Esc: don't reopen its note
     let hideTimer = 0;
-    const side = () => matchMedia("(min-width: 56.25rem)").matches; // beside the exhibit from 900px
+    let current = 0; // 0: the verification; 1..n: the walkthrough's steps
     const place = () => {
       if (!open || !col || !leader) return;
       const { chip, note } = open;
-      if (!side()) {
+      if (!beside.matches) {
         note.style.top = "";
         leader.hidden = true;
         return;
       }
       const c = chip.getBoundingClientRect();
       const box = col.getBoundingClientRect();
-      const top = Math.max(0, c.top - box.top - 10);
-      note.style.top = `${top}px`;
+      note.style.top = `${Math.max(0, c.top - box.top - 10)}px`;
       // The leader runs from the exhibit's edge, level with the figure, to the note: it never crosses the text.
       const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page")?.getBoundingClientRect();
       const from = page ? page.right : c.right;
-      const y = c.top + c.height / 2 - box.top;
       leader.hidden = false;
-      leader.style.top = `${y}px`;
+      leader.style.top = `${c.top + c.height / 2 - box.top}px`;
       leader.style.left = `${from - box.left}px`;
       leader.style.width = `${Math.max(0, box.left - from)}px`;
     };
     const close = () => {
       if (!open) return;
-      open.note.hidden = true;
+      open.note.classList.remove("is-open");
       open.chip.setAttribute("aria-expanded", "false");
       open = undefined;
       pinned = false;
@@ -348,14 +309,22 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
       if (!note) return;
       if (open?.chip !== chip) close();
       open = { chip, note };
-      note.hidden = false;
+      note.classList.add("is-open");
       chip.setAttribute("aria-expanded", "true");
       place();
+    };
+    // Back to the walkthrough's note (or none) once a hovered or pinned note lets go.
+    const settle = () => {
+      pinned = false;
+      const id = current > 0 ? stepIds[current - 1] : undefined;
+      const chip = id ? chipFor(id) : undefined;
+      if (live && chip) show(chip);
+      else close();
     };
     const later = () => {
       clearTimeout(hideTimer);
       hideTimer = window.setTimeout(() => {
-        if (!pinned) close();
+        if (!pinned) settle();
       }, 220);
     };
     for (const chip of chips) {
@@ -372,10 +341,10 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
       });
       chip.addEventListener("click", (e) => {
         e.preventDefault();
-        if (pinned && open?.chip === chip) return close();
+        if (pinned && open?.chip === chip) return settle();
         show(chip);
         pinned = true;
-        if (!side()) open?.note.scrollIntoView({ block: "nearest" });
+        if (!beside.matches) open?.note.scrollIntoView({ block: "nearest" });
       });
     }
     col?.addEventListener("mouseenter", () => clearTimeout(hideTimer));
@@ -397,13 +366,282 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     });
     document.addEventListener("click", (e) => {
       const t = e.target as Node;
-      if (pinned && open && !open.note.contains(t) && !chips.some((c) => c.contains(t))) close();
+      if (pinned && open && !open.note.contains(t) && !chips.some((c) => c.contains(t))) settle();
     });
     window.addEventListener("resize", place);
+
+    // ── The walkthrough (only when motion is welcome: data-walk="live", set before first paint) ──────────────
+    if (live && stick && n > 0) {
+      let timers: number[] = [];
+      let auto = true; // timed mode: advancing by itself until the reader steps by hand
+      let visible = false;
+      let started = false;
+      const clearTimers = () => {
+        for (const t of timers) clearTimeout(t);
+        timers = [];
+      };
+      const setStep = (k: number) => {
+        current = Math.max(0, Math.min(n, k));
+        caps.forEach((c, i) => {
+          c.hidden = i !== current;
+        });
+        dots.forEach((d, i) => d.classList.toggle("is-on", i < current));
+        chips.forEach((c) => c.classList.toggle("is-step", current > 0 && c.dataset.note === stepIds[current - 1]));
+        if (prev) prev.disabled = current === 0;
+        if (next) next.disabled = current === n;
+        if (!pinned) settle();
+      };
+      // The verification: one figure every ~250 ms in reading order; the last check lands by 2.5 s.
+      const verify = () => {
+        wrap.dataset.anim = "pending";
+        for (const c of chips) c.classList.remove("is-verified");
+        void wrap.offsetWidth;
+        const step = Math.min(250, 2200 / Math.max(chips.length, 1));
+        chips.forEach((chip, i) => {
+          timers.push(window.setTimeout(() => chip.classList.add("is-verified"), i * step));
+        });
+        const total = chips.length * step + 300;
+        timers.push(
+          window.setTimeout(() => {
+            wrap.dataset.anim = "done";
+          }, total),
+        );
+        return total;
+      };
+      // Timed mode (small screens): verify, then a step every few seconds while the exhibit is on screen.
+      const DWELL = 4500;
+      const tick = (delay: number) => {
+        timers.push(
+          window.setTimeout(() => {
+            if (!auto || !visible || scrolled.matches) return;
+            setStep(current + 1);
+            if (current < n) tick(DWELL);
+          }, delay),
+        );
+      };
+      // Scroll mode: one half-screen of track per step after the verification's own half-screen.
+      const seg = () => window.innerHeight * 0.5;
+      const stickTop = () => Number.parseFloat(getComputedStyle(stick).top) || 0;
+      let frame = 0;
+      const fromScroll = () => {
+        frame = 0;
+        if (!scrolled.matches) return;
+        const passed = stickTop() - wrap.getBoundingClientRect().top;
+        const k = Math.max(0, Math.min(n, Math.floor(passed / seg())));
+        if (k !== current) setStep(k);
+      };
+      const scrollToStep = (k: number) => {
+        const top = window.scrollY + wrap.getBoundingClientRect().top - stickTop() + k * seg() + 2;
+        window.scrollTo({ top, behavior: "smooth" });
+      };
+      const start = () => {
+        clearTimers();
+        started = true;
+        const took = verify();
+        if (scrolled.matches) fromScroll();
+        else {
+          setStep(0);
+          tick(took + 600);
+        }
+      };
+      setStep(0);
+      new IntersectionObserver(
+        ([e]) => {
+          visible = Boolean(e?.isIntersecting);
+          if (visible && !started) start();
+          else if (visible && auto && !scrolled.matches && current < n) tick(DWELL);
+        },
+        { threshold: 0.35 },
+      ).observe(stick);
+      window.addEventListener(
+        "scroll",
+        () => {
+          if (!frame) frame = requestAnimationFrame(fromScroll);
+        },
+        { passive: true },
+      );
+      scrolled.addEventListener("change", () => {
+        clearTimers();
+        if (scrolled.matches) fromScroll();
+        else if (auto && visible && current < n) tick(DWELL);
+      });
+      const go = (k: number) => {
+        if (scrolled.matches) scrollToStep(k);
+        else {
+          auto = false;
+          clearTimers();
+          setStep(k);
+        }
+      };
+      prev?.addEventListener("click", () => go(current - 1));
+      next?.addEventListener("click", () => go(current + 1));
+      replay?.addEventListener("click", () => {
+        auto = true;
+        pinned = false;
+        if (scrolled.matches) scrollToStep(0);
+        setStep(0);
+        start();
+      });
+    }
   }
 </script>
 
 <style>
+  /* The walkthrough: a step bar over the exhibit and its margin column. */
+  .aa-walk {
+    position: relative;
+  }
+  .aa-walk-stick {
+    display: grid;
+    gap: var(--aa-space-4);
+  }
+  .aa-walk-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--aa-space-3) var(--aa-space-5);
+    padding-bottom: var(--aa-space-3);
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  [data-walk="live"] .aa-walk-bar {
+    display: flex;
+  }
+  /* Every caption shares one grid cell, so the bar is as tall as the longest and stepping never moves the page. */
+  .aa-walk-status {
+    display: grid;
+    min-width: 0;
+    font: 400 var(--aa-text-small) / 1.5 var(--aa-font-sans);
+    color: var(--aa-ink);
+  }
+  .aa-walk-cap {
+    grid-area: 1 / 1;
+  }
+  .aa-walk-cap[hidden] {
+    display: block;
+    visibility: hidden;
+  }
+  .aa-walk-n {
+    font: 500 0.75rem / 1 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    color: var(--aa-ink-2);
+  }
+  .aa-walk-how {
+    color: var(--aa-ink-2);
+  }
+  .aa-walk-controls {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--aa-space-2);
+  }
+  .aa-walk-dots {
+    display: flex;
+    gap: 4px;
+    margin-right: var(--aa-space-2);
+  }
+  .aa-walk-dot {
+    width: 1.25rem;
+    height: 2px;
+    background: var(--aa-rule);
+  }
+  .aa-walk-dot.is-on {
+    background: var(--aa-ink);
+  }
+  .aa-walk-btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--aa-rule-strong);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+    font: 500 0.8125rem / 1 var(--aa-font-mono);
+    color: var(--aa-ink);
+    cursor: pointer;
+    transition: background-color var(--aa-fast) var(--aa-ease);
+  }
+  .aa-walk-btn:hover:not(:disabled) {
+    background: var(--aa-surface);
+  }
+  .aa-walk-btn:disabled {
+    color: var(--aa-ink-3);
+    border-color: var(--aa-rule);
+    cursor: default;
+  }
+  .aa-walk-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(19rem, 1fr);
+    gap: var(--aa-space-6);
+    align-items: start;
+  }
+  .aa-walk-track {
+    display: none;
+  }
+  /* Scroll mode: the section stays on screen while a track of half a screen per step (plus one for the
+     verification) scrolls past; the script maps the scroll position to the step. */
+  @media (min-width: 56.25rem) and (min-height: 40rem) {
+    [data-walk="live"] .aa-walk-stick {
+      position: sticky;
+      top: var(--aa-space-5);
+      z-index: 1;
+      background: var(--aa-page);
+    }
+    [data-walk="live"] .aa-walk-track {
+      display: block;
+      height: calc((var(--aa-steps) + 1) * 50vh);
+    }
+  }
+  @media (max-width: 56.24rem) {
+    .aa-walk-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .aa-walk-bar {
+      flex-wrap: wrap;
+    }
+  }
+  /* Without JS the margin column has nothing to show: the exhibit takes the width and the list below explains. */
+  @media (scripting: none) {
+    .aa-walk-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .aa-notes {
+      display: none;
+    }
+  }
+
+  /* The static walkthrough (reduced motion, no JS): the same steps as a ruled list, each with its note. */
+  .aa-walk-list {
+    list-style: none;
+    margin: var(--aa-space-6) 0 0;
+    padding: 0;
+    border-top: 1px solid var(--aa-rule-strong);
+  }
+  [data-walk="live"] .aa-walk-list {
+    display: none;
+  }
+  .aa-walk-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: var(--aa-space-3) var(--aa-space-6);
+    padding: var(--aa-space-4) 0;
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  .aa-walk-item-head {
+    font-size: var(--aa-text-small);
+    color: var(--aa-ink);
+  }
+  .aa-walk-item-note {
+    display: grid;
+    gap: var(--aa-space-2);
+    min-width: 0;
+    font: 400 var(--aa-text-note) / 1.45 var(--aa-font-sans);
+    color: var(--aa-ink-2);
+  }
+  @media (max-width: 56.24rem) {
+    .aa-walk-item {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   /* The exhibit: a raised report page with a hairline. */
   .aa-exhibit {
     margin: 0;
@@ -426,7 +664,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     color: var(--aa-ink-3);
   }
   .aa-exhibit-line {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     line-height: 1.75;
     color: var(--aa-ink);
   }
@@ -478,6 +716,11 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
   }
   .aa-exhibit .aa-chip[aria-expanded="true"] :global(.aa-check) {
     color: var(--aa-page);
+  }
+  /* The step's figure is marked in the text too, so the eye finds it before the note. */
+  .aa-exhibit .aa-num:has(.aa-chip.is-step) > .aa-fig {
+    background: var(--aa-mark);
+    box-shadow: 0 0 0 2px var(--aa-mark);
   }
   [data-anim="pending"] .aa-exhibit .aa-chip::before {
     clip-path: inset(0 100% 0 0);
@@ -533,7 +776,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     color: var(--aa-ink-3);
     min-height: 6rem;
   }
-  .aa-notes:has(.aa-note:not([hidden])) .aa-notes-hint {
+  .aa-notes:has(.aa-note.is-open) .aa-notes-hint {
     visibility: hidden;
   }
   .aa-leader {
@@ -547,6 +790,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
   }
   .aa-note {
     position: absolute;
+    top: 0;
     left: 0;
     right: 0;
     z-index: 3;
@@ -559,7 +803,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     color: var(--aa-ink-2);
     animation: aa-slide 150ms var(--aa-ease);
   }
-  .aa-note[hidden] {
+  .aa-note:not(.is-open) {
     display: none;
   }
   @keyframes aa-slide {
@@ -573,118 +817,6 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
       animation: none;
     }
   }
-  .aa-note-head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.15rem 0.5rem;
-    align-items: baseline;
-  }
-  .aa-note-id {
-    font: 500 0.75rem / 1.3 var(--aa-font-mono);
-    color: var(--aa-ink);
-  }
-  .aa-note-label {
-    font: 400 0.75rem / 1.3 var(--aa-font-mono);
-    color: var(--aa-ink-3);
-    overflow-wrap: anywhere;
-  }
-  .aa-note-value {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem;
-    font-size: 1.0625rem;
-    color: var(--aa-ink);
-  }
-  .aa-note-ok {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font: 400 0.75rem / 1.3 var(--aa-font-mono);
-    color: var(--aa-verified);
-  }
-  .aa-note-cap {
-    margin-top: var(--aa-space-1);
-    font: 500 0.6875rem / 1.3 var(--aa-font-mono);
-    letter-spacing: var(--aa-label-tracking);
-    text-transform: uppercase;
-    color: var(--aa-ink-3);
-  }
-  .aa-note-sql {
-    margin: 0;
-    padding: var(--aa-space-2);
-    border: 1px solid var(--aa-rule);
-    border-radius: var(--aa-radius);
-    background: var(--aa-raised);
-    font: 400 0.6875rem / 1.55 var(--aa-font-mono);
-    color: var(--aa-ink-2);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  /* Syntax tinted in ink shades only. */
-  .aa-note-sql :global(.t-kw) {
-    color: var(--aa-ink);
-    font-weight: 500;
-  }
-  .aa-note-sql :global(.t-fn) {
-    color: var(--aa-ink);
-  }
-  .aa-note-sql :global(.t-id),
-  .aa-note-sql :global(.t-str) {
-    color: var(--aa-ink-2);
-  }
-  .aa-note-sql :global(.t-param) {
-    color: var(--aa-ink);
-    text-decoration: underline;
-    text-decoration-color: var(--aa-rule-strong);
-  }
-  .aa-note-params {
-    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
-    color: var(--aa-ink-2);
-    overflow-wrap: anywhere;
-  }
-  .aa-note-table {
-    width: 100%;
-    border-collapse: collapse;
-    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
-    font-variant-numeric: tabular-nums;
-    color: var(--aa-ink);
-  }
-  .aa-note-table th {
-    padding: 0.2rem 0.3rem 0.2rem 0;
-    border-bottom: 1px solid var(--aa-rule-strong);
-    font-weight: 500;
-    color: var(--aa-ink-3);
-    text-align: left;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .aa-note-table td {
-    padding: 0.2rem 0.3rem 0.2rem 0;
-    border-bottom: 1px solid var(--aa-rule);
-    overflow-wrap: anywhere;
-  }
-  .aa-note-table .num {
-    text-align: right;
-  }
-  .aa-note-table tr.is-cited td {
-    background: var(--aa-mark);
-  }
-  .aa-note-quote {
-    margin: 0;
-    padding-left: var(--aa-space-2);
-    border-left: 1px solid var(--aa-rule-strong);
-    font-family: var(--aa-font-display);
-    font-style: italic;
-    font-size: 0.9375rem;
-    color: var(--aa-ink);
-  }
-  .aa-note-more {
-    font-size: 0.75rem;
-  }
-  .aa-note-more a::after {
-    content: " →";
-  }
   @media (max-width: 56.24rem) {
     .aa-notes {
       align-self: auto;
@@ -697,6 +829,19 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
       border-left: 0;
       border-top: 1px solid var(--aa-ink);
       padding: var(--aa-space-3) 0 0;
+    }
+    /* The live walkthrough stacks every note in one grid cell and shows one at a time: the column is as tall as the
+       tallest note from the start, so stepping never moves the page below it. */
+    [data-walk="live"] .aa-notes {
+      display: grid;
+    }
+    [data-walk="live"] .aa-note {
+      grid-area: 1 / 1;
+      animation: none;
+    }
+    [data-walk="live"] .aa-note:not(.is-open) {
+      display: grid;
+      visibility: hidden;
     }
   }
 

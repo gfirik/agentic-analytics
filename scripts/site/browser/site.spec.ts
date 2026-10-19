@@ -146,6 +146,7 @@ test("docs pages carry the fhsystems footer too", async ({ page }) => {
 });
 
 test("hero: the verification replays once, figure by figure, within 2.5 s", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING);
   const wrap = page.locator("[data-exhibit]");
   const chips = page.locator(".aa-exhibit a.aa-chip");
@@ -153,10 +154,90 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
   expect(n).toBeGreaterThan(5);
   expect(n).toBeLessThanOrEqual(10);
   await expect(wrap).toHaveAttribute("data-anim", "pending");
+  await expect(wrap).toHaveAttribute("data-walk", "live");
   // Mid-replay, some figures are verified and some not yet.
   await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).not.toHaveCount(0);
   await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 3_500 });
   await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).toHaveCount(n);
+});
+
+test("hero: scrolling steps through the walkthrough on desktop, each step opening its note; prev, next and replay", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(LANDING);
+  const wrap = page.locator("[data-exhibit]");
+  const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
+  expect(steps.length).toBeGreaterThanOrEqual(3);
+  expect(steps.length).toBeLessThanOrEqual(4);
+  const cap = (k: number) => page.locator(`.aa-walk-cap[data-step="${k}"]`);
+  const open = page.locator(".aa-note.is-open");
+  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 3_500 });
+  await expect(cap(0)).toBeVisible();
+  await expect(open).toHaveCount(0);
+  // The section sticks while its track scrolls past: half a screen per step after the verification's own.
+  const stick = page.locator(".aa-walk-stick");
+  const start = await page.evaluate(() => {
+    const w = document.querySelector("[data-exhibit]") as HTMLElement;
+    const s = document.querySelector(".aa-walk-stick") as HTMLElement;
+    return window.scrollY + w.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(s).top);
+  });
+  for (let k = 1; k <= steps.length; k++) {
+    await page.evaluate((y) => window.scrollTo(0, y), start + k * 450 + 20);
+    await expect(cap(k)).toBeVisible();
+    await expect(cap(k)).toContainText(`${k}/${steps.length}`);
+    await expect(open).toHaveCount(1);
+    await expect(open).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
+    await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[k - 1]}"]`)).toHaveAttribute("aria-expanded", "true");
+    // The exhibit is still on screen: the section is sticky.
+    const box = await stick.boundingBox();
+    expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(900);
+    if (k === 2) {
+      // The second step is the change's SQL input: its SQL and the sheet rows it read.
+      await expect(open.locator(".aa-note-sql")).toContainText("FROM");
+      await expect(open.locator("tr.is-cited")).not.toHaveCount(0);
+    }
+  }
+  await expect(page.locator("[data-walk-next]")).toBeDisabled();
+  await page.locator("[data-walk-prev]").click();
+  await expect(cap(steps.length - 1)).toBeVisible();
+  await page.locator("[data-walk-replay]").click();
+  await expect(cap(0)).toBeVisible();
+  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  await page.locator("[data-walk-next]").click();
+  await expect(cap(1)).toBeVisible();
+});
+
+test("hero: under 900 px the walkthrough advances by itself, its notes below the figure, without moving the page", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(LANDING);
+  await page.locator(".aa-walk-stick").scrollIntoViewIfNeeded();
+  const cap1 = page.locator('.aa-walk-cap[data-step="1"]');
+  await expect(cap1).toBeVisible({ timeout: 6_000 });
+  const open = page.locator(".aa-note.is-open");
+  const [b, e] = await Promise.all([open.boundingBox(), page.locator(".aa-exhibit").boundingBox()]);
+  expect(b?.y ?? 0).toBeGreaterThan((e?.y ?? 0) + (e?.height ?? 0) - 1);
+  // Stepping never moves what follows: the notes share one cell as tall as the tallest.
+  const below = async () => (await page.locator("#how").boundingBox())?.y ?? 0;
+  const before = await below();
+  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible({ timeout: 6_000 });
+  expect(await below()).toBe(before);
+  // By hand: next stops the timer.
+  await page.locator("[data-walk-next]").click();
+  await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible();
+  await page.waitForTimeout(5_000);
+  await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible();
+});
+
+test("hero: with reduced motion the walkthrough is a static ruled list, every step's note shown", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
+  await expect(page.locator(".aa-walk-bar")).toBeHidden();
+  await expect(page.locator(".aa-walk-track")).toBeHidden();
+  const items = page.locator(".aa-walk-list > li");
+  await expect(items).toHaveCount(steps.length);
+  await expect(items.nth(0)).toBeVisible();
+  await expect(items.nth(1).locator(".aa-note-sql")).toContainText("FROM");
 });
 
 test("hero: reduced motion shows the verified state at once, with no replay", async ({ page }) => {
@@ -215,6 +296,9 @@ test("without JS the landing page is complete and chips link into the fact ledge
   const chip = page.locator(".aa-exhibit a.aa-chip").first();
   const href = await chip.getAttribute("href");
   expect(href).toMatch(/^#fact-N\d+$/);
+  await expect(page.locator(".aa-walk-list > li").first()).toBeVisible();
+  await expect(page.locator(".aa-walk-bar")).toBeHidden();
+  await expect(page.locator(".aa-notes")).toBeHidden();
   await expect(page.locator("#ledger")).toBeHidden();
   await chip.click();
   await expect(page.locator(href as string)).toBeVisible();

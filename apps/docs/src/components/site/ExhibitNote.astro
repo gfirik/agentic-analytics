@@ -1,0 +1,251 @@
+---
+// One margin note's body (DESIGN.md §6): the fact's id, label and value, its SQL or function, the cited sheet rows,
+// or a document's quote. Shared by the live margin column (with ids, for aria-describedby) and the walkthrough's
+// static list (reduced motion, no JS), which repeats a note without ids.
+import { type SqlToken, sqlTokens } from "./exhibit.ts";
+
+export interface Note {
+  id: string;
+  kind: "sql" | "function" | "source";
+  label: string;
+  value: string;
+  verified: boolean;
+  sql?: string[];
+  params?: [string, string][];
+  fn?: string;
+  inputs?: { id: string; label: string; value: string }[];
+  rows?: { file: string; columns: string[]; rows: { row: number; cells: string[]; cited: boolean }[]; count: number };
+  quote?: string;
+  section?: string;
+}
+interface Props {
+  n: Note;
+  /** The id of the note's summary line (the chip's aria-describedby); omitted in the static list. */
+  sumId?: string;
+}
+const { n, sumId } = Astro.props;
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const tint = (t: SqlToken) => (t.kind === "plain" ? escapeHtml(t.text) : `<span class="t-${t.kind}">${escapeHtml(t.text)}</span>`);
+const sqlHtml = (lines: string[]) => lines.map((l) => sqlTokens(l).map(tint).join("")).join("\n");
+const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+---
+
+<p class="aa-note-head" id={sumId}>
+  <span class="aa-note-id">{n.id}</span>
+  <span class="aa-note-label">{n.label}</span>
+</p>
+{n.kind !== "source" ? (
+  <p class="aa-note-value">
+    <span class="aa-fig">{n.value}</span>
+    {n.verified ? (
+      <span class="aa-note-ok">
+        <Fragment set:html={check} /> recomputed
+      </span>
+    ) : null}
+  </p>
+) : null}
+{n.sql ? (
+  <>
+    <p class="aa-note-cap">SQL, run in DuckDB</p>
+    <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
+    {n.params?.length ? <p class="aa-note-params">{n.params.map(([k, val]) => `${k} = ${val}`).join(" · ")}</p> : null}
+  </>
+) : null}
+{n.fn ? (
+  <>
+    <p class="aa-note-cap">Function, in code</p>
+    <pre class="aa-note-sql"><code set:html={`<span class="t-fn">${escapeHtml(n.fn)}</span>(${(n.inputs ?? []).map((i) => i.id).join(", ")})`} /></pre>
+    <table class="aa-note-table">
+      <caption class="aa-sr">Inputs</caption>
+      <thead>
+        <tr>
+          <th scope="col">Input</th>
+          <th scope="col">Fact</th>
+          <th scope="col" class="num">
+            Value
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {(n.inputs ?? []).map((i) => (
+          <tr>
+            <td class="id">{i.id}</td>
+            <td>{i.label}</td>
+            <td class="num">{i.value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </>
+) : null}
+{n.rows ? (
+  <>
+    <p class="aa-note-cap">
+      Cited rows · {n.rows.file} · {n.rows.count} cited
+    </p>
+    <table class="aa-note-table">
+      <caption class="aa-sr">Rows of {n.rows.file} around the first cited row</caption>
+      <thead>
+        <tr>
+          <th scope="col">Row</th>
+          {n.rows.columns.map((c) => (
+            <th scope="col">{c}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {n.rows.rows.map((r) => (
+          <tr class:list={{ "is-cited": r.cited }}>
+            <td class="id">
+              {r.row}
+              {r.cited ? <span class="aa-sr"> (cited)</span> : null}
+            </td>
+            {r.cells.map((c) => (
+              <td>{c}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </>
+) : null}
+{n.quote ? (
+  <>
+    <p class="aa-note-cap">
+      Quoted from {n.value}
+      {n.section ? ` · ${n.section}` : ""}
+    </p>
+    <blockquote class="aa-note-quote">{n.quote}</blockquote>
+    {n.verified ? (
+      <p class="aa-note-ok">
+        <Fragment set:html={check} /> quote checked against the source
+      </p>
+    ) : null}
+  </>
+) : null}
+<p class="aa-note-more">
+  <a href={n.kind === "source" ? `#source-${n.id}` : `#fact-${n.id}`}>In the fact ledger</a>
+</p>
+
+<style>
+  .aa-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .aa-note-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.5rem;
+    align-items: baseline;
+  }
+  .aa-note-id {
+    font: 500 0.75rem / 1.3 var(--aa-font-mono);
+    color: var(--aa-ink);
+  }
+  .aa-note-label {
+    font: 400 0.75rem / 1.3 var(--aa-font-mono);
+    color: var(--aa-ink-3);
+    overflow-wrap: anywhere;
+  }
+  .aa-note-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 1.0625rem;
+    color: var(--aa-ink);
+  }
+  .aa-note-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font: 400 0.75rem / 1.3 var(--aa-font-mono);
+    color: var(--aa-verified);
+  }
+  .aa-note-cap {
+    margin-top: var(--aa-space-1);
+    font: 500 0.6875rem / 1.3 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+  }
+  .aa-note-sql {
+    margin: 0;
+    padding: var(--aa-space-2);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+    font: 400 0.6875rem / 1.55 var(--aa-font-mono);
+    color: var(--aa-ink-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  /* Syntax tinted in ink shades only. */
+  .aa-note-sql :global(.t-kw) {
+    color: var(--aa-ink);
+    font-weight: 500;
+  }
+  .aa-note-sql :global(.t-fn) {
+    color: var(--aa-ink);
+  }
+  .aa-note-sql :global(.t-id),
+  .aa-note-sql :global(.t-str) {
+    color: var(--aa-ink-2);
+  }
+  .aa-note-sql :global(.t-param) {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--aa-rule-strong);
+  }
+  .aa-note-params {
+    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
+    color: var(--aa-ink-2);
+    overflow-wrap: anywhere;
+  }
+  .aa-note-table {
+    width: 100%;
+    border-collapse: collapse;
+    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--aa-ink);
+  }
+  .aa-note-table th {
+    padding: 0.2rem 0.3rem 0.2rem 0;
+    border-bottom: 1px solid var(--aa-rule-strong);
+    font-weight: 500;
+    color: var(--aa-ink-3);
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .aa-note-table td {
+    padding: 0.2rem 0.3rem 0.2rem 0;
+    border-bottom: 1px solid var(--aa-rule);
+    overflow-wrap: anywhere;
+  }
+  .aa-note-table .num {
+    text-align: right;
+  }
+  .aa-note-table tr.is-cited td {
+    background: var(--aa-mark);
+  }
+  .aa-note-quote {
+    margin: 0;
+    padding-left: var(--aa-space-2);
+    border-left: 1px solid var(--aa-rule-strong);
+    font-family: var(--aa-font-display);
+    font-style: italic;
+    font-size: 0.9375rem;
+    color: var(--aa-ink);
+  }
+  .aa-note-more {
+    font-size: 0.75rem;
+  }
+  .aa-note-more a::after {
+    content: " →";
+  }
+</style>

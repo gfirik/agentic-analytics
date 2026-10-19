@@ -97,23 +97,26 @@ const doors = [
 
   <div class="aa-paper">
     <section class="aa-sheet aa-hero" aria-labelledby="aa-hero-title">
-      <div class="aa-cell aa-grid-field">
-        <div class="aa-hero-grid">
-          <div class="aa-hero-text">
-            <h1 id="aa-hero-title" class="aa-display">An AI analyst you can audit.</h1>
-            <p class="aa-lead">
-              Give it your exports, PDFs and emails. Get what changed, why, and what to do next, with every number recomputed and every claim
-              cited.
-            </p>
-            <div class="aa-actions">
-              <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart</a>
-              <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
-              <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
-            </div>
-            <p class="aa-hero-cmd"><code>bun run aa analyze examples/coffee-roaster --open</code></p>
-          </div>
-          <Exhibit />
+      <div class="aa-cell aa-grid-field aa-statement">
+        <p class="aa-label">Open source · self-hosted · free local models</p>
+        <h1 id="aa-hero-title" class="aa-display">An AI analyst you can audit.</h1>
+        <p class="aa-lead">
+          Give it a business's spreadsheets, PDFs and emails. It reports what changed, why, and what to do next, and every number is recomputed
+          and every claim cited before you see it.
+        </p>
+        <div class="aa-actions">
+          <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart</a>
+          <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
+          <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
         </div>
+        <p class="aa-hero-cmd"><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></p>
+      </div>
+    </section>
+
+    <section class="aa-sheet aa-exhibit-sheet" aria-labelledby="aa-exhibit-label">
+      <div class="aa-cell">
+        <p id="aa-exhibit-label" class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
+        <Exhibit />
       </div>
     </section>
 
@@ -420,59 +423,41 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     pointer-events: none;
   }
 
-  /* Hero: statement | exhibit | margin notes. */
-  .aa-hero .aa-cell {
+  /* Hero: a centred statement block; the exhibit follows in its own framed section, full container width. */
+  .aa-statement {
+    display: grid;
+    justify-items: center;
+    gap: var(--aa-space-5);
     padding-top: var(--aa-space-8);
     padding-bottom: var(--aa-space-7);
+    text-align: center;
   }
-  .aa-hero-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 17.5rem;
-    gap: var(--aa-space-6);
-    align-items: start;
-  }
-  .aa-hero-grid > :global(.aa-exhibit-wrap) {
-    display: contents;
-  }
-  .aa-hero-text {
-    display: grid;
-    gap: var(--aa-space-5);
-    padding-top: var(--aa-space-4);
-  }
-  .aa-hero-text .aa-lead {
-    max-width: 34ch;
+  .aa-statement .aa-lead {
+    max-width: 60ch;
   }
   .aa-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: var(--aa-space-3) var(--aa-space-4);
   }
   .aa-text-link {
     font: 500 0.9375rem / 1 var(--aa-font-sans);
   }
+  .aa-hero-cmd {
+    max-width: 100%;
+  }
   .aa-hero-cmd code {
     font-size: 0.8125rem;
     color: var(--aa-ink-2);
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
   }
-  @media (max-width: 68.75rem) {
-    /* 900–1100px: the statement above, the exhibit and its notes side by side. */
-    .aa-hero-grid {
-      grid-template-columns: minmax(0, 1fr) 16rem;
-    }
-    .aa-hero-text {
-      grid-column: 1 / -1;
-      padding-top: 0;
-    }
-    .aa-hero-text .aa-lead {
-      max-width: var(--aa-measure);
-    }
+  .aa-exhibit-sheet > .aa-cell {
+    padding-top: var(--aa-space-6);
   }
-  @media (max-width: 56.24rem) {
-    .aa-hero-grid {
-      grid-template-columns: minmax(0, 1fr);
-    }
+  .aa-exhibit-label {
+    margin-bottom: var(--aa-space-4);
   }
 
   /* Section heads: the bracketed label on a hairline, a centred serif heading and lead. */
