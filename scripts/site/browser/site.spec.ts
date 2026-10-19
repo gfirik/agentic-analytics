@@ -182,6 +182,7 @@ test("hero: scrolling steps through the walkthrough on desktop, each step openin
   });
   for (let k = 1; k <= steps.length; k++) {
     await page.evaluate((y) => window.scrollTo(0, y), start + k * 450 + 20);
+    await expect(page.locator(".aa-walk-stick")).toBeInViewport({ ratio: 1 });
     await expect(cap(k)).toBeVisible();
     await expect(cap(k)).toContainText(`${k}/${steps.length}`);
     await expect(open).toHaveCount(1);
@@ -210,7 +211,14 @@ test("hero: scrolling steps through the walkthrough on desktop, each step openin
 test("hero: under 900 px the walkthrough advances by itself, its notes below the figure, without moving the page", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(LANDING);
+  // The figures verify as the exhibit comes into view; the steps advance once the notes below it are on screen.
   await page.locator(".aa-walk-stick").scrollIntoViewIfNeeded();
+  await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  await expect(page.locator('.aa-walk-cap[data-step="0"]')).toBeVisible();
+  await page.locator(".aa-notes").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  // The step bar stays on screen while the reader is at the notes.
+  await page.mouse.wheel(0, 300);
+  await expect(page.locator(".aa-walk-bar")).toBeInViewport({ ratio: 1 });
   const cap1 = page.locator('.aa-walk-cap[data-step="1"]');
   await expect(cap1).toBeVisible({ timeout: 6_000 });
   const open = page.locator(".aa-note.is-open");
@@ -226,6 +234,33 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible();
   await page.waitForTimeout(5_000);
   await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible();
+});
+
+test("landing: no box moves while the fonts arrive late (390, 1440 px)", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cls: number };
+    w.__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[])
+        if (!e.hadRecentInput) w.__cls += e.value;
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  // Every font held back 1.5 s, far longer than the preloaded faces take: text first paints in the fallback faces,
+  // then swaps. Only glyphs re-centre by a few pixels inside their boxes (about 0.01 at 390 px); a box that changed
+  // height on the swap (a wrapping strip or install line) scored 0.15. Lighthouse, with the preloads, measures 0.
+  await page.route(/\.woff2$/, async (r) => {
+    await new Promise((ok) => setTimeout(ok, 1_500));
+    await r.continue();
+  });
+  for (const [width, height] of [
+    [390, 844],
+    [1440, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(LANDING);
+    await page.waitForTimeout(3_500);
+    expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls), `${width} px`).toBeLessThan(0.02);
+  }
 });
 
 test("hero: with reduced motion the walkthrough is a static ruled list, every step's note shown", async ({ page }) => {

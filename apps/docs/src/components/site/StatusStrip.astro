@@ -10,7 +10,7 @@ const { items } = Astro.props;
 ---
 
 <div class="aa-strip" role="note" aria-label="Project status">
-  <p class="aa-strip-inner">
+  <p class="aa-strip-inner" tabindex="0">
     {
       items.map((item, i) => (
         <>
@@ -41,6 +41,14 @@ const { items } = Astro.props;
     font: 400 var(--aa-text-label) / 1.5 var(--aa-font-mono);
     font-variant-numeric: tabular-nums;
     color: var(--aa-ink-2);
+    /* One line, as the design says: on narrow screens it scrolls sideways rather than wrapping, so its height never
+       depends on when the mono face arrives (re-wrapping on the swap moved the page, M13k). Focusable for keyboard
+       scrolling. */
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    /* The containing block of the link's visually hidden suffix, so it can't widen the page. */
+    position: relative;
   }
   .aa-strip-inner a {
     color: inherit;

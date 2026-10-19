@@ -6,9 +6,9 @@
 //      draws in, then its check appears (~250 ms per figure, ≤ 2.5 s in all).
 //   2. A guided walkthrough then steps through the story's key figures (walkthrough() in scripts/landing-data.ts),
 //      opening each figure's margin note (its SQL or function, the sheet rows it read, or the quoted source) under a
-//      step indicator. From 900px wide and 640px tall, scroll drives the steps: the section is sticky while a track
-//      of one half-screen per step scrolls past. Smaller screens advance every few seconds while the exhibit is in
-//      view, the notes below the figure. Previous, next and replay are always there.
+//      step indicator. From 900px wide and 704px tall, scroll drives the steps: the section is sticky while a track
+//      of one half-screen per step scrolls past. Smaller screens advance every few seconds while the notes (below
+//      the figure) are on screen, under a sticky step bar. Previous, next and replay are always there.
 //   3. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
 // With reduced motion or without JS the steps are a static ruled list under the exhibit, and every chip is a link to
 // its row in the fact ledger.
@@ -266,7 +266,7 @@ const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
     const n = stepIds.length;
     const live = wrap.dataset.walk === "live";
     // Scroll drives the steps where the section can stay on screen while its track scrolls past.
-    const scrolled = matchMedia("(min-width: 56.25rem) and (min-height: 40rem)");
+    const scrolled = matchMedia("(min-width: 56.25rem) and (min-height: 44rem)");
     const beside = matchMedia("(min-width: 56.25rem)"); // the notes sit beside the exhibit from 900px
     const chipFor = (id: string) => chips.find((c) => c.dataset.note === id);
 
@@ -372,13 +372,15 @@ const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
 
     // ── The walkthrough (only when motion is welcome: data-walk="live", set before first paint) ──────────────
     if (live && stick && n > 0) {
-      let timers: number[] = [];
+      let timers: number[] = []; // the verification's
+      let stepTimer = 0; // timed mode's next step
       let auto = true; // timed mode: advancing by itself until the reader steps by hand
-      let visible = false;
+      let notesOnScreen = false; // timed mode advances only while the reader can see the notes
       let started = false;
       const clearTimers = () => {
         for (const t of timers) clearTimeout(t);
         timers = [];
+        clearTimeout(stepTimer);
       };
       const setStep = (k: number) => {
         current = Math.max(0, Math.min(n, k));
@@ -408,16 +410,15 @@ const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
         );
         return total;
       };
-      // Timed mode (small screens): verify, then a step every few seconds while the exhibit is on screen.
+      // Timed mode (small screens): verify, then a step every few seconds while the notes are on screen.
       const DWELL = 4500;
       const tick = (delay: number) => {
-        timers.push(
-          window.setTimeout(() => {
-            if (!auto || !visible || scrolled.matches) return;
-            setStep(current + 1);
-            if (current < n) tick(DWELL);
-          }, delay),
-        );
+        clearTimeout(stepTimer);
+        stepTimer = window.setTimeout(() => {
+          if (!auto || !notesOnScreen || scrolled.matches) return;
+          setStep(current + 1);
+          if (current < n) tick(DWELL);
+        }, delay);
       };
       // Scroll mode: one half-screen of track per step after the verification's own half-screen.
       const seg = () => window.innerHeight * 0.5;
@@ -445,14 +446,21 @@ const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
         }
       };
       setStep(0);
+      // The verification runs as the exhibit comes into view.
       new IntersectionObserver(
         ([e]) => {
-          visible = Boolean(e?.isIntersecting);
-          if (visible && !started) start();
-          else if (visible && auto && !scrolled.matches && current < n) tick(DWELL);
+          if (e?.isIntersecting && !started) start();
         },
         { threshold: 0.35 },
       ).observe(stick);
+      if (col)
+        new IntersectionObserver(
+          ([e]) => {
+            notesOnScreen = Boolean(e?.isIntersecting);
+            if (notesOnScreen && started && auto && !scrolled.matches && current < n) tick(current === 0 ? 1500 : DWELL);
+          },
+          { threshold: 0.35 },
+        ).observe(col);
       window.addEventListener(
         "scroll",
         () => {
@@ -463,7 +471,7 @@ const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
       scrolled.addEventListener("change", () => {
         clearTimers();
         if (scrolled.matches) fromScroll();
-        else if (auto && visible && current < n) tick(DWELL);
+        else if (auto && notesOnScreen && current < n) tick(DWELL);
       });
       const go = (k: number) => {
         if (scrolled.matches) scrollToStep(k);
@@ -578,16 +586,27 @@ const caption = (s: Step) => `${s.title}${s.figures.map(figure).join("")}`;
   }
   /* Scroll mode: the section stays on screen while a track of half a screen per step (plus one for the
      verification) scrolls past; the script maps the scroll position to the step. */
-  @media (min-width: 56.25rem) and (min-height: 40rem) {
+  @media (min-width: 56.25rem) and (min-height: 44rem) {
     [data-walk="live"] .aa-walk-stick {
       position: sticky;
-      top: var(--aa-space-5);
+      /* Centred on screen: 41rem is the section's tallest extent (the step bar, and the exhibit with the SQL note). */
+      top: max(var(--aa-space-5), calc((100vh - 41rem) / 2));
       z-index: 1;
       background: var(--aa-page);
     }
     [data-walk="live"] .aa-walk-track {
       display: block;
       height: calc((var(--aa-steps) + 1) * 50vh);
+    }
+  }
+  @media (max-width: 56.24rem), (max-height: 43.99rem) {
+    /* Timed mode: the step bar stays at the top of the screen while the reader scrolls from the figure to its note. */
+    [data-walk="live"] .aa-walk-bar {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      padding-top: var(--aa-space-3);
+      background: var(--aa-page);
     }
   }
   @media (max-width: 56.24rem) {

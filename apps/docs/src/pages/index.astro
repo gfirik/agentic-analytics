@@ -109,7 +109,7 @@ const doors = [
           <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
           <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
         </div>
-        <p class="aa-hero-cmd"><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></p>
+        <pre class="aa-hero-cmd" tabindex="0" aria-label="Install"><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
       </div>
     </section>
 
@@ -426,6 +426,7 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
   /* Hero: a centred statement block; the exhibit follows in its own framed section, full container width. */
   .aa-statement {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     gap: var(--aa-space-5);
     padding-top: var(--aa-space-8);
@@ -445,13 +446,22 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
   .aa-text-link {
     font: 500 0.9375rem / 1 var(--aa-font-sans);
   }
+  /* One line in a hairline box that scrolls sideways on narrow screens: its height never depends on when the mono
+     face arrives (a wrapping line re-wrapped on the swap and moved the page, M13k). */
   .aa-hero-cmd {
     max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+    overflow-x: auto;
+    white-space: pre;
+    text-align: left;
   }
   .aa-hero-cmd code {
-    font-size: 0.8125rem;
+    font: 400 0.8125rem / 1.5 var(--aa-font-mono);
     color: var(--aa-ink-2);
-    overflow-wrap: anywhere;
   }
   .aa-exhibit-sheet > .aa-cell {
     padding-top: var(--aa-space-6);

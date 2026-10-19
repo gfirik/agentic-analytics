@@ -13,7 +13,7 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 
 | Section | Pages |
 |---|---|
-| Landing page (`/`) | Website v2 (M13i, apps/docs/DESIGN.md): the status strip; the statement and the hero exhibit (the coffee-roaster report, verified figure by figure, with a margin note per figure); §1 how it works (the pipeline scene); §2 three proofs; §3 results as they are (model rows and real-data checks, partial runs labelled); §4 quickstart, binaries and the four doors |
+| Landing page (`/`) | Website v2 (M13i, apps/docs/DESIGN.md): the status strip; a centred statement block, then the hero exhibit as its own framed section (M13k: the coffee-roaster report, verified figure by figure as it comes into view, then a guided walkthrough of its key figures, each opening its margin note: scroll-linked on desktop, timed on small screens, a static list under reduced motion or without JS); §1 how it works (the pipeline scene); §2 three proofs; §3 results as they are (model rows and real-data checks, partial runs labelled); §4 quickstart, binaries and the four doors |
 | Start | What it is (1-minute read + animated pipeline), Quickstart (Docker / Bun / Ollama / free endpoint), Your first report (coffee-roaster walkthrough), Running on free models (the Models page, listed here since M13f) |
 | How it works | Pipeline overview (interactive, ported from `docs/assets/blueprint.html`); Ingest & table detection; Profiling & data quality; Metric layer; Detecting changes; Finding drivers (PVM, contribution, rate/mix, Simpson, DIFF), with worked examples and animated bar breakdowns; Documents lane (RAG: chunking, BM25, vectors, RRF, rerank, with a step-through visual); Web lane & privacy; Explain & causal grades; Decisions & impact ranges; The verifier (V1–V8 with a before/after draft example); Security & prompt injection |
 | Learn (M13g) | The beginner path, all on the coffee-roaster example: the big-picture overview (the pipeline animation and a map of every stage with its real in/out); ten stage guides (ingestion & profiling, metric layer, analysis, retrieval, web lane, planner, verifier, report & fact IDs, model router & free providers, security), each with the problem it solves, a step-through diagram, the ideas behind it, a try-it command, repo links and further reading; five tutorials (first file, confirm metrics, documents as evidence, Claude via MCP, evals on your own data); a glossary. Each guide links "Go deeper" to its How it works page |
@@ -32,7 +32,8 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 - **Mermaid** for architecture and state diagrams.
 - **The hero exhibit** (`components/site/Exhibit.astro`, landing page):
   - It shows the first finding of the real coffee-roaster run, each number followed by its fact-ID chip.
-  - It replays its verification once, unless reduced motion is on.
+  - It replays its verification as it comes into view, unless reduced motion is on.
+  - It walks through its key figures by itself (M13k): the change, its SQL input and sheet rows, the driver, the quoted cause (`walkthrough()` in `scripts/landing-data.ts`, chosen by role from the run's data). Scroll drives the steps on desktop (a sticky section); smaller screens advance on a timer while the notes are on screen. Previous, next and replay are always there; reduced motion or no JS shows the steps as a static ruled list.
   - Hovering or focusing a figure opens its margin note: the SQL and parameters (or the function and its inputs), and the cited sheet rows.
   - A chip links to the fact's row in a static fact ledger, so it works without JS.
 - **`<Sidenote>` / `<MarginNote>`** (Learn, MDX): Tufte-style notes in the margin column, tap-to-expand under 1000px.
