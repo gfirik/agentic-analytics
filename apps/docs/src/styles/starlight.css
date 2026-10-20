@@ -370,6 +370,10 @@ mobile-starlight-toc .toggle {
   text-transform: uppercase;
 }
 
+/* Code inside a heading keeps the heading's scale (the one exception to one code size, DESIGN.md §4). */
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code {
+  font-size: 0.875em;
+}
 /* The block itself at the code size too (its lines already are, from codeFontSize), so nothing on the page measures
    otherwise (DESIGN.md §4: one code size). */
 .expressive-code pre {

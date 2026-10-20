@@ -120,8 +120,10 @@ const doors = [
           <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
           <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
         </div>
-        <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
-          <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+        <div class="aa-hero-cmd-frame">
+          <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
+            <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+          </div>
         </div>
       </div>
     </section>
@@ -319,7 +321,8 @@ const doors = [
         <li class="aa-cell">
           <p class="aa-label">Step 1 · Install</p>
           <div class="aa-code">
-            <pre tabindex="0" aria-label="Install"><code>git clone https://github.com/gfirik/agentic-analytics
+            <pre tabindex="0" aria-label="Install"><code>git clone \
+  https://github.com/<wbr /><span class="aa-nowrap">gfirik/agentic-analytics</span>
 cd agentic-analytics
 bun install
 bun run aa doctor</code></pre>
@@ -329,7 +332,7 @@ bun run aa doctor</code></pre>
         <li class="aa-cell">
           <p class="aa-label">Step 2 · Model</p>
           <div class="aa-code">
-            <pre tabindex="0" aria-label="Choose a model"><code><span class="c"># local: Ollama, or a free endpoint in .env</span>
+            <pre tabindex="0" aria-label="Choose a model"><code><span class="c"># Ollama, or a free endpoint in .env</span>
 cp .env.example .env</code></pre>
           </div>
           <p class="aa-small">
@@ -371,7 +374,14 @@ AA_DEMO_MODEL=scripted \
                     {d.name}
                   </a>
                   <span class="aa-door-does">{d.does}</span>
-                  <code class="aa-door-cmd">{d.cmd}</code>
+                  <code class="aa-door-cmd">
+                    {d.cmd.split(" ").map((w, i) => (
+                      <>
+                        {i > 0 ? " " : ""}
+                        <span class="aa-nowrap">{w}</span>
+                      </>
+                    ))}
+                  </code>
                 </li>
               ))
             }
@@ -476,13 +486,16 @@ AA_DEMO_MODEL=scripted \
   }
   /* One line in a hairline box that scrolls sideways on narrow screens: its height never depends on when the mono
      face arrives (a wrapping line re-wrapped on the swap and moved the page, M13k). */
-  .aa-hero-cmd {
+  /* The frame (hairline, raised) stays put while the line inside scrolls and fades at its edges. */
+  .aa-hero-cmd-frame {
     max-width: 100%;
-    margin: 0;
-    padding: 0.5rem 0.75rem;
     border: 1px solid var(--aa-rule);
     border-radius: var(--aa-radius);
     background: var(--aa-raised);
+  }
+  .aa-hero-cmd {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
     overflow-x: auto;
     text-align: left;
   }
@@ -755,10 +768,16 @@ AA_DEMO_MODEL=scripted \
     border-top: 0;
     border-left: 1px solid var(--aa-rule);
   }
-  /* Commands keep their lines (broken at a flag or a "\\", never mid-word); a line wider than the cell scrolls inside it. */
+  /* Commands are broken at a flag or a "\\" and fit their cell; on the narrowest phones a long URL may wrap, only at the
+     slash marked <wbr>, never mid-word. */
   .aa-steps .aa-code pre {
     font-size: var(--aa-text-code);
-    white-space: pre;
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+  }
+  .aa-steps .aa-nowrap,
+  .aa-door-cmd .aa-nowrap {
+    white-space: nowrap;
   }
   .aa-quick-more {
     display: grid;
@@ -804,10 +823,11 @@ AA_DEMO_MODEL=scripted \
     font-size: var(--aa-text-small);
     color: var(--aa-ink-2);
   }
+  /* Wraps only between words (a package name never splits). */
   .aa-door-cmd {
     font-size: var(--aa-text-code);
     color: var(--aa-ink);
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
   }
   @media (max-width: 56rem) {
     .aa-steps {

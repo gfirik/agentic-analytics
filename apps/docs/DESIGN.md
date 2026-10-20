@@ -93,7 +93,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 - **Larger than h2:** nothing renders larger than `--aa-text-h2` except the hero statement and a page's own h1 (the docs h1 is 2.5rem, 2rem on mobile).
 - **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Mono uppercase labels and fact chips are not reading text: they keep `--aa-text-label`, and nothing on the site is smaller than that.
-- **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks and inline code in prose. Commands are broken at a flag or a `\`, never mid-word; a line wider than its box scrolls inside it.
+- **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks, Mermaid sources, page leads and inline code in prose. The one exception: code inside a heading keeps the heading's scale (0.875em of it). Quickstart commands are broken at a flag or a `\` and fit their cell; on the narrowest phones a URL may wrap, only at a slash marked `<wbr>`, never mid-word.
 
 | Token | Size / line height | Face | Use |
 |---|---|---|---|
@@ -218,7 +218,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Code:**
   - Expressive Code with `github-light` only, re-based onto `raised` (so its contrast correction targets our real background);
   - a hairline frame, a mono body at `--aa-text-code`, a mono caption label, no window dots.
-- **Horizontal scroll boxes** (`.aa-scroll-x`: the status strip, the hero's install line): one line that scrolls sideways on narrow screens, a labelled focusable region. No scrollbar (in CSS from the start, so the box's height never changes); the edge with more to read fades out with a transparency mask (not a coloured gradient), set by a small script; without JS there is no fade, and keyboard and touch scrolling work as before.
+- **Horizontal scroll boxes** (`.aa-scroll-x`: the status strip, the hero's install line): one line that scrolls sideways on narrow screens, a labelled focusable region. No scrollbar (in CSS from the start, so the box's height never changes); the edge with more to read fades over `--aa-space-7` with a transparency mask (not a coloured gradient), set by a small script (`ScrollFade.astro`, in the site layout); without JS there is no fade, and keyboard and touch scrolling work as before. Focused (the box or a link in it), the mask is off, so the focus ring shows (WCAG 2.4.7). A frame (hairline, background) sits on a wrapper, not on the masked box, so it never fades. Text in the fade is scroll-off content: axe doesn't evaluate masks, and it isn't meant to read as body text.
 - **Diagrams:**
   - Mermaid is initialised with the token colours and Plex Sans.
   - The pipeline scene (`pipeline-scene.ts`) draws the README GIF only. The site never uses it: its fixed 640×480 canvas scaled its type past the h2 on desktop and below reading size on phones.

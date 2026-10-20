@@ -1,0 +1,26 @@
+---
+// The fade on the one-line horizontal scroll boxes (.aa-scroll-x: the status strip, the hero's install line; DESIGN.md §6
+// "Horizontal scroll boxes"), for every page on the site layout. CSS hides the scrollbar; this marks the edges with more.
+---
+
+<script>
+  // The one-line scroll boxes (the status strip, the hero's install line) hide their scrollbar; a fade at the edge with
+  // more to read says they scroll instead (DESIGN.md §6 "Horizontal scroll boxes"). Marks which edges have more.
+  for (const box of document.querySelectorAll<HTMLElement>(".aa-scroll-x")) {
+    let frame = 0;
+    const mark = () => {
+      frame = 0;
+      const more = box.scrollWidth - box.clientWidth;
+      const start = box.scrollLeft > 1;
+      const end = box.scrollLeft < more - 1;
+      box.dataset.overflow = more <= 1 ? "none" : start && end ? "both" : start ? "start" : "end";
+    };
+    const soon = () => {
+      if (!frame) frame = requestAnimationFrame(mark);
+    };
+    mark();
+    box.addEventListener("scroll", soon, { passive: true });
+    window.addEventListener("resize", soon);
+    document.fonts?.ready.then(soon);
+  }
+</script>

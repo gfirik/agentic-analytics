@@ -557,14 +557,10 @@ test("landing section heads: label, h2, one-sentence lead, the h2 on one line at
     await expect(head.locator("h2")).toHaveCount(1);
     const lead = head.locator("p.aa-lead");
     await expect(lead, id).toHaveCount(1);
-    // One sentence.
-    expect(
-      ((await lead.textContent()) ?? "")
-        .trim()
-        .split(/[.;!?](\s|$)/)
-        .filter((x) => x.trim().length > 2).length,
-      id,
-    ).toBeLessThanOrEqual(2);
+    // One sentence (a semicolon may join two clauses), about 90 characters at most.
+    const text = ((await lead.textContent()) ?? "").trim().replace(/\s+/g, " ");
+    expect(text.split(/[.!?](\s|$)/).filter((x) => x.trim().length > 2).length, id).toBe(1);
+    expect(text.length, id).toBeLessThanOrEqual(90);
     const [h, lh] = await head
       .locator("h2")
       .evaluate((el) => [el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el).lineHeight)]);
@@ -572,20 +568,78 @@ test("landing section heads: label, h2, one-sentence lead, the h2 on one line at
   }
 });
 
-test("code is one size everywhere: blocks, inline code and Expressive Code (--aa-text-code)", async ({ page }) => {
+test("code is one size everywhere: blocks, inline code and Expressive Code (--aa-text-code); headings keep their scale", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  for (const path of [LANDING, `${BASE}/start/quickstart/`, `${BASE}/learn/stages/analysis/`, `${BASE}/how-it-works/verifier/`]) {
+  for (const path of [
+    LANDING,
+    `${BASE}/start/quickstart/`,
+    `${BASE}/learn/stages/analysis/`,
+    `${BASE}/how-it-works/verifier/`,
+    `${BASE}/how-it-works/drivers/`,
+    `${BASE}/how-it-works/pipeline/`,
+    `${BASE}/use-it/cli/`,
+    MISSING,
+  ]) {
     await page.goto(path, { waitUntil: "networkidle" });
     const sizes = await page.evaluate(() => {
       const want = getComputedStyle(document.documentElement).getPropertyValue("--aa-text-code").trim();
       const px = Number.parseFloat(want) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-      const seen = [...document.querySelectorAll<HTMLElement>("main pre, main code")]
-        .filter((e) => e.getClientRects().length > 0 && (e.textContent ?? "").trim())
-        .map((e) => Number.parseFloat(getComputedStyle(e).fontSize));
-      return { px, off: [...new Set(seen.filter((v) => Math.abs(v - px) > 0.1))], n: seen.length };
+      const shown = [...document.querySelectorAll<HTMLElement>("main pre, main code")].filter(
+        (e) => e.getClientRects().length > 0 && (e.textContent ?? "").trim(),
+      );
+      // The one exception: code in a heading keeps the heading's scale (0.875em of it).
+      const heading = (e: HTMLElement) => e.closest<HTMLElement>("h1, h2, h3, h4, h5, h6");
+      const off = shown
+        .filter((e) => !heading(e))
+        .map((e) => Number.parseFloat(getComputedStyle(e).fontSize))
+        .filter((v) => Math.abs(v - px) > 0.1);
+      const headingOff = shown.filter((e) => {
+        const h = heading(e);
+        if (!h) return false;
+        return Math.abs(Number.parseFloat(getComputedStyle(e).fontSize) - 0.875 * Number.parseFloat(getComputedStyle(h).fontSize)) > 0.2;
+      }).length;
+      return { off: [...new Set(off)], headingOff, n: shown.length };
     });
-    expect(sizes.n, path).toBeGreaterThan(0);
+    if (path !== MISSING) expect(sizes.n, path).toBeGreaterThan(0);
     expect(sizes.off, path).toEqual([]);
+    expect(sizes.headingOff, path).toBe(0);
+  }
+});
+
+test("Quickstart and door commands fit their cells at 1440, 390 and 360, never split mid-word", async ({ page }) => {
+  for (const width of [1440, 390, 360]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    for (const pre of await page.locator(".aa-steps pre, .aa-door-cmd").all()) {
+      expect(await pre.evaluate((e) => e.scrollWidth - e.clientWidth), `${width}`).toBeLessThanOrEqual(0);
+      // A visual line never starts inside a word: each new line follows a space, a slash or a line break.
+      const mid = await pre.evaluate((e) => {
+        const range = document.createRange();
+        const walker = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+        let lastTop = -1;
+        let prev = "\n";
+        let count = 0;
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const text = n.textContent ?? "";
+          for (let i = 0; i < text.length; i++) {
+            const ch = text[i] ?? "";
+            if (ch !== "\n") {
+              range.setStart(n, i);
+              range.setEnd(n, i + 1);
+              const top = Math.round(range.getBoundingClientRect().top);
+              if (lastTop >= 0 && top > lastTop && prev !== "\n" && !/[\s/]/.test(prev)) count++;
+              lastTop = top;
+            }
+            prev = ch;
+          }
+        }
+        return count;
+      });
+      expect(mid, `${width}`).toBe(0);
+    }
   }
 });
 
@@ -606,6 +660,10 @@ test("the status strip and the install line scroll sideways with no scrollbar an
     await box.focus();
     await page.keyboard.press("ArrowLeft");
     await expect(box, sel).toHaveAttribute("data-overflow", "both");
+    // Focused, nothing is masked, so the focus ring outside the box shows (WCAG 2.4.7).
+    expect(await box.evaluate((e) => getComputedStyle(e).maskImage), sel).toBe("none");
+    await page.locator("h1").click();
+    expect(await box.evaluate((e) => getComputedStyle(e).maskImage), sel).not.toBe("none");
   }
   // Where the whole line fits, nothing fades (at 1440 the strip is still a little wider than the screen).
   await page.setViewportSize({ width: 1920, height: 1000 });

@@ -71,13 +71,23 @@
   display: none;
 }
 .aa-scroll-x[data-overflow="end"] {
-  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  --aa-fade: linear-gradient(to right, #000 calc(100% - var(--aa-space-7)), transparent);
 }
 .aa-scroll-x[data-overflow="start"] {
-  mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+  --aa-fade: linear-gradient(to left, #000 calc(100% - var(--aa-space-7)), transparent);
 }
 .aa-scroll-x[data-overflow="both"] {
-  mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+  --aa-fade: linear-gradient(to right, transparent, #000 var(--aa-space-7), #000 calc(100% - var(--aa-space-7)), transparent);
+}
+.aa-scroll-x[data-overflow]:not([data-overflow="none"]) {
+  -webkit-mask-image: var(--aa-fade);
+  mask-image: var(--aa-fade);
+}
+/* Focused (the box or a link in it), the box shows all of itself: a mask would also hide the focus ring drawn outside it (WCAG 2.4.7). The text in
+   the fade is scroll-off content, not reading text: axe doesn't see masks, and it isn't meant to pass as body text. */
+.aa-scroll-x[data-overflow]:focus-within {
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 /* Verified mark: the one accent. Only on things the verifier (or an eval check) passed. */
