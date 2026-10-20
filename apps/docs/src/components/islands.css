@@ -54,7 +54,7 @@
 }
 .aa-grade {
   display: inline-block;
-  font: 500 0.6875rem / 1.5 var(--aa-font-mono);
+  font: 500 var(--aa-text-label) / 1.5 var(--aa-font-mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 0 0.35rem;
@@ -69,7 +69,7 @@
   overflow-x: auto;
 }
 .aa-ev table {
-  font-size: 0.75rem;
+  font-size: var(--aa-text-note);
 }
 .aa-ev tr.hl td,
 .aa-ev mark {
@@ -81,55 +81,92 @@
 }
 
 /* Decomposition: negative is solid ink, positive is outlined, totals are slate. Shape carries the sign, not hue. */
-.aa-bars {
+/* Contribution bridge (Decomposition.tsx): label · track · figure per row, the changes joined by connectors. */
+/* The columns belong to the list, not to each row (subgrid): every track has the same width, so a bar's position on
+   one row lines up with the next row's and the connectors join them. */
+.aa-bridge-rows {
   display: grid;
-  gap: var(--aa-space-2);
+  /* Name and figure at their own width, the track takes the rest (the share sits under its figure, so the figure
+     column stays narrow and the bars stay legible). */
+  grid-template-columns: max-content minmax(10rem, 1fr) max-content;
+  gap: var(--aa-space-3);
+  margin: 0 0 var(--aa-space-3);
+  padding: 0;
+  list-style: none;
 }
-.aa-bar {
+.aa-bridge-row {
   display: grid;
-  grid-template-columns: minmax(6rem, 11rem) minmax(4rem, 1fr) auto;
-  gap: var(--aa-space-2);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  font-size: 0.8125rem;
+  margin: 0;
+  font-size: var(--aa-text-note);
 }
-.aa-bar > span:last-child {
-  font-family: var(--aa-font-mono);
-  font-variant-numeric: tabular-nums;
-}
-.aa-bar .track {
+.aa-bridge-track {
   position: relative;
   display: block;
-  height: 1rem;
-  background: var(--aa-surface);
-  border-radius: var(--aa-radius-chip);
+  height: 1.25rem;
 }
-.aa-bar .fill {
+.aa-bridge-bar {
   position: absolute;
   top: 0;
   height: 100%;
   border-radius: var(--aa-radius-chip);
-  transition:
-    left 0.6s var(--aa-ease),
-    width 0.6s var(--aa-ease);
 }
-.aa-bar .fill.neg {
+.aa-bridge-bar.total {
+  background: var(--aa-rule-strong);
+}
+/* The broken axis: a gap with ≈ near each total's start, so a reader never takes the bar for its full length. */
+.aa-bridge-bar.total::before {
+  content: "≈";
+  position: absolute;
+  top: 50%;
+  left: var(--aa-space-2);
+  transform: translateY(-50%);
+  padding: 0 0.15rem;
+  background: var(--aa-raised);
+  font: 500 var(--aa-text-label) / 1 var(--aa-font-mono);
+  color: var(--aa-ink-2);
+}
+.aa-bridge-bar.neg {
   background: var(--aa-ink);
 }
-.aa-bar .fill.pos {
+.aa-bridge-bar.pos {
   box-sizing: border-box;
   background: var(--aa-raised);
   border: 1.5px solid var(--aa-ink);
 }
-.aa-bar .fill.total {
-  background: var(--aa-rule-strong);
+/* The connector: a hairline from the previous bar's end, across the gap, to this bar. */
+.aa-bridge-link {
+  position: absolute;
+  top: calc(-1 * var(--aa-space-3));
+  height: calc(100% + var(--aa-space-3));
+  border-left: 1px dashed var(--aa-rule-strong);
 }
-@media (max-width: 30rem) {
-  .aa-bar {
+.aa-bridge-value {
+  font-family: var(--aa-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.aa-bridge-id {
+  font: 500 var(--aa-text-label) / 1 var(--aa-font-mono);
+  color: var(--aa-ink-3);
+}
+.aa-bridge-share {
+  display: block;
+  font-family: var(--aa-font-sans);
+  color: var(--aa-ink-2);
+}
+@media (max-width: 40rem) {
+  .aa-bridge-rows {
     grid-template-columns: minmax(0, 1fr) auto;
   }
-  .aa-bar .track {
+  .aa-bridge-track {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+  /* Stacked, the label sits between two bars: a connector would cross it. */
+  .aa-bridge-link {
+    display: none;
   }
 }
 
@@ -161,7 +198,7 @@
   color: var(--aa-ink);
 }
 .aa-diff .reason {
-  font: 400 0.75rem / 1.5 var(--aa-font-mono);
+  font: 400 var(--aa-text-note) / 1.5 var(--aa-font-mono);
   color: var(--aa-ink-2);
   display: block;
 }
@@ -206,7 +243,6 @@
   color: var(--aa-page);
 }
 @media (prefers-reduced-motion: reduce) {
-  .aa-island .fill,
   .aa-island .aa-hits li,
   .aa-btn {
     transition: none;

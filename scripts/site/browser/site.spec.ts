@@ -926,6 +926,118 @@ test("pipeline stages: a stacked list without JS and under 40rem, no Play under 
   await ctx.close();
 });
 
+test("type on every page in the sitemap: nothing above h2 but the hero and the page's h1; floors for reading text and labels", async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(400_000);
+  const off: string[] = [];
+  const paths = await sitemapPaths(request);
+  // Every page at 1440; the landing page and two Learn pages at 390 too (the mobile scale differs).
+  const runs = [
+    ...paths.map((p) => [p, 1440] as const),
+    ...[LANDING, `${BASE}/learn/`, `${BASE}/learn/stages/analysis/`].map((p) => [p, 390] as const),
+  ];
+  for (const [path, width] of runs) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    const found = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const rem = Number.parseFloat(root.fontSize);
+      const h2 = Number.parseFloat(root.getPropertyValue("--aa-text-h2")) * rem;
+      // A figure: any diagram, island, ledger or framed panel (DESIGN.md §4).
+      const figures = document.querySelectorAll(
+        ".aa-island, .aa-flow, .aa-stages, .aa-exhibit, .aa-notes, .aa-walk-list, .aa-ledger-wrap, .aa-transcript, .aa-diagram, .aa-proofs, .aa-map",
+      );
+      const out: string[] = [];
+      const seen = new Set<Element>();
+      const check = (e: Element, inFigure: boolean) => {
+        if (seen.has(e) || !e.getClientRects().length || e.closest(".aa-sr")) return;
+        seen.add(e);
+        const own = [...e.childNodes]
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent ?? "")
+          .join("")
+          .trim();
+        if (!own) return;
+        const cs = getComputedStyle(e);
+        const px = Number.parseFloat(cs.fontSize);
+        // The ceiling: only the hero statement and the page's own h1 may be larger than h2.
+        if (px > h2 + 0.5 && !e.closest(".aa-display, h1")) out.push(`${px}px above h2: "${own.slice(0, 30)}"`);
+        // Labels: mono uppercase labels, chips, and short mono tags and ids ("N141", "bar ≥ 80%", "recomputed"); a
+        // figure (.aa-fig) is reading text, whatever its face.
+        const label =
+          !e.closest(".aa-fig") &&
+          (cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null || (/mono/i.test(cs.fontFamily) && own.length <= 32));
+        if (px < 11.95) out.push(`${px}px under the label size: "${own.slice(0, 30)}"`);
+        else if (inFigure && !label && px < 12.95) out.push(`${px}px reading text in a figure: "${own.slice(0, 30)}"`);
+      };
+      for (const f of figures) for (const e of f.querySelectorAll("*")) check(e, true);
+      for (const e of document.querySelectorAll("main *")) check(e, false);
+      return out;
+    });
+    for (const x of found) off.push(`${path} at ${width}: ${x}`);
+  }
+  expect(off).toEqual([]);
+});
+
+test("the contribution bridge: one row per total and member, bars on one shared scale, connectors joining them", async ({ page }) => {
+  for (const path of [`${BASE}/learn/stages/analysis/`, `${BASE}/start/first-report/`, `${BASE}/how-it-works/drivers/`]) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    const bridge = page.locator(".aa-bridge").first();
+    await bridge.scrollIntoViewIfNeeded();
+    await expect(bridge.locator(".aa-island-label")).toContainText("Contribution by channel");
+    await expect(bridge.locator(".aa-bridge-row")).toHaveCount(4);
+    await expect(bridge).not.toContainText("Everyone else");
+    // The page's own data (coffee.json) proves every member is drawn: the caption says so with the total's id.
+    await expect(bridge.locator("p.aa-small")).toContainText("The members drawn are all of them");
+    await expect(bridge.locator("p.aa-small")).toContainText("N143");
+    await expect(bridge).not.toContainText("not drawn");
+    const geo = await bridge.evaluate((el) => {
+      const tracks = [...el.querySelectorAll(".aa-bridge-track")].map((t) => t.getBoundingClientRect());
+      const rows = [...el.querySelectorAll(".aa-bridge-row")];
+      // Each connector sits at an end of the bar above it: the level it carries down to the next bar.
+      const joins = rows.slice(1).map((row, i) => {
+        const link = row.querySelector(".aa-bridge-link")?.getBoundingClientRect();
+        const above = rows[i]?.querySelector(".aa-bridge-bar")?.getBoundingClientRect();
+        if (!link || !above) return 999;
+        return Math.min(Math.abs(link.left - above.left), Math.abs(link.left - above.right));
+      });
+      // The bridge itself: March ends where wholesale starts (its right edge, a fall), wholesale ends where retail starts
+      // (its left edge), retail ends where April does.
+      const bars = rows.map((r) => r.querySelector(".aa-bridge-bar")?.getBoundingClientRect());
+      const ends = [
+        Math.abs((bars[0]?.right ?? 0) - (bars[1]?.right ?? 9)),
+        Math.abs((bars[1]?.left ?? 0) - (bars[2]?.left ?? 9)),
+        Math.abs((bars[2]?.right ?? 0) - (bars[3]?.right ?? 9)),
+      ];
+      return {
+        lefts: tracks.map((t) => Math.round(t.left)),
+        widths: tracks.map((t) => Math.round(t.width)),
+        joins,
+        ends,
+        track: tracks[0]?.width ?? 0,
+      };
+    });
+    expect(new Set(geo.lefts).size, path).toBe(1);
+    expect(new Set(geo.widths).size, path).toBe(1);
+    for (const j of geo.joins) expect(j, path).toBeLessThan(2);
+    for (const e of geo.ends) expect(e, path).toBeLessThan(2);
+    // Legible: the track has most of the island, not its minimum.
+    expect(geo.track, path).toBeGreaterThan(200);
+    // On a phone the bars stack under their labels at full width, and the connectors are hidden.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const phone = await bridge.evaluate((el) => ({
+      links: [...el.querySelectorAll(".aa-bridge-link")].filter((l) => l.getClientRects().length > 0).length,
+      tracks: [...el.querySelectorAll(".aa-bridge-track")].map((t) => Math.round(t.getBoundingClientRect().width)),
+      rows: Math.round((el.querySelector(".aa-bridge-rows") as HTMLElement).getBoundingClientRect().width),
+    }));
+    expect(phone.links, path).toBe(0);
+    for (const w of phone.tracks) expect(w, path).toBe(phone.rows);
+  }
+});
+
 test("mobile menu: aria-expanded toggles and Escape closes it", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto(MISSING);

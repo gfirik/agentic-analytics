@@ -17,7 +17,7 @@ import {
 import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
 import { formatWithCurrency } from "../../apps/docs/src/components/format.ts";
 import type { PipelineData } from "../../apps/docs/src/components/pipeline-scene.ts";
-import { monthName, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
+import { firstSentence, monthName, placeholders, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
 import { shownFacts } from "../../apps/docs/src/components/site/pipeline-stages.ts";
 
 let run: ReturnType<typeof recordRun<Awaited<ReturnType<typeof exhibitRows>>>> | undefined;
@@ -154,6 +154,30 @@ describe("hero exhibit (from the recorded run)", () => {
     const shown = shownFacts(run);
     expect(shown.length).toBe(8);
     for (const f of shown) expect(exhibit.notes[f.id]?.value, f.id).toBe(f.text);
+  });
+
+  it("§2 shows the report's own first sentence, as the model wrote it (placeholders) and as rendered (facts)", async () => {
+    const { report, exhibit } = await recorded();
+    const sentence = firstSentence(exhibit.lines[0] ?? []);
+    const raw = placeholders(sentence);
+    expect(raw.endsWith(".")).toBe(true);
+    expect(raw).toMatch(/\{\{N\d+\}\}/);
+    // The claim text in report.json starts with exactly this sentence.
+    expect(report.findings[0]?.claims[0]?.text.startsWith(raw)).toBe(true);
+    for (const p of sentence) if (p.fact) expect(exhibit.notes[p.fact]?.value, p.fact).toBeTruthy();
+  });
+
+  it("the contribution bridge's drivers are every member of the split: the total's inputs are exactly the drivers' deltas", async () => {
+    const { report } = await recorded();
+    const finding = report.findings.find((f) => f.drivers?.length);
+    const drivers = (finding?.drivers ?? []).map((d) => d.fact);
+    expect(drivers.length).toBeGreaterThan(1);
+    const first = report.facts.find((f) => f.id === drivers[0]);
+    const prefix = (first?.label ?? "").replace(/:delta:[^:]*$/, "");
+    const total = report.facts.find((f) => f.label === `${prefix}:delta:total`);
+    expect(total?.computation.kind).toBe("function");
+    const inputs = (total?.computation.kind === "function" ? total.computation.inputs : undefined) ?? [];
+    expect([...inputs].sort()).toEqual([...drivers].sort());
   });
 
   it("the cited document's quote is the claim's own citation", async () => {

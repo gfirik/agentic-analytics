@@ -764,12 +764,12 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     gap: 0.4rem;
     padding-top: var(--aa-space-3);
     border-top: 1px solid var(--aa-rule-strong);
-    font: 400 0.75rem / 1.4 var(--aa-font-mono);
+    font: 400 var(--aa-text-note) / 1.4 var(--aa-font-mono);
     color: var(--aa-ink-2);
   }
   .aa-exhibit-caption {
     margin-top: var(--aa-space-3);
-    font: 400 0.75rem / 1.5 var(--aa-font-mono);
+    font: 400 var(--aa-text-note) / 1.5 var(--aa-font-mono);
     color: var(--aa-ink-3);
   }
 
@@ -946,9 +946,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-exhibit-ledger tr:target td {
     background: var(--aa-mark);
   }
+  /* A function call (delta(N11, N12)): code, at the code size. */
   .aa-ledger-how {
     font-family: var(--aa-font-mono);
-    font-size: 0.75rem;
+    font-size: var(--aa-text-code);
     overflow-wrap: anywhere;
   }
   .aa-sr {

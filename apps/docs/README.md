@@ -31,7 +31,7 @@ Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the READM
 
 - `PipelineStages` (`src/components/site/PipelineStages.astro`): the run in `docs/assets/readme/pipeline.json`, stage by stage, as a rail and one ledger panel per stage. The README GIF draws the same data with its own scene (`src/components/pipeline-scene.ts`), which the site doesn't use.
 - `CitationDemo`: click a citation to see the cited rows or passage.
-- `Decomposition`: the contribution waterfall.
+- `Decomposition`: the contribution bridge (start total, each member's change, end total, with connectors and a broken axis; DESIGN.md §6).
 - `RagStepper`: BM25 → vectors → RRF → rerank → extract.
 - `VerifierDiff`: the draft against the verified report.
 - `Mermaid`: the shared diagrams, in the site's colours and type.

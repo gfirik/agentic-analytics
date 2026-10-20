@@ -90,7 +90,11 @@ try {
         // Capture only: a full-page clip renders beyond the viewport and replays the pipeline panels' opacity
         // transition, so every panel shows half-faded on top of the others. Readers never see that (a real resize
         // doesn't do it); turning transitions off makes the clip match the screen.
-        await page.addStyleTag({ content: "*, *::before, *::after { transition: none !important; }" });
+        // Also capture-only: the fixed header and the mobile TOC bar would otherwise sit over element and clip shots.
+        await page.addStyleTag({
+          content:
+            "*, *::before, *::after { transition: none !important; } header.header, mobile-starlight-toc, starlight-menu-button { visibility: hidden !important; }",
+        });
         await page.screenshot({ ...shot, path: join(out, `${slug}-00-top-${w}.jpg`) });
         // Each h2 section in full, from its h2 to the next one (or the end of the article).
         const spans = await page.evaluate(() => {
@@ -115,7 +119,7 @@ try {
         for (const [sel, name] of [
           [".aa-stages", "pipeline"],
           [".aa-flow", "stageflow"],
-          ["[aria-label='Contribution waterfall']", "waterfall"],
+          [".aa-bridge", "waterfall"],
         ] as const) {
           const fig = page.locator(sel).first();
           if (await fig.count()) await fig.screenshot({ ...shot, path: join(out, `${slug}-fig-${name}-${w}.jpg`) });
