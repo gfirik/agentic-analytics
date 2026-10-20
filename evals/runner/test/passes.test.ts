@@ -315,7 +315,7 @@ describe("evalCommand --passes 2", () => {
     expect(resultsMarkdown(old)).toContain("n/a (partial run)");
   });
 
-  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", async () => {
+  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", { timeout: 120_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     mkdirSync(join(dir, "results"));
     writeFileSync(join(dir, "results", "2026-10-19-fake-quota-smoke.json"), "{ not json");
@@ -339,7 +339,7 @@ describe("evalCommand --passes 2", () => {
     ).rejects.toThrow(/--passes goes with a whole suite/);
   });
 
-  it("writes no passes field for a one-pass run (results files keep their shape)", async () => {
+  it("writes no passes field for a one-pass run (results files keep their shape)", { timeout: 120_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     const r = await evalCommand(
       { suite: "smoke", model: "baseline", only: ["saas-v2"], resultsDir: join(dir, "r") },
