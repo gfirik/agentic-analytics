@@ -435,7 +435,7 @@ test("results: metrics as rows and runs as columns, no sideways scroll at 1440 o
         const b = run.bars.find((x) => x.metric === metric);
         expect(b, metric).toBeTruthy();
         const cell = cells.nth(k);
-        await expect(cell, metric).toContainText(fmt(metric, b?.value ?? Number.NaN));
+        await expect(cell.locator(".aa-fig"), metric).toHaveText(fmt(metric, b?.value ?? Number.NaN));
         if (b?.pass === false) await expect(cell.locator(".aa-below"), metric).toHaveCount(1);
         else await expect(cell.locator(".aa-below"), metric).toHaveCount(0);
       }
@@ -452,6 +452,7 @@ test("results: metrics as rows and runs as columns, no sideways scroll at 1440 o
   const page = await ctx.newPage();
   await page.goto(LANDING, { waitUntil: "networkidle" });
   const wrap = page.locator("#results .aa-ledger-wrap");
+  expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeGreaterThan(0);
   await wrap.evaluate((e) => {
     e.scrollLeft = e.scrollWidth;
   });
