@@ -20,26 +20,33 @@
   white-space: nowrap;
 }
 
-/* Fact-ID chip: a hairline-boxed mono id that links to the fact's ledger row (or opens its panel with JS). */
+/* Fact-ID chip: a hairline-boxed mono id that links to the fact's ledger row (or opens its panel with JS). Quiet in
+   running text (site v3, finding 4): label size, ink-3, a light hairline and a tight box that doesn't open up the line.
+   Its target stays at least 24px tall (DESIGN.md §8) through a transparent hit box above and below. */
 .aa-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 1.5rem;
-  padding: 0 0.3rem;
+  padding: 0.0625rem 0.25rem;
   margin-inline: 0.15rem;
-  border: 1px solid var(--aa-rule-strong);
+  border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius-chip);
   background: transparent;
-  color: var(--aa-ink-2);
-  font: 500 0.75rem / 1 var(--aa-font-mono);
+  color: var(--aa-ink-3);
+  font: 500 var(--aa-text-label) / 1.2 var(--aa-font-mono);
   letter-spacing: 0.02em;
   text-decoration: none;
-  vertical-align: 0.1em;
+  vertical-align: 0.08em;
   cursor: pointer;
   transition:
     border-color var(--aa-fast) var(--aa-ease),
     background-color var(--aa-fast) var(--aa-ease),
     color var(--aa-fast) var(--aa-ease);
+}
+.aa-chip::after {
+  content: "";
+  position: absolute;
+  inset: -5px 0;
 }
 .aa-chip:hover {
   border-color: var(--aa-ink);

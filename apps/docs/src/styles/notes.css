@@ -48,9 +48,6 @@
   color: var(--aa-ink-3);
   vertical-align: 0.1em;
 }
-.aa-sn-note .aa-chip {
-  min-height: 1.35rem;
-}
 .aa-sn-note :is(a:not(.aa-chip)) {
   color: var(--aa-ink);
 }
