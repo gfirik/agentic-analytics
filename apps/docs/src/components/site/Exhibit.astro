@@ -379,10 +379,15 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     // The notes column keeps the room of its tallest note, measured once its contents are final, so stepping from a
     // short note to a long one never moves the page. Beside the exhibit a note sits level with its figure, so its room
     // is its figure's offset plus its height; below the exhibit (one grid cell) the cell already holds the tallest.
+    // It only grows: a smaller measure later (fonts in, a wider window) never pulls the page up under the reader.
+    let reserved = 0;
     const reserve = () => {
       if (!col) return;
-      col.style.minHeight = "";
-      if (!beside.matches) return;
+      if (!beside.matches) {
+        reserved = 0;
+        col.style.minHeight = "";
+        return;
+      }
       const box = col.getBoundingClientRect();
       let room = 0;
       for (const note of col.querySelectorAll<HTMLElement>(".aa-note")) {
@@ -394,7 +399,8 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         note.classList.remove("is-measure");
         if (was) note.classList.add("is-open");
       }
-      col.style.minHeight = `${Math.ceil(room)}px`;
+      reserved = Math.max(reserved, Math.ceil(room));
+      col.style.minHeight = `${reserved}px`;
     };
     const fold = () => {
       for (const d of folds) d.open = beside.matches;
@@ -403,7 +409,16 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     };
     fold();
     beside.addEventListener("change", fold);
-    window.addEventListener("resize", place);
+    // A narrower column makes its notes taller: measure again (once a frame) as the window changes.
+    let resizing = 0;
+    window.addEventListener("resize", () => {
+      place();
+      if (!resizing)
+        resizing = requestAnimationFrame(() => {
+          resizing = 0;
+          reserve();
+        });
+    });
     // The note is placed by its figure's box, and sized by its text: both move a little when the web fonts arrive.
     document.fonts?.ready.then(() => {
       reserve();
@@ -427,8 +442,11 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const able = (b: HTMLButtonElement | null, on: boolean) => b?.setAttribute("aria-disabled", String(!on));
       // The button names the action it will take (Pause while running, Play while paused), so its state is visible and
       // spoken alike; with a changing label it carries no aria-pressed (ARIA Authoring Practices, button pattern).
+      const status = wrap.querySelector<HTMLElement>(".aa-walk-status");
       const showPause = () => {
         if (pause) pause.textContent = auto ? "Pause" : "Play";
+        // The caption is announced when the reader moves a step, not every 4.5 s while it advances by itself.
+        status?.setAttribute("aria-live", auto ? "off" : "polite");
       };
       const setStep = (k: number) => {
         current = Math.max(0, Math.min(n, k));
@@ -481,6 +499,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         tick(took + 600);
       };
       setStep(0);
+      showPause();
       // The verification runs once the report page's top is above the bottom sixth of the screen (on the first screen
       // at 1440×900). A margin, not a visible ratio: a ratio can't be reached by a box taller than the screen (a
       // landscape phone).
@@ -504,10 +523,14 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         held = on;
         if (!on && auto && notesOnScreen && current < n) tick(DWELL);
       };
-      // The exhibit and its notes only: the step bar's own buttons never hold the timer.
+      // The pointer holds it only on a figure or a note (a pointer resting anywhere over the wide exhibit while the
+      // reader scrolls would stop it before it starts); focus anywhere inside the exhibit holds it. The step bar's own
+      // buttons never do.
       const grid = wrap.querySelector<HTMLElement>(".aa-walk-grid") ?? wrap;
-      grid.addEventListener("mouseenter", () => hold(true));
-      grid.addEventListener("mouseleave", () => hold(false));
+      for (const el of [...chips, ...(col ? [col] : [])]) {
+        el.addEventListener("mouseenter", () => hold(true));
+        el.addEventListener("mouseleave", () => hold(false));
+      }
       grid.addEventListener("focusin", () => hold(true));
       grid.addEventListener("focusout", (e) => {
         if (!grid.contains(e.relatedTarget as Node | null)) hold(false);

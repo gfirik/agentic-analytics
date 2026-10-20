@@ -25,6 +25,7 @@
    Its target stays at least 24px tall (DESIGN.md §8) through a transparent hit box above and below. */
 .aa-chip {
   position: relative;
+  z-index: 1; /* its hit box stays above the next line of text, which would otherwise paint over it */
   display: inline-flex;
   align-items: center;
   padding: 0.0625rem 0.25rem;
@@ -46,7 +47,7 @@
 .aa-chip::after {
   content: "";
   position: absolute;
-  inset: -5px 0;
+  inset: -6px 0; /* from the padding box: about 5px beyond the hairline, so the target is about 28px tall */
 }
 .aa-chip:hover {
   border-color: var(--aa-ink);

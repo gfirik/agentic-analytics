@@ -96,12 +96,15 @@ test.describe("no horizontal scroll at 360 px", () => {
   }
 });
 
-test("no horizontal scroll where the docs' margin column is narrowest (1000–1100 px)", async ({ page }) => {
+test("no horizontal scroll from 1000 to 1100 px: the docs' narrowest margin column, the landing page's frame", async ({ page }) => {
   for (const width of [1000, 1024, 1072, 1100]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
-    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(over, `${width} px`).toBeLessThanOrEqual(0);
+    // The Learn page (the margin column's narrowest) and the landing page (its frame meets the screen edge up to 1180).
+    for (const path of [`${BASE}/learn/stages/analysis/`, LANDING]) {
+      await page.goto(path, { waitUntil: "networkidle" });
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(over, `${path} at ${width} px`).toBeLessThanOrEqual(0);
+    }
   }
 });
 
@@ -164,7 +167,7 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
 test("hero: at 1440 the walkthrough advances on a timer, step 1's note open from the start; nothing is pinned to the scroll", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING);
   const wrap = page.locator("[data-exhibit]");
@@ -190,6 +193,20 @@ test("hero: at 1440 the walkthrough advances on a timer, step 1's note open from
     await expect(open).toHaveCount(1);
     await expect(open).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
     await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[k - 1]}"]`)).toHaveAttribute("aria-expanded", "true");
+    if (k === 1) {
+      // Pause stops it and Play resumes (WCAG 2.2.2); the pointer on a figure holds it, and leaving lets it run.
+      const pause = page.locator("[data-walk-pause]");
+      await pause.click();
+      await expect(pause).toHaveText("Play");
+      await page.waitForTimeout(5_000);
+      await expect(cap(1)).toBeVisible();
+      await pause.click();
+      await expect(pause).toHaveText("Pause");
+      await page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[0]}"]`).hover();
+      await page.waitForTimeout(5_000);
+      await expect(cap(1)).toBeVisible();
+      await page.mouse.move(5, 5);
+    }
     if (k === 2) {
       // The change's SQL input: its SQL (open beside the exhibit) and the sheet rows it read.
       await expect(open.locator(".aa-note-sql")).toBeVisible();
@@ -214,6 +231,55 @@ test("hero: at 1440 the walkthrough advances on a timer, step 1's note open from
   await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
   await page.locator("[data-walk-next]").click();
   await expect(cap(1)).toBeVisible();
+});
+
+test("chips and the SQL toggle are at least 24 px tall to tap or click, and the hit box reaches above and below the chip", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const reach = (sel: string) =>
+    page
+      .locator(sel)
+      .first()
+      .evaluate((el) => {
+        // Mid-screen, so every probed point is inside the viewport (elementFromPoint returns nothing outside it).
+        el.scrollIntoView({ block: "center" });
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const hit = (y: number) => {
+          const at = document.elementFromPoint(x, y);
+          return at === el || el.contains(at);
+        };
+        // The tallest run of points that land on the element, in 0.5px steps through a 40px band around it.
+        let best = 0;
+        let run = 0;
+        for (let y = r.top - 20; y <= r.bottom + 20; y += 0.5) {
+          run = hit(y) ? run + 0.5 : 0;
+          best = Math.max(best, run);
+        }
+        return { height: best, above: hit(r.top - 4), below: hit(r.bottom + 4) };
+      });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  for (let k = 0; k < (await page.locator(".aa-exhibit a.aa-chip").count()); k++) {
+    const r = await reach(`.aa-exhibit a.aa-chip >> nth=${k}`);
+    expect(r.height, `exhibit chip ${k}`).toBeGreaterThanOrEqual(24);
+    expect(r.above && r.below, `exhibit chip ${k}`).toBe(true);
+  }
+  await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
+  expect((await reach(".sl-markdown-content p a.aa-chip")).height).toBeGreaterThanOrEqual(24);
+  // The SQL toggle under 900 px.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const id = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]")[1] as string;
+  await page.locator(`.aa-exhibit a.aa-chip[data-note="${id}"]`).click();
+  const summary = page.locator(`#aa-note-${id} details[data-fold] > summary`);
+  await summary.scrollIntoViewIfNeeded();
+  expect((await summary.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(24);
+  await summary.click();
+  await expect(page.locator(`#aa-note-${id} details[data-fold]`)).toHaveAttribute("open", "");
+  await expect(summary).toContainText("hide");
 });
 
 test("hero: stepping through the walkthrough never moves the page below it (1440, 390)", async ({ browser }) => {
@@ -287,7 +353,7 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   await pause.click();
   await expect(pause).toHaveText("Pause");
   // Exploring holds the timer: while the pointer is inside the exhibit no step passes; leaving lets it run again.
-  await page.locator(".aa-walk-grid").hover();
+  await page.locator(".aa-notes").hover();
   await page.waitForTimeout(5_500);
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
   await page.mouse.move(195, 5);
