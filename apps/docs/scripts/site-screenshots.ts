@@ -93,7 +93,7 @@ try {
         // Also capture-only: the fixed header and the mobile TOC bar would otherwise sit over element and clip shots.
         await page.addStyleTag({
           content:
-            "*, *::before, *::after { transition: none !important; } header.header, mobile-starlight-toc { visibility: hidden !important; }",
+            "*, *::before, *::after { transition: none !important; } header.header, mobile-starlight-toc, starlight-menu-button { visibility: hidden !important; }",
         });
         await page.screenshot({ ...shot, path: join(out, `${slug}-00-top-${w}.jpg`) });
         // Each h2 section in full, from its h2 to the next one (or the end of the article).

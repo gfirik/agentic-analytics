@@ -990,6 +990,10 @@ test("the contribution bridge: one row per total and member, bars on one shared 
     await expect(bridge.locator(".aa-island-label")).toContainText("Contribution by channel");
     await expect(bridge.locator(".aa-bridge-row")).toHaveCount(4);
     await expect(bridge).not.toContainText("Everyone else");
+    // The page's own data (coffee.json) proves every member is drawn: the caption says so with the total's id.
+    await expect(bridge.locator("p.aa-small")).toContainText("The members drawn are all of them");
+    await expect(bridge.locator("p.aa-small")).toContainText("N143");
+    await expect(bridge).not.toContainText("not drawn");
     const geo = await bridge.evaluate((el) => {
       const tracks = [...el.querySelectorAll(".aa-bridge-track")].map((t) => t.getBoundingClientRect());
       const rows = [...el.querySelectorAll(".aa-bridge-row")];
@@ -1000,11 +1004,37 @@ test("the contribution bridge: one row per total and member, bars on one shared 
         if (!link || !above) return 999;
         return Math.min(Math.abs(link.left - above.left), Math.abs(link.left - above.right));
       });
-      return { lefts: tracks.map((t) => Math.round(t.left)), widths: tracks.map((t) => Math.round(t.width)), joins };
+      // The bridge itself: March ends where wholesale starts (its right edge, a fall), wholesale ends where retail starts
+      // (its left edge), retail ends where April does.
+      const bars = rows.map((r) => r.querySelector(".aa-bridge-bar")?.getBoundingClientRect());
+      const ends = [
+        Math.abs((bars[0]?.right ?? 0) - (bars[1]?.right ?? 9)),
+        Math.abs((bars[1]?.left ?? 0) - (bars[2]?.left ?? 9)),
+        Math.abs((bars[2]?.right ?? 0) - (bars[3]?.right ?? 9)),
+      ];
+      return {
+        lefts: tracks.map((t) => Math.round(t.left)),
+        widths: tracks.map((t) => Math.round(t.width)),
+        joins,
+        ends,
+        track: tracks[0]?.width ?? 0,
+      };
     });
     expect(new Set(geo.lefts).size, path).toBe(1);
     expect(new Set(geo.widths).size, path).toBe(1);
     for (const j of geo.joins) expect(j, path).toBeLessThan(2);
+    for (const e of geo.ends) expect(e, path).toBeLessThan(2);
+    // Legible: the track has most of the island, not its minimum.
+    expect(geo.track, path).toBeGreaterThan(200);
+    // On a phone the bars stack under their labels at full width, and the connectors are hidden.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const phone = await bridge.evaluate((el) => ({
+      links: [...el.querySelectorAll(".aa-bridge-link")].filter((l) => l.getClientRects().length > 0).length,
+      tracks: [...el.querySelectorAll(".aa-bridge-track")].map((t) => Math.round(t.getBoundingClientRect().width)),
+      rows: Math.round((el.querySelector(".aa-bridge-rows") as HTMLElement).getBoundingClientRect().width),
+    }));
+    expect(phone.links, path).toBe(0);
+    for (const w of phone.tracks) expect(w, path).toBe(phone.rows);
   }
 });
 

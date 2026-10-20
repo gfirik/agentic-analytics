@@ -92,7 +92,7 @@ All three faces are self-hosted through `@fontsource` and imported once, in `src
 The scale (rem, root 16px; mobile values apply under 640px):
 
 - **Larger than h2:** nothing renders larger than `--aa-text-h2` except the hero statement and a page's own h1 (the docs h1 is 2.5rem, 2rem on mobile).
-- **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Labels are not reading text: mono uppercase labels, fact chips, and short mono tags and ids (a fact id outside a chip, "bar ≥ 80%", "recomputed", a grade) keep `--aa-text-label`. A figure's numbers (`.aa-fig`) are reading text. Nothing on the site is smaller than `--aa-text-label`.
+- **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Labels are not reading text: mono uppercase labels (and what sits in their line, such as a run's jobs count in a results-table head), fact chips, and short mono tags and ids (a fact id outside a chip, "bar ≥ 80%", "recomputed", a grade) keep `--aa-text-label`. A figure's numbers (`.aa-fig`) are reading text. Nothing on the site is smaller than `--aa-text-label`.
 - **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks, Mermaid sources, page leads and inline code in prose. The one exception: code inside a heading keeps the heading's scale (0.875em of it). Quickstart commands are broken at a flag or a `\` and fit their cell. The clone URL is longer than a Quickstart column at every width: it wraps only after `github.com/` (a `<wbr>`), and its second line starts under its first (an inline block), so it reads as one argument. Nothing splits mid-word.
 
 | Token | Size / line height | Face | Use |
@@ -243,7 +243,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - under 50rem the columns stack, with ↓ between them;
   - step descriptions and every other reading text in it at `--aa-text-note`; column heads at `--aa-text-label`.
 - **Contribution bridge** (`Decomposition.tsx`; Learn's analysis page, Your first report, Finding drivers):
-  - start total → each member's change → end total, one row each (label · bar · figure with its fact id); the rows share one set of columns (CSS subgrid), so every bar is on the same scale, and dashed `rule-strong` connectors run from one bar's end to the next one's start (hidden under 40rem, where the bars stack under their labels);
+  - start total → each member's change → end total, one row each (label · bar · figure with its fact id); the rows share one set of columns (CSS subgrid), so every bar is on the same scale, and dashed `rule-strong` connectors run from one bar's end to the next one's start (hidden under 40rem, where the bars stack under their labels); the name and the figure take their own width and the track the rest, with each share on its own line under its figure;
   - titled by the decomposition's own dimension ("Contribution by channel");
   - the totals are drawn from a broken axis, marked ≈ on the bar with no numeric tick, so the changes show at the scale of the change; the bar geometry is layout only, and every figure shown is a fact's stored value;
   - negative changes solid ink, positive ones outlined (§3);

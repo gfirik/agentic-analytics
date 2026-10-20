@@ -86,7 +86,9 @@
    one row lines up with the next row's and the connectors join them. */
 .aa-bridge-rows {
   display: grid;
-  grid-template-columns: minmax(7rem, 10rem) minmax(8rem, 1fr) minmax(0, max-content);
+  /* Name and figure at their own width, the track takes the rest (the share sits under its figure, so the figure
+     column stays narrow and the bars stay legible). */
+  grid-template-columns: max-content minmax(10rem, 1fr) max-content;
   gap: var(--aa-space-3);
   margin: 0 0 var(--aa-space-3);
   padding: 0;
@@ -150,6 +152,7 @@
   color: var(--aa-ink-3);
 }
 .aa-bridge-share {
+  display: block;
   font-family: var(--aa-font-sans);
   color: var(--aa-ink-2);
 }

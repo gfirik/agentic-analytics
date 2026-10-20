@@ -83,12 +83,11 @@ export default function Decomposition() {
               {fig(s.delta)}
               {s.share ? (
                 <span className="aa-bridge-share">
-                  {" "}
-                  · {formatWithCurrency(s.share)} of the change <span className="aa-bridge-id">{s.share.id}</span>
+                  {formatWithCurrency(s.share)} of the change <span className="aa-bridge-id">{s.share.id}</span>
                 </span>
               ) : null}
               {i === steps.length - 1 && others.length ? (
-                <span className="aa-bridge-share"> · also in the total, not drawn: {others.join(", ")}</span>
+                <span className="aa-bridge-share">also in the total, not drawn: {others.join(", ")}</span>
               ) : null}
             </span>
           </li>
