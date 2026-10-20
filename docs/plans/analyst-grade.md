@@ -306,6 +306,78 @@ All of these must hold on the release run. Each is reported for the best free ho
 
 The order puts measurement first, so every later milestone shows its effect in numbers. Next come the semantics that unlock most of the map, then the analyses that matter most to a small business (margin, cash and receivables, customers), then depth, prediction, prescription and the market.
 
+### M14a Quality fixes from the nightly run (first; added 2026-10-20)
+
+The maintainer put this ahead of everything else. The 2026-10-19 nightly run (configured-small mode, Groq qwen3.8-27b planner) is evidence that the engine stops after the biggest event. These fixes come first, ordered by impact, each with a deterministic fix and a FakeModel test.
+
+**1. Planted recall: 48% (24/50).**
+
+Over the 21 completed jobs it is 24/35 = 69%:
+
+| Event | Found |
+|---|---|
+| P1 | 21/21 |
+| P2 | 3/7 |
+| P3 | 0/7 |
+
+The other 9 jobs were rate-limited; the nightly fix handles them. The cap has two parts, and the scorer is not one of them:
+
+- **a. Small-model mode explains only 3 findings.**
+  - `packages/core/src/job.ts:472` sets `maxFindings: small ? 3 : 5`, and `packages/agent/src/explain.ts:142` applies it with `top.slice(0, maxFindings)`.
+  - Every completed job has exactly 3 findings.
+- **b. The ranking pushes P2 and P3 below the cut.**
+  - `topForExplain` (`packages/analysis/src/rank.ts:140–165`) puts one "first" per metric family before the single member slot, zero-score families included. P3, a product member such as `revenue[product=Old]`, lives in that member slot.
+  - `impactShare` (rank.ts:47–48) scores a rate family (P2, refund rate) at about pp/100, roughly 0.025.
+  - With a real model drafting 8–15 metrics, gross margin, net profit and duplicate sales metrics each become their own family and restate the P1 drop.
+  - `metricFamily` (rank.ts:173) matches suffixes only, so `revenue_trade`/`revenue_corporate` don't group under `revenue_total`.
+  - The scripted baseline doesn't hit this: its fallback metrics give at most 3 families, so P2 and P3 fit in 5 slots.
+
+**The fix,** deterministic and in `rank.ts`:
+- put the member slot right after the strongest family;
+- reserve a top-3 slot for the best rate family;
+- demote a family first that restates an earlier one (same period, same sign, a driver already told), and zero-score firsts;
+- group families by definition (same table and expression plus a filter), not by name suffix.
+
+Then decide whether small mode can afford 4 findings within Groq's per-minute token limit.
+
+**Acceptance:**
+- **Unit test:** `rank.test.ts` with rows mirroring coffee_roaster-v3 and clinic-v2. `topForExplain(…, 3)` = [P1 metric, the P3 member, the P2 rate].
+- **Engine test:** a FakeModel engine test, in small mode, replaying the real run's drafted metrics (`data/eval-reports/*metrics.drafted.json`), finds P2 and P3 in `report.findings`.
+- **Recall:** the next nightly run's planted recall over completed jobs is ≥ 80%.
+
+**2. Cause grade 71% (17/24).**
+- All 3 detected P2s cite nothing. Small-mode EXPLAIN runs one search built in code, `"<metric> <top driver> <period>"` (explain.ts:186–188). For a rate there are no event words in it, so the operations note isn't retrieved.
+- Four P1 jobs don't cite the email at document_supported grade.
+
+Fix: add the change type's event words to the query (supplier, switch, quality for rates), as the baseline planner does. Acceptance: ≥ 90% on completed jobs.
+
+**3. Recommendation relevance 38% (8/21).**
+
+11 of the 21 completed jobs had no recommendation, because DECIDE dropped them:
+- structured-output validation failed after 3 attempts;
+- prose was placed where a fact id belongs ("unknown fact");
+- a check threshold was tied to the wrong metric when the drafted names vary.
+
+Small mode also caps recommendations at 2 (job.ts:515).
+
+Fix:
+- repair the output deterministically (map a prose fact reference to its id only when exactly one fact matches, otherwise drop it);
+- bind thresholds by metric definition, not by name.
+
+Acceptance: ≥ 70% on completed jobs.
+
+**4. Quality-issue recall 70%.**
+
+Every completed job found all of its planted quality issues (28/28). The 12 misses are the 9 rate-limited jobs. This is fixed by the nightly change (a run can't be cut short by the quota, and "partial" only when jobs are truly missing), not by the engine.
+
+**5. Shares over 100% (from site v3, finding 9).**
+
+"Wholesale accounted for 108% of the change" is correct but reads like an error. In the deterministic claim template (`packages/agent/src/claims.ts:108`), when the top driver's share is above 100%, write "wholesale fell $8,500, more than the whole drop; retail grew $600". That needs two engine pieces:
+- **an absolute-value function fact** (`packages/analysis`, with its spec section in `docs/specs/analysis-library.md` and a hand-computed test), because V4 drops "fell {{N}}" when N is negative (`packages/verify/src/verify.ts:234`, report-schema §5a);
+- **a comparison the verifier can check:** |driver delta| > |total change|, recorded with its inputs and recomputed, so "more than the whole drop" is verified like any number.
+
+The run data (exhibit, pipeline JSON, README GIF) is regenerated in the same PR.
+
 ### M14 Measurement foundation
 **Scope:**
 - the golden-set format and scorer;
