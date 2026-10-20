@@ -2,6 +2,7 @@
 // same web-enabled run the pipeline scene plays (pipeline-data.ts recordRun(), docs/assets/readme/pipeline.json), so the whole page shows ONE run:
 // the first finding, every fact its claims and its top recommendation use, the facts those are computed from (so each
 // chip opens a fact whose inputs open too), and the verification counts. Values are the facts' stored values.
+import { type Passes, runStatus } from "@agentic-analytics/eval-runner";
 import type { Report } from "@agentic-analytics/schema";
 import { ident, idents, sql, type Workspace } from "@agentic-analytics/store";
 import { type FactLike, formatWithCurrency } from "../src/components/format.ts";
@@ -441,4 +442,27 @@ export function statusStrip(s: StatusInputs): StripItem[] {
     { text: "verifier on every report" },
     { text: `nightly regression: ${s.full.datasets} generated businesses`, href: "#results", more: "latest results in section 3" },
   ];
+}
+
+/**
+ * How the landing page's results table shows a suite run (docs/EVALS.md §4), by the eval runner's own runStatus: a
+ * run is partial only when jobs are unfinished after its last pass; between the passes of a nightly run it is in
+ * progress, and no bar is judged on either.
+ */
+export function suiteRunLabels(s: { readonly completed: number; readonly datasets: number; readonly passes?: Passes | null }): {
+  readonly status: "complete" | "resuming" | "partial";
+  /** The flag beside the jobs count; null for a complete run. */
+  readonly flag: string | null;
+  /** The text in every metric cell when no bar is judged; null for a complete run. */
+  readonly na: string | null;
+} {
+  const status = runStatus(s.completed, s.datasets, s.passes ?? undefined);
+  if (status === "resuming")
+    return {
+      status,
+      flag: `in progress: ${s.completed} of ${s.datasets} jobs, the next pass runs the rest`,
+      na: "n/a (resumes next pass)",
+    };
+  if (status === "partial") return { status, flag: "partial", na: "n/a (partial run)" };
+  return { status, flag: null, na: null };
 }

@@ -56,6 +56,118 @@ export interface SuiteResult {
   readonly tokens: { readonly input: number; readonly output: number };
   /** Every route that served a call in this run, summed over datasets. */
   readonly routes?: RouteUse[];
+  /** A run carried over several passes (`aa eval --passes`, scripts/eval-daily.sh): absent for a one-pass run. */
+  readonly passes?: Passes;
+}
+
+/**
+ * The passes a run is carried over (docs/EVALS.md §4): the date of each pass so far, and how many it may take. A job
+ * a pass didn't finish (a free tier's daily quota) is run again by the next pass; finished jobs are kept as scored.
+ */
+export interface Passes {
+  readonly dates: readonly string[];
+  readonly of: number;
+}
+
+/**
+ * complete: every job finished. resuming: some didn't, and a later pass will run them. partial: some didn't and no
+ * pass is left, so they are truly missing. Only a partial run is labelled partial (EVALS §4).
+ */
+export type RunStatus = "complete" | "resuming" | "partial";
+
+export function runStatus(done: number, total: number, passes?: Passes): RunStatus {
+  if (done >= total) return "complete";
+  return passes && passes.dates.length < passes.of ? "resuming" : "partial";
+}
+
+const statusOf = (r: Pick<SuiteResult, "scores" | "passes">): RunStatus =>
+  runStatus(r.scores.filter((s) => s.completed).length, r.scores.length, r.passes);
+
+/** What the next pass of a run does: the earlier pass to carry on, if any, and the datasets to run. */
+export interface ResumePlan {
+  /** The earlier result whose finished jobs are kept; absent: a fresh run. */
+  readonly from?: SuiteResult;
+  /**
+   * The earlier result, closed, when it was still waiting for a pass that will now never come (a skipped night, a
+   * model change): written back over its file so it reads partial instead of "in progress" for ever.
+   */
+  readonly close?: SuiteResult;
+  /** Why a fresh run did not carry on the earlier result, for the log. */
+  readonly reason?: string;
+  readonly run: readonly string[];
+  readonly passes: Passes;
+}
+
+/**
+ * Plans tonight's pass from the latest result of the same row. It carries that result on only when it is still
+ * resuming (unfinished jobs and a pass left), names the same model and suite, was served by the same model per role
+ * (`roleModels`, canonical ids, checked before any quota is spent), covers exactly the suite's datasets, and its last
+ * pass was the day before `today`: passes are nightly, an older result was scored by older code, and a same-day
+ * rerun starts again rather than using up the second pass. Otherwise the run starts again with every dataset (its
+ * finished calls still come from the response cache), and an earlier result that was still resuming is closed.
+ * Throws USAGE when a multi-pass run already had its pass today: starting again would overwrite it.
+ */
+export function planResume(
+  prev: SuiteResult | undefined,
+  o: {
+    readonly suite: Suite;
+    readonly modelName: string;
+    readonly ids: readonly string[];
+    readonly passes: number;
+    readonly today: string;
+    readonly roleModels?: Readonly<Record<string, string>>;
+  },
+): ResumePlan {
+  const fresh: ResumePlan = { run: o.ids, passes: { dates: [o.today], of: o.passes } };
+  if (!prev) return fresh;
+  const passes = prev.passes ?? { dates: [prev.date], of: 1 };
+  // Waiting for a pass by its own count: if it isn't carried on tonight it never will be.
+  const waiting = statusOf(prev) === "resuming";
+  const closed = { ...prev, passes: { dates: passes.dates, of: passes.dates.length } };
+  const startAgain = (reason: string): ResumePlan =>
+    waiting && passes.dates.at(-1) !== o.today ? { ...fresh, close: closed, reason } : { ...fresh, reason };
+  // A run carried over several passes already ran its last one today: a fresh run would overwrite the combined file
+  // (same date, same name) and drop the earlier nights' scores, on a quota that is spent.
+  if (prev.passes && passes.dates.length > 1 && passes.dates.at(-1) === o.today)
+    throw new EvalRunError(
+      "USAGE",
+      `the run over ${passes.dates.join(", ")} already had its pass today and is ${statusOf(prev) === "complete" ? "complete" : "closed"}; rerun tomorrow (a new run) or move its results file aside first`,
+    );
+  // A result with passes is judged by its own count, so a closed one (of = its passes) is never reopened; a file
+  // written before --passes counts as the first of tonight's.
+  const resumable = prev.passes
+    ? waiting
+    : runStatus(prev.scores.filter((s) => s.completed).length, prev.scores.length, { dates: passes.dates, of: o.passes }) === "resuming";
+  if (!resumable) return prev.scores.every((s) => s.completed) ? fresh : startAgain(`the ${prev.date} result has no pass left`);
+  if (prev.suite !== o.suite || prev.model !== o.modelName) return startAgain(`the ${prev.date} result names another model or suite`);
+  const changed = (prev.routes ?? []).filter((u) => o.roleModels?.[u.role] !== undefined && routeModel(u.route) !== o.roleModels[u.role]);
+  if (changed.length) return startAgain(`the ${prev.date} result's ${changed.map((u) => u.role).join(", ")} was served by another model`);
+  const last = passes.dates.at(-1) ?? prev.date;
+  const days = (Date.parse(o.today) - Date.parse(last)) / 86_400_000;
+  if (days === 0) return { ...fresh, reason: `the ${prev.date} pass ran today: a same-day rerun starts again` };
+  if (days !== 1) return startAgain(`the ${prev.date} pass is not last night's`);
+  const ids = prev.scores.map((s) => s.dataset);
+  if (ids.length !== o.ids.length || o.ids.some((id) => !ids.includes(id)))
+    return startAgain(`the ${prev.date} result covers other datasets`);
+  return {
+    from: prev,
+    run: o.ids.filter((id) => !prev.scores.find((s) => s.dataset === id)?.completed),
+    passes: { dates: [...passes.dates, o.today], of: o.passes },
+  };
+}
+
+/**
+ * One result from an earlier pass and tonight's: the earlier finished jobs as they were scored, tonight's jobs for
+ * the rest (a job that failed before and finished tonight counts as finished). The bars are computed again.
+ */
+export function resumeResult(from: SuiteResult, tonight: SuiteResult, passes: Passes, order: readonly string[]): SuiteResult {
+  const kept = from.scores.filter((s) => s.completed && !tonight.scores.some((t) => t.dataset === s.dataset));
+  const note = tonight.note ?? from.note;
+  const merged = mergeResults(
+    [{ ...from, scores: kept, routes: mergeRoutes(kept.flatMap((s) => s.routes ?? [])) }, tonight].filter((p) => p.scores.length),
+    { suite: tonight.suite, modelName: tonight.model, ...(note ? { note } : {}), order },
+  );
+  return { ...merged, date: tonight.date, passes };
 }
 
 /** Counts tokens across every call of a model client. */
@@ -251,17 +363,39 @@ export function mergeRoutes(uses: readonly RouteUse[]): RouteUse[] {
 }
 const pct = (v: number | undefined) => (v === undefined ? "n/a" : `${(v * 100).toFixed(1)}%`);
 
-const passCell = (b: Bar, partial: boolean) =>
-  partial && b.metric !== "Jobs completed" ? "n/a (partial run)" : b.pass === undefined ? "n/a" : b.pass ? "yes" : "**no**";
+const passCell = (b: Bar, status: RunStatus) =>
+  status !== "complete" && b.metric !== "Jobs completed"
+    ? status === "resuming"
+      ? "n/a (resumes next pass)"
+      : "n/a (partial run)"
+    : b.pass === undefined
+      ? "n/a"
+      : b.pass
+        ? "yes"
+        : "**no**";
+
+/** The passes line of a carried-over run: which nights it combines, and what its unfinished jobs mean. */
+const passesLine = (r: SuiteResult, status: RunStatus) => {
+  if (!r.passes) return [];
+  const n = r.passes.dates.length;
+  const what =
+    status === "resuming"
+      ? "unfinished jobs run again on the next pass"
+      : status === "partial"
+        ? "partial: jobs still unfinished after the last pass"
+        : "every job finished";
+  return [`Passes: ${r.passes.dates.join(", ")} (${n} of up to ${r.passes.of}; ${what}).`, ""];
+};
 
 /** One model's results as markdown: the bars, then one line per dataset. */
 export function resultsMarkdown(r: SuiteResult): string {
   // With unfinished jobs every rate counts them as misses, or covers only the finished few: no bar is judged.
-  const partial = r.scores.some((s) => !s.completed);
+  const status = statusOf(r);
   const lines = [
     `### ${r.model} · ${r.suite} suite · ${r.date}`,
     "",
     ...(r.note ? [r.note, ""] : []),
+    ...passesLine(r, status),
     `${r.datasets} datasets · ${r.seconds.toFixed(0)} s · ${r.tokens.input + r.tokens.output} tokens`,
     "",
     ...(r.routes?.length
@@ -273,7 +407,7 @@ export function resultsMarkdown(r: SuiteResult): string {
     "| Metric | Result | v0.1 bar | Pass |",
     "|---|---|---|---|",
     ...r.bars.map(
-      (b) => `| ${b.metric} | ${b.metric === "Number mismatches" ? String(b.value) : pct(b.value)} | ${b.bar} | ${passCell(b, partial)} |`,
+      (b) => `| ${b.metric} | ${b.metric === "Number mismatches" ? String(b.value) : pct(b.value)} | ${b.bar} | ${passCell(b, status)} |`,
     ),
     "",
     "<details><summary>Per dataset</summary>",
