@@ -432,7 +432,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       let auto = true; // advancing by itself until the reader steps by hand or pauses
       let notesOnScreen = false; // it advances only while the reader can see the notes
       let started = false;
-      let held = false; // the reader is hovering or focused inside the exhibit
+      // The reader is exploring: the pointer on a figure or a note, or focus inside the exhibit. Two flags, so leaving a
+      // chip with the mouse doesn't let it run while focus is still inside.
+      const held = { pointer: false, focus: false };
       const clearTimers = () => {
         for (const t of timers) clearTimeout(t);
         timers = [];
@@ -445,8 +447,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const status = wrap.querySelector<HTMLElement>(".aa-walk-status");
       const showPause = () => {
         if (pause) pause.textContent = auto ? "Pause" : "Play";
-        // The caption is announced when the reader moves a step, not every 4.5 s while it advances by itself.
-        status?.setAttribute("aria-live", auto ? "off" : "polite");
+        // The caption is announced when the reader moves a step, not every 4.5 s while it advances by itself: the region
+        // stays polite (switching it from off to live can drop the first update) and is busy while autoplaying.
+        status?.setAttribute("aria-busy", String(auto));
       };
       const setStep = (k: number) => {
         current = Math.max(0, Math.min(n, k));
@@ -481,7 +484,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const tick = (delay: number) => {
         clearTimeout(stepTimer);
         stepTimer = window.setTimeout(() => {
-          if (!auto || held || !notesOnScreen) return;
+          if (!auto || held.pointer || held.focus || !notesOnScreen) return;
           setStep(current + 1);
           if (current < n) tick(DWELL);
           else {
@@ -519,21 +522,21 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
           { rootMargin: "-25% 0px -25% 0px" },
         ).observe(col);
       // It waits while the reader explores (hover or focus inside the exhibit), and resumes after.
-      const hold = (on: boolean) => {
-        held = on;
-        if (!on && auto && notesOnScreen && current < n) tick(DWELL);
+      const hold = (by: "pointer" | "focus", on: boolean) => {
+        held[by] = on;
+        if (!held.pointer && !held.focus && auto && notesOnScreen && current < n) tick(DWELL);
       };
       // The pointer holds it only on a figure or a note (a pointer resting anywhere over the wide exhibit while the
       // reader scrolls would stop it before it starts); focus anywhere inside the exhibit holds it. The step bar's own
       // buttons never do.
       const grid = wrap.querySelector<HTMLElement>(".aa-walk-grid") ?? wrap;
       for (const el of [...chips, ...(col ? [col] : [])]) {
-        el.addEventListener("mouseenter", () => hold(true));
-        el.addEventListener("mouseleave", () => hold(false));
+        el.addEventListener("mouseenter", () => hold("pointer", true));
+        el.addEventListener("mouseleave", () => hold("pointer", false));
       }
-      grid.addEventListener("focusin", () => hold(true));
+      grid.addEventListener("focusin", () => hold("focus", true));
       grid.addEventListener("focusout", (e) => {
-        if (!grid.contains(e.relatedTarget as Node | null)) hold(false);
+        if (!grid.contains(e.relatedTarget as Node | null)) hold("focus", false);
       });
       const go = (k: number) => {
         if (k < 0 || k > n) return;

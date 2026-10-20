@@ -267,7 +267,9 @@ test("chips and the SQL toggle are at least 24 px tall to tap or click, and the 
     expect(r.above && r.below, `exhibit chip ${k}`).toBe(true);
   }
   await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
-  expect((await reach(".sl-markdown-content p a.aa-chip")).height).toBeGreaterThanOrEqual(24);
+  const learn = await reach(".sl-markdown-content p a.aa-chip");
+  expect(learn.height).toBeGreaterThanOrEqual(24);
+  expect(learn.above && learn.below).toBe(true);
   // The SQL toggle under 900 px.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
