@@ -642,7 +642,7 @@ test("Quickstart and door commands fit their cells at 1440, 390 and 360, never s
     }
     // At 1440 the commands fit their columns line for line; the one allowed wrap is the clone URL's, and its second line
     // starts where its first does.
-    if (width === 1440) {
+    {
       // Rendered lines are counted from the text itself (the cells stretch to the tallest, so heights can't tell).
       const soft = await page.locator(".aa-steps pre").evaluateAll((pres) =>
         pres.map((e) => {
@@ -690,8 +690,9 @@ test("Quickstart and door commands fit their cells at 1440, 390 and 360, never s
         }),
       );
       for (const x of soft) {
-        expect(x.extra).toBe(0);
-        expect(x.aligned).toBe(true);
+        // Every source line fits its column at 1440; at every width the URL's continuation is indented under it.
+        if (width === 1440) expect(x.extra).toBe(0);
+        expect(x.aligned, `${width}`).toBe(true);
       }
     }
   }

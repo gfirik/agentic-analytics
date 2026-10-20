@@ -374,7 +374,7 @@ AA_DEMO_MODEL=scripted \
                     {d.name}
                   </a>
                   <span class="aa-door-does">{d.does}</span>
-                  <code class="aa-door-cmd">{d.cmd.split(" ").flatMap((w, i) => [i ? " " : "", <span class="aa-nowrap">{w}</span>])}</code>
+                  <code class="aa-door-cmd">{d.cmd.split(" ").flatMap((w, i) => (i ? [" ", <span class="aa-nowrap">{w}</span>] : [<span class="aa-nowrap">{w}</span>]))}</code>
                 </li>
               ))
             }
@@ -773,7 +773,8 @@ AA_DEMO_MODEL=scripted \
   .aa-door-cmd .aa-nowrap {
     white-space: nowrap;
   }
-  /* Narrower than the line by its two-space indent, so it stays beside the indent and wraps inside itself. */
+  /* Narrower than the line by its two-space indent, so it stays beside the indent and wraps inside itself. "2ch" is the
+     indent only while the span inherits the pre's mono face and size: don't restyle it. */
   .aa-steps .aa-url {
     display: inline-block;
     max-width: calc(100% - 2ch);
