@@ -17,6 +17,9 @@
 # A job finished on either night counts as finished; the run is labelled partial only when jobs are still unfinished
 # after the second pass. The night after a closed run starts a new one. The row is named after the configured
 # routes (aa eval names a `configured` run that way); add --label/--note to override.
+# The second night's combined file replaces the first night's: the first file is deleted, so if it was committed the
+# checkout shows a tracked deletion; commit it with the combined file. A first night whose second never came is
+# rewritten closed (partial) by the next run.
 # The pass runs as a heavy job (scripts/heavy.sh: one at a time on the machine, AGENTS.md §9). Results land in
 # evals/results and the README table; a maintainer commits them in a PR.
 set -uo pipefail

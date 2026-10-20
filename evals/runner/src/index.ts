@@ -9,6 +9,7 @@ export {
   evalSlug,
   mergeChunks,
   type RealEvalArgs,
+  readPrevious,
   realEvalCommand,
   resultsPage,
   selectDatasets,

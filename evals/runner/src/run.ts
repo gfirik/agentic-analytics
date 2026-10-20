@@ -87,15 +87,24 @@ const statusOf = (r: Pick<SuiteResult, "scores" | "passes">): RunStatus =>
 export interface ResumePlan {
   /** The earlier result whose finished jobs are kept; absent: a fresh run. */
   readonly from?: SuiteResult;
+  /**
+   * The earlier result, closed, when it was still waiting for a pass that will now never come (a skipped night, a
+   * model change): written back over its file so it reads partial instead of "in progress" for ever.
+   */
+  readonly close?: SuiteResult;
+  /** Why a fresh run did not carry on the earlier result, for the log. */
+  readonly reason?: string;
   readonly run: readonly string[];
   readonly passes: Passes;
 }
 
 /**
  * Plans tonight's pass from the latest result of the same row. It carries that result on only when it is still
- * resuming (unfinished jobs and a pass left), names the same model and suite, covers exactly the suite's datasets,
- * and its last pass was at most a day before `today`: passes are nightly, and an older result was scored by older
- * code. Otherwise the run starts again with every dataset (its finished calls still come from the response cache).
+ * resuming (unfinished jobs and a pass left), names the same model and suite, was served by the same model per role
+ * (`roleModels`, canonical ids, checked before any quota is spent), covers exactly the suite's datasets, and its last
+ * pass was the day before `today`: passes are nightly, an older result was scored by older code, and a same-day
+ * rerun starts again rather than using up the second pass. Otherwise the run starts again with every dataset (its
+ * finished calls still come from the response cache), and an earlier result that was still resuming is closed.
  */
 export function planResume(
   prev: SuiteResult | undefined,
@@ -105,18 +114,29 @@ export function planResume(
     readonly ids: readonly string[];
     readonly passes: number;
     readonly today: string;
+    readonly roleModels?: Readonly<Record<string, string>>;
   },
 ): ResumePlan {
   const fresh: ResumePlan = { run: o.ids, passes: { dates: [o.today], of: o.passes } };
-  if (!prev || prev.suite !== o.suite || prev.model !== o.modelName) return fresh;
+  if (!prev) return fresh;
   const passes = prev.passes ?? { dates: [prev.date], of: 1 };
+  // Waiting for a pass by its own count: if it isn't carried on tonight it never will be.
+  const waiting = statusOf(prev) === "resuming";
+  const closed = { ...prev, passes: { dates: passes.dates, of: passes.dates.length } };
+  const startAgain = (reason: string): ResumePlan =>
+    waiting && passes.dates.at(-1) !== o.today ? { ...fresh, close: closed, reason } : { ...fresh, reason };
   if (runStatus(prev.scores.filter((s) => s.completed).length, prev.scores.length, { dates: passes.dates, of: o.passes }) !== "resuming")
-    return fresh;
+    return prev.scores.every((s) => s.completed) ? fresh : startAgain(`the ${prev.date} result has no pass left`);
+  if (prev.suite !== o.suite || prev.model !== o.modelName) return startAgain(`the ${prev.date} result names another model or suite`);
+  const changed = (prev.routes ?? []).filter((u) => o.roleModels?.[u.role] !== undefined && routeModel(u.route) !== o.roleModels[u.role]);
+  if (changed.length) return startAgain(`the ${prev.date} result's ${changed.map((u) => u.role).join(", ")} was served by another model`);
   const last = passes.dates.at(-1) ?? prev.date;
   const days = (Date.parse(o.today) - Date.parse(last)) / 86_400_000;
-  if (!(days >= 0 && days <= 1)) return fresh;
+  if (days === 0) return { ...fresh, reason: `the ${prev.date} pass ran today: a same-day rerun starts again` };
+  if (days !== 1) return startAgain(`the ${prev.date} pass is not last night's`);
   const ids = prev.scores.map((s) => s.dataset);
-  if (ids.length !== o.ids.length || o.ids.some((id) => !ids.includes(id))) return fresh;
+  if (ids.length !== o.ids.length || o.ids.some((id) => !ids.includes(id)))
+    return startAgain(`the ${prev.date} result covers other datasets`);
   return {
     from: prev,
     run: o.ids.filter((id) => !prev.scores.find((s) => s.dataset === id)?.completed),

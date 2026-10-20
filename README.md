@@ -21,7 +21,7 @@ It runs **fully locally, at $0**: models through Ollama (or a free endpoint such
 > - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (Groq free tier) finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision ([details](#real-model-runs)).
 > - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.
 >
-> 30 generated businesses with planted events are the nightly regression check (one scheduled pass a night, within the free tier's daily quota); the latest published pass is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
+> 30 generated businesses with planted events are the nightly regression check (each run over up to two nights within the free tier's daily quota: a night the quota cuts short resumes the next); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
 <!-- status:end -->
 
 ![A scripted, deterministic run of `aa analyze examples/coffee-roaster --open`: live stages, the summary, then the report opening and a citation click highlighting the source rows.](docs/assets/readme/demo.gif)
@@ -192,7 +192,7 @@ The engine on two public datasets with their real mess left in: a UK online reta
 
 ### Real-model runs
 
-Free models on generated businesses with planted events, distractors and data-quality issues, scored against an answer key. The smoke suite (3 businesses) is the quick check of a model; the full suite (30 businesses) is the nightly regression check: one scheduled pass a night within the free tier's daily quota, published in a PR, so the latest published pass can be partial. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
+Free models on generated businesses with planted events, distractors and data-quality issues, scored against an answer key. The smoke suite (3 businesses) is the quick check of a model; the full suite (30 businesses) is the nightly regression check: each run takes up to two nights within the free tier's daily quota (the second night runs only the businesses the first night's quota stopped) and is published in a PR, so the latest published run is partial only if businesses are still unfinished after the second night. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
 
 <!-- table:evals:start -->
 | Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |

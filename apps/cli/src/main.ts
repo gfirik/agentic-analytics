@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { configuredName, evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
+import { evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -25,6 +25,7 @@ import { defineCommand, runMain } from "citty";
 import { parse } from "yaml";
 import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
+import { nightlyArgs } from "./eval-args.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
@@ -406,9 +407,10 @@ const evalCmd = defineCommand({
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
     if ((args.label || args.note || args.only !== undefined || args.passes !== undefined) && args.suite === "real")
       throw new Error("--label, --note, --only and --passes go with --suite smoke|full");
-    const passes = args.passes === undefined ? undefined : Number(args.passes);
-    if (passes !== undefined && !(Number.isInteger(passes) && passes >= 1))
-      throw new Error(`--passes takes a whole number ≥ 1, not "${args.passes}"`);
+    const nightly = nightlyArgs(
+      { model, ...(args.label ? { label: args.label } : {}), ...(args.passes !== undefined ? { passes: args.passes } : {}) },
+      () => resolveModelConfig(process.env, configFile()).models,
+    );
     const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
     // A chunk is a partial run: it must never become the published row in evals/results.
     const refused = onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults);
@@ -460,9 +462,9 @@ const evalCmd = defineCommand({
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
         ...(args.label ? { label: args.label } : {}),
         ...(args.note ? { note: args.note } : {}),
-        // Named after its routes, so a nightly run's row says what served it (its file keeps the "configured" name).
-        ...(model === "configured" && !args.label ? { name: configuredName(resolveModelConfig(process.env, configFile()).models) } : {}),
-        ...(passes !== undefined ? { passes } : {}),
+        // A configured run is named after its routes (its file keeps the "configured" name), and --passes checks
+        // each role's model before carrying an earlier result on.
+        ...nightly,
         ...(only?.length ? { only } : {}),
         resultsDir: where.dir,
         ...(where.page ? { resultsPage: where.page } : {}),

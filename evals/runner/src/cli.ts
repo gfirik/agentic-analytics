@@ -1,6 +1,6 @@
 // `aa eval --suite smoke|full --model baseline|configured|<provider:model>` (docs/EVALS.md §3): runs the suite,
 // writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md` from every results file.
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Dataset } from "@agentic-analytics/eval-generator";
 import { type CallRecord, canonicalModel, describeRoleModel, type ModelClient } from "@agentic-analytics/models";
@@ -53,6 +53,37 @@ export interface EvalArgs {
    * replacing the earlier file. Absent or 1: every run starts afresh.
    */
   readonly passes?: number;
+  /**
+   * The model id each role is configured with (canonical: after the last "/", lower-cased), e.g. `{ planner:
+   * "qwen3.8-27b" }`. With --passes, an earlier result served by another model is not carried on: checked before
+   * the pass spends any quota.
+   */
+  readonly roleModels?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Reads an earlier results file for --passes. A file that doesn't parse or isn't a suite result is not carried on:
+ * the pass starts again (and says why) rather than losing the night.
+ */
+export function readPrevious(path: string): SuiteResult | EvalRunError {
+  try {
+    const r = JSON.parse(readFileSync(path, "utf8")) as Partial<SuiteResult> | null;
+    const ok =
+      r !== null &&
+      typeof r === "object" &&
+      (r.suite === "smoke" || r.suite === "full") &&
+      typeof r.model === "string" &&
+      typeof r.date === "string" &&
+      Array.isArray(r.scores) &&
+      r.scores.every((x) => typeof x?.dataset === "string" && typeof x.completed === "boolean") &&
+      (r.passes === undefined || (Array.isArray(r.passes.dates) && typeof r.passes.of === "number"));
+    return ok ? (r as SuiteResult) : new EvalRunError("BAD_RESULTS", `${path} is not a suite result; starting a new run`);
+  } catch (err) {
+    return new EvalRunError(
+      "BAD_RESULTS",
+      `${path} could not be read (${err instanceof Error ? err.message : String(err)}); starting a new run`,
+    );
+  }
 }
 
 export interface EvalDeps {
@@ -138,7 +169,9 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
   const all = selectDatasets(a.suite, a.only);
   const modelName = (a.label ?? a.name ?? a.model) + (a.smallModel ? " (small-model mode)" : "");
-  const today = (d.now ?? (() => new Date()))().toISOString().slice(0, 10);
+  // One clock reading for the pass: its date in `passes` and the result's date are the same day, even past midnight.
+  const at = (d.now ?? (() => new Date()))();
+  const today = at.toISOString().slice(0, 10);
   const carried = (a.passes ?? 1) > 1;
   if (carried && a.only?.length) throw new EvalRunError("USAGE", "--passes goes with a whole suite, not --only");
   // The latest file of this row (`<date><suffix>.json`); a pass carries it on only while it is resuming (planResume).
@@ -149,15 +182,30 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
         .sort()
         .at(-1)
     : undefined;
+  const prev = prevFile ? readPrevious(join(a.resultsDir, prevFile)) : undefined;
+  // Set aside as `<file>.bad`, not deleted: kept for a look, and no longer read as a results file by RESULTS.md.
+  if (prev instanceof EvalRunError && prevFile) {
+    renameSync(join(a.resultsDir, prevFile), join(a.resultsDir, `${prevFile}.bad`));
+    d.print(`warning: ${prev.message} (moved to ${prevFile}.bad)`);
+  }
   const plan = carried
-    ? planResume(prevFile ? (JSON.parse(readFileSync(join(a.resultsDir, prevFile), "utf8")) as SuiteResult) : undefined, {
+    ? planResume(prev instanceof EvalRunError ? undefined : prev, {
         suite: a.suite,
         modelName,
         ids: all.map((x) => x.id),
         passes: a.passes as number,
         today,
+        ...(a.roleModels ? { roleModels: a.roleModels } : {}),
       })
     : undefined;
+  if (plan?.reason && prev) d.print(`starting a new run: ${plan.reason}`);
+  // The earlier result waited for this pass and won't get it: closed, it reads partial rather than "in progress".
+  if (plan?.close && prevFile) {
+    writeFileSync(join(a.resultsDir, prevFile), `${JSON.stringify(plan.close, null, 2)}\n`);
+    d.print(
+      `closed ${prevFile}: ${plan.close.scores.filter((x) => x.completed).length} of ${plan.close.scores.length} jobs finished (partial)`,
+    );
+  }
   if (plan?.from)
     d.print(
       `resuming the ${plan.from.date} pass (${prevFile}): ${all.length - plan.run.length} of ${all.length} jobs finished, running the other ${plan.run.length}`,
@@ -175,7 +223,7 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
     embedder: d.embedder,
     ...(a.smallModel ? { smallModel: true } : {}),
     ...(a.keepReports ? { keepReports: a.keepReports } : {}),
-    ...(d.now ? { now: d.now } : {}),
+    now: () => at,
     onDataset: (s, i, n) =>
       d.print(
         `[${i + 1}/${n}] ${s.dataset}: ${s.completed ? `${s.planted.filter((p) => p.detected).length}/${s.planted.length} planted found` : `failed (${s.error})`} · ${s.seconds.toFixed(1)} s`,

@@ -2,7 +2,7 @@
 // quota for the planner (200k tokens) stopped 9 of the 30 businesses. The next night resumes that result and runs only
 // the unfinished jobs; a job that finished on either night counts as finished, and the run is partial only when jobs
 // are still unfinished after its last pass. No network: the scripted baseline model, with a fake quota.
-import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type ModelClient, ModelError } from "@agentic-analytics/models";
@@ -11,9 +11,11 @@ import { describe, expect, it } from "vitest";
 import {
   baselineModel,
   configuredName,
+  EvalRunError,
   evalCommand,
   mergeRoutes,
   planResume,
+  readPrevious,
   resultsMarkdown,
   resumeResult,
   runStatus,
@@ -77,23 +79,60 @@ describe("planResume", () => {
   it("starts afresh with no earlier result, a finished one, or one whose passes are used up", () => {
     const fresh = { run: IDS, passes: { dates: ["2026-10-20"], of: 2 } };
     expect(plan(undefined)).toEqual(fresh);
-    expect(
-      plan(
-        result(
-          "2026-10-19",
-          IDS.map((id) => score(id, true)),
-          { dates: ["2026-10-19"], of: 2 },
-        ),
-      ),
-    ).toEqual(fresh);
-    const closed = result("2026-10-19", night1.scores, { dates: ["2026-10-18", "2026-10-19"], of: 2 });
-    expect(plan(closed)).toEqual(fresh);
+    const done = result(
+      "2026-10-19",
+      IDS.map((id) => score(id, true)),
+      { dates: ["2026-10-19"], of: 2 },
+    );
+    expect(plan(done)).toEqual(fresh);
+    // Already partial after its last pass: nothing to close.
+    const used = plan(result("2026-10-19", night1.scores, { dates: ["2026-10-18", "2026-10-19"], of: 2 }));
+    expect([used.from, used.close, used.run]).toEqual([undefined, undefined, IDS]);
   });
 
-  it("starts afresh when the earlier result is older than a night, names another model, or covers other datasets", () => {
-    expect(plan(night1, "2026-10-22").from).toBeUndefined();
-    expect(plan({ ...night1, model: "configured (small-model mode)" }).from).toBeUndefined();
-    expect(plan({ ...night1, scores: night1.scores.slice(0, 2) }).from).toBeUndefined();
+  it("closes a first night whose second never came (skipped night, other model, other datasets), so it reads partial", () => {
+    const closed = { ...night1, passes: { dates: ["2026-10-19"], of: 1 } };
+    for (const p of [
+      plan(night1, "2026-10-22"),
+      plan({ ...night1, model: "configured (small-model mode)" }),
+      plan({ ...night1, scores: night1.scores.slice(0, 2) }),
+    ]) {
+      expect(p.from).toBeUndefined();
+      expect(p.run).toEqual(IDS);
+      expect(p.close?.passes).toEqual(closed.passes);
+      expect(p.reason).toBeTruthy();
+    }
+    const c = plan(night1, "2026-10-22").close as SuiteResult;
+    expect(runStatus(c.scores.filter((x) => x.completed).length, c.scores.length, c.passes)).toBe("partial");
+  });
+
+  it("checks each role's configured model before spending quota", () => {
+    const same = planResume(night1, {
+      suite: "full",
+      modelName: NAME,
+      ids: IDS,
+      passes: 2,
+      today: "2026-10-20",
+      roleModels: { planner: "qwen3.8-27b" },
+    });
+    expect(same.from).toBe(night1);
+    const other = planResume(night1, {
+      suite: "full",
+      modelName: NAME,
+      ids: IDS,
+      passes: 2,
+      today: "2026-10-20",
+      roleModels: { planner: "gpt-oss-120b" },
+    });
+    expect(other.from).toBeUndefined();
+    expect(other.reason).toMatch(/planner was served by another model/);
+    expect(other.close).toBeDefined();
+  });
+
+  it("a same-day rerun starts again instead of using up the second pass (and overwrites the same file)", () => {
+    const p = plan(night1, "2026-10-19");
+    expect([p.from, p.close, p.run]).toEqual([undefined, undefined, IDS]);
+    expect(p.reason).toMatch(/same-day rerun/);
   });
 
   it("counts a one-pass result (written before --passes) as its first pass", () => {
@@ -235,6 +274,37 @@ describe("evalCommand --passes 2", () => {
     const n3 = await night(dir, "2026-10-21", 1000, lines3);
     expect(lines3.filter((l) => /^\[\d+\/\d+\]/.test(l))).toHaveLength(3);
     expect(n3.passes).toEqual({ dates: ["2026-10-21"], of: 2 });
+  });
+
+  it("night 2 skipped: the next run starts again and the night-1 row reads partial", { timeout: 120_000 }, async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
+    // No quota at all: every job stops at its first call, so the night-1 result waits for a second pass.
+    const n1 = await night(dir, "2026-10-19", 0, []);
+    expect(n1.passes).toEqual({ dates: ["2026-10-19"], of: 2 });
+    const lines: string[] = [];
+    const n3 = await night(dir, "2026-10-21", 0, lines);
+    expect(lines[0]).toMatch(/^starting a new run: the 2026-10-19 pass is not last night's/);
+    expect(lines[1]).toBe("closed 2026-10-19-fake-quota-smoke.json: 0 of 3 jobs finished (partial)");
+    expect(n3.passes).toEqual({ dates: ["2026-10-21"], of: 2 });
+    expect(readdirSync(join(dir, "results")).sort()).toEqual(["2026-10-19-fake-quota-smoke.json", "2026-10-21-fake-quota-smoke.json"]);
+    const old = readPrevious(join(dir, "results", "2026-10-19-fake-quota-smoke.json")) as SuiteResult;
+    expect(old.passes).toEqual({ dates: ["2026-10-19"], of: 1 });
+    expect(runStatus(0, 3, old.passes)).toBe("partial");
+    expect(resultsMarkdown(old)).toContain("n/a (partial run)");
+  });
+
+  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
+    mkdirSync(join(dir, "results"));
+    writeFileSync(join(dir, "results", "2026-10-19-fake-quota-smoke.json"), "{ not json");
+    const lines: string[] = [];
+    const r = await night(dir, "2026-10-20", 0, lines);
+    expect(lines[0]).toMatch(/^warning: .*2026-10-19-fake-quota-smoke\.json could not be read .*starting a new run \(moved to .*\.bad\)$/);
+    expect(r.passes).toEqual({ dates: ["2026-10-20"], of: 2 });
+    expect(readdirSync(join(dir, "results")).sort()).toEqual(["2026-10-19-fake-quota-smoke.json.bad", "2026-10-20-fake-quota-smoke.json"]);
+    expect(readPrevious(join(dir, "results", "2026-10-19-fake-quota-smoke.json.bad"))).toBeInstanceOf(EvalRunError);
+    writeFileSync(join(dir, "x.json"), JSON.stringify({ suite: "full", model: "m", date: "2026-10-19", scores: [{ dataset: 1 }] }));
+    expect((readPrevious(join(dir, "x.json")) as EvalRunError).code).toBe("BAD_RESULTS");
   });
 
   it("refuses --passes with --only", async () => {
