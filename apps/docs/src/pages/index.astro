@@ -232,7 +232,7 @@ const doors = [
                   <span class="aa-run">Real public data</span>
                   <span class="aa-run-note">{evals.real.datasets.length} datasets, checked against SQL written separately</span>
                   <span class="aa-run-meta">
-                    <span class="aa-fig">
+                    <span class="aa-run-count">
                       {evals.real.datasets.filter((d) => d.completed).length}/{evals.real.datasets.length}
                     </span>{" "}
                     jobs · {evals.real.date}
@@ -244,7 +244,7 @@ const doors = [
                       <span class="aa-run">{c.run}</span>
                       <span class="aa-run-note">{c.note}</span>
                       <span class="aa-run-meta">
-                        <span class="aa-fig">
+                        <span class="aa-run-count">
                           {c.suite.completed}/{c.suite.datasets}
                         </span>{" "}
                         jobs · {c.suite.date}
@@ -676,6 +676,10 @@ AA_DEMO_MODEL=scripted \
     letter-spacing: 0;
     text-transform: none;
     color: var(--aa-ink-2);
+  }
+  /* The jobs count is part of the head's label line ("3/3 JOBS · date"), not a figure of the table. */
+  .aa-run-count {
+    font-variant-numeric: tabular-nums;
   }
   .aa-run-meta {
     display: block;

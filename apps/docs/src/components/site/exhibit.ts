@@ -115,7 +115,8 @@ export type LinePart = { text?: string; fact?: string; source?: string };
 
 /**
  * The first sentence of a report line, as parts (site v3, finding 13: §2 shows it before and after rendering). The
- * line is the report's own claim, split into text and facts; the sentence ends at the first ". " in a text part.
+ * line is the report's own claim, split into text and facts; the sentence ends at the first ". " in a text part (the
+ * engine's claim templates write no abbreviations such as "e.g. "; a unit test checks the result is the claim's start).
  */
 export function firstSentence(line: readonly LinePart[]): LinePart[] {
   const out: LinePart[] = [];

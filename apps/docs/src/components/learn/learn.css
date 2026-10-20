@@ -57,7 +57,7 @@
   background: var(--aa-mark);
 }
 .aa-flow-name {
-  font: 500 0.8125rem / 1.4 var(--aa-font-sans);
+  font: 500 var(--aa-text-note) / 1.4 var(--aa-font-sans);
   color: var(--aa-ink);
 }
 .aa-flow-value {
@@ -66,7 +66,7 @@
   align-items: center;
   gap: 0.15rem 0.35rem;
   font-family: var(--aa-font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--aa-text-note);
   font-variant-numeric: tabular-nums;
   color: var(--aa-ink);
 }
@@ -231,13 +231,13 @@
   font: 600 1rem / 1.35 var(--aa-font-sans);
 }
 .aa-map-io {
-  font-size: 0.8125rem;
+  font-size: var(--aa-text-note);
   line-height: 1.5;
   color: var(--aa-ink-2);
   overflow-wrap: anywhere;
 }
 .aa-map-io b {
-  font: 500 0.75rem / 1.5 var(--aa-font-mono);
+  font: 500 var(--aa-text-label) / 1.5 var(--aa-font-mono);
   color: var(--aa-ink-3);
 }
 .aa-map-io .aa-fig {

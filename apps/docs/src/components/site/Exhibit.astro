@@ -946,9 +946,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-exhibit-ledger tr:target td {
     background: var(--aa-mark);
   }
+  /* A function call (delta(N11, N12)): code, at the code size. */
   .aa-ledger-how {
     font-family: var(--aa-font-mono);
-    font-size: 0.75rem;
+    font-size: var(--aa-text-code);
     overflow-wrap: anywhere;
   }
   .aa-sr {

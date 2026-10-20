@@ -31,13 +31,12 @@ export default function Decomposition() {
     .filter((d): d is { label: string; delta: Fact; share: Fact | undefined } => !!d.delta);
   const first = drivers[0]?.delta;
   if (!before || !after || !first) return null;
-  // The decomposition's own total is the sum of every member's delta (its computation names them): when the drivers
-  // are all of them there is no "everyone else"; otherwise the members not shown are counted, never subtracted.
+  // The decomposition's own total is the sum of every member's delta, and its computation names them. Members in the
+  // total that aren't drivers are named by fact id, never counted or subtracted here; without a total fact the island
+  // claims nothing about completeness.
   const prefix = first.label.replace(/:delta:[^:]*$/, "");
   const total = report.facts.find((f) => f.label === `${prefix}:delta:total`);
-  const members = total?.computation?.inputs?.length ?? drivers.length;
-  const hidden = Math.max(0, members - drivers.length);
-
+  const others = (total?.computation?.inputs ?? []).filter((id) => !drivers.some((d) => d.delta.id === id));
   // Layout only: where each bar starts and ends on the track.
   let level = before.value;
   const steps = drivers.map((d) => {
@@ -88,7 +87,9 @@ export default function Decomposition() {
                   · {formatWithCurrency(s.share)} of the change <span className="aa-bridge-id">{s.share.id}</span>
                 </span>
               ) : null}
-              {i === steps.length - 1 && hidden ? <span className="aa-bridge-share"> · {hidden} more members not shown</span> : null}
+              {i === steps.length - 1 && others.length ? (
+                <span className="aa-bridge-share"> · also in the total, not drawn: {others.join(", ")}</span>
+              ) : null}
             </span>
           </li>
         ))}
@@ -103,8 +104,10 @@ export default function Decomposition() {
       </ol>
       <p className="aa-small">
         Both totals are drawn from a broken axis (≈), so the changes show at their own scale. Each change and its share are{" "}
-        <code>contribution.v1</code> facts recomputed by the verifier;
-        {hidden ? " the members not listed are counted, not summed by the page." : " the members listed are all of them."}
+        <code>contribution.v1</code> facts recomputed by the verifier.
+        {total && !others.length ? (
+          <> The members drawn are all of them: their changes are the decomposition's total, {fig(total)}.</>
+        ) : null}
       </p>
     </section>
   );

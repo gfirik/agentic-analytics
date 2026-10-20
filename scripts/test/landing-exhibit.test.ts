@@ -167,6 +167,19 @@ describe("hero exhibit (from the recorded run)", () => {
     for (const p of sentence) if (p.fact) expect(exhibit.notes[p.fact]?.value, p.fact).toBeTruthy();
   });
 
+  it("the contribution bridge's drivers are every member of the split: the total's inputs are exactly the drivers' deltas", async () => {
+    const { report } = await recorded();
+    const finding = report.findings.find((f) => f.drivers?.length);
+    const drivers = (finding?.drivers ?? []).map((d) => d.fact);
+    expect(drivers.length).toBeGreaterThan(1);
+    const first = report.facts.find((f) => f.id === drivers[0]);
+    const prefix = (first?.label ?? "").replace(/:delta:[^:]*$/, "");
+    const total = report.facts.find((f) => f.label === `${prefix}:delta:total`);
+    expect(total?.computation.kind).toBe("function");
+    const inputs = (total?.computation.kind === "function" ? total.computation.inputs : undefined) ?? [];
+    expect([...inputs].sort()).toEqual([...drivers].sort());
+  });
+
   it("the cited document's quote is the claim's own citation", async () => {
     const { report, exhibit } = await recorded();
     const quotes = report.findings[0]?.claims.flatMap((c) => c.citations.map((x) => x.quote)) ?? [];

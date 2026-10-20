@@ -926,16 +926,25 @@ test("pipeline stages: a stacked list without JS and under 40rem, no Play under 
   await ctx.close();
 });
 
-test("type floors on every page in the sitemap: reading text in a figure ≥ note size, nothing under label size", async ({
+test("type on every page in the sitemap: nothing above h2 but the hero and the page's h1; floors for reading text and labels", async ({
   page,
   request,
 }) => {
-  test.setTimeout(300_000);
-  await page.setViewportSize({ width: 1440, height: 900 });
+  test.setTimeout(400_000);
   const off: string[] = [];
-  for (const path of await sitemapPaths(request)) {
+  const paths = await sitemapPaths(request);
+  // Every page at 1440; the landing page and two Learn pages at 390 too (the mobile scale differs).
+  const runs = [
+    ...paths.map((p) => [p, 1440] as const),
+    ...[LANDING, `${BASE}/learn/`, `${BASE}/learn/stages/analysis/`].map((p) => [p, 390] as const),
+  ];
+  for (const [path, width] of runs) {
+    await page.setViewportSize({ width, height: 900 });
     await page.goto(path, { waitUntil: "networkidle" });
     const found = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const rem = Number.parseFloat(root.fontSize);
+      const h2 = Number.parseFloat(root.getPropertyValue("--aa-text-h2")) * rem;
       // A figure: any diagram, island, ledger or framed panel (DESIGN.md §4).
       const figures = document.querySelectorAll(
         ".aa-island, .aa-flow, .aa-stages, .aa-exhibit, .aa-notes, .aa-walk-list, .aa-ledger-wrap, .aa-transcript, .aa-diagram, .aa-proofs, .aa-map",
@@ -953,9 +962,13 @@ test("type floors on every page in the sitemap: reading text in a figure ≥ not
         if (!own) return;
         const cs = getComputedStyle(e);
         const px = Number.parseFloat(cs.fontSize);
-        // Labels: mono uppercase labels, chips, and short mono tags and identifiers (N30, "bar ≥ 80%", a grade).
+        // The ceiling: only the hero statement and the page's own h1 may be larger than h2.
+        if (px > h2 + 0.5 && !e.closest(".aa-display, h1")) out.push(`${px}px above h2: "${own.slice(0, 30)}"`);
+        // Labels: mono uppercase labels, chips, and short mono tags and ids ("N141", "bar ≥ 80%", "recomputed"); a
+        // figure (.aa-fig) is reading text, whatever its face.
         const label =
-          cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null || (/mono/i.test(cs.fontFamily) && own.length <= 32);
+          !e.closest(".aa-fig") &&
+          (cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null || (/mono/i.test(cs.fontFamily) && own.length <= 32));
         if (px < 11.95) out.push(`${px}px under the label size: "${own.slice(0, 30)}"`);
         else if (inFigure && !label && px < 12.95) out.push(`${px}px reading text in a figure: "${own.slice(0, 30)}"`);
       };
@@ -963,9 +976,36 @@ test("type floors on every page in the sitemap: reading text in a figure ≥ not
       for (const e of document.querySelectorAll("main *")) check(e, false);
       return out;
     });
-    for (const x of found) off.push(`${path}: ${x}`);
+    for (const x of found) off.push(`${path} at ${width}: ${x}`);
   }
   expect(off).toEqual([]);
+});
+
+test("the contribution bridge: one row per total and member, bars on one shared scale, connectors joining them", async ({ page }) => {
+  for (const path of [`${BASE}/learn/stages/analysis/`, `${BASE}/start/first-report/`, `${BASE}/how-it-works/drivers/`]) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    const bridge = page.locator(".aa-bridge").first();
+    await bridge.scrollIntoViewIfNeeded();
+    await expect(bridge.locator(".aa-island-label")).toContainText("Contribution by channel");
+    await expect(bridge.locator(".aa-bridge-row")).toHaveCount(4);
+    await expect(bridge).not.toContainText("Everyone else");
+    const geo = await bridge.evaluate((el) => {
+      const tracks = [...el.querySelectorAll(".aa-bridge-track")].map((t) => t.getBoundingClientRect());
+      const rows = [...el.querySelectorAll(".aa-bridge-row")];
+      // Each connector sits at an end of the bar above it: the level it carries down to the next bar.
+      const joins = rows.slice(1).map((row, i) => {
+        const link = row.querySelector(".aa-bridge-link")?.getBoundingClientRect();
+        const above = rows[i]?.querySelector(".aa-bridge-bar")?.getBoundingClientRect();
+        if (!link || !above) return 999;
+        return Math.min(Math.abs(link.left - above.left), Math.abs(link.left - above.right));
+      });
+      return { lefts: tracks.map((t) => Math.round(t.left)), widths: tracks.map((t) => Math.round(t.width)), joins };
+    });
+    expect(new Set(geo.lefts).size, path).toBe(1);
+    expect(new Set(geo.widths).size, path).toBe(1);
+    for (const j of geo.joins) expect(j, path).toBeLessThan(2);
+  }
 });
 
 test("mobile menu: aria-expanded toggles and Escape closes it", async ({ page }) => {

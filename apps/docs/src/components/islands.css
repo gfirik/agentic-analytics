@@ -82,8 +82,11 @@
 
 /* Decomposition: negative is solid ink, positive is outlined, totals are slate. Shape carries the sign, not hue. */
 /* Contribution bridge (Decomposition.tsx): label · track · figure per row, the changes joined by connectors. */
+/* The columns belong to the list, not to each row (subgrid): every track has the same width, so a bar's position on
+   one row lines up with the next row's and the connectors join them. */
 .aa-bridge-rows {
   display: grid;
+  grid-template-columns: minmax(7rem, 10rem) minmax(8rem, 1fr) minmax(0, max-content);
   gap: var(--aa-space-3);
   margin: 0 0 var(--aa-space-3);
   padding: 0;
@@ -91,8 +94,8 @@
 }
 .aa-bridge-row {
   display: grid;
-  grid-template-columns: minmax(7rem, 10rem) minmax(6rem, 1fr) minmax(0, auto);
-  gap: var(--aa-space-3);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   margin: 0;
   font-size: var(--aa-text-note);
@@ -151,7 +154,7 @@
   color: var(--aa-ink-2);
 }
 @media (max-width: 40rem) {
-  .aa-bridge-row {
+  .aa-bridge-rows {
     grid-template-columns: minmax(0, 1fr) auto;
   }
   .aa-bridge-track {
