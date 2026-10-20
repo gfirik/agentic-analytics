@@ -135,12 +135,13 @@ The scale (rem, root 16px; mobile values apply under 640px):
   2. `§1 HOW IT WORKS`: the pipeline stages (§6), full container width, inside the frame, one sentence above it.
   3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, the metric's definition with the 2-line SQL it compiles to, a citation.
   4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, **metrics as rows, runs as columns**, so it fits the 1180px container with no sideways scroll.
-     - **Rows:** every bar a real-model run can miss (planted recall, distractor false positives, driver accuracy, cause grade, citation precision, recommendation relevance, number mismatches), each with its bar stated once in the row label.
+     - **Rows:** the seven headline bars (planted recall, distractor false positives, driver accuracy, cause grade, citation precision, recommendation relevance, number mismatches), including every bar the smoke run misses, each with its bar stated once in the row label. The rest are in RESULTS.md.
      - **Columns:** real public data, the real-model smoke run, the nightly regression, then the offline baseline. Each head gives the run, a one-line note, its jobs and its date.
-     - **Cells:** a figure plus the check, or a struck-style "below bar"; "meets the bar" is screen-reader text only.
+     - **Cells:** a figure plus the check, or an underlined "below bar" in ink; "meets the bar" is screen-reader text only.
      - **A run without rates gets one cell spanning every metric row:**
        - the real public data, scored by its own checks (12/12);
        - a run with jobs missing: partial after its last pass, in progress between passes, labelled from the generated status, with its jobs-finished count.
+       - Each spanning cell names its column head (`headers`), so a screen reader reads it under its run, not under the first metric.
      - **Sources:** the result files sit in a `<details>` under the table, with the RESULTS.md link.
      - **Under 60rem** the table scrolls inside its wrapper with the metric column held in place.
   5. `§4 QUICKSTART`: three steps (install, model, analyze) with code, the binary downloads and the Docker line, and the four doors (CLI, API, MCP, Telegram) as a ruled list.
