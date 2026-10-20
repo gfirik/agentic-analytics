@@ -19,7 +19,10 @@
 # routes (aa eval names a `configured` run that way); add --label/--note to override.
 # The second night's combined file replaces the first night's: the first file is deleted, so if it was committed the
 # checkout shows a tracked deletion; commit it with the combined file. A first night whose second never came is
-# rewritten closed (partial) by the next run.
+# rewritten closed (partial) by the next run. Commit a first night's file only together with its second night: on its
+# own it reads "in progress" until a later run closes it. An earlier results file that can't be read is set aside as
+# evals/results/<file>.bad (gitignored) and the night starts a new run. A rerun on the day of a run's second pass is
+# refused rather than overwriting the combined file.
 # The pass runs as a heavy job (scripts/heavy.sh: one at a time on the machine, AGENTS.md §9). Results land in
 # evals/results and the README table; a maintainer commits them in a PR.
 set -uo pipefail

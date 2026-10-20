@@ -1,6 +1,6 @@
 // The `aa eval` arguments that shape a nightly run (docs/EVALS.md §3–4), as a pure function so the wiring is tested
 // without running a suite: --passes, and the row name and per-role models of `--model configured`.
-import { configuredName } from "@agentic-analytics/eval-runner";
+import { configuredName, EvalRunError } from "@agentic-analytics/eval-runner";
 import { canonicalModel } from "@agentic-analytics/models";
 
 type Route = { readonly provider: string; readonly endpoint?: string | undefined; readonly model: string };
@@ -14,14 +14,14 @@ export interface NightlyArgs {
   readonly roleModels?: Readonly<Record<string, string>>;
 }
 
-/** Throws on a --passes that isn't a whole number ≥ 1. `models` is read only for `--model configured`. */
+/** Throws EvalRunError USAGE on a --passes that isn't a whole number ≥ 1. `models` is read only for `--model configured`. */
 export function nightlyArgs(
   a: { readonly model: string; readonly label?: string; readonly passes?: string },
   models: () => Models,
 ): NightlyArgs {
   const passes = a.passes === undefined ? undefined : Number(a.passes);
   if (passes !== undefined && !(Number.isInteger(passes) && passes >= 1))
-    throw new Error(`--passes takes a whole number ≥ 1, not "${a.passes}"`);
+    throw new EvalRunError("USAGE", `--passes takes a whole number ≥ 1, not "${a.passes}"`);
   const m = a.model === "configured" ? models() : undefined;
   return {
     ...(passes !== undefined ? { passes } : {}),

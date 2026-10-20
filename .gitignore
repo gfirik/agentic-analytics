@@ -15,6 +15,8 @@ data/
 .DS_Store
 # Baseline smoke runs are local; full-suite and real-model results are published (RESULTS.md is rebuilt from them)
 evals/results/*-baseline-smoke.json
+# an unreadable earlier results file set aside by aa eval --passes (docs/EVALS.md §3)
+evals/results/*.bad
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/

@@ -105,6 +105,7 @@ export interface ResumePlan {
  * pass was the day before `today`: passes are nightly, an older result was scored by older code, and a same-day
  * rerun starts again rather than using up the second pass. Otherwise the run starts again with every dataset (its
  * finished calls still come from the response cache), and an earlier result that was still resuming is closed.
+ * Throws USAGE when a multi-pass run already had its pass today: starting again would overwrite it.
  */
 export function planResume(
   prev: SuiteResult | undefined,
@@ -125,8 +126,19 @@ export function planResume(
   const closed = { ...prev, passes: { dates: passes.dates, of: passes.dates.length } };
   const startAgain = (reason: string): ResumePlan =>
     waiting && passes.dates.at(-1) !== o.today ? { ...fresh, close: closed, reason } : { ...fresh, reason };
-  if (runStatus(prev.scores.filter((s) => s.completed).length, prev.scores.length, { dates: passes.dates, of: o.passes }) !== "resuming")
-    return prev.scores.every((s) => s.completed) ? fresh : startAgain(`the ${prev.date} result has no pass left`);
+  // A run carried over several passes already ran its last one today: a fresh run would overwrite the combined file
+  // (same date, same name) and drop the earlier nights' scores, on a quota that is spent.
+  if (prev.passes && passes.dates.length > 1 && passes.dates.at(-1) === o.today)
+    throw new EvalRunError(
+      "USAGE",
+      `the run over ${passes.dates.join(", ")} already had its pass today and is ${statusOf(prev) === "complete" ? "complete" : "closed"}; rerun tomorrow (a new run) or move its results file aside first`,
+    );
+  // A result with passes is judged by its own count, so a closed one (of = its passes) is never reopened; a file
+  // written before --passes counts as the first of tonight's.
+  const resumable = prev.passes
+    ? waiting
+    : runStatus(prev.scores.filter((s) => s.completed).length, prev.scores.length, { dates: passes.dates, of: o.passes }) === "resuming";
+  if (!resumable) return prev.scores.every((s) => s.completed) ? fresh : startAgain(`the ${prev.date} result has no pass left`);
   if (prev.suite !== o.suite || prev.model !== o.modelName) return startAgain(`the ${prev.date} result names another model or suite`);
   const changed = (prev.routes ?? []).filter((u) => o.roleModels?.[u.role] !== undefined && routeModel(u.route) !== o.roleModels[u.role]);
   if (changed.length) return startAgain(`the ${prev.date} result's ${changed.map((u) => u.role).join(", ")} was served by another model`);

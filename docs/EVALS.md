@@ -107,7 +107,8 @@ A run whose jobs didn't all finish (a free tier's daily quota ran out) is publis
 - replays every finished call from `evals/.cache` (a cached answer is served even while the route is rate-limited);
 - spends the day's quota on the businesses not yet finished (on the second night, only the first night's unfinished ones);
 - regenerates the README table and RESULTS.md;
-- on the second night, deletes the first night's results file, which the combined file replaces. If that file was committed, the deletion shows in `git status` of the checkout and goes in the same PR as the combined file;
+- on the second night, deletes the first night's results file, which the combined file replaces. If that file was committed, the deletion shows in `git status` of the checkout and goes in the same PR as the combined file. So commit a first night's file only together with its second night: on its own it reads "in progress" until a later run closes it;
+- refuses a rerun on the day of a run's last pass (it would overwrite the combined file), and sets an unreadable earlier file aside as `<file>.bad` (gitignored);
 - sends a one-line summary through `scripts/notify.sh`.
 
 It never switches models. A second route for the same model adds quota on the first night. For the planner, Cloudflare Workers AI serves `@cf/qwen/qwen3.8-27b` on its free plan: 10,000 neurons a day with no card, and calls past that fail rather than bill (developers.cloudflare.com/workers-ai/platform/pricing). At 40,909 neurons per M input tokens and 290,909 per M output, that is about 16 businesses a day: `PLANNER_MODEL=openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cloudflare:@cf/qwen/qwen3.8-27b`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Cerebras serves the model as `qwen-3.8-27b`, but only on a $5, 30-day trial that needs a payment method, so it is not a free route. OpenRouter lists no free (`:free`) variant.

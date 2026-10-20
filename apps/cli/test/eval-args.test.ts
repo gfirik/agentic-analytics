@@ -1,4 +1,6 @@
 // `aa eval --passes` and the row name of `--model configured` (docs/EVALS.md §3–4): the nightly run's wiring.
+
+import { EvalRunError } from "@agentic-analytics/eval-runner";
 import { describe, expect, it } from "vitest";
 import { nightlyArgs } from "../src/eval-args.ts";
 
@@ -24,5 +26,6 @@ describe("nightlyArgs", () => {
   it("refuses a --passes that isn't a whole number ≥ 1", () => {
     for (const bad of ["0", "1.5", "two", "-1", ""])
       expect(() => nightlyArgs({ model: "baseline", passes: bad }, models)).toThrow(/whole number ≥ 1/);
+    expect(() => nightlyArgs({ model: "baseline", passes: "0" }, models)).toThrow(EvalRunError);
   });
 });

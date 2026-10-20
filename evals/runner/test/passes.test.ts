@@ -129,6 +129,28 @@ describe("planResume", () => {
     expect(other.close).toBeDefined();
   });
 
+  it("never reopens a result it closed, even the next day", () => {
+    // Closed by an earlier run (e.g. a close, then a crash before the fresh run wrote its file).
+    const closed = { ...night1, passes: { dates: ["2026-10-19"], of: 1 } };
+    const p = plan(closed, "2026-10-20");
+    expect([p.from, p.close, p.run]).toEqual([undefined, undefined, IDS]);
+    expect(p.reason).toMatch(/no pass left/);
+  });
+
+  it("refuses a same-day rerun after a run's last pass: it would overwrite the combined file", () => {
+    const combined = result("2026-10-20", night1.scores, { dates: ["2026-10-19", "2026-10-20"], of: 2 });
+    expect(() => plan(combined, "2026-10-20")).toThrow(EvalRunError);
+    expect(() => plan(combined, "2026-10-20")).toThrow(/run over 2026-10-19, 2026-10-20 already had its pass today and is closed/);
+    const complete = result(
+      "2026-10-20",
+      IDS.map((id) => score(id, true)),
+      { dates: ["2026-10-19", "2026-10-20"], of: 2 },
+    );
+    expect(() => plan(complete, "2026-10-20")).toThrow(/is complete; rerun tomorrow/);
+    // The next day it is a new run as usual.
+    expect(plan(complete, "2026-10-21").run).toEqual(IDS);
+  });
+
   it("a same-day rerun starts again instead of using up the second pass (and overwrites the same file)", () => {
     const p = plan(night1, "2026-10-19");
     expect([p.from, p.close, p.run]).toEqual([undefined, undefined, IDS]);
