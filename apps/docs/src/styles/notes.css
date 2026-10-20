@@ -52,7 +52,7 @@
   color: var(--aa-ink);
 }
 .aa-sn-note code {
-  font-size: 0.9em;
+  font-size: var(--aa-text-code);
 }
 
 /* Inline, tap-to-expand (under 1000px). */

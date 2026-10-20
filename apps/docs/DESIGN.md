@@ -93,7 +93,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 - **Larger than h2:** nothing renders larger than `--aa-text-h2` except the hero statement and a page's own h1 (the docs h1 is 2.5rem, 2rem on mobile).
 - **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Mono uppercase labels and fact chips are not reading text: they keep `--aa-text-label`, and nothing on the site is smaller than that.
-- **Code:** one size everywhere, 0.8125rem (site v3 PR 4 moves every code block onto one token, `--aa-text-code`).
+- **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks and inline code in prose. Commands are broken at a flag or a `\`, never mid-word; a line wider than its box scrolls inside it.
 
 | Token | Size / line height | Face | Use |
 |---|---|---|---|
@@ -106,6 +106,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 | `--aa-text-small` | 0.875 / 1.5 | Sans 400 | Captions, caveats |
 | `--aa-text-note` | 0.8125 / 1.5 | Sans 400, `ink-2` | Sidenotes, margin notes, the TOC |
 | `--aa-text-label` | 0.75 / 1.3, uppercase, `--aa-label-tracking` (+0.08em) | Mono 500, `ink-3` | Labels, ledger column heads, section references |
+| `--aa-text-code` | 0.8125 / 1.5–1.65 | Mono 400 | Every code block and inline code |
 
 - **Labels:** Plex Mono at `--aa-text-label` (0.75rem), uppercase, +0.08em tracking, in `ink-3`.
 - **Bracketed section labels** on the landing page: `⊣ §1 HOW IT WORKS ⊢`, in mono, centred on a hairline (`SectionLabel.astro`).
@@ -127,7 +128,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
   This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain.
 - **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero and the section heads only. It fades to the plain page at the edges through a CSS mask (no image) and is never behind long text.
-- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways (keyboard-focusable) instead of wrapping, so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
+- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways instead of wrapping (a horizontal scroll box, §6: keyboard-focusable, no scrollbar, a fade at the edge with more), so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
+- **Section heads** (site v3): every landing section opens with the same three lines, `--aa-space-4` apart, centred on the graph paper: the bracketed label, the `h2` (a 30ch measure, so it is one line from 1100px), and a one-sentence lead. Caveats go next to what they qualify (§3's under its table), not in the lead.
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
   1. Status strip, header, then the hero, in hex.tech's structure rather than two columns:
      - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
@@ -215,7 +217,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - hover changes the background tone only.
 - **Code:**
   - Expressive Code with `github-light` only, re-based onto `raised` (so its contrast correction targets our real background);
-  - a hairline frame, a mono 0.875rem body, a mono caption label, no window dots.
+  - a hairline frame, a mono body at `--aa-text-code`, a mono caption label, no window dots.
+- **Horizontal scroll boxes** (`.aa-scroll-x`: the status strip, the hero's install line): one line that scrolls sideways on narrow screens, a labelled focusable region. No scrollbar (in CSS from the start, so the box's height never changes); the edge with more to read fades out with a transparency mask (not a coloured gradient), set by a small script; without JS there is no fade, and keyboard and touch scrolling work as before.
 - **Diagrams:**
   - Mermaid is initialised with the token colours and Plex Sans.
   - The pipeline scene (`pipeline-scene.ts`) draws the README GIF only. The site never uses it: its fixed 640×480 canvas scaled its type past the h2 on desktop and below reading size on phones.

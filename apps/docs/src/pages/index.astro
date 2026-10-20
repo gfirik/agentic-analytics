@@ -120,7 +120,7 @@ const doors = [
           <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
           <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
         </div>
-        <div class="aa-hero-cmd" role="region" aria-label="Install command" tabindex="0">
+        <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
           <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
         </div>
       </div>
@@ -137,10 +137,7 @@ const doors = [
       <div class="aa-cell aa-cell-head aa-grid-field">
         <SectionLabel n={1} text="How it works" />
         <h2 id="aa-how-title" class="aa-h2 aa-center">Files in, a verified and cited report out.</h2>
-        <p class="aa-lead aa-center">
-          The same run as the exhibit, stage by stage: read the files, define the metric, measure in SQL, find the cause in the documents,
-          recompute every number, and only then write.
-        </p>
+        <p class="aa-lead aa-center">One real run, stage by stage, from the files to a verified report.</p>
       </div>
       <div class="aa-cell aa-how">
         <PipelineStages />
@@ -151,6 +148,7 @@ const doors = [
       <div class="aa-cell aa-cell-head aa-grid-field">
         <SectionLabel n={2} text="Why it's different" />
         <h2 id="aa-why-title" class="aa-h2 aa-center">Built so you don't have to take its word for it.</h2>
+        <p class="aa-lead aa-center">Three rules the engine can't break.</p>
       </div>
       <ul class="aa-proofs">
         <li class="aa-cell">
@@ -205,11 +203,7 @@ const doors = [
       <div class="aa-cell aa-cell-head aa-grid-field">
         <SectionLabel n={3} text="Results, as they are" />
         <h2 id="aa-results-title" class="aa-h2 aa-center">Measured, with the caveats next to the numbers.</h2>
-        <p class="aa-lead aa-center">
-          Real public data first, checked against SQL written separately, then a real model on the smoke suite. The generated businesses
-          with planted events are the nightly regression check, run over up to two nights within the free tier's quota; the latest
-          published run is shown, and it is labelled partial only if jobs are still unfinished after its second night.
-        </p>
+        <p class="aa-lead aa-center">Real public data first; a run with jobs missing is labelled, not hidden.</p>
       </div>
       <div class="aa-cell">
         <div class="aa-ledger-wrap" role="region" aria-label="Eval results" tabindex="0">
@@ -302,8 +296,10 @@ const doors = [
           </table>
         </div>
         <p class="aa-small aa-under">
-          The offline baseline is a scripted heuristic tuned on the same datasets, so its scores are optimistic: it tests the engine and the
-          harness, not model quality. <a href={withBase("quality/results/")}>All results (RESULTS.md)</a> ·{" "}
+          Real public data is checked against SQL written separately; a free-tier model then runs the smoke suite. The generated businesses
+          with planted events are the nightly regression check, run over up to two nights within the free tier's quota; the latest published
+          run is shown, labelled partial only if jobs are still unfinished after its second night. The offline baseline is a scripted
+          heuristic tuned on the same datasets, so its scores are optimistic: it tests the engine and the harness, not model quality. <a href={withBase("quality/results/")}>All results (RESULTS.md)</a> ·{" "}
           <a href={withBase("quality/evals/")}>How quality is measured</a>
         </p>
         <details class="aa-sources">
@@ -317,6 +313,7 @@ const doors = [
       <div class="aa-cell aa-cell-head aa-grid-field">
         <SectionLabel n={4} text="Quickstart" />
         <h2 id="aa-quick-title" class="aa-h2 aa-center">Run it on the example, then on your files.</h2>
+        <p class="aa-lead aa-center">Install, pick a free model, analyze the example.</p>
       </div>
       <ol class="aa-steps">
         <li class="aa-cell">
@@ -342,10 +339,13 @@ cp .env.example .env</code></pre>
         <li class="aa-cell">
           <p class="aa-label">Step 3 · Analyze</p>
           <div class="aa-code">
-            <pre tabindex="0" aria-label="Analyze the example"><code>bun run aa analyze examples/coffee-roaster --open
+            <pre tabindex="0" aria-label="Analyze the example"><code>bun run aa analyze \
+  examples/coffee-roaster --open
 <span class="c"># no model yet? replay it offline</span>
-AA_DEMO_MODEL=scripted bun run aa analyze \
-  examples/coffee-roaster --yes --embedder hash</code></pre>
+AA_DEMO_MODEL=scripted \
+  bun run aa analyze \
+  examples/coffee-roaster \
+  --yes --embedder hash</code></pre>
           </div>
           <p class="aa-small">The report opens with every number linked to its working.</p>
         </li>
@@ -491,7 +491,7 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     white-space: pre;
   }
   .aa-hero-cmd code {
-    font: 400 0.8125rem / 1.5 var(--aa-font-mono);
+    font: 400 var(--aa-text-code) / 1.5 var(--aa-font-mono);
     color: var(--aa-ink-2);
   }
   .aa-exhibit-sheet > .aa-cell {
@@ -551,7 +551,7 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     color: var(--aa-ink);
   }
   .aa-proof-example code {
-    font-size: 0.8125rem;
+    font-size: var(--aa-text-code);
   }
   .aa-proof-src {
     display: block;
@@ -570,7 +570,7 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     border: 1px solid var(--aa-rule);
     border-radius: var(--aa-radius);
     background: var(--aa-raised);
-    font-size: 0.8125rem;
+    font-size: var(--aa-text-code);
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -755,10 +755,10 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     border-top: 0;
     border-left: 1px solid var(--aa-rule);
   }
+  /* Commands keep their lines (broken at a flag or a "\\", never mid-word); a line wider than the cell scrolls inside it. */
   .aa-steps .aa-code pre {
-    font-size: 0.75rem;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    font-size: var(--aa-text-code);
+    white-space: pre;
   }
   .aa-quick-more {
     display: grid;
@@ -805,7 +805,7 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
     color: var(--aa-ink-2);
   }
   .aa-door-cmd {
-    font-size: 0.75rem;
+    font-size: var(--aa-text-code);
     color: var(--aa-ink);
     overflow-wrap: anywhere;
   }

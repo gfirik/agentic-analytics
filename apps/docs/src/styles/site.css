@@ -34,6 +34,11 @@ img,
 svg {
   max-width: 100%;
 }
+/* One code size everywhere (DESIGN.md §4): blocks and inline code alike, unless a component sets the same token. */
+code,
+pre {
+  font-size: var(--aa-text-code);
+}
 code,
 pre,
 kbd,
@@ -102,7 +107,7 @@ main:focus {
   letter-spacing: -0.015em;
   color: var(--aa-ink);
   text-wrap: balance;
-  max-width: 24ch;
+  max-width: 48ch; /* one line at ≥ 1100px for every landing section head */
 }
 .aa-h3 {
   font: 600 var(--aa-text-h3) / 1.4 var(--aa-font-sans);
@@ -169,7 +174,7 @@ main:focus {
   margin: 0;
   padding: var(--aa-space-4);
   overflow-x: auto;
-  font-size: 0.8125rem;
+  font-size: var(--aa-text-code);
   line-height: 1.7;
   color: var(--aa-ink);
 }

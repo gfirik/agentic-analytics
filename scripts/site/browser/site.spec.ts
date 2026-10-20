@@ -547,6 +547,71 @@ test("results: metrics as rows and runs as columns, no sideways scroll at 1440 o
   await ctx.close();
 });
 
+test("landing section heads: label, h2, one-sentence lead, the h2 on one line at 1440", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  for (const id of ["how", "why", "results", "quickstart"]) {
+    const head = page.locator(`#${id} .aa-cell-head`);
+    await expect(head.locator(".aa-seclabel")).toHaveCount(1);
+    await expect(head.locator("h2")).toHaveCount(1);
+    const lead = head.locator("p.aa-lead");
+    await expect(lead, id).toHaveCount(1);
+    // One sentence.
+    expect(
+      ((await lead.textContent()) ?? "")
+        .trim()
+        .split(/[.;!?](\s|$)/)
+        .filter((x) => x.trim().length > 2).length,
+      id,
+    ).toBeLessThanOrEqual(2);
+    const [h, lh] = await head
+      .locator("h2")
+      .evaluate((el) => [el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el).lineHeight)]);
+    expect(h, `${id} h2 on one line`).toBeLessThan((lh ?? 0) * 1.5);
+  }
+});
+
+test("code is one size everywhere: blocks, inline code and Expressive Code (--aa-text-code)", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const path of [LANDING, `${BASE}/start/quickstart/`, `${BASE}/learn/stages/analysis/`, `${BASE}/how-it-works/verifier/`]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const sizes = await page.evaluate(() => {
+      const want = getComputedStyle(document.documentElement).getPropertyValue("--aa-text-code").trim();
+      const px = Number.parseFloat(want) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const seen = [...document.querySelectorAll<HTMLElement>("main pre, main code")]
+        .filter((e) => e.getClientRects().length > 0 && (e.textContent ?? "").trim())
+        .map((e) => Number.parseFloat(getComputedStyle(e).fontSize));
+      return { px, off: [...new Set(seen.filter((v) => Math.abs(v - px) > 0.1))], n: seen.length };
+    });
+    expect(sizes.n, path).toBeGreaterThan(0);
+    expect(sizes.off, path).toEqual([]);
+  }
+});
+
+test("the status strip and the install line scroll sideways with no scrollbar and a fade where there is more", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  for (const sel of [".aa-strip", ".aa-hero-cmd"]) {
+    const box = page.locator(sel);
+    expect(
+      await box.evaluate((e: HTMLElement) => e.offsetHeight - e.clientHeight - 2 * Number.parseFloat(getComputedStyle(e).borderTopWidth)),
+      sel,
+    ).toBeLessThanOrEqual(1);
+    await expect(box, sel).toHaveAttribute("data-overflow", "end");
+    await box.evaluate((e) => {
+      e.scrollLeft = e.scrollWidth;
+    });
+    await expect(box, sel).toHaveAttribute("data-overflow", "start");
+    await box.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(box, sel).toHaveAttribute("data-overflow", "both");
+  }
+  // Where the whole line fits, nothing fades (at 1440 the strip is still a little wider than the screen).
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await expect(page.locator(".aa-strip")).toHaveAttribute("data-overflow", "none");
+});
+
 test("the status strip leads with proven results and links the nightly regression suite to §3", async ({ page }) => {
   await page.goto(LANDING);
   await expect(page.locator(".aa-strip")).toContainText(

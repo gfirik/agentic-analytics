@@ -9,7 +9,7 @@ interface Props {
 const { items } = Astro.props;
 ---
 
-<div class="aa-strip" role="region" aria-label="Project status" tabindex="0">
+<div class="aa-strip aa-scroll-x" role="region" aria-label="Project status" tabindex="0">
   <p class="aa-strip-inner">
     {
       items.map((item, i) => (
@@ -29,6 +29,28 @@ const { items } = Astro.props;
   </p>
 </div>
 
+<script>
+  // The one-line scroll boxes (this strip, the hero's install line) hide their scrollbar; a fade at the edge with
+  // more to read says they scroll instead (DESIGN.md §6 "Horizontal scroll boxes"). Marks which edges have more.
+  for (const box of document.querySelectorAll<HTMLElement>(".aa-scroll-x")) {
+    let frame = 0;
+    const mark = () => {
+      frame = 0;
+      const more = box.scrollWidth - box.clientWidth;
+      const start = box.scrollLeft > 1;
+      const end = box.scrollLeft < more - 1;
+      box.dataset.overflow = more <= 1 ? "none" : start && end ? "both" : start ? "start" : "end";
+    };
+    const soon = () => {
+      if (!frame) frame = requestAnimationFrame(mark);
+    };
+    mark();
+    box.addEventListener("scroll", soon, { passive: true });
+    window.addEventListener("resize", soon);
+    document.fonts?.ready.then(soon);
+  }
+</script>
+
 <style>
   /* One line, as the design says: on narrow screens the strip scrolls sideways rather than wrapping, so its height
      never depends on when the mono face arrives (re-wrapping on the swap moved the page, M13k). It is a labelled,
@@ -38,7 +60,6 @@ const { items } = Astro.props;
     border-bottom: 1px solid var(--aa-rule);
     background: var(--aa-surface);
     overflow-x: auto;
-    scrollbar-width: thin;
   }
   .aa-strip-inner {
     max-width: var(--aa-container);

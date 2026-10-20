@@ -60,6 +60,26 @@
   color: var(--aa-page);
 }
 
+/* Horizontal scroll boxes (the status strip, the hero's install line): one line that scrolls sideways on narrow
+   screens. No scrollbar, in CSS from the start so its height never changes the layout; the edge with more to read
+   fades out (a transparency mask, like the graph paper's, not a coloured gradient), set by StatusStrip.astro's script.
+   Keyboard focus and scrolling are unchanged. */
+.aa-scroll-x {
+  scrollbar-width: none;
+}
+.aa-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+.aa-scroll-x[data-overflow="end"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+.aa-scroll-x[data-overflow="start"] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+}
+.aa-scroll-x[data-overflow="both"] {
+  mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+}
+
 /* Verified mark: the one accent. Only on things the verifier (or an eval check) passed. */
 .aa-check {
   display: inline-block;

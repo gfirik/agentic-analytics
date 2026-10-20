@@ -116,7 +116,7 @@
   border-radius: var(--aa-radius);
   background: var(--aa-surface);
   color: var(--aa-ink);
-  font: 400 0.8125rem / 1.65 var(--aa-font-mono);
+  font: 400 var(--aa-text-code) / 1.65 var(--aa-font-mono);
   font-variant-ligatures: none;
   white-space: pre;
 }
@@ -156,12 +156,12 @@
   border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius);
   background: var(--aa-surface);
-  font: 400 0.75rem / 1.55 var(--aa-font-mono);
+  font: 400 var(--aa-text-code) / 1.55 var(--aa-font-mono);
   white-space: pre;
 }
 .sl-markdown-content .aa-learn-params {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: var(--aa-text-code);
   color: var(--aa-ink-2);
 }
 
@@ -278,7 +278,7 @@
   border-radius: var(--aa-radius);
   background: var(--aa-surface);
   color: var(--aa-ink);
-  font: 400 0.8125rem / 1.6 var(--aa-font-mono);
+  font: 400 var(--aa-text-code) / 1.6 var(--aa-font-mono);
   white-space: pre;
 }
 .sl-markdown-content pre.aa-learn-yaml:focus-visible {
