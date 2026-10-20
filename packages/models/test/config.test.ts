@@ -35,6 +35,19 @@ describe("model config", () => {
     expect(c.providers["openai-compatible"]?.groq?.api_key_env).toBe("GROQ_API_KEY");
   });
 
+  it("accepts Cloudflare Workers AI as a second route for Groq's qwen3.8-27b, and refuses Cerebras's differently spelled id", () => {
+    // The nightly eval's planner (docs/EVALS.md §4): Cloudflare serves the same model as @cf/qwen/qwen3.8-27b.
+    const c = resolveModelConfig({
+      PLANNER_MODEL: "openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cloudflare:@cf/qwen/qwen3.8-27b",
+      CLOUDFLARE_ACCOUNT_ID: "acc",
+    });
+    expect(c.models.planner.fallbacks).toEqual([{ provider: "openai-compatible", endpoint: "cloudflare", model: "@cf/qwen/qwen3.8-27b" }]);
+    // Cerebras names it qwen-3.8-27b; the router compares ids, so it is not accepted as the same model.
+    expect(() =>
+      resolveModelConfig({ PLANNER_MODEL: "openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cerebras:qwen-3.8-27b" }),
+    ).toThrow(/every route of a role must be the same model/);
+  });
+
   it("accepts a config file with extra endpoints and rejects unknown ones", () => {
     const file = {
       models: { planner: { provider: "openai-compatible", endpoint: "lmstudio", model: "qwen" } },

@@ -87,6 +87,7 @@ How a finding is matched to a planted event (by the subject its code-written fir
 - **`smoke`** (CI, every PR): 3 datasets end-to-end with the `baseline` scripted FakeModel (`evals/runner/test/smoke.test.ts`). This checks the plumbing and the model-independent invariants. The verifier failure policy and the injection suite have their own tests in the same CI run.
 - **`full`** (manual, local or free endpoint): all datasets with a real model. Command: `aa eval --suite full --model <provider:model>` (or `--model baseline` offline, `--model configured` for the .env models). Writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md`. It exits 1 when any bar fails.
   - **Label and note.** `--label "<name>"` names the run's model row in RESULTS.md and the README table, and its file (`<date>-<label slug>-<suite>.json`). This keeps a self-hosted run apart from other runs of `configured`. `--note "<text>"` adds a note above its table, for hardware and caveats.
+  - **Passes.** `--passes <n>` carries a run over up to n passes (the nightly run uses 2, §4). A pass resumes the row's latest result while it has unfinished jobs, a pass left, and a last pass at most a day old: it runs only the unfinished jobs and writes the combined result in place of the earlier file. Otherwise it starts a new run. A `configured` run without a label is named after its routes (planner, extractor, judge), and its file keeps the `configured` name.
   - **Chunks.** `--only <id,…>` runs some datasets of the suite and needs a `--results-dir` outside the checkout's `evals/results`, so a chunk never becomes a published row. `bun run eval:merge -- --label "<name>" <part.json>…` joins the chunks into one results file in `evals/results`, with their real timings and the bars recomputed over all of them. Every dataset of the suite must be present exactly once.
   - **Kaggle.** `evals/kaggle/full-suite-vllm.ipynb` runs the full suite this way on Kaggle's free 2×T4 GPUs, with Qwen3.8-27B (4-bit) served by vLLM inside the notebook. One business per run, resumable across sessions; steps in evals/README.md.
   - **Publishing.** `bun run readme:assets` rebuilds RESULTS.md and the README table from `evals/results/*.json`.
@@ -100,15 +101,15 @@ How a finding is matched to a planted event (by the subject its code-written fir
 
 Models are listed honestly. A weak result is shown, not hidden, and small-model mode is noted.
 
-A run whose jobs didn't all finish (a free tier's daily quota ran out) is published as **partial**. The README row reads "partial: k of n jobs finished", and RESULTS.md judges no bar on it ("n/a (partial run)"); the aggregate rates count every unfinished job as a miss, so they are not the model's quality.
+A run whose jobs didn't all finish (a free tier's daily quota ran out) is published as **partial**. The README row reads "partial: k of n jobs finished", and RESULTS.md judges no bar on it ("n/a (partial run)"); the aggregate rates count every unfinished job as a miss, so they are not the model's quality. A run carried over passes (`--passes`) is partial only when jobs are still unfinished after its last pass: a job that a later pass finished counts as finished. Between passes it reads "in progress: k of n jobs finished, the next pass runs the rest" in the README and "n/a (resumes next pass)" in RESULTS.md.
 
-**Free tiers with daily quotas.** Run one pass a day, after the quota resets: `bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports` (for example from cron). Each pass:
+**Free tiers with daily quotas.** Run one pass a day, after the quota resets: `bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports` (for example from cron). One night's quota does not cover the full suite: on 2026-10-19 Groq's 200k tokens/day for the planner (`qwen/qwen3.8-27b`) ran out after 21 of the 30 businesses (about 9k planner tokens each), and the other 9 failed `RATE_LIMITED`. So every run takes up to two nights (`--passes 2`): the first night runs every business, and the second runs only the ones the quota stopped, then publishes one combined result. Two nights' quota covers about 42 businesses. Each pass:
 - replays every finished call from `evals/.cache` (a cached answer is served even while the route is rate-limited);
-- spends the day's quota on the businesses not yet finished;
+- spends the day's quota on the businesses not yet finished (on the second night, only the first night's unfinished ones);
 - regenerates the README table and RESULTS.md;
 - sends a one-line summary through `scripts/notify.sh`.
 
-It never switches models.
+It never switches models. A second route for the same model adds quota on the first night. For the planner, Cloudflare Workers AI serves `@cf/qwen/qwen3.8-27b` on its free plan: 10,000 neurons a day with no card, and calls past that fail rather than bill (developers.cloudflare.com/workers-ai/platform/pricing). At 40,909 neurons per M input tokens and 290,909 per M output, that is about 16 businesses a day: `PLANNER_MODEL=openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cloudflare:@cf/qwen/qwen3.8-27b`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Cerebras serves the model as `qwen-3.8-27b`, but only on a $5, 30-day trial that needs a payment method, so it is not a free route. OpenRouter lists no free (`:free`) variant.
 
 ## 5. Rules
 

@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
-import { resultsPage } from "../../evals/runner/src/index.ts";
+import { type Passes, resultsPage, runStatus } from "../../evals/runner/src/index.ts";
 import { DARK, heroSvg, LIGHT } from "./hero.ts";
 import { pipelineInputsHash, pipelinePicture, pipelineProblems, readPipelineData } from "./pipeline.ts";
 
@@ -52,6 +52,7 @@ interface ResultFile {
   readonly seconds: number;
   readonly tokens: { readonly input: number; readonly output: number };
   readonly bars: { readonly metric: string; readonly value?: number }[];
+  readonly passes?: Passes;
 }
 
 /**
@@ -83,12 +84,16 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
       const hosted = hostOf(r.model);
       const tokens = r.tokens.input + r.tokens.output;
       // A run whose jobs didn't all finish (a free tier's daily quota) is labelled partial: its rates count the
-      // unfinished jobs as misses, so they are not the model's quality.
+      // unfinished jobs as misses, so they are not the model's quality. A run carried over nightly passes is partial
+      // only once its last pass is done; before that its unfinished jobs are still to run (EVALS §4).
       const done = Math.round((r.bars.find((b) => b.metric === "Jobs completed")?.value ?? 1) * r.datasets);
+      const status = runStatus(done, r.datasets, r.passes);
       const suite =
-        done < r.datasets
+        status === "partial"
           ? `${r.suite} (${r.datasets}), **partial: ${done} of ${r.datasets} jobs finished**`
-          : `${r.suite} (${r.datasets})`;
+          : status === "resuming"
+            ? `${r.suite} (${r.datasets}), **in progress: ${done} of ${r.datasets} jobs finished, the next pass runs the rest**`
+            : `${r.suite} (${r.datasets})`;
       return `| ${r.model.replace(/^openai-compatible:/, "")} | ${suite} | ${pct(r, "Jobs completed")} | ${pct(r, "Planted recall@5")} | ${pct(r, "Driver accuracy")} | ${num(r, "Number mismatches")} | ${pct(r, "Citation precision")} | ${Math.round(r.seconds / 60)} min, ${Math.round(tokens / 1000)}k tokens | ${hosted} | ${r.date ?? "n/a"} |`;
     }),
   ].join("\n");

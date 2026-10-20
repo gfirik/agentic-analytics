@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
+import { configuredName, evalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -383,6 +383,11 @@ const evalCmd = defineCommand({
       description: 'The model name in RESULTS.md, the README and the results file name, e.g. "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ"',
     },
     note: { type: "string", description: "A note shown above the run's table in RESULTS.md (hardware, caveats)" },
+    passes: {
+      type: "string",
+      description:
+        "Carry the run over up to this many passes (e.g. 2 nights): resume this row's unfinished jobs from its latest result instead of starting again",
+    },
     only: {
       type: "string",
       description: "Comma-separated dataset ids to run (a chunk of a long run; needs --results-dir so it never lands in evals/results)",
@@ -399,8 +404,11 @@ const evalCmd = defineCommand({
   async run({ args }) {
     const model = args.model ?? "baseline";
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
-    if ((args.label || args.note || args.only !== undefined) && args.suite === "real")
-      throw new Error("--label, --note and --only go with --suite smoke|full");
+    if ((args.label || args.note || args.only !== undefined || args.passes !== undefined) && args.suite === "real")
+      throw new Error("--label, --note, --only and --passes go with --suite smoke|full");
+    const passes = args.passes === undefined ? undefined : Number(args.passes);
+    if (passes !== undefined && !(Number.isInteger(passes) && passes >= 1))
+      throw new Error(`--passes takes a whole number ≥ 1, not "${args.passes}"`);
     const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
     // A chunk is a partial run: it must never become the published row in evals/results.
     const refused = onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults);
@@ -452,6 +460,9 @@ const evalCmd = defineCommand({
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
         ...(args.label ? { label: args.label } : {}),
         ...(args.note ? { note: args.note } : {}),
+        // Named after its routes, so a nightly run's row says what served it (its file keeps the "configured" name).
+        ...(model === "configured" && !args.label ? { name: configuredName(resolveModelConfig(process.env, configFile()).models) } : {}),
+        ...(passes !== undefined ? { passes } : {}),
         ...(only?.length ? { only } : {}),
         resultsDir: where.dir,
         ...(where.page ? { resultsPage: where.page } : {}),
