@@ -395,6 +395,37 @@ test("without JS the landing page is complete and chips link into the fact ledge
   await ctx.close();
 });
 
+test("results: metrics as rows and runs as columns, no sideways scroll at 1440 or 1920, one cell for a run without rates", async ({
+  browser,
+}) => {
+  const evals = JSON.parse(readFileSync(join(import.meta.dirname, "../../../apps/docs/src/data/evals.json"), "utf8")) as {
+    full: { status: string; completed: number; datasets: number };
+    smoke: { bars: { metric: string; value: number | null }[] };
+  };
+  for (const width of [1440, 1920]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const wrap = page.locator("#results .aa-ledger-wrap");
+    expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth), `width ${width}`).toBe(0);
+    const table = page.locator("#results table");
+    await expect(table.locator('thead th[scope="col"]')).toHaveCount(5);
+    await expect(table.locator('tbody th[scope="row"]')).toHaveCount(7);
+    // Screen-reader text stays off screen: no "meets the bar" painted in the cells.
+    const painted = await table.locator(".aa-sr").evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width > 1).length);
+    expect(painted).toBe(0);
+    // A run that didn't finish has one cell spanning every metric row, labelled from the generated status.
+    if (evals.full.status !== "complete") {
+      const span = table.locator("td.aa-span", { hasText: `${evals.full.completed}/${evals.full.datasets}` });
+      await expect(span).toHaveAttribute("rowspan", "7");
+    }
+    // The smoke column's first figure is the run's own planted recall.
+    const recall = evals.smoke.bars.find((b) => b.metric === "Planted recall@5")?.value ?? 0;
+    await expect(table.locator("tbody tr").first().locator("td.num").first()).toContainText(`${(recall * 100).toFixed(1)}%`);
+    await ctx.close();
+  }
+});
+
 test("the status strip leads with proven results and links the nightly regression suite to §3", async ({ page }) => {
   await page.goto(LANDING);
   await expect(page.locator(".aa-strip")).toContainText(

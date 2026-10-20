@@ -263,7 +263,7 @@ describe("results table run labels (docs/EVALS.md §4)", () => {
   it("index.astro takes the labels from the generated data, never from its own count", () => {
     const page = readFileSync(join(import.meta.dirname, "../../apps/docs/src/pages/index.astro"), "utf8");
     expect(page).not.toMatch(/completed < r\.suite\.datasets|n\/a \(partial run\)/);
-    expect(page).toContain("const { flag, na } = r.suite;");
+    expect(page).toContain("const { flag, status, completed, datasets } = c.suite;");
   });
 });
 
