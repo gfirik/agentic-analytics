@@ -386,6 +386,11 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
   /* The frame: one long vertical frame (1px rules left and right of the container), sections divided by full-width
      hairlines that meet it, a small + where they cross. Under 45rem the side rules would sit on the screen edge, so
      only the hairlines remain. */
+  /* The "+" ticks sit half outside the frame; where the frame meets the screen edge (up to 1180px) that would scroll
+     the page sideways, so the paper clips them (clip, not hidden: no scroll container, so sticky still works). */
+  .aa-paper {
+    overflow-x: clip;
+  }
   .aa-sheet {
     border-top: 1px solid var(--aa-rule);
   }

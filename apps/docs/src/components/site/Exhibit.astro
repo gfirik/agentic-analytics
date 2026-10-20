@@ -6,10 +6,10 @@
 //      draws in, then its check appears (~250 ms per figure, ≤ 2.5 s in all).
 //   2. A guided walkthrough then steps through the story's key figures (walkthrough() in scripts/landing-data.ts),
 //      opening each figure's margin note (its SQL or function, the sheet rows it read, or the quoted source) under a
-//      step indicator. From 1100px wide and 704px tall, scroll drives the steps: the section is sticky while a track
-//      of one half-screen per step scrolls past. Smaller screens advance every few seconds while the notes (below
-//      the figure under 900px) are on screen, under a sticky step bar, waiting while the reader hovers or focuses
-//      inside; Pause stops it. Previous, next and replay are always there.
+//      step indicator. One behaviour at every size (site v3, D2): a step every few seconds while the notes are on
+//      screen (beside the exhibit from 900px, below it under 900px, where the step bar stays at the top), waiting
+//      while the reader hovers or focuses inside; Pause stops it. Previous, next and replay are always there. Nothing
+//      is pinned to the scroll. Step 1's note is open from the start, so the margin is never empty.
 //   3. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
 // With reduced motion or without JS the steps are a static ruled list under the exhibit, and every chip is a link to
 // its row in the fact ledger.
@@ -62,10 +62,10 @@ const quotes = shown.filter((x) => x.kind === "source").length;
 const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
 ---
 
-<div class="aa-walk" data-exhibit data-steps={JSON.stringify(steps.map((s) => s.id))} style={`--aa-steps: ${steps.length}`}>
+<div class="aa-walk" data-exhibit data-steps={JSON.stringify(steps.map((s) => s.id))}>
   <script is:inline>
     // Before first paint: when motion is welcome, hold the figures unverified for the replay and switch the
-    // walkthrough on (its sticky track and step bar), so nothing shifts once the script runs. A safety net shows the
+    // walkthrough on (its step bar), so nothing shifts once the script runs. A safety net shows the
     // final state if the walkthrough script never runs.
     (() => {
       const el = document.currentScript?.parentElement;
@@ -80,7 +80,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       }, 4000);
     })();
   </script>
-  <div class="aa-walk-stick">
+  <div class="aa-walk-body">
     <div class="aa-walk-bar">
       <p class="aa-walk-status" aria-live="polite">
         <span class="aa-walk-cap" data-step="0">
@@ -157,19 +157,17 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       </figure>
 
       <div class="aa-notes">
-        <p class="aa-notes-hint" aria-hidden="true">Margin · hover or focus a figure</p>
         <span class="aa-leader" aria-hidden="true" hidden></span>
         {
           Object.values(notes).map((n) => (
             <aside class="aa-note" id={`aa-note-${n.id}`} data-note-for={n.id}>
-              <ExhibitNote n={n} sumId={`aa-note-${n.id}-sum`} />
+              <ExhibitNote n={n} sumId={`aa-note-${n.id}-sum`} foldSql />
             </aside>
           ))
         }
       </div>
     </div>
   </div>
-  <div class="aa-walk-track" aria-hidden="true"></div>
 
   <ol class="aa-walk-list" aria-label="Walkthrough: how the key figures were computed">
     {
@@ -265,7 +263,6 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     const chips = [...wrap.querySelectorAll<HTMLAnchorElement>(".aa-exhibit a.aa-chip[data-note]")];
     const col = wrap.querySelector<HTMLElement>(".aa-notes");
     const leader = wrap.querySelector<HTMLElement>(".aa-leader");
-    const stick = wrap.querySelector<HTMLElement>(".aa-walk-stick");
     const caps = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-cap")];
     const dots = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-dot")];
     const prev = wrap.querySelector<HTMLButtonElement>("[data-walk-prev]");
@@ -275,8 +272,6 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     const stepIds = JSON.parse(wrap.dataset.steps ?? "[]") as string[];
     const n = stepIds.length;
     const live = wrap.dataset.walk === "live";
-    // Scroll drives the steps where the section can stay on screen while its track scrolls past.
-    const scrolled = matchMedia("(min-width: 68.75rem) and (min-height: 44rem)");
     const beside = matchMedia("(min-width: 56.25rem)"); // the notes sit beside the exhibit from 900px
     const chipFor = (id: string) => chips.find((c) => c.dataset.note === id);
 
@@ -323,12 +318,13 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       chip.setAttribute("aria-expanded", "true");
       place();
     };
-    // Back to the walkthrough's note (or none) once a hovered or pinned note lets go.
+    // Back to the walkthrough's note once a hovered or pinned note lets go. Before the first step (and without the
+    // walkthrough) that is step 1's note, so the margin is never an empty box.
     const settle = () => {
       pinned = false;
-      const id = current > 0 ? stepIds[current - 1] : undefined;
+      const id = stepIds[Math.max(current, 1) - 1];
       const chip = id ? chipFor(id) : undefined;
-      if (live && chip) show(chip);
+      if (chip) show(chip);
       else close();
     };
     const later = () => {
@@ -378,19 +374,67 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const t = e.target as Node;
       if (pinned && open && !open.note.contains(t) && !chips.some((c) => c.contains(t))) settle();
     });
-    window.addEventListener("resize", place);
-    // The note is placed by its figure's box, which moves a little when the web fonts arrive.
-    document.fonts?.ready.then(place);
+    // "Show SQL": open beside the exhibit, folded below it (where the tallest note would otherwise be a long column).
+    const folds = [...wrap.querySelectorAll<HTMLDetailsElement>(".aa-notes details[data-fold]")];
+    // The notes column keeps the room of its tallest note, measured once its contents are final, so stepping from a
+    // short note to a long one never moves the page. Beside the exhibit a note sits level with its figure, so its room
+    // is its figure's offset plus its height; below the exhibit (one grid cell) the cell already holds the tallest.
+    // It only grows: a smaller measure later (fonts in, a wider window) never pulls the page up under the reader.
+    let reserved = 0;
+    const reserve = () => {
+      if (!col) return;
+      if (!beside.matches) {
+        reserved = 0;
+        col.style.minHeight = "";
+        return;
+      }
+      const box = col.getBoundingClientRect();
+      let room = 0;
+      for (const note of col.querySelectorAll<HTMLElement>(".aa-note")) {
+        const chip = chipFor(note.dataset.noteFor ?? "");
+        const was = note.classList.contains("is-open");
+        note.classList.add("is-measure");
+        const top = chip ? Math.max(0, chip.getBoundingClientRect().top - box.top - 10) : 0;
+        room = Math.max(room, top + note.getBoundingClientRect().height);
+        note.classList.remove("is-measure");
+        if (was) note.classList.add("is-open");
+      }
+      reserved = Math.max(reserved, Math.ceil(room));
+      col.style.minHeight = `${reserved}px`;
+    };
+    const fold = () => {
+      for (const d of folds) d.open = beside.matches;
+      reserve();
+      place();
+    };
+    fold();
+    beside.addEventListener("change", fold);
+    // A narrower column makes its notes taller: measure again (once a frame) as the window changes.
+    let resizing = 0;
+    window.addEventListener("resize", () => {
+      place();
+      if (!resizing)
+        resizing = requestAnimationFrame(() => {
+          resizing = 0;
+          reserve();
+        });
+    });
+    // The note is placed by its figure's box, and sized by its text: both move a little when the web fonts arrive.
+    document.fonts?.ready.then(() => {
+      reserve();
+      place();
+    });
 
     // ── The walkthrough (only when motion is welcome: data-walk="live", set before first paint) ──────────────
-    if (live && stick && n > 0) {
+    if (live && n > 0) {
       let timers: number[] = []; // the verification's
-      let stepTimer = 0; // timed mode's next step
-      let auto = true; // timed mode: advancing by itself until the reader steps by hand
-      let notesOnScreen = false; // timed mode advances only while the reader can see the notes
+      let stepTimer = 0; // the next step
+      let auto = true; // advancing by itself until the reader steps by hand or pauses
+      let notesOnScreen = false; // it advances only while the reader can see the notes
       let started = false;
-      let held = false; // timed mode: the reader is hovering or focused inside the exhibit
-      let jumping = 0; // scroll mode: a programmatic scroll (replay) is under way; its passing steps aren't shown
+      // The reader is exploring: the pointer on a figure or a note, or focus inside the exhibit. Two flags, so leaving a
+      // chip with the mouse doesn't let it run while focus is still inside.
+      const held = { pointer: false, focus: false };
       const clearTimers = () => {
         for (const t of timers) clearTimeout(t);
         timers = [];
@@ -400,8 +444,12 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const able = (b: HTMLButtonElement | null, on: boolean) => b?.setAttribute("aria-disabled", String(!on));
       // The button names the action it will take (Pause while running, Play while paused), so its state is visible and
       // spoken alike; with a changing label it carries no aria-pressed (ARIA Authoring Practices, button pattern).
+      const status = wrap.querySelector<HTMLElement>(".aa-walk-status");
       const showPause = () => {
         if (pause) pause.textContent = auto ? "Pause" : "Play";
+        // The caption is announced when the reader moves a step, not every 4.5 s while it advances by itself: the region
+        // stays polite (switching it from off to live can drop the first update) and is busy while autoplaying.
+        status?.setAttribute("aria-busy", String(auto));
       };
       const setStep = (k: number) => {
         current = Math.max(0, Math.min(n, k));
@@ -431,12 +479,12 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         );
         return total;
       };
-      // Timed mode (small screens): verify, then a step every few seconds while the notes are on screen.
+      // A step every few seconds while the notes are on screen.
       const DWELL = 4500;
       const tick = (delay: number) => {
         clearTimeout(stepTimer);
         stepTimer = window.setTimeout(() => {
-          if (!auto || held || !notesOnScreen || scrolled.matches) return;
+          if (!auto || held.pointer || held.focus || !notesOnScreen) return;
           setStep(current + 1);
           if (current < n) tick(DWELL);
           else {
@@ -446,47 +494,15 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
           }
         }, delay);
       };
-      // Scroll mode: one half-screen of track per step after the verification's own half-screen.
-      const seg = () => window.innerHeight * 0.5;
-      const stickTop = () => Number.parseFloat(getComputedStyle(stick).top) || 0;
-      let frame = 0;
-      const fromScroll = () => {
-        frame = 0;
-        if (!scrolled.matches || jumping) return;
-        const passed = stickTop() - wrap.getBoundingClientRect().top;
-        const k = Math.max(0, Math.min(n, Math.floor(passed / seg())));
-        if (k !== current) setStep(k);
-      };
-      const settleScroll = () => {
-        clearTimeout(jumping);
-        window.removeEventListener("scrollend", settleScroll);
-        jumping = 0;
-        fromScroll();
-      };
-      const scrollToStep = (k: number, quiet = false) => {
-        const top = window.scrollY + wrap.getBoundingClientRect().top - stickTop() + k * seg() + 2;
-        if (quiet) {
-          // Replay: the steps it scrolls back through aren't flashed; scrolling is followed again once it settles.
-          // Followed again when the scroll ends (scrollend), or after 1.5 s where that event isn't supported or no
-          // scroll happens; either way the other is removed.
-          clearTimeout(jumping);
-          window.removeEventListener("scrollend", settleScroll);
-          jumping = window.setTimeout(settleScroll, 1500);
-          window.addEventListener("scrollend", settleScroll, { once: true });
-        }
-        window.scrollTo({ top, behavior: "smooth" });
-      };
       const start = () => {
         clearTimers();
         started = true;
         const took = verify();
-        if (scrolled.matches) fromScroll();
-        else {
-          setStep(0);
-          tick(took + 600);
-        }
+        setStep(0);
+        tick(took + 600);
       };
       setStep(0);
+      showPause();
       // The verification runs once the report page's top is above the bottom sixth of the screen (on the first screen
       // at 1440×900). A margin, not a visible ratio: a ratio can't be reached by a box taller than the screen (a
       // landscape phone).
@@ -496,53 +512,42 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
           if (e?.isIntersecting && !started) start();
         },
         { rootMargin: "0px 0px -15% 0px" },
-      ).observe(page ?? stick);
+      ).observe(page ?? wrap);
       if (col)
         new IntersectionObserver(
           ([e]) => {
             notesOnScreen = Boolean(e?.isIntersecting);
-            if (notesOnScreen && started && auto && !scrolled.matches && current < n) tick(current === 0 ? 1500 : DWELL);
+            if (notesOnScreen && started && auto && current < n) tick(current === 0 ? 1500 : DWELL);
           },
           { rootMargin: "-25% 0px -25% 0px" },
         ).observe(col);
-      // Timed mode waits while the reader explores (hover or focus inside the exhibit), and resumes after.
-      const hold = (on: boolean) => {
-        held = on;
-        if (!on && auto && notesOnScreen && !scrolled.matches && current < n) tick(DWELL);
+      // It waits while the reader explores (hover or focus inside the exhibit), and resumes after.
+      const hold = (by: "pointer" | "focus", on: boolean) => {
+        held[by] = on;
+        if (!held.pointer && !held.focus && auto && notesOnScreen && current < n) tick(DWELL);
       };
-      // The exhibit and its notes only: the step bar's own buttons never hold the timer.
-      const grid = wrap.querySelector<HTMLElement>(".aa-walk-grid") ?? stick;
-      grid.addEventListener("mouseenter", () => hold(true));
-      grid.addEventListener("mouseleave", () => hold(false));
-      grid.addEventListener("focusin", () => hold(true));
+      // The pointer holds it only on a figure or a note (a pointer resting anywhere over the wide exhibit while the
+      // reader scrolls would stop it before it starts); focus anywhere inside the exhibit holds it. The step bar's own
+      // buttons never do.
+      const grid = wrap.querySelector<HTMLElement>(".aa-walk-grid") ?? wrap;
+      for (const el of [...chips, ...(col ? [col] : [])]) {
+        el.addEventListener("mouseenter", () => hold("pointer", true));
+        el.addEventListener("mouseleave", () => hold("pointer", false));
+      }
+      grid.addEventListener("focusin", () => hold("focus", true));
       grid.addEventListener("focusout", (e) => {
-        if (!grid.contains(e.relatedTarget as Node | null)) hold(false);
-      });
-      window.addEventListener(
-        "scroll",
-        () => {
-          if (!frame) frame = requestAnimationFrame(fromScroll);
-        },
-        { passive: true },
-      );
-      scrolled.addEventListener("change", () => {
-        clearTimeout(stepTimer);
-        if (scrolled.matches) fromScroll();
-        else if (auto && notesOnScreen && current < n) tick(DWELL);
+        if (!grid.contains(e.relatedTarget as Node | null)) hold("focus", false);
       });
       const go = (k: number) => {
         if (k < 0 || k > n) return;
-        if (scrolled.matches) scrollToStep(k);
-        else {
-          auto = false;
-          clearTimeout(stepTimer);
-          showPause();
-          setStep(k);
-        }
+        auto = false;
+        clearTimeout(stepTimer);
+        showPause();
+        setStep(k);
       };
       prev?.addEventListener("click", () => go(current - 1));
       next?.addEventListener("click", () => go(current + 1));
-      // Pause and play (timed mode; WCAG 2.2.2): stepping by hand pauses too.
+      // Pause and play (WCAG 2.2.2): stepping by hand pauses too.
       pause?.addEventListener("click", () => {
         auto = !auto;
         showPause();
@@ -554,11 +559,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         auto = true;
         pinned = false;
         showPause();
-        if (scrolled.matches) scrollToStep(0, true);
-        setStep(0);
         start();
       });
-    }
+    } else settle();
   }
 </script>
 
@@ -567,7 +570,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-walk {
     position: relative;
   }
-  .aa-walk-stick {
+  .aa-walk-body {
     display: grid;
     gap: var(--aa-space-4);
   }
@@ -653,30 +656,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     gap: var(--aa-space-6);
     align-items: start;
   }
-  .aa-walk-track {
-    display: none;
-  }
-  /* Scroll mode: the section stays on screen while a track of half a screen per step (plus one for the
-     verification) scrolls past; the script maps the scroll position to the step. */
-  @media (min-width: 68.75rem) and (min-height: 44rem) {
-    /* Pause belongs to timed mode: in scroll mode the reader's scrolling is the only thing that moves the steps. */
-    .aa-walk-pause {
-      display: none;
-    }
-    [data-walk="live"] .aa-walk-stick {
-      position: sticky;
-      /* Centred on screen: 41rem is the section's tallest extent (the step bar, and the exhibit with the SQL note). */
-      top: max(var(--aa-space-5), calc((100vh - 41rem) / 2));
-      z-index: 1;
-      background: var(--aa-page);
-    }
-    [data-walk="live"] .aa-walk-track {
-      display: block;
-      height: calc((var(--aa-steps) + 1) * 50vh);
-    }
-  }
-  @media not all and (min-width: 68.75rem) and (min-height: 44rem) {
-    /* Timed mode: the step bar stays at the top of the screen while the reader scrolls from the figure to its note. */
+  @media not all and (min-width: 56.25rem) {
+    /* Under 900px the notes are below the figure: the step bar stays at the top of the screen while the reader
+       scrolls from the figure to its note. Nothing else is pinned. */
     [data-walk="live"] .aa-walk-bar {
       position: sticky;
       top: 0;
@@ -803,7 +785,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     content: "";
     position: absolute;
     inset: -1px;
-    border: 1px solid var(--aa-rule-strong);
+    border: 1px solid var(--aa-rule);
     border-radius: var(--aa-radius-chip);
     pointer-events: none;
   }
@@ -868,18 +850,6 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     min-width: 0;
     align-self: stretch;
   }
-  .aa-notes-hint {
-    padding: var(--aa-space-3) 0 0 var(--aa-space-3);
-    border-left: 1px solid var(--aa-rule);
-    font: 400 var(--aa-text-label) / 1.4 var(--aa-font-mono);
-    letter-spacing: var(--aa-label-tracking);
-    text-transform: uppercase;
-    color: var(--aa-ink-3);
-    min-height: 6rem;
-  }
-  .aa-notes:has(.aa-note.is-open) .aa-notes-hint {
-    visibility: hidden;
-  }
   .aa-leader {
     position: absolute;
     height: 0;
@@ -907,6 +877,12 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-note:not(.is-open) {
     display: none;
   }
+  /* Measured for the column's reserved room (the script), never seen. */
+  .aa-note.is-measure {
+    display: grid;
+    visibility: hidden;
+    animation: none;
+  }
   @keyframes aa-slide {
     from {
       opacity: 0;
@@ -922,9 +898,6 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     .aa-notes {
       align-self: auto;
     }
-    .aa-notes-hint {
-      display: none;
-    }
     .aa-note {
       position: static;
       border-left: 0;
@@ -932,12 +905,15 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       padding: var(--aa-space-3) 0 0;
     }
     /* The live walkthrough stacks every note in one grid cell and shows one at a time: the column is as tall as the
-       tallest note from the start, so stepping never moves the page below it. */
+       tallest note from the start (with its SQL folded), so stepping never moves the page below it. Each note keeps
+       its own height at the top of the cell, never stretched to the tallest. */
     [data-walk="live"] .aa-notes {
       display: grid;
     }
     [data-walk="live"] .aa-note {
       grid-area: 1 / 1;
+      align-self: start;
+      align-content: start;
       animation: none;
     }
     [data-walk="live"] .aa-note:not(.is-open) {

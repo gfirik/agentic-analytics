@@ -164,7 +164,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
 ## 6. Ledger motifs (components)
 
 - **Fact-ID chip** (`.aa-chip`):
-  - mono 0.75rem in `ink-2`, inside a 1px `rule-strong` box with a 2px radius, e.g. `N30`; a verified fact's chip starts with the green check (`✓N30`);
+  - quiet in running text (site v3): mono at `--aa-text-label` in `ink-3`, inside a 1px `rule` box with a 2px radius and a tight padding that doesn't open up the line, e.g. `N30`; a verified fact's chip starts with the green check (`✓N30`), in the exhibit only once its verification has run;
+  - its target is still at least 24px tall: a transparent hit box (`::after`) reaches above and below the visible box;
   - it follows the figure it backs: `−17.9% N30`;
   - it is a link to that fact's row in a fact ledger (`#fact-N30`), so it works without JS;
   - hover and focus show an `ink` box, and the open chip is filled `ink` with `page` text.
@@ -184,19 +185,22 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - **The verification replay.** As the exhibit comes into view (its report page's top above the bottom sixth of the screen), and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
   - **The guided walkthrough.** The exhibit demonstrates itself, with no hover needed. After the verification it steps through the story's key figures, opening each one's margin note under a step indicator (`1/4 Revenue fell −17.9% → how it was computed`), with a progress rule and previous, next and replay buttons.
     - The steps are chosen from the run's data by role (`walkthrough()` in `scripts/landing-data.ts`), never by typed id: the headline change and how it was computed; its current-period SQL input with the SQL and the sheet rows it read; the driver's share of the change; the quoted document.
-    - From 1100px wide and 704px tall, scroll drives the steps: the exhibit section is sticky, centred on screen, while a track of half a screen per step (plus one for the verification) scrolls past. Previous and next scroll to their step; Replay scrolls back without flashing the steps it passes. Every step's note fits on screen there (a browser test checks 1100×704).
-    - On smaller screens the same steps advance every 4.5 seconds while the notes (below the figure under 900px) are on screen, under a sticky step bar. The timer waits while the reader hovers or focuses inside the exhibit, a Pause/Play button stops it (WCAG 2.2.2), and stepping by hand pauses it. The notes and the step captions each share one grid cell as tall as the tallest, so stepping never moves the page.
+    - **One behaviour at every size (site v3), nothing pinned to the scroll.** The figures verify as the exhibit comes into view; then the steps advance every 4.5 seconds while the notes are on screen (beside the exhibit from 900px, below it under 900px, where the step bar stays at the top of the screen).
+    - The timer waits while the pointer is on a figure or a note, or focus is inside the exhibit; a Pause/Play button stops it (WCAG 2.2.2), and stepping by hand pauses it. At the last step it stops and offers Play, which starts again from step 1. The step caption is announced (`aria-live="polite"`) only when the reader moves a step: the region is `aria-busy` while it advances by itself.
+    - **Step 1's note is open from the start**, so the margin is never an empty box; its figure isn't marked until step 1.
+    - **Notes size to their own content.** The notes column keeps the room of its tallest note (measured in the browser beside the exhibit, again when the fonts arrive or the window changes, and it only grows; one shared grid cell below 900px), and each note sits at the top of that room, never stretched. The step captions share one grid cell too. So stepping never moves the page.
+    - **Under 900px the SQL is folded** behind "SQL, run in DuckDB · show" (a `<details>`; "· hide" once open; a 24px target at label size), so the tallest note stays short on a phone; beside the exhibit it is open.
     - The step's figure takes the `mark` wash in the text, and its chip shows open. Prev and next use `aria-disabled` at the ends, so keyboard focus is never lost.
     - Step 0 says what the verifier did to what is shown: the figures recomputed and the quotes checked, counted from the notes.
-    - Under reduced motion, or without JS, the steps are a static ruled list under the exhibit, each with its note; no sticky track, no step bar.
-    - The walkthrough is switched on before first paint (`data-walk="live"`), so the track and the list never shift the layout.
+    - Under reduced motion, or without JS, the steps are a static ruled list under the exhibit, each with its note (SQL unfolded); no step bar.
+    - The walkthrough is switched on before first paint (`data-walk="live"`), so the step bar and the list never shift the layout.
   - **Margin notes.** Hovering or focusing a figure slides a Tufte-style margin note out to the right of the exhibit, joined to the figure by a hairline leader. From 900px it sits beside the exhibit; under 900px it sits below. The note shows:
     - the fact's ID and label, its value and its recomputed mark;
     - the SQL that computed it, laid out one clause per line and tinted in ink shades only, with its parameters; or, for a function fact, the function and its input facts as a ruled table;
     - the cited sheet rows: the first cited row and its neighbours, read back from the run's DuckDB, with the cited rows in the `mark` wash;
     - for a document, the exact quote and where it is.
 
-    Esc or blur closes it, and a click pins it (for touch); letting go returns to the walkthrough's current note. The empty margin column carries a small mono hint.
+    Esc or blur closes it, and a click pins it (for touch); letting go returns to the walkthrough's current note (step 1's before the first step). There is no hint text: the margin holds a note except after Esc, which closes it until the next step or hover.
   - **The fact ledger.** It holds every fact behind the exhibit and is collapsed under the hero until one of its rows is the link target (`:has(:target)`). The chips link to it without JS.
   - **Caption.** A small mono caption: "Recorded from a real engine run. Any number opens how it was computed."
 - **Sidenote** (`components/learn/Sidenote.astro`, MDX):
@@ -243,7 +247,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ## 7. Motion
 
-- **Landing:** the hero verification replay and its walkthrough are the only motion that starts by itself (scroll-linked on desktop, timed on small screens). The pipeline stages move only after Play. Plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
+- **Landing:** the hero verification replay and its walkthrough are the only motion that starts by itself (timed at every size, never scroll-linked). The pipeline stages move only after Play. Plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
 - **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
 - **The pipeline stages** never play by themselves: Play steps through the stops once while on screen and stops at Report, with a 150ms crossfade of the panel content only and no moving parts. Without JS every panel is in the HTML as a stacked list.
 - **No other motion:** no entrance animations, no parallax, no looping decoration.
@@ -254,7 +258,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - WCAG 2.1 AA, checked by axe in CI on every page in the sitemap and the 404.
 - A skip link on every page, landmarks (`header`, `nav`, `main`, `footer`), one `h1` per page, and headings in order.
 - A visible `:focus-visible` ring on everything: 2px `ink`, 2px offset.
-- Targets are at least 24×24px (the chips and sidenote numbers have padding).
+- Targets are at least 24×24px: sidenote numbers have padding, and fact chips have a transparent hit box above and below their visible box.
 - Decorative SVGs and the graph paper are `aria-hidden` or background-only. The pipeline stages and the exhibit are real text and tables.
 - Margin notes are tied to their chips with `aria-describedby` and `aria-expanded`/`aria-controls`.
 
