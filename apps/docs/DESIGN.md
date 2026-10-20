@@ -218,7 +218,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
     - Report is the headline and the top action with its impact range and dated check.
   - **Live** (JS, from 40rem; switched on before first paint, so nothing shifts): the panels share one grid cell as tall as the tallest, and the finished report shows first. Play steps through the stops once, every 2.5 seconds while on screen, and stops at Report; it reads Pause while running, and pressing a stop stops it there. Changing stop crossfades the panel content only, in 150ms. Under reduced motion there is no Play and no crossfade; the stops still work.
   - **Without JS, or under 40rem,** the panels are a stacked ruled list, with no rail.
-  - **Markup:** each panel is a `role="group"` named by its title (not a heading, so it fits under any page's outline). On docs pages the root carries `not-content`, so Starlight's prose rules (flow margins, tables, inline code) don't reach in.
+  - **Markup:** each panel is a `role="group"` named by its title (not a heading, so it fits under any page's outline). On docs pages the root carries `not-content`, so Starlight's flow margins and the prose table and inline-code rules don't reach in (the prose colour, link and strong rules still do, and match).
 - **Stage diagram** (`StageFlow`, Learn):
   - three ruled columns on a `raised` panel: In → the stage's steps → Out, full width;
   - figures in mono with their fact chips; a selected step and its outputs take the `mark` wash;

@@ -1,14 +1,24 @@
 // `aa eval --suite smoke|full --model baseline|configured|<provider:model>` (docs/EVALS.md §3): runs the suite,
 // writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md` from every results file.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Dataset } from "@agentic-analytics/eval-generator";
-import type { CallRecord, ModelClient } from "@agentic-analytics/models";
+import { type CallRecord, canonicalModel, describeRoleModel, type ModelClient } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
 import { EvalRunError } from "./errors.ts";
 import { missingRealData, type RealSuiteResult, realResultsMarkdown, runRealSuite } from "./real.ts";
-import { mergeResults, resultsMarkdown, runSuite, type Suite, type SuiteResult, suiteDatasets } from "./run.ts";
+import {
+  mergeResults,
+  planResume,
+  resultsMarkdown,
+  resumeResult,
+  runStatus,
+  runSuite,
+  type Suite,
+  type SuiteResult,
+  suiteDatasets,
+} from "./run.ts";
 
 export { EvalRunError };
 
@@ -32,6 +42,48 @@ export interface EvalArgs {
   readonly note?: string;
   /** Run only these datasets of the suite (ids like saas-v2): one chunk of a long run, filling the response cache. */
   readonly only?: readonly string[];
+  /**
+   * The row name when no label is given, e.g. the configured routes for `--model configured`. Unlike a label it
+   * leaves the results file name alone (`<date>-configured-<suite>.json`). Default: the --model value.
+   */
+  readonly name?: string;
+  /**
+   * Carry the run over up to this many passes (scripts/eval-daily.sh: 2 nights). A pass resumes the latest result of
+   * the same row while it has unfinished jobs and a pass left: it runs only those jobs and writes the combined result,
+   * replacing the earlier file. Absent or 1: every run starts afresh.
+   */
+  readonly passes?: number;
+  /**
+   * The model id each role is configured with (canonical: after the last "/", lower-cased), e.g. `{ planner:
+   * "qwen3.8-27b" }`. With --passes, an earlier result served by another model is not carried on: checked before
+   * the pass spends any quota.
+   */
+  readonly roleModels?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Reads an earlier results file for --passes. A file that doesn't parse or isn't a suite result is not carried on:
+ * the pass starts again (and says why) rather than losing the night.
+ */
+export function readPrevious(path: string): SuiteResult | EvalRunError {
+  try {
+    const r = JSON.parse(readFileSync(path, "utf8")) as Partial<SuiteResult> | null;
+    const ok =
+      r !== null &&
+      typeof r === "object" &&
+      (r.suite === "smoke" || r.suite === "full") &&
+      typeof r.model === "string" &&
+      typeof r.date === "string" &&
+      Array.isArray(r.scores) &&
+      r.scores.every((x) => typeof x?.dataset === "string" && typeof x.completed === "boolean") &&
+      (r.passes === undefined || (Array.isArray(r.passes.dates) && typeof r.passes.of === "number"));
+    return ok ? (r as SuiteResult) : new EvalRunError("BAD_RESULTS", `${path} is not a suite result; starting a new run`);
+  } catch (err) {
+    return new EvalRunError(
+      "BAD_RESULTS",
+      `${path} could not be read (${err instanceof Error ? err.message : String(err)}); starting a new run`,
+    );
+  }
 }
 
 export interface EvalDeps {
@@ -58,6 +110,20 @@ export function evalSlug(date: string, a: Pick<EvalArgs, "model" | "label" | "sm
         .replace(/^-+|-+$/g, "")
     : a.model.replace(/[^\w.-]+/g, "_");
   return `${date}-${name}${a.smallModel ? "-small" : ""}-${a.suite}`;
+}
+
+type Route = { readonly provider: string; readonly endpoint?: string | undefined; readonly model: string };
+
+/**
+ * The row name of `--model configured` with no label: what serves it, so a nightly run is published under its models
+ * rather than as "configured". The planner's route in full, then the extractor and judge, by model id alone when they
+ * share the planner's provider and endpoint, e.g. "openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b
+ * extractor, gpt-oss-20b judge". Fallback routes serve the same model and are listed under "Served by".
+ */
+export function configuredName(m: { readonly planner: Route; readonly extractor: Route; readonly judge: Route }): string {
+  const same = (r: Route) => r.provider === m.planner.provider && r.endpoint === m.planner.endpoint;
+  const other = (r: Route) => (same(r) ? canonicalModel(r.model) : describeRoleModel(r));
+  return `${describeRoleModel(m.planner)} planner, ${other(m.extractor)} extractor, ${other(m.judge)} judge`;
 }
 
 /** The suite's datasets, or the ones `only` names; an id outside the suite is an error, never silently skipped. */
@@ -101,36 +167,99 @@ export function mergeChunks(
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
-  const datasets = selectDatasets(a.suite, a.only);
+  const all = selectDatasets(a.suite, a.only);
+  const modelName = (a.label ?? a.name ?? a.model) + (a.smallModel ? " (small-model mode)" : "");
+  // One clock reading for the pass: its date in `passes` and the result's date are the same day, even past midnight.
+  const at = (d.now ?? (() => new Date()))();
+  const today = at.toISOString().slice(0, 10);
+  const carried = (a.passes ?? 1) > 1;
+  if (carried && a.only?.length) throw new EvalRunError("USAGE", "--passes goes with a whole suite, not --only");
+  // The latest file of this row (`<date><suffix>.json`); a pass carries it on only while it is resuming (planResume).
+  const suffix = evalSlug("", a);
+  const prevFile = carried
+    ? (existsSync(a.resultsDir) ? readdirSync(a.resultsDir) : [])
+        .filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.slice(0, 10)) && f.slice(10) === `${suffix}.json`)
+        .sort()
+        .at(-1)
+    : undefined;
+  const prev = prevFile ? readPrevious(join(a.resultsDir, prevFile)) : undefined;
+  // Set aside as `<file>.bad`, not deleted: kept for a look, and no longer read as a results file by RESULTS.md.
+  if (prev instanceof EvalRunError && prevFile) {
+    renameSync(join(a.resultsDir, prevFile), join(a.resultsDir, `${prevFile}.bad`));
+    d.print(`warning: ${prev.message} (moved to ${prevFile}.bad)`);
+  }
+  const plan = carried
+    ? planResume(prev instanceof EvalRunError ? undefined : prev, {
+        suite: a.suite,
+        modelName,
+        ids: all.map((x) => x.id),
+        passes: a.passes as number,
+        today,
+        ...(a.roleModels ? { roleModels: a.roleModels } : {}),
+      })
+    : undefined;
+  if (plan?.reason && prev) d.print(`starting a new run: ${plan.reason}`);
+  // The earlier result waited for this pass and won't get it: closed, it reads partial rather than "in progress".
+  if (plan?.close && prevFile) {
+    writeFileSync(join(a.resultsDir, prevFile), `${JSON.stringify(plan.close, null, 2)}\n`);
+    d.print(
+      `closed ${prevFile}: ${plan.close.scores.filter((x) => x.completed).length} of ${plan.close.scores.length} jobs finished (partial)`,
+    );
+  }
+  if (plan?.from)
+    d.print(
+      `resuming the ${plan.from.date} pass (${prevFile}): ${all.length - plan.run.length} of ${all.length} jobs finished, running the other ${plan.run.length}`,
+    );
+  const datasets = plan ? all.filter((x) => plan.run.includes(x.id)) : all;
   const make = baseline
     ? () => baselineModel({ small: a.smallModel === true })
     : (onCall: (c: CallRecord) => void) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
   const r = await runSuite({
     suite: a.suite,
     model: make,
-    modelName: (a.label ?? a.model) + (a.smallModel ? " (small-model mode)" : ""),
+    modelName,
     ...(a.note ? { note: a.note } : baseline ? { note: BASELINE_NOTE } : {}),
     datasets,
     embedder: d.embedder,
     ...(a.smallModel ? { smallModel: true } : {}),
     ...(a.keepReports ? { keepReports: a.keepReports } : {}),
-    ...(d.now ? { now: d.now } : {}),
+    now: () => at,
     onDataset: (s, i, n) =>
       d.print(
         `[${i + 1}/${n}] ${s.dataset}: ${s.completed ? `${s.planted.filter((p) => p.detected).length}/${s.planted.length} planted found` : `failed (${s.error})`} · ${s.seconds.toFixed(1)} s`,
       ),
   });
+  const tonight = r;
+  const result = !plan
+    ? tonight
+    : plan.from
+      ? resumeResult(
+          plan.from,
+          tonight,
+          plan.passes,
+          all.map((x) => x.id),
+        )
+      : { ...tonight, passes: plan.passes };
   mkdirSync(a.resultsDir, { recursive: true });
-  const slug = evalSlug(r.date, a);
-  writeFileSync(join(a.resultsDir, `${slug}.json`), `${JSON.stringify(r, null, 2)}\n`);
+  const slug = evalSlug(result.date, a);
+  writeFileSync(join(a.resultsDir, `${slug}.json`), `${JSON.stringify(result, null, 2)}\n`);
+  // The combined result holds the earlier pass's finished jobs: its own file would be a second, stale row.
+  if (plan?.from && prevFile && prevFile !== `${slug}.json`) rmSync(join(a.resultsDir, prevFile));
   writeFileSync(a.resultsPage ?? join(a.resultsDir, "..", "RESULTS.md"), resultsPage(a.resultsDir));
   d.print("");
-  for (const b of r.bars)
+  if (plan) {
+    const done = result.scores.filter((s) => s.completed).length;
+    const status = runStatus(done, result.scores.length, result.passes);
+    d.print(
+      `combined: ${done} of ${result.scores.length} jobs finished over ${plan.passes.dates.length} of up to ${plan.passes.of} passes (${plan.passes.dates.join(", ")}): ${status === "resuming" ? "the next pass runs the rest" : status}`,
+    );
+  }
+  for (const b of result.bars)
     d.print(
       `${b.metric}: ${b.value === undefined ? "n/a" : b.metric === "Number mismatches" ? b.value : `${(b.value * 100).toFixed(1)}%`} (bar ${b.bar})`,
     );
   d.print(`results: ${join(a.resultsDir, `${slug}.json`)}`);
-  return r;
+  return result;
 }
 
 export interface RealEvalArgs {
@@ -209,7 +338,7 @@ export function resultsPage(dir: string): string {
     "",
     "Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variants) with planted events, distractors and data-quality issues. Retrieval recall@8 and the injection suite run separately (`bun run --filter @agentic-analytics/retrieval eval:retrieval`, `bunx vitest run packages/core/test/injection.test.ts`).",
     "",
-    "No held-out set: the engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every score here is optimistic for unseen data. Of the Groq tables, the three single-model smoke runs (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b alone) predate the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions). The \"planner, extractor, judge\" smoke and full runs used the M13a engine, before the merge's representative-rule fix (a template with no measured change keeps its priority), which changes nothing per dataset on the offline baseline. A run with unfinished jobs is partial: its rates count those jobs as misses and its pass column reads n/a.",
+    "No held-out set: the engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every score here is optimistic for unseen data. Of the Groq tables, the three single-model smoke runs (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b alone) predate the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions). The \"planner, extractor, judge\" smoke and full runs used the M13a engine, before the merge's representative-rule fix (a template with no measured change keeps its priority), which changes nothing per dataset on the offline baseline. A run with unfinished jobs is partial: its rates count those jobs as misses and its pass column reads n/a. A nightly run is carried over two passes (`aa eval --passes 2`, scripts/eval-daily.sh): a job the first night's quota stopped runs again the next night, and the run is partial only if jobs are still unfinished after that.",
     "",
     ...(ordered.length ? ordered.map(resultsMarkdown) : ["No results yet."]),
     "## Real public data",

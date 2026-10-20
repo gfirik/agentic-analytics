@@ -560,6 +560,13 @@ test("pipeline stages: a stacked list without JS and under 40rem, no Play under 
         );
         expect(Math.max(...off), path).toBeLessThan(4);
       } else {
+        const off = await page.locator(".aa-stages .aa-stage-sql tr").evaluateAll((rows) =>
+          rows.map((r) => {
+            const [a, b] = [...r.children].map((c) => c.getBoundingClientRect().top);
+            return Math.abs((a ?? 0) - (b ?? 0));
+          }),
+        );
+        expect(Math.max(...off), path).toBeLessThan(4);
         const boxes = await panels.evaluateAll((ps) => ps.map((p) => p.getBoundingClientRect()).map((r) => [r.top, r.bottom]));
         for (let i = 1; i < boxes.length; i++) expect(boxes[i]?.[0] ?? 0, path).toBeGreaterThanOrEqual((boxes[i - 1]?.[1] ?? 0) - 1);
       }

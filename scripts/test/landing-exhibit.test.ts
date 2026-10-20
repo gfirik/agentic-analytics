@@ -5,7 +5,15 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type ExhibitData, exhibitData, exhibitIds, exhibitRows, globToRegExp, statusStrip } from "../../apps/docs/scripts/landing-data.ts";
+import {
+  type ExhibitData,
+  exhibitData,
+  exhibitIds,
+  exhibitRows,
+  globToRegExp,
+  statusStrip,
+  suiteRunLabels,
+} from "../../apps/docs/scripts/landing-data.ts";
 import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
 import { formatWithCurrency } from "../../apps/docs/src/components/format.ts";
 import type { PipelineData } from "../../apps/docs/src/components/pipeline-scene.ts";
@@ -228,6 +236,34 @@ describe("exhibit helpers", () => {
   it("monthName names the month of a period", () => {
     expect(monthName("2026-04")).toBe("April");
     expect(monthName("Q2")).toBe("Q2");
+  });
+});
+
+describe("results table run labels (docs/EVALS.md §4)", () => {
+  it("shows a nightly run between its passes as in progress, not partial", () => {
+    // 2026-10-19: the first night finished 21 of 30 before Groq's daily quota ran out; the second night runs the rest.
+    expect(suiteRunLabels({ completed: 21, datasets: 30, passes: { dates: ["2026-10-19"], of: 2 } })).toEqual({
+      status: "resuming",
+      flag: "in progress: 21 of 30 jobs, the next pass runs the rest",
+      na: "n/a (resumes next pass)",
+    });
+  });
+  it("labels it partial only when jobs are unfinished after its last pass (or it had a single pass)", () => {
+    const partial = { status: "partial", flag: "partial", na: "n/a (partial run)" };
+    expect(suiteRunLabels({ completed: 29, datasets: 30, passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } })).toEqual(partial);
+    // A first night closed because the second never came (planResume) reads partial too.
+    expect(suiteRunLabels({ completed: 21, datasets: 30, passes: { dates: ["2026-10-19"], of: 1 } })).toEqual(partial);
+    expect(suiteRunLabels({ completed: 8, datasets: 30, passes: null })).toEqual(partial);
+    expect(suiteRunLabels({ completed: 30, datasets: 30, passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } })).toEqual({
+      status: "complete",
+      flag: null,
+      na: null,
+    });
+  });
+  it("index.astro takes the labels from the generated data, never from its own count", () => {
+    const page = readFileSync(join(import.meta.dirname, "../../apps/docs/src/pages/index.astro"), "utf8");
+    expect(page).not.toMatch(/completed < r\.suite\.datasets|n\/a \(partial run\)/);
+    expect(page).toContain("const { flag, na } = r.suite;");
   });
 });
 
