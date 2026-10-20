@@ -8,7 +8,9 @@ import { describe, expect, it } from "vitest";
 import { type ExhibitData, exhibitData, exhibitIds, exhibitRows, globToRegExp, statusStrip } from "../../apps/docs/scripts/landing-data.ts";
 import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
 import { formatWithCurrency } from "../../apps/docs/src/components/format.ts";
+import type { PipelineData } from "../../apps/docs/src/components/pipeline-scene.ts";
 import { monthName, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
+import { shownFacts } from "../../apps/docs/src/components/site/pipeline-stages.ts";
 
 let run: ReturnType<typeof recordRun<Awaited<ReturnType<typeof exhibitRows>>>> | undefined;
 /** Whitespace-insensitive SQL, for comparing a laid-out query with the recorded one. */
@@ -136,6 +138,16 @@ describe("hero exhibit (from the recorded run)", () => {
     for (const l of exhibit.compiled.lines) expect(flat(f?.computation.sql ?? "")).toContain(l);
   }, 120_000);
 
+  it("every chip in the pipeline stages links to a row of the landing fact ledger, with the same value", async () => {
+    const { exhibit } = await recorded();
+    const run = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "..", "docs", "assets", "readme", "pipeline.json"), "utf8"),
+    ) as PipelineData;
+    const shown = shownFacts(run);
+    expect(shown.length).toBe(8);
+    for (const f of shown) expect(exhibit.notes[f.id]?.value, f.id).toBe(f.text);
+  });
+
   it("the cited document's quote is the claim's own citation", async () => {
     const { report, exhibit } = await recorded();
     const quotes = report.findings[0]?.claims.flatMap((c) => c.citations.map((x) => x.quote)) ?? [];
@@ -167,10 +179,11 @@ describe("landing markup", () => {
     return out.replace(/\s[a-z-]+="[^"]*"/g, "").replace(ALLOWED, "");
   };
 
-  it("index.astro and Exhibit.astro type no figures in their text", () => {
+  it("index.astro, Exhibit.astro and PipelineStages.astro type no figures in their text", () => {
     for (const [f, known] of [
       ["pages/index.astro", "An AI analyst you can audit."],
       ["components/site/Exhibit.astro", "Recorded from a real engine run."],
+      ["components/site/PipelineStages.astro", "Play"],
     ] as const) {
       const text = markup(f);
       expect(text).toContain(known); // the scan reads the page's text, not nothing

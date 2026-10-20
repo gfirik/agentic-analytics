@@ -2,6 +2,9 @@
 // at desktop (1440) and mobile (390) widths. The site is light only. Serve the build first
 // (`bun run --filter @agentic-analytics/docs preview`).
 //   tsx scripts/site-screenshots.ts [--url http://127.0.0.1:4321/agentic-analytics] [--out dir] [--full] [--only name]
+//   tsx scripts/site-screenshots.ts --sections --out dir   → every section of /, /learn/ and /learn/stages/analysis/ at
+//                                                1440×900 and 390×844 (JPEG): landing sections as elements, docs pages
+//                                                one clip per h2 section, plus the figures (docs/plans/site-v3.md §5)
 //   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification as it comes into view, the
 //                                                scroll-linked walkthrough step by step, a hover, then Replay
 //                                                (needs ffmpeg; without it hero.webm is kept)
@@ -21,6 +24,7 @@ const { values } = parseArgs({
     full: { type: "boolean", default: false },
     only: { type: "string" },
     record: { type: "boolean", default: false },
+    sections: { type: "boolean", default: false },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
@@ -55,7 +59,68 @@ const smoothScroll = async (page: Page, y: number) => {
 
 const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 try {
-  if (values.record) {
+  if (values.sections) {
+    // Before/after shots for a design pass: the same names every time, so two folders compare file by file.
+    const shot = { type: "jpeg", quality: 78 } as const;
+    for (const s of sizes) {
+      const ctx = await browser.newContext({ viewport: { width: s.width, height: s.height }, deviceScaleFactor: 1 });
+      const page = await ctx.newPage();
+      const w = s.width;
+      await page.goto(`${base}/`, { waitUntil: "networkidle" });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      await page.screenshot({ ...shot, path: join(out, `landing-01-top-${w}.jpg`) });
+      await page.locator(".aa-exhibit-sheet").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(3500);
+      await page.locator(".aa-exhibit-sheet").screenshot({ ...shot, path: join(out, `landing-02-exhibit-${w}.jpg`) });
+      for (const [i, id] of ["how", "why", "results", "quickstart"].entries())
+        await page.locator(`#${id}`).screenshot({ ...shot, path: join(out, `landing-0${i + 3}-${id}-${w}.jpg`) });
+      await page
+        .locator("footer")
+        .last()
+        .screenshot({ ...shot, path: join(out, `landing-07-footer-${w}.jpg`) });
+      for (const [slug, path] of [
+        ["learn", "/learn/"],
+        ["analysis", "/learn/stages/analysis/"],
+      ] as const) {
+        await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+        });
+        await page.screenshot({ ...shot, path: join(out, `${slug}-00-top-${w}.jpg`) });
+        // Each h2 section in full, from its h2 to the next one (or the end of the article).
+        const spans = await page.evaluate(() => {
+          const hs = [...document.querySelectorAll<HTMLElement>(".sl-markdown-content h2[id]")];
+          const article = document.querySelector(".sl-markdown-content") as HTMLElement;
+          // No named helpers in here: tsx wraps them in __name(), which the page doesn't have.
+          const tops = hs.map((h) => h.getBoundingClientRect().top + window.scrollY - 16);
+          tops.push(article.getBoundingClientRect().bottom + window.scrollY + 24);
+          return hs.map((h, i) => ({
+            id: h.id,
+            y: Math.max(0, Math.round(tops[i] ?? 0)),
+            h: Math.round((tops[i + 1] ?? 0) - (tops[i] ?? 0)),
+          }));
+        });
+        for (const [i, sp] of spans.entries())
+          await page.screenshot({
+            ...shot,
+            path: join(out, `${slug}-${String(i + 1).padStart(2, "0")}-${sp.id}-${w}.jpg`),
+            fullPage: true,
+            clip: { x: 0, y: sp.y, width: w, height: sp.h },
+          });
+        for (const [sel, name] of [
+          [".aa-stages", "pipeline"],
+          [".aa-flow", "stageflow"],
+          ["[aria-label='Contribution waterfall']", "waterfall"],
+        ] as const) {
+          const fig = page.locator(sel).first();
+          if (await fig.count()) await fig.screenshot({ ...shot, path: join(out, `${slug}-fig-${name}-${w}.jpg`) });
+        }
+      }
+      await ctx.close();
+    }
+  } else if (values.record) {
     // The one moment of motion: load (the replay runs once, ≤ 2.5 s), then hover two figures in turn.
     const tmp = join(out, ".video");
     rmSync(tmp, { recursive: true, force: true });

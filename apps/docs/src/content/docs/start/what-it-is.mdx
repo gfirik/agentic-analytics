@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-import Pipeline from "../../../components/Pipeline.tsx";
+import PipelineStages from "../../../components/site/PipelineStages.astro";
 
 agentic-analytics reads a small or medium business's own files — spreadsheets, CSV exports, PDFs, Word documents, emails — and writes a report: **what changed, why it changed, where the data is wrong, and what to do next**.
 
@@ -15,9 +15,9 @@ It is built around three refusals:
 2. **No claim without a source.** Every claim carries citations — the rows, cells, pages or URLs it rests on — and a causal grade: observed, correlated, document-supported.
 3. **Nothing unverified ships.** A verifier recomputes every number, re-derives the headline metrics another way, checks every citation and every causal word, and drops or downgrades what fails before `report.json` is written.
 
-Below is one real run on the example business (scripted planner, no LLM): its stages, the facts it computed with their ids, the evidence it cited, the verifier's checks and the top-ranked action. The README GIF is recorded from this same animation.
+Below is one real run on the example business (scripted planner, no LLM): its stages, the facts it computed with their ids, the evidence it cited, the verifier's checks and the top-ranked action. The README GIF is drawn from the same run data.
 
-<Pipeline client:visible />
+<PipelineStages />
 
 ## What it is not
 

@@ -392,7 +392,7 @@ mobile-starlight-toc .toggle {
   .sl-markdown-content {
     max-width: min(var(--aa-article), 100% - var(--aa-margin-gap) - var(--aa-margin-col));
   }
-  .sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-pipe) {
+  .sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-stages) {
     clear: right;
     margin-right: calc(-1 * (var(--aa-margin-gap) + var(--aa-margin-col)));
   }

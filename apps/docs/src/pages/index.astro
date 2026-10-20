@@ -6,9 +6,9 @@
 // summarize()). Nothing is typed by hand.
 import pipeline from "../../../../docs/assets/readme/pipeline.json";
 import { percent } from "../components/format.ts";
-import Pipeline from "../components/Pipeline.tsx";
 import BaseLayout from "../components/site/BaseLayout.astro";
 import Exhibit from "../components/site/Exhibit.astro";
+import PipelineStages from "../components/site/PipelineStages.astro";
 import SectionLabel from "../components/site/SectionLabel.astro";
 import StatusStrip from "../components/site/StatusStrip.astro";
 import { DOCS_HOME, GITHUB_URL, RELEASES_URL, withBase } from "../components/site/site.ts";
@@ -132,7 +132,7 @@ const doors = [
         </p>
       </div>
       <div class="aa-cell aa-how">
-        <Pipeline client:visible />
+        <PipelineStages />
       </div>
     </section>
 
@@ -485,13 +485,6 @@ AA_DEMO_MODEL=scripted bun run aa analyze \
   }
   .aa-center {
     margin-inline: auto;
-  }
-
-  /* §1 */
-  .aa-how :global(.aa-island) {
-    border: 0;
-    padding: 0;
-    background: transparent;
   }
 
   /* §2: three proof cells side by side, divided by hairlines. */

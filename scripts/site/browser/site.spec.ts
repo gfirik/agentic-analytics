@@ -380,7 +380,7 @@ test("without JS the landing page is complete and chips link into the fact ledge
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
   await page.goto(LANDING);
-  await expect(page.locator(".aa-pipe-frame svg")).toHaveCount(1);
+  await expect(page.locator(".aa-stages .aa-stage")).toHaveCount(7);
   await expect(page.locator(".aa-exhibit a.aa-chip .aa-check").first()).toBeVisible();
   const chip = page.locator(".aa-exhibit a.aa-chip").first();
   const href = await chip.getAttribute("href");
@@ -481,14 +481,80 @@ test("Learn: a stage diagram is complete without JS, and a step marks what it pr
   await expect(live.locator(".aa-flow-col").nth(2).locator("li.is-current")).not.toHaveCount(0);
 });
 
-test("the pipeline scene is still until Play is pressed (the hero is the one moment of motion)", async ({ page }) => {
+test("pipeline stages: still until Play; a stop opens its panel; Play steps once to Report and stops; nothing moves", async ({ page }) => {
+  await page.clock.install();
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
-  const frame = page.locator(".aa-pipe-frame");
-  await frame.scrollIntoViewIfNeeded();
-  const before = await frame.innerHTML();
-  await page.waitForTimeout(1500);
-  expect(await frame.innerHTML()).toBe(before);
-  await expect(page.locator(".aa-pipe button", { hasText: "Play" })).toHaveAttribute("aria-pressed", "false");
+  const root = page.locator(".aa-stages");
+  await root.scrollIntoViewIfNeeded();
+  const current = root.locator(".aa-stage.is-current");
+  const stop = (name: string) => root.getByRole("button", { name, exact: true });
+  // The finished report first, and still.
+  await expect(current).toHaveCount(1);
+  await expect(current.locator("h3")).toContainText("Report");
+  await page.clock.runFor(6000);
+  await expect(current.locator("h3")).toContainText("Report");
+  const below = async () => page.locator("#why").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
+  const y = await below();
+  // A stop opens its panel; only that panel is visible.
+  await stop("Files").click();
+  await expect(stop("Files")).toHaveAttribute("aria-pressed", "true");
+  await expect(root.locator("#aa-stages-files")).toBeVisible();
+  await expect(root.locator("#aa-stages-report")).toBeHidden();
+  expect(await below()).toBe(y);
+  // Play steps through the stops, reads Pause while it runs, and stops at Report.
+  const play = root.locator("[data-stages-play]");
+  await play.click();
+  await expect(play).toHaveText("Pause");
+  await page.clock.runFor(2600);
+  await expect(current.locator("h3")).toContainText("Profile");
+  await page.clock.runFor(2600 * 6);
+  await expect(current.locator("h3")).toContainText("Report");
+  await expect(play).toHaveText("Play");
+  expect(await below()).toBe(y);
+  // Pressing a stop while playing stops it there.
+  await play.click();
+  await page.clock.runFor(2600);
+  await stop("SQL").click();
+  await expect(play).toHaveText("Play");
+  await page.clock.runFor(6000);
+  await expect(current.locator("h3")).toContainText("SQL");
+});
+
+test("pipeline stages: a stacked list without JS and under 40rem, no Play under reduced motion; type at the site's sizes", async ({
+  browser,
+}) => {
+  for (const opts of [{ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } }, { viewport: { width: 390, height: 844 } }]) {
+    const ctx = await browser.newContext(opts);
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const root = page.locator(".aa-stages");
+    await expect(root.locator(".aa-stage")).toHaveCount(7);
+    for (const panel of await root.locator(".aa-stage").all()) await expect(panel).toBeVisible();
+    await expect(root.locator(".aa-stages-bar")).toBeHidden();
+    await ctx.close();
+  }
+  const ctx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/learn/`, { waitUntil: "networkidle" });
+  const root = page.locator(".aa-stages");
+  await expect(root.locator(".aa-stages-bar")).toBeVisible();
+  await expect(root.locator("[data-stages-play]")).toBeHidden();
+  await root.getByRole("button", { name: "Verify", exact: true }).click();
+  await expect(root.locator("#aa-stages-verify")).toBeVisible();
+  // DESIGN.md §4: reading text in a figure is at least note size (13px); labels and chips at least label size (12px).
+  const small = await root.evaluate((el) =>
+    [...el.querySelectorAll<HTMLElement>("*")]
+      .filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent?.trim()))
+      .map((e) => {
+        const cs = getComputedStyle(e);
+        const label = cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null;
+        return { text: e.textContent?.trim().slice(0, 30), px: Number.parseFloat(cs.fontSize), min: label ? 12 : 13 };
+      })
+      .filter((x) => x.px < x.min),
+  );
+  expect(small).toEqual([]);
+  await ctx.close();
 });
 
 test("mobile menu: aria-expanded toggles and Escape closes it", async ({ page }) => {

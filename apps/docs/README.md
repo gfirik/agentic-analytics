@@ -21,7 +21,7 @@ The product site: a custom landing page and the Astro Starlight docs, deployed t
   - `landing.json`: finding F1 of the hero's web-enabled run (the same run as `pipeline.json`, checked), with every fact behind it;
   - `evals.json`: the eval runner's own `summarize()` over the latest `evals/results/*.json`, plus the real-data checks.
 
-Everything it writes is gitignored. The `Pipeline` island's data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
+Everything it writes is gitignored. The pipeline stages' data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
 
 The Learn section's data is checked in too, at `docs/assets/learn/learn.json`: `scripts/learn-data.ts --write` records it from real runs (the same web-enabled run as `pipeline.json`, the CLI's own output for each tutorial, the MCP server, the model router on a scripted transport, an injection fixture), and `scripts/test/learn.test.ts` re-records it and fails on drift.
 
@@ -29,7 +29,7 @@ Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the READM
 
 ## Islands (React, `client:visible`)
 
-- `Pipeline`: the animated pipeline, the same scene the README GIF is recorded from (`src/components/pipeline-scene.ts`), played from `docs/assets/readme/pipeline.json`.
+- `PipelineStages` (`src/components/site/PipelineStages.astro`): the run in `docs/assets/readme/pipeline.json`, stage by stage, as a rail and one ledger panel per stage. The README GIF draws the same data with its own scene (`src/components/pipeline-scene.ts`), which the site doesn't use.
 - `CitationDemo`: click a citation to see the cited rows or passage.
 - `Decomposition`: the contribution waterfall.
 - `RagStepper`: BM25 → vectors → RRF → rerank → extract.
