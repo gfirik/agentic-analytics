@@ -1,6 +1,6 @@
 # Site v3: plan
 
-Plan for the design pass in [`docs/design/site-v3.md`](../design/site-v3.md) (the brief, committed alongside this plan). Nothing in the site changes in this PR. After review, the work lands as five PRs in the brief's order of work (§2). The last of them folds the brief into `apps/docs/DESIGN.md` and deletes it.
+Plan for the design pass in `docs/design/site-v3.md` (the brief, committed alongside this plan; folded into `apps/docs/DESIGN.md` §11 and deleted by PR 5). Nothing in the site changes in this PR. After review, the work lands as five PRs in the brief's order of work (§2). The last of them folds the brief into `apps/docs/DESIGN.md` and deletes it.
 
 **The maintainer's decisions (2026-10-20)** are folded into the sections below and recorded in §4. In short:
 - One code size, 0.8125rem.

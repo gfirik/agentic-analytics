@@ -115,7 +115,7 @@ try {
         for (const [sel, name] of [
           [".aa-stages", "pipeline"],
           [".aa-flow", "stageflow"],
-          ["[aria-label='Contribution waterfall']", "waterfall"],
+          [".aa-bridge", "waterfall"],
         ] as const) {
           const fig = page.locator(sel).first();
           if (await fig.count()) await fig.screenshot({ ...shot, path: join(out, `${slug}-fig-${name}-${w}.jpg`) });

@@ -135,7 +135,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
      - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
      - below it, **the exhibit as its own framed section**, full container width, its top visible above the fold on 1440×900.
   2. `§1 HOW IT WORKS`: the pipeline stages (§6), full container width, inside the frame, one sentence above it.
-  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, the metric's definition with the 2-line SQL it compiles to, a citation.
+  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, a title, one sentence and one real example in a framed box: the report's first sentence as the model wrote it (`{{N…}}` placeholders) and as the reader sees it (figures and chips); the metric's definition with the 2-line SQL it compiles to; a quoted citation. The cells share their rows (CSS subgrid), so the three example boxes line up and match in height.
   4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, **metrics as rows, runs as columns**, so it fits the 1180px container with no sideways scroll.
      - **Rows:** the seven headline bars (planted recall, distractor false positives, driver accuracy, cause grade, citation precision, recommendation relevance, number mismatches), including every bar the smoke run misses, each with its bar stated once in the row label. The rest are in RESULTS.md.
      - **Columns:** real public data, the real-model smoke run, the nightly regression, then the offline baseline. Each head gives the run, a one-line note, its jobs and its date.
@@ -154,7 +154,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (≈ 64ch) | **margin column** (~260px, narrowing to 176px between 1000 and 1200px) for sidenotes.
   - Built by overriding Starlight's `TwoColumnContent` and `PageSidebar`.
   - The article is left-aligned next to the sidebar.
-- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap; it marks the current heading with an ink rule. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure or a sidenote passes beneath it, it steps aside (JS), so neither is covered; without JS it stays on top.
+- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap (the screen below the header, less `--aa-space-8`); Learn stage pages list their h2s only (`tableOfContents.maxHeadingLevel: 2`), so the list fits with no inner scrollbar; it marks the current heading with an ink rule. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure or a sidenote passes beneath it, it steps aside (JS), so neither is covered; without JS it stays on top.
 - **Sidebar:** mono section labels, sans items, the active item marked with a 2px ink rule on the left.
 - **Measure between 1000 and ~1072px:** article, gap and margin column always fit beside the sidebar; the article gives up a little measure there rather than letting notes and figures run off the page.
 - **Sidenotes** for fact IDs and sources, definitions of terms (with a glossary link) and caveats (§6). From 1000px they sit in the margin; under 1000px they are tap-to-expand inline notes.
@@ -240,7 +240,14 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - three ruled columns on a `raised` panel: In → the stage's steps → Out, full width;
   - figures in mono with their fact chips; a selected step and its outputs take the `mark` wash;
   - the server renders every step done; buttons step through it, and Play is offered only without reduced motion;
-  - under 50rem the columns stack, with ↓ between them.
+  - under 50rem the columns stack, with ↓ between them;
+  - step descriptions and every other reading text in it at `--aa-text-note`; column heads at `--aa-text-label`.
+- **Contribution bridge** (`Decomposition.tsx`; Learn's analysis page, Your first report, Finding drivers):
+  - start total → each member's change → end total, one row each (label · bar · figure with its fact id), joined by dashed connectors from one bar's end to the next one's start;
+  - titled by the decomposition's own dimension ("Contribution by channel");
+  - the totals are drawn from a broken axis, marked ≈ on the bar with no numeric tick, so the changes show at the scale of the change; the bar geometry is layout only, and every figure shown is a fact's stored value;
+  - negative changes solid ink, positive ones outlined (§3);
+  - no "everyone else" row: when the decomposition has members beyond those listed (its total's inputs say how many), the count is shown, never a figure the page subtracted.
 - **Recorded output** (`Transcript`, Learn): a `surface` block in mono with a label-style caption; long lines scroll inside it, and a note names what was replaced.
 - **Header:**
   - The wordmark, a mark, then the links. The mark is a ruled square with a check, `aria-hidden`, drawn in `currentColor`. It is the brand, not a verified state, so it is never green; the favicon is the same mark in ink.
@@ -283,3 +290,15 @@ The scale (rem, root 16px; mobile values apply under 640px):
 5. Are there no requests to any origin but the site's own?
 6. Is green used only for "verified"?
 7. Is it light only (`scripts/test/site-light.test.ts`)?
+8. Do the type floors hold: nothing larger than h2 except the hero and a page's own h1, reading text in a figure at least `--aa-text-note`, nothing under `--aa-text-label`, and one code size (`site.spec.ts` checks every page in the sitemap)?
+9. Is there one source per rule: a new component gets its entry in §6 in the same PR?
+
+## 11. Site v3 (October 2026): what the review found, and what it settled
+
+The site v3 design pass (`docs/plans/site-v3.md`, five PRs, #38–#42) started from a review of the live site against this document. Its brief is folded in here; the rules it set are in the sections above.
+
+- **What it found.** The top of the landing page followed this document; from §1 down it didn't. The main cause was the pipeline scene, the README GIF's fixed 640×480 canvas, stretched to the container: its type rendered larger than every heading on desktop and too small to read on phones. Around it, visuals had been built one at a time and didn't share a scale, frame or motion logic: a results table that scrolled sideways even at 1920, code at four sizes, section heads in three patterns.
+- **What works, and stays.** One statement and one lead in the hero, with clear actions. The exhibit, a real report whose figures verify and open their SQL, rows and quote, is the strongest thing on the site. Green only on verified. The hairline frame, the quiet status strip, the four doors as a ruled list, the footer.
+- **Motion: rethought, not removed.** The verification replay stays (short and meaningful). The walkthrough stays, timed at every size, with nothing pinned to the scroll. The pipeline moves only when the reader presses Play, and then only its panel content crossfades. Nothing else moves.
+- **Scale, settled.** One type scale with three floors (labels, reading text in figures, code) and one ceiling (h2, except the hero and a page's own h1); one frame (hairlines, `raised` panels, 4px radius); every visual a component with an entry in §6.
+- **Moved out.** The report template's wording for shares over 100% ("accounted for 108% of the change") is an engine task in the analyst-grade plan, not a site change.

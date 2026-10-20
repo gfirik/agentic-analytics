@@ -76,8 +76,9 @@
 .aa-flow-value .aa-chip {
   margin-inline: 0;
 }
+/* Reading text in a figure: at least the note size (DESIGN.md §4). */
 .aa-flow-note {
-  font-size: 0.75rem;
+  font-size: var(--aa-text-note);
   line-height: 1.45;
   color: var(--aa-ink-2);
 }
@@ -254,7 +255,7 @@
 /* A recorded detail line in prose: mono like a figure, but allowed to wrap at 360 px. */
 .aa-mono-wrap {
   font-family: var(--aa-font-mono);
-  font-size: 0.875em;
+  font-size: var(--aa-text-code);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }

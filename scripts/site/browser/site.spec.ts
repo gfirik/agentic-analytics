@@ -926,6 +926,48 @@ test("pipeline stages: a stacked list without JS and under 40rem, no Play under 
   await ctx.close();
 });
 
+test("type floors on every page in the sitemap: reading text in a figure ≥ note size, nothing under label size", async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(300_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const off: string[] = [];
+  for (const path of await sitemapPaths(request)) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const found = await page.evaluate(() => {
+      // A figure: any diagram, island, ledger or framed panel (DESIGN.md §4).
+      const figures = document.querySelectorAll(
+        ".aa-island, .aa-flow, .aa-stages, .aa-exhibit, .aa-notes, .aa-walk-list, .aa-ledger-wrap, .aa-transcript, .aa-diagram, .aa-proofs, .aa-map",
+      );
+      const out: string[] = [];
+      const seen = new Set<Element>();
+      const check = (e: Element, inFigure: boolean) => {
+        if (seen.has(e) || !e.getClientRects().length || e.closest(".aa-sr")) return;
+        seen.add(e);
+        const own = [...e.childNodes]
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent ?? "")
+          .join("")
+          .trim();
+        if (!own) return;
+        const cs = getComputedStyle(e);
+        const px = Number.parseFloat(cs.fontSize);
+        // Labels: mono uppercase labels, chips, and short mono tags and identifiers (N30, "bar ≥ 80%", a grade).
+        const label =
+          cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null || (/mono/i.test(cs.fontFamily) && own.length <= 32);
+        if (px < 11.95) out.push(`${px}px under the label size: "${own.slice(0, 30)}"`);
+        else if (inFigure && !label && px < 12.95) out.push(`${px}px reading text in a figure: "${own.slice(0, 30)}"`);
+      };
+      for (const f of figures) for (const e of f.querySelectorAll("*")) check(e, true);
+      for (const e of document.querySelectorAll("main *")) check(e, false);
+      return out;
+    });
+    for (const x of found) off.push(`${path}: ${x}`);
+  }
+  expect(off).toEqual([]);
+});
+
 test("mobile menu: aria-expanded toggles and Escape closes it", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto(MISSING);

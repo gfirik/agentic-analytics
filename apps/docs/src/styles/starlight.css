@@ -178,7 +178,9 @@ header.header {
   .aa-margin-toc-inner {
     position: sticky;
     top: var(--sl-nav-height);
-    max-height: min(20rem, 40vh);
+    /* As tall as the screen allows below the header (site v3, finding 11): with h2s only on Learn pages, the list fits
+       at 1000px tall without an inner scrollbar. It still steps aside for figures and sidenotes passing beneath. */
+    max-height: calc(100vh - var(--sl-nav-height) - var(--aa-space-8));
     overflow-y: auto;
     padding: var(--aa-space-5) 0 var(--aa-space-3);
     border-bottom: 1px solid var(--aa-rule);
