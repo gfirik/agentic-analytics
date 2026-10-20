@@ -1,6 +1,15 @@
 # Site v3: plan
 
-Plan for the design pass in [`docs/design/site-v3.md`](../design/site-v3.md) (the brief, committed alongside this plan). Nothing in the site changes in this PR. After review, the work lands as six PRs in the brief's order of work (§2). The last of them folds the brief into `apps/docs/DESIGN.md` and deletes it.
+Plan for the design pass in [`docs/design/site-v3.md`](../design/site-v3.md) (the brief, committed alongside this plan). Nothing in the site changes in this PR. After review, the work lands as five PRs in the brief's order of work (§2). The last of them folds the brief into `apps/docs/DESIGN.md` and deletes it.
+
+**The maintainer's decisions (2026-10-20)** are folded into the sections below and recorded in §4. In short:
+- One code size, 0.8125rem.
+- The note-size floor applies to reading text only; mono uppercase labels and chips keep `--aa-text-label`.
+- The walkthrough drops scroll-pinning at every size and is timed everywhere.
+- Pipeline Play stops at Report.
+- No bullet mark.
+- Finding 9 moves to the analyst-grade plan (#35) as an engine task.
+- The docs h1 stays at 2.5rem, and the size rule is amended to allow it.
 
 "Before" screenshots of every section of `/`, `/learn/` and `/learn/stages/analysis/` at 1440×900 and 390×844 are in [`site-v3/before/`](site-v3/before/) (index in §5). They were built from main at `cde4011` and served locally. The scratch capture script is not committed.
 
@@ -9,15 +18,18 @@ Plan for the design pass in [`docs/design/site-v3.md`](../design/site-v3.md) (th
 These come from the maintainer's instructions. Each PR's description lists how it meets each one.
 
 - **Tokens:** only DESIGN.md tokens. A new token is added to `tokens.css` and DESIGN.md in the same PR.
-- **Type scale:** nothing renders larger than `--aa-text-h2` (2.25rem, 1.75 under 640px) except the hero statement. No text inside a figure is smaller than `--aa-text-note` (0.8125rem). Here a figure means any diagram, island, ledger or framed panel, everything inside its frame included (D6). That covers:
-  - the exhibit and its notes;
-  - the pipeline, including its stage rail;
-  - the results table;
-  - the §2 examples;
-  - StageFlow;
-  - the waterfall (Decomposition);
-  - CitationDemo, VerifierDiff and RagStepper;
-  - FactLedger, LearnMap and Transcript.
+- **Type scale:**
+  - Nothing renders larger than `--aa-text-h2` (2.25rem, 1.75 under 640px) except the hero statement and a page's own h1.
+  - No reading text inside a figure is smaller than `--aa-text-note` (0.8125rem). Mono uppercase labels and fact chips are not reading text; they keep `--aa-text-label` (0.75rem), and nothing goes below that.
+  - A figure is any diagram, island, ledger or framed panel, with everything inside its frame:
+    - the exhibit and its notes;
+    - the pipeline;
+    - the results table;
+    - the §2 examples;
+    - StageFlow;
+    - the waterfall;
+    - CitationDemo, VerifierDiff, RagStepper, FactLedger, LearnMap and Transcript.
+  - Code is one size everywhere: `--aa-text-code`, 0.8125rem.
 - **Motion:** none beyond DESIGN.md §7, as amended in that PR (see decision D3).
 - **DESIGN.md** is updated in the same PR.
 - **Screenshots:** before/after at 1440 and 390 in the PR description.
@@ -36,14 +48,13 @@ These come from the maintainer's instructions. Each PR's description lists how i
 
 | # | PR (branch) | Findings | Main files |
 |---|---|---|---|
-| 1 | `m13l/pipeline-native` | 1, 10, and the "pipeline" motion line | new `PipelineStages.astro`, index.astro §1, 3 MDX pages, DESIGN §5/§6/§7 |
-| 2 | `m13l/results-transpose` | 2 | index.astro §3, `generate.ts` (evals.json) |
-| 3 | `m13l/walkthrough-tight` | 3, 4, plus extra findings A and B | Exhibit.astro, ExhibitNote.astro, components.css (`.aa-chip`) |
-| 4 | `m13l/heads-and-code` | 5, 6, 7, plus extra finding C | index.astro, site.css, tokens.css, StatusStrip.astro, starlight.css |
-| 5 | `m13l/learn-visuals` | 8, 11, 12, 13 (10 is closed by PR 1) | Decomposition.tsx, StageFlow.tsx, learn.css, islands.css, starlight.css, index.astro §2 |
-| 6 | `m13l/share-wording` | 9; the brief folded into DESIGN.md and deleted | packages/agent `claims.ts`, packages/verify, report-schema spec, regenerated run data |
+| 1 | `m13l/pipeline-native` | 1, 10, the "pipeline" motion line, and the amended size rules in DESIGN.md | new `PipelineStages.astro`, index.astro §1, 3 MDX pages, DESIGN §2/§4/§5/§6/§7 |
+| 2 | `m13l/results-transpose` | 2 | index.astro §3, `apps/docs/scripts/generate.ts` (evals.json) |
+| 3 | `m13l/walkthrough-timed` | 3, 4, plus extra findings A and B | Exhibit.astro, ExhibitNote.astro, components.css (`.aa-chip`) |
+| 4 | `m13l/heads-and-code` | 5, 6, 7 | index.astro, site.css, tokens.css, StatusStrip.astro, astro.config.mjs |
+| 5 | `m13l/learn-visuals` | 8, 11, 12, 13 (10 is closed by PR 1); the brief folded into DESIGN.md and deleted | Decomposition.tsx, StageFlow.tsx, learn.css, islands.css, starlight.css, index.astro §2 |
 
-PR 6 changes the engine, not just the site. It goes last, as the brief orders, so the five site PRs don't wait on a run-data regeneration.
+Finding 9 is no longer part of site v3. It is an engine task in the analyst-grade plan (#35).
 
 ## 3. Findings: change, files, DESIGN.md edits, risks
 
@@ -55,7 +66,7 @@ The scene's text renders at about 32–48px at 1440, and its headline at about 5
 
 **Change.** Replace the island with a native component, `components/site/PipelineStages.astro`, rendered on the server with a small inline script, like the exhibit (no React, so less JS on `/learn/`):
 
-- **The stage rail:** seven mono uppercase labels at `--aa-text-note` size (the rail is part of the figure, so not `--aa-text-label`) on a 1px `rule` line, with an ink progress segment up to the current stage. Each label is a button (`aria-pressed`), so the separate row of stage buttons goes away and the Play baseline problem (finding 10) disappears with it.
+- **The stage rail:** seven mono uppercase labels at `--aa-text-label` on a 1px `rule` line, with an ink progress segment up to the current stage. Each label is a button (`aria-pressed`), so the separate row of stage buttons goes away and the Play baseline problem (finding 10) disappears with it.
 - **One ledger-style panel per stage**, at body and note sizes, on `raised` with a hairline. Every panel holds real run data from `docs/assets/readme/pipeline.json`:
 
   | Stage | Panel |
@@ -94,6 +105,7 @@ The scene's text renders at about 32–48px at 1440, and its headline at about 5
 - **§6 Diagrams:** the scene paragraph becomes "the pipeline scene is README-only".
 - **§6:** a new "Pipeline stages" component entry.
 - **§7:** Play and the 150ms panel crossfade.
+- **§4 and §2: the amended size rules** (§1 of this plan): nothing larger than h2 except the hero and a page's own h1; the note-size floor applies to reading text in figures; labels and chips keep `--aa-text-label`.
 - **§2 principle 5 and the §7 "Landing" bullet** are reworded: the exhibit's replay and walkthrough are the only motion that starts by itself; the pipeline moves only after the reader presses Play.
 
 **Risks:**
@@ -146,32 +158,65 @@ The README table (`statusBlock()`, `## Results`) stays as it is.
 - At step 0 the margin is an empty box with "MARGIN · HOVER OR FOCUS A FIGURE".
 
 **Extra findings from the screenshots (same PR):**
-- **A. Mobile notes stretch.** In the stacked notes cell, a shorter note's rows spread out to the tallest note's height (`landing-02-exhibit-step1-notes-390.jpg`: big gaps around "FUNCTION, IN CODE" and an over-tall code box). The fix is `align-content: start` (and `align-self: start` on the note body) in the stacked cell.
-- **B. Mobile step 0.** At step 0 the notes cell is a 543px empty block under the figure (`landing-02-exhibit-notes-390.jpg`). It is fixed by showing step 1's note at step 0, below.
+- **A. Mobile notes stretch.** In the stacked notes cell, a shorter note's rows spread out to the tallest note's height (`landing-02-exhibit-step1-notes-390.jpg`).
+- **B. Mobile step 0.** At step 0 the notes cell is a 543px empty block under the figure (`landing-02-exhibit-notes-390.jpg`).
 
-**Change:**
-- **Track:** 40vh per step (`seg = 0.4 × innerHeight`, track `(n + 1) × 40vh`). At 900px tall the track goes from 2,250px to 1,800px. The sticky block (about 574px) stays, so the section goes from 2,824px to about 2,374px: about 16% less scroll, or 2.6 screens instead of 3.1. If that isn't short enough for the brief's "~3.5 screens is too long", the remaining lever is D2's alternative (no pinned track at all).
-- **Label:** the exhibit label moves inside `.aa-walk-stick`, so it stays with the step bar.
-- **Step 0** shows step 1's note in the margin, not the hint, and the note's figure is not marked until step 1. The hint text is removed. The exhibit's figures still open their own notes on hover and focus.
-- **Centring:** the pinned block is centred on what it actually contains. The script measures the sticky block's height into `--aa-walk-h` and sets the top to `max(space-5, (100vh - var(--aa-walk-h)) / 2)`. Without JS it is static anyway.
-- **Mobile:** extra findings A and B are fixed as above.
+**Change (D2, maintainer's decision): one behaviour everywhere, the timed walkthrough. No scroll-pinning at any size.**
+- **Removed:**
+  - the sticky section;
+  - the `.aa-walk-track`;
+  - the scroll mode and its `(min-width: 68.75rem) and (min-height: 44rem)` query;
+  - the scroll-to-step code for prev, next and Replay.
 
-**DESIGN.md:** §6 "The guided walkthrough" (40vh per step, the label in the sticky block, step 0 showing step 1's note) and "Margin notes" (no hint).
+  The exhibit section is as tall as its content.
+- **Timing:**
+  - The verification replay runs when the exhibit comes into view.
+  - The steps then advance every 4.5s while the exhibit is in view, and pause when it leaves.
+  - Pause/Play names its next action. Prev and next use `aria-disabled` at the ends. Replay restarts from the verification.
+  - Hover or focus inside the exhibit holds the timer, and stepping by hand pauses it (as the small-screen mode does today, WCAG 2.2.2).
+  - At the last step it stops, and Play restarts from step 1.
+- **The step bar** sits in the exhibit's head, under the exhibit label, so the label stays with it. It isn't sticky on wide screens, where the figure and its note are on screen together. Under 900px, where the notes are below the figure, it stays sticky at the top of the exhibit while the exhibit is on screen. That is a control bar, not a scroll-linked track; dropping it is one CSS rule if you want no sticky at all.
+- **Step 1's note open by default.** Before and during the verification, the margin shows step 1's note rather than the empty hint. The hint is removed. Step 0's caption still says what the verifier did.
+- **Notes size to their own content.**
+  - The grid-stack (every note in one cell) goes, which fixes A.
+  - So the page doesn't move as the steps change, the notes area gets a `min-height` equal to its tallest note. It is measured once, after the fonts load and before the walkthrough starts, while the exhibit is still below the fold or the notes are beside it.
+  - Short notes sit at the top of that space, with no stretched rows.
+- **Small screens (under 900px): SQL behind "Show SQL".**
+  - In each note, the SQL block is a `<details>` ("Show SQL", closed by default, which works without JS).
+  - The tallest collapsed note is the cited-rows table plus the head, about 300px at 390 instead of 543px, so the reserved space stays short. That fixes B.
+  - Opening it is the reader's own input, so the movement it causes is expected.
+  - From 900px, beside the exhibit, the SQL shows open as now.
+- **Reduced motion or no JS:** the static ruled list under the exhibit, unchanged.
+
+**Files:**
+- `apps/docs/src/components/site/Exhibit.astro`: script, markup and styles;
+- `ExhibitNote.astro`: the SQL `<details>` under 900px;
+- `scripts/site/browser/site.spec.ts`:
+  - the desktop scroll test is replaced by "the walkthrough advances on a timer at 1440 too";
+  - the timed-mode test now runs at 1440 and 390;
+  - the 1100×704 note-fit test is replaced by "the notes area never changes height while stepping (1440, 390)";
+  - the reduced-motion and no-JS list tests are kept;
+- `apps/docs/scripts/site-screenshots.ts`: the step shots and `--record` drive the timer, not scrolling.
+
+**DESIGN.md:**
+- §6 "The guided walkthrough": timed everywhere, the step bar, step 1's note by default, notes sized to content with a reserved height, "Show SQL" under 900px.
+- §6 "Margin notes": no hint.
+- §7: the landing walkthrough is timed, not scroll-linked.
 
 **Risks:**
-- **Short tracks.** The step-to-scroll mapping, Replay and the 1100×704 note-fit test change. All existing walkthrough tests are kept and updated, not removed.
-- **Fast scrolling.** At 40vh per step a fast wheel skips steps. That is acceptable, because prev and next exist, but the after-recording must show each step is readable.
+- **A reader who scrolls past.** The timer pauses when the exhibit leaves the view, and resumes when it comes back.
+- **The reserved height on desktop.** The tallest note (SQL plus cited rows) can be taller than the exhibit page. Then the row grows once, at measurement, below the fold or before the walkthrough starts, and never while stepping. CLS stays 0, and Lighthouse checks it.
 
 ### Finding 4 (moderate): the chips make the exhibit prose choppy. PR 3.
 
 **Change.** `.aa-chip` becomes lighter:
 - `ink-3` text;
 - a `rule` box instead of `rule-strong`;
-- a tighter visual box (padding 0 4px) that does not raise the line height, while the hit area stays at least 24×24px (DESIGN.md §8) through a transparent `::after` hit box (`inset: -4px 0`) instead of `min-height: 1.5rem` (the chip gets `position: relative`; at 13px the content box is about 17px, so the hit box is about 25px, and a browser test measures it at ≥ 24px);
+- a tighter visual box (padding 0 4px) that does not raise the line height, while the hit area stays at least 24×24px (DESIGN.md §8) through a transparent `::after` hit box instead of `min-height: 1.5rem`. The chip gets `position: relative`; at 12px the content box is about 16px, so the hit box uses `inset: -5px 0` (about 26px), and a browser test measures it at ≥ 24px;
 - the check appears only once verified, as now in the exhibit;
 - hover, focus and open states unchanged.
 
-The size follows D1: the chip sits inside a figure, so under the maintainer's rule it can't go below 0.8125rem. It gets lighter by colour and box, not by size.
+The size stays `--aa-text-label` (D1): the chip is lighter by colour and box, not by size.
 
 **Files:** `src/styles/components.css` (`.aa-chip`), and the `Exhibit.astro` scoped chip rules.
 
@@ -215,7 +260,7 @@ Code currently renders at:
 | Exhibit notes | 0.6875rem |
 | Docs (Expressive Code) | 0.875rem |
 
-**Change.** Per D1, one code size, a new token `--aa-text-code: 0.8125rem / 1.55`, everywhere: the hero, §2, Quickstart, the exhibit notes, StageFlow, Transcript and Expressive Code (`--ec-codeFontSize`).
+**Change.** One code size (D1, maintainer's decision): a new token, `--aa-text-code: 0.8125rem / 1.55`, used everywhere. That covers the hero, §2, Quickstart, the exhibit notes, StageFlow, FactLedger SQL and params, Transcript and Expressive Code (`--ec-codeFontSize`, 0.875 → 0.8125rem).
 
 - **Step 3's command** breaks at a logical point (`AA_DEMO_MODEL=scripted \` / `bun run aa analyze examples/coffee-roaster \` / `--yes --embedder hash`), so "--embedder hash" never splits. There is no copy button: it would add JS and a second state for a no-JS page.
 - **The hero install line** is already at 0.8125rem and stays one line inside its scroll box (the CLS fix from #34). It only moves onto the token.
@@ -223,15 +268,15 @@ Code currently renders at:
 **Files:**
 - `tokens.css` and `site.css`;
 - `index.astro` (`.aa-hero-cmd`, `.aa-proof-code`, `.aa-code`);
-- `ExhibitNote.astro` (0.6875 → the token; the label lines inside notes follow D1);
+- `ExhibitNote.astro` (0.6875 → the token; the mono labels inside notes stay `--aa-text-label`);
 - `learn.css` and `islands.css`;
 - `astro.config.mjs` (Expressive Code `styleOverrides`).
 
 **DESIGN.md:** §4 scale gets `--aa-text-code`, and §6 "Code" changes to 0.8125rem.
 
 **Risks:**
-- **Docs code shrinks.** Docs code drops from 0.875 to 0.8125rem: denser, but the same as the landing page. If the maintainer prefers the docs at 0.875, D1 becomes two sizes (page and docs).
-- **The exhibit notes' fit test at 1100×704** may fail with bigger note code. The fix is the notes' line count, not the size: fewer cited-row neighbours.
+- **Docs code shrinks.** Docs code drops from 0.875 to 0.8125rem, as decided: denser, but the same everywhere.
+- **Bigger note code makes the notes taller.** PR 3's reserved height and the "Show SQL" toggle absorb it, and PR 4 re-checks the notes-height test.
 
 ### Finding 7 (moderate): native scrollbars on mobile. PR 4.
 
@@ -270,31 +315,13 @@ Keyboard focus, the focus ring and scrolling are unchanged (`role="region"`, `ta
 - **Truncated axes can mislead.** The break mark and the labelled axis start are required, and the figures sit beside the bars.
 - **Not computing in the UI.** Removing the island's subtraction means checking that `contribution.v1` covers all members (a unit test on coffee.json).
 
-### Finding 9 (moderate): "wholesale accounted for 108% of the change". PR 6.
+### Finding 9 (moderate): "wholesale accounted for 108% of the change". Moved out of site v3.
 
-**Change** in the deterministic claim template (`packages/agent/src/claims.ts:108`). When the top driver's share is above 100%, write: "By channel, wholesale fell {{|N141|}}, more than the whole drop; retail grew {{N…}}." Otherwise keep "accounted for {{share}} of the change".
+By the maintainer's decision (D5), this is an engine task in the analyst-grade plan (#35): an absolute-value fact, plus a comparison the verifier can check, for shares over 100%. What the site v3 review found about it still holds:
+- **"Fell {{N}}" with a negative N** is dropped by V4 (`packages/verify/src/verify.ts:234`, report-schema §5a).
+- **"More than the whole drop"** is a numeric comparison, so it needs a check the verifier can recompute.
 
-Two engine rules make this more than a wording change:
-
-- **V4 drops "fell {{N}}" with a negative N** (`packages/verify/src/verify.ts:234`, report-schema §5a: a decline is stated as a magnitude). The wording needs a magnitude fact: a new `abs` function fact in `packages/analysis` that the verifier recomputes.
-- **"More than the whole drop" is a numeric comparison.** It must be checked (|driver delta| > |total change|), either as a recorded comparison the verifier recomputes or by building the claim only when the condition holds and recording the inputs.
-
-**Files:**
-- `packages/agent/src/claims.ts`;
-- `packages/analysis` (an `abs` function plus a hand-computed test) and `docs/specs/analysis-library.md` (its spec section, which the function's comment links to);
-- `packages/verify` (recompute plus the comparison);
-- `docs/specs/report-schema.md` and `docs/specs/agent-and-verifier.md`;
-- regenerated run data: `apps/docs/src/data/exhibit.json`, `coffee.json`, `docs/assets/readme/pipeline.json`, the learn data and the README GIF;
-- the walkthrough's step 3 caption (`walkthrough()` in `landing-data.ts`);
-- golden and fixture tests.
-
-**DESIGN.md:** none, apart from folding in the brief (below). This is engine copy.
-
-**Risks:**
-- **This is the only PR that changes engine output.** Every drift test that reruns the engine must be regenerated in the same PR.
-- **The prompts' worked examples** still say "accounted for {{N144}} of the change". That is the LLM path, which still works; they get updated too, so the deterministic and model wording agree.
-
-**Also in PR 6:** fold the brief's lasting rules into DESIGN.md (the "Motion: rethink" section into §7, "What works" into §1/§2 where not already said), then delete `docs/design/site-v3.md`. The before/after screenshots stay with this plan.
+The site keeps the engine's current wording until that lands. The exhibit regenerates from the run, so it picks the new wording up when the run data is regenerated.
 
 ### Finding 10 (minor): Learn's Play button sits off the baseline. PR 1.
 
@@ -314,17 +341,21 @@ This is closed by the rebuild: the stage labels are the buttons and Play sits in
 
 ### Finding 12 (minor): StageFlow step descriptions are at label size. PR 5.
 
-**Change.** Descriptions go from 0.75rem to `--aa-text-note`, and every other StageFlow text under 0.8125rem rises to it, per the figure rule:
-- StageFlow: `learn.css` lines 25 (the column arrow), 32 (`.aa-flow-head`, the column heads at `--aa-text-label`) and 80 (`.aa-flow-note`).
+**Change.** Descriptions (`learn.css:80`, `.aa-flow-note`) go from 0.75rem to `--aa-text-note`. The same rule (reading text in figures ≥ note size, labels and chips at `--aa-text-label`, code at `--aa-text-code`) also covers, in this PR:
+- **Reading text raised to `--aa-text-note`:**
+  - CitationDemo's evidence table (`islands.css:72`, `.aa-ev table`);
+  - VerifierDiff's reasons (`islands.css:164`, `.aa-diff .reason`, which keeps mono);
+  - RagStepper and Transcript text wherever it sits under 0.8125rem.
+- **Code moved onto `--aa-text-code`:** FactLedger SQL and params (`learn.css:159`, `:164`).
+- **A label raised to `--aa-text-label`:** CitationDemo's grade (`islands.css:57`, `.aa-grade`, 0.6875rem). Nothing goes below the label size.
+- **Unchanged, because they are labels:**
+  - StageFlow column heads and the arrow (`learn.css:25`, `:32`);
+  - LearnMap lane heads, steps and in/out marks (`:179`, `:224`, `:239`);
+  - the island labels (`islands.css:15`);
+  - figcaptions (`:201`);
+  - the Transcript caption (`learn.css:104`).
 
-The same figure rule (D6) also raises the other figures' small text, in this PR:
-- FactLedger SQL and params: `learn.css` lines 159 and 164;
-- LearnMap: `learn.css` lines 179 (`.aa-map-lane-head`), 224 (`.aa-map-step`) and 239 (`.aa-map-io b`);
-- island labels and figcaptions, which count as inside the frame: `islands.css` lines 15 (`.aa-island-label`) and 201 (`.aa-diagram figcaption`, Mermaid);
-- Transcript: `learn.css` line 104 (`.aa-term-label`);
-- CitationDemo: `islands.css` lines 57 (`.aa-grade`, 0.6875rem) and 72 (`.aa-ev table`);
-- VerifierDiff: `islands.css` line 164 (`.aa-diff .reason`);
-- Transcript and RagStepper, wherever they set text under 0.8125rem (checked by a browser test that reads computed font sizes inside every figure).
+A browser test reads the computed sizes inside every figure. Reading text must be ≥ 0.8125rem, and labels and chips ≥ 0.75rem.
 
 **Files:** `learn.css`, `islands.css` and `StageFlow.tsx`, if a class changes.
 
@@ -346,35 +377,27 @@ The same figure rule (D6) also raises the other figures' small text, in this PR:
 
 **Risks:** The report must keep the placeholder text. If `report.json` stores only rendered text, the generator reads it from the run's claims checkpoint instead.
 
-### Extra finding C: the docs h1 is larger than h2. PR 4.
+### Extra finding C: the docs h1 is larger than h2. Resolved by amending the rule.
 
-Starlight's `--sl-text-h1` is 2.5rem, above `--aa-text-h2` (2.25rem), which breaks the "nothing larger than h2 except the hero" rule on every docs page. Set the docs h1 to `--aa-text-h2`. The 404's display statement counts as its hero.
+The docs h1 stays at 2.5rem (maintainer's decision). PR 1 amends the rule to "nothing larger than h2 except the hero and a page's own h1".
 
-**Files:** `src/styles/starlight.css`.
+## 4. Decisions (made by the maintainer, 2026-10-20)
 
-**DESIGN.md:** §4 (docs h1 = `--aa-text-h2`).
-
-## 4. Decisions for the maintainer
-
-Defaults are marked; if you say nothing, they apply.
-
-- **D1. The figure size rule vs the brief.**
-  - The brief asks for code in notes at 0.75rem and chips at label size. Your rule says nothing inside a figure is smaller than `--aa-text-note`.
-  - **Default:** your rule wins. There is one code size, 0.8125rem, site-wide including docs code. Chips are 0.8125rem everywhere, docs prose included, deliberately: one chip size. They are lightened by colour and box; the slight size increase in prose is the cost of one chip size. Mono labels inside figures (the exhibit title, ledger column heads in notes, StageFlow heads) are 0.8125rem too.
-  - Labels outside figures stay at `--aa-text-label` (0.75rem). DESIGN.md §4's "Labels: Plex Mono at 0.6875–0.75rem" line and the `--aa-text-label` row's use column ("Labels, ledger column heads": now outside figures only) are edited to match.
-- **D2. The walkthrough at ≥ 1100px: scroll-pinned or in view + click?**
-  - **Default:** keep it scroll-pinned, as you asked in #34, but at 40vh per step with the label in the sticky block. That is about 16% less scroll (2,824 → about 2,374px at 900px tall).
-  - The brief's alternative (steps advance on a timer once in view, with no pinning) is a smaller change to motion. It would make desktop and mobile one mode.
-- **D3. Pipeline motion.**
-  - **Default:** Play steps through the stages once and stops at Report, with a 150ms crossfade (the existing hover and focus duration). §7 is amended to say exactly that.
-  - It no longer loops.
-- **D4. The results bullet mark.** **Default:** left out. Figure plus check is enough, and it keeps §3 a table.
-- **D5. Finding 9's wording.**
-  - **Default:** your wording, which needs the `abs` fact and a checked comparison (engine work in PR 6).
-  - The cheaper alternative keeps signed values and no new fact: "wholesale changed by −$8,500, more than the whole change of −$7,900; retail by +$600". That still needs the comparison check.
-- **D6. What counts as a figure** for the "nothing smaller than `--aa-text-note`" rule.
-  - **Default:** any diagram, island, ledger or framed panel, with everything inside its frame, including the pipeline's stage rail and the column heads of ledgers in figures (the list in §1). PR 5 raises the remaining small text in CitationDemo, VerifierDiff, RagStepper, FactLedger, LearnMap and Transcript, and a browser test enforces it.
-  - The narrower reading (only the six landing and Learn visuals the brief names) leaves those components at 0.6875–0.75rem.
+- **D1/D6, size rules:**
+  - One code size, 0.8125rem, docs included.
+  - The note-size floor applies to reading text in figures only. Mono uppercase labels and chips keep `--aa-text-label` (0.75rem).
+  - The rule's wording in DESIGN.md is updated (PR 1).
+  - A figure keeps the broad definition: any diagram, island, ledger or framed panel.
+- **D2, walkthrough:**
+  - No scroll-pinning at any size. One behaviour everywhere: the timed walkthrough. It starts when the exhibit is in view, has Pause, prev and next, and pauses on hover and focus.
+  - Step 1's note is open by default.
+  - Notes size to their own content.
+  - On small screens the SQL sits behind "Show SQL".
+  - This replaces the 543px empty block and the stretched notes (PR 3).
+- **D3:** agreed. Play steps through once and stops at Report, with a 150ms crossfade and no loop.
+- **D4:** agreed. No bullet mark in the results table.
+- **D5:** finding 9 is removed from site v3 and added to the analyst-grade plan (#35) as an engine task.
+- **Docs h1:** stays at 2.5rem. The rule reads "nothing larger than h2 except the hero and a page's own h1".
 
 ## 5. Before screenshots
 
