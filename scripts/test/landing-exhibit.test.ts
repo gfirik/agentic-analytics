@@ -245,11 +245,10 @@ describe("results table run labels (docs/EVALS.md §4)", () => {
     expect(suiteRunLabels({ completed: 21, datasets: 30, passes: { dates: ["2026-10-19"], of: 2 } })).toEqual({
       status: "resuming",
       flag: "in progress: 21 of 30 jobs, the next pass runs the rest",
-      na: "n/a (resumes next pass)",
     });
   });
   it("labels it partial only when jobs are unfinished after its last pass (or it had a single pass)", () => {
-    const partial = { status: "partial", flag: "partial", na: "n/a (partial run)" };
+    const partial = { status: "partial", flag: "partial" };
     expect(suiteRunLabels({ completed: 29, datasets: 30, passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } })).toEqual(partial);
     // A first night closed because the second never came (planResume) reads partial too.
     expect(suiteRunLabels({ completed: 21, datasets: 30, passes: { dates: ["2026-10-19"], of: 1 } })).toEqual(partial);
@@ -257,13 +256,12 @@ describe("results table run labels (docs/EVALS.md §4)", () => {
     expect(suiteRunLabels({ completed: 30, datasets: 30, passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } })).toEqual({
       status: "complete",
       flag: null,
-      na: null,
     });
   });
   it("index.astro takes the labels from the generated data, never from its own count", () => {
     const page = readFileSync(join(import.meta.dirname, "../../apps/docs/src/pages/index.astro"), "utf8");
-    expect(page).not.toMatch(/completed < r\.suite\.datasets|n\/a \(partial run\)/);
-    expect(page).toContain("const { flag, na } = r.suite;");
+    expect(page).not.toMatch(/completed\s*<\s*(\w+\.)*datasets|n\/a \(partial run\)/);
+    expect(page).toContain("const { flag, status, completed, datasets } = c.suite;");
   });
 });
 

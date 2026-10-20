@@ -395,6 +395,75 @@ test("without JS the landing page is complete and chips link into the fact ledge
   await ctx.close();
 });
 
+test("results: metrics as rows and runs as columns, no sideways scroll at 1440 or 1920, one cell for a run without rates", async ({
+  browser,
+}) => {
+  type Bars = { bars: { metric: string; value: number | null; pass: boolean | null }[] };
+  const evals = JSON.parse(readFileSync(join(import.meta.dirname, "../../../apps/docs/src/data/evals.json"), "utf8")) as {
+    full: Bars & { status: string; completed: number; datasets: number };
+    smoke: Bars & { status: string };
+    synthetic: Bars & { status: string };
+    real: { datasets: { checks: { pass: boolean }[] }[] };
+  };
+  const fmt = (metric: string, v: number) => (metric === "Number mismatches" ? String(v) : `${(v * 100).toFixed(1)}%`);
+  for (const width of [1440, 1920]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const wrap = page.locator("#results .aa-ledger-wrap");
+    expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth), `width ${width}`).toBe(0);
+    const table = page.locator("#results table");
+    await expect(table.locator('thead th[scope="col"]')).toHaveCount(5);
+    await expect(table.locator('tbody th[scope="row"]')).toHaveCount(7);
+    // Screen-reader text stays off screen: no "meets the bar" painted in the cells.
+    const painted = await table.locator(".aa-sr").evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width > 1).length);
+    expect(painted).toBe(0);
+    // A run that didn't finish has one cell spanning every metric row, labelled from the generated status.
+    if (evals.full.status !== "complete") {
+      const span = table.locator("td.aa-span", { hasText: `${evals.full.completed}/${evals.full.datasets}` });
+      await expect(span).toHaveAttribute("rowspan", "7");
+    }
+    // Every figure is its run's own value from evals.json, in the row of its metric, with "below bar" exactly where the
+    // run missed the bar. Columns with rates, in page order: smoke, then the nightly run if complete, then the baseline.
+    const shown = [evals.smoke, evals.full, evals.synthetic].filter((r) => r.status === "complete");
+    const rows = await table.locator("tbody tr").all();
+    for (const row of rows) {
+      const metric = ((await row.locator('th[scope="row"] .aa-metric').textContent()) ?? "").trim();
+      const cells = row.locator("td.num");
+      await expect(cells).toHaveCount(shown.length);
+      for (const [k, run] of shown.entries()) {
+        const b = run.bars.find((x) => x.metric === metric);
+        expect(b, metric).toBeTruthy();
+        const cell = cells.nth(k);
+        await expect(cell.locator(".aa-fig"), metric).toHaveText(fmt(metric, b?.value ?? Number.NaN));
+        if (b?.pass === false) await expect(cell.locator(".aa-below"), metric).toHaveCount(1);
+        else await expect(cell.locator(".aa-below"), metric).toHaveCount(0);
+      }
+    }
+    // The real public data cell: the checks passed of all checks, counted from the result file.
+    const checks = evals.real.datasets.flatMap((d) => d.checks);
+    await expect(table.locator('td.aa-span[headers="aa-run-real"]')).toContainText(
+      `${checks.filter((c) => c.pass).length}/${checks.length}`,
+    );
+    await ctx.close();
+  }
+  // At 390 the table scrolls inside its wrapper and the metric column stays at its left edge.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const wrap = page.locator("#results .aa-ledger-wrap");
+  expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeGreaterThan(0);
+  await wrap.evaluate((e) => {
+    e.scrollLeft = e.scrollWidth;
+  });
+  const [wrapLeft, labelLeft] = await wrap.evaluate((e) => [
+    e.getBoundingClientRect().left,
+    (e.querySelector('tbody th[scope="row"]') as HTMLElement).getBoundingClientRect().left,
+  ]);
+  expect(Math.abs((labelLeft ?? 0) - (wrapLeft ?? 0))).toBeLessThan(2);
+  await ctx.close();
+});
+
 test("the status strip leads with proven results and links the nightly regression suite to §3", async ({ page }) => {
   await page.goto(LANDING);
   await expect(page.locator(".aa-strip")).toContainText(

@@ -453,16 +453,9 @@ export function suiteRunLabels(s: { readonly completed: number; readonly dataset
   readonly status: "complete" | "resuming" | "partial";
   /** The flag beside the jobs count; null for a complete run. */
   readonly flag: string | null;
-  /** The text in every metric cell when no bar is judged; null for a complete run. */
-  readonly na: string | null;
 } {
   const status = runStatus(s.completed, s.datasets, s.passes ?? undefined);
-  if (status === "resuming")
-    return {
-      status,
-      flag: `in progress: ${s.completed} of ${s.datasets} jobs, the next pass runs the rest`,
-      na: "n/a (resumes next pass)",
-    };
-  if (status === "partial") return { status, flag: "partial", na: "n/a (partial run)" };
-  return { status, flag: null, na: null };
+  if (status === "resuming") return { status, flag: `in progress: ${s.completed} of ${s.datasets} jobs, the next pass runs the rest` };
+  if (status === "partial") return { status, flag: "partial" };
+  return { status, flag: null };
 }
