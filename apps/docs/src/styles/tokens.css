@@ -30,6 +30,7 @@
   --aa-text-small: 0.875rem;
   --aa-text-note: 0.8125rem;
   --aa-text-label: 0.75rem;
+  --aa-text-code: 0.8125rem; /* every code block and inline code, landing and docs alike (site v3) */
   --aa-label-tracking: 0.08em;
   --aa-measure: 56ch; /* landing copy */
   --aa-measure-reading: 64ch; /* docs and Learn prose: 62–66ch */

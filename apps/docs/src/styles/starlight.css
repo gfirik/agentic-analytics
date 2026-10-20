@@ -305,7 +305,7 @@ mobile-starlight-toc .toggle {
   color: var(--aa-ink);
 }
 .sl-markdown-content :not(pre) > code:where(:not(.not-content *)) {
-  font-size: 0.8125em;
+  font-size: var(--aa-text-code);
   padding: 0.1em 0.3em;
   border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius-chip);
@@ -370,6 +370,15 @@ mobile-starlight-toc .toggle {
   text-transform: uppercase;
 }
 
+/* Code inside a heading keeps the heading's scale (the one exception to one code size, DESIGN.md §4). */
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code {
+  font-size: 0.875em;
+}
+/* The block itself at the code size too (its lines already are, from codeFontSize), so nothing on the page measures
+   otherwise (DESIGN.md §4: one code size). */
+.expressive-code pre {
+  font-size: var(--aa-text-code);
+}
 /* Code: a raised panel with a hairline frame and a mono caption (astro.config.mjs re-bases github-light onto it). */
 .expressive-code .frame {
   box-shadow: none;

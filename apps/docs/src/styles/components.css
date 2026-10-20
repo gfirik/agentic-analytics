@@ -60,6 +60,36 @@
   color: var(--aa-page);
 }
 
+/* Horizontal scroll boxes (the status strip, the hero's install line): one line that scrolls sideways on narrow
+   screens. No scrollbar, in CSS from the start so its height never changes the layout; the edge with more to read
+   fades out (a transparency mask, like the graph paper's, not a coloured gradient), set by ScrollFade.astro's script.
+   Keyboard focus and scrolling are unchanged. */
+.aa-scroll-x {
+  scrollbar-width: none;
+}
+.aa-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+.aa-scroll-x[data-overflow="end"] {
+  --aa-fade: linear-gradient(to right, #000 calc(100% - var(--aa-space-7)), transparent);
+}
+.aa-scroll-x[data-overflow="start"] {
+  --aa-fade: linear-gradient(to left, #000 calc(100% - var(--aa-space-7)), transparent);
+}
+.aa-scroll-x[data-overflow="both"] {
+  --aa-fade: linear-gradient(to right, transparent, #000 var(--aa-space-7), #000 calc(100% - var(--aa-space-7)), transparent);
+}
+.aa-scroll-x[data-overflow]:not([data-overflow="none"]) {
+  -webkit-mask-image: var(--aa-fade);
+  mask-image: var(--aa-fade);
+}
+/* Focused (the box or a link in it), the box shows all of itself: a mask would also hide the focus ring drawn outside it (WCAG 2.4.7). The text in
+   the fade is scroll-off content, not reading text: axe doesn't see masks, and it isn't meant to pass as body text. */
+.aa-scroll-x[data-overflow]:focus-within {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 /* Verified mark: the one accent. Only on things the verifier (or an eval check) passed. */
 .aa-check {
   display: inline-block;

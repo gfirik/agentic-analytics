@@ -179,6 +179,11 @@
   background: var(--aa-raised);
   overflow-x: auto;
 }
+/* The diagram's source, shown until (or without) the rendered SVG: code, at the code size. */
+.aa-diagram pre {
+  font-size: var(--aa-text-code);
+  white-space: pre-wrap;
+}
 .aa-diagram svg {
   display: block;
   margin: 0 auto;

@@ -9,7 +9,7 @@ interface Props {
 const { items } = Astro.props;
 ---
 
-<div class="aa-strip" role="region" aria-label="Project status" tabindex="0">
+<div class="aa-strip aa-scroll-x" role="region" aria-label="Project status" tabindex="0">
   <p class="aa-strip-inner">
     {
       items.map((item, i) => (
@@ -38,7 +38,10 @@ const { items } = Astro.props;
     border-bottom: 1px solid var(--aa-rule);
     background: var(--aa-surface);
     overflow-x: auto;
-    scrollbar-width: thin;
+  }
+  /* Full-bleed at the top of the page: an outset ring would fall off three edges of the screen, so it sits inside. */
+  .aa-strip:focus-visible {
+    outline-offset: -2px;
   }
   .aa-strip-inner {
     max-width: var(--aa-container);

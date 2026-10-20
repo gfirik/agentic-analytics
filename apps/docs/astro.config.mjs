@@ -69,7 +69,7 @@ export default defineConfig({
           borderColor: "var(--aa-rule)",
           codeFontFamily: "var(--aa-font-mono)",
           uiFontFamily: "var(--aa-font-sans)",
-          codeFontSize: "0.875rem",
+          codeFontSize: "var(--aa-text-code)",
           codeLineHeight: "1.7",
           frames: {
             frameBoxShadowCssValue: "none",

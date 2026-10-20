@@ -6,6 +6,7 @@ import "../../styles/tokens.css";
 import "../../styles/components.css";
 import "../../styles/site.css";
 import FontPreloads from "./FontPreloads.astro";
+import ScrollFade from "./ScrollFade.astro";
 import SiteFooter from "./SiteFooter.astro";
 import SiteHeader from "./SiteHeader.astro";
 import { OG_IMAGE, OG_IMAGE_ALT, SITE_DESCRIPTION, SITE_NAME, withBase } from "./site.ts";
@@ -57,5 +58,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
       <slot />
     </main>
     <SiteFooter />
+    <ScrollFade />
   </body>
 </html>
