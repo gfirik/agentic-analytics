@@ -3,7 +3,7 @@ title: Learn
 description: How an AI analyst you can audit works, stage by stage, on one small business's files. Concept guides, tutorials and a glossary.
 ---
 
-import Pipeline from "../../../components/Pipeline.tsx";
+import PipelineStages from "../../../components/site/PipelineStages.astro";
 import Fact from "../../../components/learn/Fact.astro";
 import FactLedger from "../../../components/learn/FactLedger.astro";
 import LearnMap from "../../../components/learn/LearnMap.astro";
@@ -15,9 +15,9 @@ Everything here follows one example from start to finish: **`examples/coffee-roa
 
 ## The whole job on one screen
 
-This is one real run of the engine on the example, animated: files go in, a verified report comes out. The rail follows the run's own event log.
+This is one real run of the engine on the example, stage by stage: files go in, a verified report comes out. The rail follows the run's own event log; press a stage, or Play.
 
-<Pipeline client:visible />
+<PipelineStages />
 
 ## Every stage, with what went in and what came out
 

@@ -170,17 +170,6 @@
   background: var(--aa-mark);
 }
 
-/* Pipeline */
-.aa-pipe-frame svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: var(--aa-radius);
-}
-.aa-pipe .aa-row {
-  margin-top: var(--aa-space-3);
-}
-
 /* Mermaid */
 .aa-diagram {
   margin: var(--aa-space-5) 0;

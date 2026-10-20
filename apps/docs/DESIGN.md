@@ -29,7 +29,7 @@ The product's promise is that every number can be traced, so the site shows numb
    - passed eval checks;
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
-5. **One moment of motion.** The hero exhibit's verification replay and its guided walkthrough are the only motion on the landing page. Everything else is still, apart from 150ms hover and focus changes (§7).
+5. **One moment of motion.** The hero exhibit's verification replay and its guided walkthrough are the only motion that starts by itself. The pipeline stages move only after the reader presses Play. Everything else is still, apart from 150ms hover and focus changes (§7).
 6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji.
 7. **Every number is real.**
    - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
@@ -91,6 +91,10 @@ All three faces are self-hosted through `@fontsource` and imported once, in `src
 
 The scale (rem, root 16px; mobile values apply under 640px):
 
+- **Larger than h2:** nothing renders larger than `--aa-text-h2` except the hero statement and a page's own h1 (the docs h1 is 2.5rem, 2rem on mobile).
+- **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Mono uppercase labels and fact chips are not reading text: they keep `--aa-text-label`, and nothing on the site is smaller than that.
+- **Code:** one size everywhere, 0.8125rem (site v3 PR 4 moves every code block onto one token, `--aa-text-code`).
+
 | Token | Size / line height | Face | Use |
 |---|---|---|---|
 | `--aa-text-display` | 3.5 / 1.05 (2.25 mobile), −0.02em | Serif 450 | The hero statement (one per page) |
@@ -103,7 +107,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 | `--aa-text-note` | 0.8125 / 1.5 | Sans 400, `ink-2` | Sidenotes, margin notes, the TOC |
 | `--aa-text-label` | 0.75 / 1.3, uppercase, `--aa-label-tracking` (+0.08em) | Mono 500, `ink-3` | Labels, ledger column heads, section references |
 
-- **Labels:** Plex Mono at 0.6875–0.75rem, uppercase, +0.08em tracking, in `ink-3`.
+- **Labels:** Plex Mono at `--aa-text-label` (0.75rem), uppercase, +0.08em tracking, in `ink-3`.
 - **Bracketed section labels** on the landing page: `⊣ §1 HOW IT WORKS ⊢`, in mono, centred on a hairline (`SectionLabel.astro`).
 - **Measures:** docs prose is 62–66ch (`--aa-article`, 36rem ≈ 64ch of the serif at 17px). Landing copy is 56ch (`--aa-measure`).
 
@@ -128,7 +132,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
   1. Status strip, header, then the hero, in hex.tech's structure rather than two columns:
      - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
      - below it, **the exhibit as its own framed section**, full container width, its top visible above the fold on 1440×900.
-  2. `§1 HOW IT WORKS`: the pipeline scene, full container width, inside the frame, no extra box, one sentence above it.
+  2. `§1 HOW IT WORKS`: the pipeline stages (§6), full container width, inside the frame, one sentence above it.
   3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, the metric's definition with the 2-line SQL it compiles to, a citation.
   4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, with the model rows and the real-data checks. Partial runs are labelled partial, and there is a link to RESULTS.md.
   5. `§4 QUICKSTART`: three steps (install, model, analyze) with code, the binary downloads and the Docker line, and the four doors (CLI, API, MCP, Telegram) as a ruled list.
@@ -143,7 +147,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Sidebar:** mono section labels, sans items, the active item marked with a 2px ink rule on the left.
 - **Measure between 1000 and ~1072px:** article, gap and margin column always fit beside the sidebar; the article gives up a little measure there rather than letting notes and figures run off the page.
 - **Sidenotes** for fact IDs and sources, definitions of terms (with a glossary link) and caveats (§6). From 1000px they sit in the margin; under 1000px they are tap-to-expand inline notes.
-- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline scene) run across the margin column from 1000px, clearing any sidenote beside them.
+- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline stages) run across the margin column from 1000px, clearing any sidenote beside them.
 - **Epigraph-style lead** at the top of each Learn stage page: one sentence on the problem the stage solves, in serif italic (`epigraph` frontmatter, rendered by `PageTitle.astro`).
 - **Headings:** `h1`/`h2` in the serif, no rule under `h2`; `h3` in Plex Sans 600.
 - **The header** is shared with the landing page. Search (Pagefind) stays. There is no theme control.
@@ -200,14 +204,21 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - a hairline frame, a mono 0.875rem body, a mono caption label, no window dots.
 - **Diagrams:**
   - Mermaid is initialised with the token colours and Plex Sans.
-  - The pipeline scene (`pipeline-scene.ts`) is shared with the README GIF, so the site re-themes it rather than changing its colours. It does this through the scene's `--pp-*` custom properties and class hooks:
-    - `ink` for progress;
-    - `mark` for packets;
-    - fact IDs as hairline chips;
-    - V1–V8 pass marks and the "verified, cited" stamp in `--aa-verified`;
-    - corners at 4px.
-  - The scene's own dark variant exists only for the README's dark mode; the site never asks for it.
-  - The scene is still until the reader presses Play or a stage. Under 30rem the island also tells the same run as a ruled list of steps.
+  - The pipeline scene (`pipeline-scene.ts`) draws the README GIF only. The site never uses it: its fixed 640×480 canvas scaled its type past the h2 on desktop and below reading size on phones.
+- **Pipeline stages** (`components/site/PipelineStages.astro`), on the landing page (§1), Learn, What it is and Pipeline overview:
+  - **The run:** one real run of the example (`docs/assets/readme/pipeline.json`, the same data as the README GIF), told as a **rail** of seven stops above **one ledger panel per stop**, at the site's own sizes. Every figure is the run's fact with its chip (`pipeline-stages.ts` only picks rows; it computes nothing).
+  - **The rail:** mono labels at `--aa-text-label` on a 1px `rule`, a 2px ink rule under the stops up to the current one. Each stop is a button (`aria-pressed`, `aria-controls` its panel); its title lists the engine stages behind it, from the run's event log.
+  - **The panels:**
+    - Files is a ledger of name, kind and how it's read.
+    - Profile gives the three counts.
+    - Metric is the definition and its compiled SQL.
+    - SQL is a ledger of the two periods, the change and the driver.
+    - Evidence holds the document quotes with source, file and grade, and the web quote labelled external.
+    - Verify is the eight checks V1–V8 as ruled cells (how many times each ran, then a pass mark or how many claims it caught) plus the verifier's totals.
+    - Report is the headline and the top action with its impact range and dated check.
+  - **Live** (JS, from 40rem; switched on before first paint, so nothing shifts): the panels share one grid cell as tall as the tallest, and the finished report shows first. Play steps through the stops once, every 2.5 seconds while on screen, and stops at Report; it reads Pause while running, and pressing a stop stops it there. Changing stop crossfades the panel content only, in 150ms. Under reduced motion there is no Play and no crossfade; the stops still work.
+  - **Without JS, or under 40rem,** the panels are a stacked ruled list, with no rail.
+  - **Markup:** each panel is a `role="group"` named by its title (not a heading, so it fits under any page's outline). On docs pages the root carries `not-content`, so Starlight's flow margins and the prose table and inline-code rules don't reach in (the prose colour, link and strong rules still do, and match).
 - **Stage diagram** (`StageFlow`, Learn):
   - three ruled columns on a `raised` panel: In → the stage's steps → Out, full width;
   - figures in mono with their fact chips; a selected step and its outputs take the `mark` wash;
@@ -222,9 +233,9 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ## 7. Motion
 
-- **Landing:** the hero verification replay and its walkthrough only (scroll-linked on desktop, timed on small screens), plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
+- **Landing:** the hero verification replay and its walkthrough are the only motion that starts by itself (scroll-linked on desktop, timed on small screens). The pipeline stages move only after Play. Plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
 - **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
-- **The pipeline scene** never plays by itself: Play loops it while it is on screen. Without JS the same still frame is in the HTML.
+- **The pipeline stages** never play by themselves: Play steps through the stops once while on screen and stops at Report, with a 150ms crossfade of the panel content only and no moving parts. Without JS every panel is in the HTML as a stacked list.
 - **No other motion:** no entrance animations, no parallax, no looping decoration.
 - **Reduced motion** turns off the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
 
@@ -234,7 +245,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - A skip link on every page, landmarks (`header`, `nav`, `main`, `footer`), one `h1` per page, and headings in order.
 - A visible `:focus-visible` ring on everything: 2px `ink`, 2px offset.
 - Targets are at least 24×24px (the chips and sidenote numbers have padding).
-- Decorative SVGs and the graph paper are `aria-hidden` or background-only. The pipeline and the exhibit have text labels.
+- Decorative SVGs and the graph paper are `aria-hidden` or background-only. The pipeline stages and the exhibit are real text and tables.
 - Margin notes are tied to their chips with `aria-describedby` and `aria-expanded`/`aria-controls`.
 
 ## 9. What we don't use

@@ -1,4 +1,4 @@
-// The data behind the animated pipeline (README GIF and the docs <Pipeline /> island): one real, web-enabled run
+// The data behind the pipeline (the README GIF and the site's pipeline stages): one real, web-enabled run
 // of the engine on examples/coffee-roaster with the scripted planner (no LLM), the offline web fixture and the hash
 // embedder. Nothing on screen is typed by hand: the stage order comes from the run's event log, every number is a
 // fact of the verified report (id, value, computation), every quote is a citation the verifier kept, and the V1–V8

@@ -1,0 +1,572 @@
+---
+// <PipelineStages />: one real run of the engine, stage by stage (DESIGN.md §6 "Pipeline stages", §7). A rail of seven
+// stops above one ledger panel per stop, at the site's own type sizes. The server renders every panel; without JS,
+// under 40rem, the panels are a stacked ruled list. With JS the rail selects a panel (the finished report first), and
+// Play steps through the stops once, stopping at Report, with a 150ms crossfade of the panel only (none under reduced
+// motion, where Play isn't offered). The README GIF keeps its own renderer (pipeline-scene.ts); the site doesn't use it.
+import pipeline from "../../../../../docs/assets/readme/pipeline.json";
+import exhibit from "../../data/exhibit.json";
+import type { PipelineData } from "../pipeline-scene.ts";
+import { READ_AS, sqlRows, stops } from "./pipeline-stages.ts";
+import { withBase } from "./site.ts";
+import "../islands.css";
+
+interface Props {
+  /** The element id, and the prefix of each panel's id (one instance per page). */
+  id?: string;
+}
+const { id = "aa-stages" } = Astro.props;
+
+const run = pipeline as unknown as PipelineData;
+const rail = stops(run);
+const compiled = (exhibit as unknown as { compiled: { lines: string[] } }).compiled;
+/** A fact's row in the landing page's fact ledger (the same run), from any page. */
+const factHref = (fid: string) => `${withBase("")}#fact-${fid}`;
+const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+const last = rail.length - 1;
+const key = (node: string) => `${id}-${node.toLowerCase()}`;
+const v = run.verification;
+const a = run.action;
+---
+
+<section class="aa-stages not-content" id={id} data-stages aria-label="The pipeline, stage by stage, on one real run">
+  <p class="aa-stages-label">One real run · {run.run.example} · {run.run.model.replace(/ \(.*?\)/, "")}</p>
+  <div class="aa-stages-bar">
+    <ol class="aa-stages-rail">
+      {
+        rail.map((s, i) => (
+          <li class:list={[{ "is-done": i <= last, "is-current": i === last }]}>
+            <button type="button" data-stage={i} aria-controls={key(s.node)} aria-pressed={i === last ? "true" : "false"} title={s.stages.join(" · ")}>
+              {s.node}
+            </button>
+          </li>
+        ))
+      }
+    </ol>
+    <button type="button" class="aa-btn aa-stages-play" data-stages-play>Play</button>
+  </div>
+  <div class="aa-stages-panels">
+    {
+      rail.map((s, i) => (
+        <div class:list={["aa-stage", { "is-current": i === last }]} id={key(s.node)} data-panel={i} role="group" aria-labelledby={`${key(s.node)}-h`}>
+          <p class="aa-stage-name" id={`${key(s.node)}-h`}>
+            <span class="aa-stage-n">{String(i + 1).padStart(2, "0")}</span> {s.node}
+            <span class="aa-stage-engine">{s.stages.join(" · ")}</span>
+          </p>
+          {s.node === "Files" ? (
+            <table class="aa-ledger aa-stage-files">
+              <thead>
+                <tr>
+                  <th scope="col">File</th>
+                  <th scope="col">Kind</th>
+                  <th scope="col">Read as</th>
+                </tr>
+              </thead>
+              <tbody>
+                {run.files.map((f) => (
+                  <tr>
+                    <td class="id">{f.name}</td>
+                    <td>{f.kind}</td>
+                    <td>{READ_AS[f.kind] ?? "text"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : s.node === "Profile" ? (
+            <>
+              <dl class="aa-stage-figs">
+                <div>
+                  <dt>Tables</dt>
+                  <dd class="aa-fig">{run.profile.tables}</dd>
+                </div>
+                <div>
+                  <dt>Document sections</dt>
+                  <dd class="aa-fig">{run.profile.sections}</dd>
+                </div>
+                <div>
+                  <dt>Data-quality issues</dt>
+                  <dd class="aa-fig">{run.profile.issues}</dd>
+                </div>
+              </dl>
+              <p class="aa-stage-note">Every column gets a role and a type before anything is measured; the issues go into the report.</p>
+            </>
+          ) : s.node === "Metric" ? (
+            <>
+              <p class="aa-stage-def">
+                <code>{run.metric.id}</code> = {run.metric.formula}, per {run.metric.grain}
+                {run.metric.currency ? ` · ${run.metric.currency}` : ""} · <span class="aa-stage-status">{run.metric.status}</span>
+              </p>
+              <p class="aa-stage-note">Drafted in plain words and YAML, confirmed or assumed, then compiled to SQL:</p>
+              <pre class="aa-stage-code" tabindex="0" aria-label="Compiled SQL"><code>{compiled.lines.join("\n")}</code></pre>
+            </>
+          ) : s.node === "SQL" ? (
+            <table class="aa-ledger aa-stage-sql">
+              <tbody>
+                {sqlRows(run).map((r) => (
+                  <tr>
+                    <th scope="row">{r.label}</th>
+                    <td class="num">
+                      {r.facts?.map((f) => (
+                        <span class="aa-stage-fact">
+                          <span class="aa-fig">{f.text}</span>
+                          <a class="aa-chip" href={factHref(f.id)} aria-label={`${f.id}, verified`}>
+                            <Fragment set:html={check} />
+                            {f.id}
+                          </a>
+                        </span>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : s.node === "Evidence" ? (
+            <ul class="aa-stage-quotes">
+              {run.docs.map((d) => (
+                <li>
+                  <q>{d.quote}</q>
+                  <span class="aa-stage-src">
+                    <span class="aa-chip-id">{d.source_id}</span> {d.file}
+                    {d.from ? ` · ${d.from}` : ""} · {d.at} · <span class="aa-stage-status">{d.grade.replace("_", " ")}</span>
+                  </span>
+                </li>
+              ))}
+              {run.web ? (
+                <li>
+                  <q>{run.web.quote}</q>
+                  <span class="aa-stage-src">
+                    <span class="aa-chip-id">{run.web.source_id}</span> <span class="aa-stage-status">external</span> · {new URL(run.web.url).host}{" "}
+                    · a benchmark page from this run's offline web fixture, compared with the run's own numbers, never in place of them
+                  </span>
+                </li>
+              ) : null}
+            </ul>
+          ) : s.node === "Verify" ? (
+            <>
+              <ul class="aa-stage-checks">
+                {run.checks.map((c) => (
+                  <li>
+                    <span class="aa-stage-check">
+                      <span class="aa-stage-n">{c.check}</span> {c.name}
+                    </span>
+                    <span class="aa-stage-result">
+                      ran <span class="aa-fig">{c.run}</span> times ·{" "}
+                      {c.failed === 0 ? (
+                        <span class="aa-verified">
+                          <Fragment set:html={check} />
+                          pass
+                        </span>
+                      ) : (
+                        <span>
+                          <span class="aa-fig">{c.failed}</span> caught
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p class="aa-stage-note">
+                <span class="aa-fig">{v.numbers_checked}</span> numbers recomputed, <span class="aa-fig">{v.numbers_mismatched}</span>{" "}
+                mismatched · <span class="aa-fig">{v.citations_checked}</span> citations checked ·{" "}
+                <span class="aa-fig">{v.claims_dropped}</span> claims dropped, <span class="aa-fig">{v.claims_downgraded}</span> downgraded
+              </p>
+            </>
+          ) : (
+            <>
+              <p class="aa-stage-headline">{run.headline}</p>
+              <p class="aa-stage-action">
+                <span class="aa-stage-k">
+                  #{a.rank} action of {a.of} · {a.confidence} confidence
+                </span>
+                {a.text}: <span class="aa-fig">+{a.low.text}</span>{" "}
+                <a class="aa-chip" href={factHref(a.low.id)} aria-label={`${a.low.id}, verified`}>
+                  <Fragment set:html={check} />
+                  {a.low.id}
+                </a>{" "}
+                to <span class="aa-fig">+{a.high.text}</span>{" "}
+                <a class="aa-chip" href={factHref(a.high.id)} aria-label={`${a.high.id}, verified`}>
+                  <Fragment set:html={check} />
+                  {a.high.id}
+                </a>{`, ${a.horizon}.`}
+              </p>
+              <p class="aa-stage-note">
+                Checked later against: <code>{a.check}</code>
+              </p>
+            </>
+          )}
+        </div>
+      ))
+    }
+  </div>
+</section>
+<script is:inline>
+  // Before first paint: with JS, from 40rem, the panels share one cell and the rail selects one (no layout shift).
+  document.currentScript.previousElementSibling.setAttribute("data-stages", "live");
+</script>
+
+<script>
+  const DWELL = 2500;
+  for (const root of document.querySelectorAll<HTMLElement>("[data-stages]")) {
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>("[data-stage]")];
+    const panels = [...root.querySelectorAll<HTMLElement>("[data-panel]")];
+    const items = buttons.map((b) => b.closest("li") as HTMLElement);
+    const play = root.querySelector<HTMLButtonElement>("[data-stages-play]");
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+    if (!play || panels.length === 0) continue;
+    let current = panels.length - 1;
+    let timer: number | undefined;
+    let visible = true;
+
+    const show = (k: number) => {
+      current = k;
+      panels.forEach((p, i) => p.classList.toggle("is-current", i === k));
+      buttons.forEach((b, i) => b.setAttribute("aria-pressed", String(i === k)));
+      items.forEach((li, i) => {
+        li.classList.toggle("is-done", i <= k);
+        li.classList.toggle("is-current", i === k);
+      });
+    };
+    const stop = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+      play.textContent = "Play";
+    };
+    const tick = () => {
+      timer = window.setTimeout(() => {
+        if (!visible) return tick();
+        if (current >= panels.length - 1) return stop();
+        show(current + 1);
+        if (current >= panels.length - 1) stop();
+        else tick();
+      }, DWELL);
+    };
+    requestAnimationFrame(() => root.classList.add("is-ready"));
+    reduced.addEventListener("change", () => {
+      if (reduced.matches) stop();
+    });
+
+    play.addEventListener("click", () => {
+      if (timer !== undefined) return stop();
+      // Play names its next action: Pause while it runs. From Report it starts over at Files.
+      show(current >= panels.length - 1 ? 0 : current);
+      play.textContent = "Pause";
+      tick();
+    });
+    buttons.forEach((b, i) =>
+      b.addEventListener("click", () => {
+        stop();
+        show(i);
+      }),
+    );
+    if (typeof IntersectionObserver !== "undefined")
+      new IntersectionObserver(([e]) => {
+        visible = e?.isIntersecting ?? true;
+      }).observe(root);
+  }
+</script>
+
+<style>
+  .aa-stages {
+    margin: 0;
+  }
+  /* In docs prose (.not-content opts out of Starlight's flow spacing), space it like any other figure. */
+  :global(.sl-markdown-content) .aa-stages {
+    margin-block: var(--aa-space-6);
+  }
+  .aa-stages .aa-stages-label {
+    margin: 0 0 var(--aa-space-3);
+    font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+  }
+
+  /* The rail: seven stops on a 1px rule, ink up to the current one. */
+  /* The bar exists only live (set before first paint), from 40rem; Play isn't offered under reduced motion. */
+  .aa-stages .aa-stages-bar {
+    display: none;
+    align-items: flex-end;
+    gap: var(--aa-space-4);
+    margin-bottom: var(--aa-space-4);
+  }
+  .aa-stages .aa-stages-rail {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aa-stages .aa-stages-rail li {
+    margin: 0;
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  .aa-stages .aa-stages-rail li.is-done {
+    border-bottom: 2px solid var(--aa-ink);
+    margin-bottom: -1px;
+  }
+  .aa-stages .aa-stages-rail button {
+    display: block;
+    width: 100%;
+    min-height: 2rem;
+    padding: var(--aa-space-2) var(--aa-space-1) var(--aa-space-2) 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    transition: color var(--aa-fast) var(--aa-ease);
+  }
+  .aa-stages .aa-stages-rail button:hover,
+  .aa-stages .aa-stages-rail button[aria-pressed="true"] {
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stages-rail button:focus-visible {
+    outline: 2px solid var(--aa-ink);
+    outline-offset: 2px;
+  }
+  .aa-stages .aa-stages-play {
+    min-width: 4.5rem;
+  }
+
+  /* The panels: a stacked ruled list by default (no JS, narrow screens); live, one shared cell as tall as the
+     tallest panel, so changing stage never moves the page. */
+  .aa-stages .aa-stages-panels {
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+  }
+  .aa-stages .aa-stage {
+    padding: var(--aa-space-5);
+  }
+  .aa-stages .aa-stage + .aa-stage {
+    border-top: 1px solid var(--aa-rule);
+  }
+  @media (min-width: 40rem) {
+    .aa-stages[data-stages="live"] .aa-stages-bar {
+      display: flex;
+    }
+    .aa-stages[data-stages="live"] .aa-stages-panels {
+      display: grid;
+    }
+    .aa-stages[data-stages="live"] .aa-stage {
+      grid-area: 1 / 1;
+      align-self: start;
+      border-top: 0;
+      visibility: hidden;
+      opacity: 0;
+    }
+    .aa-stages[data-stages="live"] .aa-stage.is-current {
+      visibility: visible;
+      opacity: 1;
+    }
+    /* The crossfade only once the script runs, so the switch to one panel before first paint never animates. */
+    .aa-stages[data-stages="live"].is-ready .aa-stage {
+      transition:
+        opacity var(--aa-fast) var(--aa-ease),
+        visibility 0s linear var(--aa-fast);
+    }
+    .aa-stages[data-stages="live"].is-ready .aa-stage.is-current {
+      transition: opacity var(--aa-fast) var(--aa-ease);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aa-stages .aa-stages-play {
+      display: none;
+    }
+    .aa-stages .aa-stage,
+    .aa-stages .aa-stages-rail button {
+      transition: none !important;
+    }
+  }
+
+  .aa-stages .aa-stage-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--aa-space-1) var(--aa-space-3);
+    margin: 0 0 var(--aa-space-4);
+    font: 600 var(--aa-text-h3) / 1.4 var(--aa-font-sans);
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stage-n,
+  .aa-stages .aa-stage-engine,
+  .aa-stages .aa-stage-k,
+  .aa-stages .aa-stage-figs dt {
+    font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+  }
+  .aa-stages .aa-stage-engine {
+    margin-left: auto;
+  }
+  .aa-stages .aa-stage :global(table.aa-ledger) {
+    margin: 0;
+  }
+  .aa-stages .aa-stage :global(.aa-ledger th[scope="row"]) {
+    font: 400 var(--aa-text-small) / 1.45 var(--aa-font-sans);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--aa-ink);
+    border-bottom: 1px solid var(--aa-rule);
+    padding-left: 0;
+    white-space: normal;
+  }
+  .aa-stages .aa-stage-figs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--aa-space-4);
+    margin: 0 0 var(--aa-space-4);
+  }
+  .aa-stages .aa-stage-figs div {
+    padding-top: var(--aa-space-2);
+    border-top: 1px solid var(--aa-rule-strong);
+  }
+  .aa-stages .aa-stage-figs dd {
+    margin: var(--aa-space-1) 0 0;
+    font: 400 var(--aa-text-h3) / 1.3 var(--aa-font-mono);
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stage-fact {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--aa-space-2);
+  }
+  .aa-stages .aa-stage-checks {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--aa-space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aa-stages .aa-stage-checks li {
+    margin: 0;
+    padding-top: var(--aa-space-2);
+    border-top: 1px solid var(--aa-rule-strong);
+  }
+  .aa-stages .aa-stage-check,
+  .aa-stages .aa-stage-result {
+    display: block;
+    font: 400 var(--aa-text-small) / 1.45 var(--aa-font-sans);
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stage-result {
+    margin-top: var(--aa-space-1);
+    font-size: var(--aa-text-note);
+    color: var(--aa-ink-2);
+  }
+  /* Narrow: the ledgers stack each row (label above its value), so nothing runs off the panel. */
+  @media not all and (min-width: 40rem) {
+    .aa-stages .aa-stage {
+      padding: var(--aa-space-4);
+    }
+    .aa-stages .aa-stage-checks {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .aa-stages .aa-stage-engine {
+      margin-left: 0;
+      flex-basis: 100%;
+    }
+    .aa-stages .aa-stage :global(.aa-stage-sql tr),
+    .aa-stages .aa-stage :global(.aa-stage-files tr) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0 var(--aa-space-3);
+      padding: var(--aa-space-2) 0;
+      border-bottom: 1px solid var(--aa-rule);
+    }
+    .aa-stages .aa-stage :global(.aa-stage-sql :is(th[scope="row"], td)),
+    .aa-stages .aa-stage :global(.aa-stage-files td) {
+      padding: 0;
+      border: 0;
+    }
+    .aa-stages .aa-stage :global(.aa-stage-sql td.num) {
+      text-align: right;
+    }
+    .aa-stages .aa-stage :global(.aa-stage-files thead) {
+      display: none;
+    }
+    .aa-stages .aa-stage :global(.aa-stage-files td:last-child) {
+      grid-column: 1 / -1;
+      color: var(--aa-ink-2);
+      font-size: var(--aa-text-note);
+    }
+  }
+  .aa-stages .aa-stage-note {
+    margin: var(--aa-space-3) 0 0;
+    font: 400 var(--aa-text-note) / 1.5 var(--aa-font-sans);
+    color: var(--aa-ink-2);
+  }
+  .aa-stages .aa-stage-def,
+  .aa-stages .aa-stage-headline,
+  .aa-stages .aa-stage-action {
+    margin: 0;
+    font: 400 var(--aa-text-body) / 1.6 var(--aa-font-sans);
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stage-headline {
+    margin-bottom: var(--aa-space-4);
+    font-weight: 600;
+  }
+  .aa-stages .aa-stage-k {
+    display: block;
+    margin-bottom: var(--aa-space-1);
+  }
+  .aa-stages .aa-stage-status {
+    font-family: var(--aa-font-mono);
+    font-size: var(--aa-text-note);
+    color: var(--aa-ink-2);
+  }
+  .aa-stages .aa-stage-code {
+    margin: var(--aa-space-3) 0 0;
+    padding: var(--aa-space-3) var(--aa-space-4);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-page);
+    overflow-x: auto;
+    font: 400 var(--aa-text-note) / 1.55 var(--aa-font-mono);
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stage-code:focus-visible {
+    outline: 2px solid var(--aa-ink);
+    outline-offset: 2px;
+  }
+  .aa-stages .aa-stage-quotes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aa-stages .aa-stage-quotes li {
+    margin: 0;
+    padding: var(--aa-space-3) 0;
+    border-bottom: 1px solid var(--aa-rule);
+  }
+  .aa-stages .aa-stage-quotes li:first-child {
+    padding-top: 0;
+  }
+  .aa-stages .aa-stage-quotes q {
+    display: block;
+    font: 400 var(--aa-text-body) / 1.6 var(--aa-font-sans);
+    color: var(--aa-ink);
+  }
+  .aa-stages .aa-stage-src {
+    display: block;
+    margin-top: var(--aa-space-1);
+    font: 400 var(--aa-text-note) / 1.5 var(--aa-font-sans);
+    color: var(--aa-ink-2);
+  }
+  .aa-chip-id {
+    font-family: var(--aa-font-mono);
+  }
+  /* Two classes deep, so Starlight's inline-code rule (0.8125em of the note) doesn't shrink it on docs pages. */
+  .aa-stages .aa-stage code {
+    font-family: var(--aa-font-mono);
+    font-size: var(--aa-text-note);
+  }
+</style>
