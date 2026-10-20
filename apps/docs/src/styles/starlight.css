@@ -304,7 +304,7 @@ mobile-starlight-toc .toggle {
   font-weight: 600;
   color: var(--aa-ink);
 }
-.sl-markdown-content :not(pre) > code {
+.sl-markdown-content :not(pre) > code:where(:not(.not-content *)) {
   font-size: 0.8125em;
   padding: 0.1em 0.3em;
   border: 1px solid var(--aa-rule);
@@ -315,8 +315,9 @@ mobile-starlight-toc .toggle {
   overflow-wrap: anywhere;
 }
 
-/* Tables in prose are ledgers too: ruled, no outer box, labels for heads; wide ones scroll inside themselves. */
-.sl-markdown-content table {
+/* Tables in prose are ledgers too: ruled, no outer box, labels for heads; wide ones scroll inside themselves. A component
+   marked .not-content (the pipeline stages) keeps its own table and code styles. */
+.sl-markdown-content table:where(:not(.not-content *)) {
   display: block;
   max-width: 100%;
   overflow-x: auto;
@@ -329,14 +330,14 @@ mobile-starlight-toc .toggle {
   overflow: visible;
   min-width: 100%;
 }
-.sl-markdown-content :is(th, td) {
+.sl-markdown-content :is(th, td):where(:not(.not-content *)) {
   border: 0;
   border-bottom: 1px solid var(--aa-rule);
   padding: var(--aa-space-2) var(--aa-space-3);
   background: transparent;
   vertical-align: top;
 }
-.sl-markdown-content th {
+.sl-markdown-content th:where(:not(.not-content *)) {
   border-bottom: 1px solid var(--aa-rule-strong);
   font-family: var(--aa-font-mono);
   font-size: var(--aa-text-label);
@@ -346,7 +347,7 @@ mobile-starlight-toc .toggle {
   color: var(--aa-ink-3);
   text-align: left;
 }
-.sl-markdown-content :is(th, td):first-child {
+.sl-markdown-content :is(th, td):first-child:where(:not(.not-content *)) {
   padding-inline-start: 0;
 }
 .sl-markdown-content tr:nth-child(2n) {

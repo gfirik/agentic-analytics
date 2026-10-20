@@ -88,6 +88,10 @@ try {
         await page.evaluate(async () => {
           await document.fonts.ready;
         });
+        // Capture only: a full-page clip renders beyond the viewport and replays the pipeline panels' opacity
+        // transition, so every panel shows half-faded on top of the others. Readers never see that (a real resize
+        // doesn't do it); turning transitions off makes the clip match the screen.
+        await page.addStyleTag({ content: "*, *::before, *::after { transition: none !important; }" });
         await page.screenshot({ ...shot, path: join(out, `${slug}-00-top-${w}.jpg`) });
         // Each h2 section in full, from its h2 to the next one (or the end of the article).
         const spans = await page.evaluate(() => {

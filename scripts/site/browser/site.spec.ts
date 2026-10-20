@@ -491,9 +491,9 @@ test("pipeline stages: still until Play; a stop opens its panel; Play steps once
   const stop = (name: string) => root.getByRole("button", { name, exact: true });
   // The finished report first, and still.
   await expect(current).toHaveCount(1);
-  await expect(current.locator("h3")).toContainText("Report");
+  await expect(current.locator(".aa-stage-name")).toContainText("Report");
   await page.clock.runFor(6000);
-  await expect(current.locator("h3")).toContainText("Report");
+  await expect(current.locator(".aa-stage-name")).toContainText("Report");
   const below = async () => page.locator("#why").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
   const y = await below();
   // A stop opens its panel; only that panel is visible.
@@ -507,9 +507,9 @@ test("pipeline stages: still until Play; a stop opens its panel; Play steps once
   await play.click();
   await expect(play).toHaveText("Pause");
   await page.clock.runFor(2600);
-  await expect(current.locator("h3")).toContainText("Profile");
+  await expect(current.locator(".aa-stage-name")).toContainText("Profile");
   await page.clock.runFor(2600 * 6);
-  await expect(current.locator("h3")).toContainText("Report");
+  await expect(current.locator(".aa-stage-name")).toContainText("Report");
   await expect(play).toHaveText("Play");
   expect(await below()).toBe(y);
   // Pressing a stop while playing stops it there.
@@ -518,7 +518,7 @@ test("pipeline stages: still until Play; a stop opens its panel; Play steps once
   await stop("SQL").click();
   await expect(play).toHaveText("Play");
   await page.clock.runFor(6000);
-  await expect(current.locator("h3")).toContainText("SQL");
+  await expect(current.locator(".aa-stage-name")).toContainText("SQL");
 });
 
 test("pipeline stages: a stacked list without JS and under 40rem, no Play under reduced motion; type at the site's sizes", async ({
@@ -533,6 +533,38 @@ test("pipeline stages: a stacked list without JS and under 40rem, no Play under 
     for (const panel of await root.locator(".aa-stage").all()) await expect(panel).toBeVisible();
     await expect(root.locator(".aa-stages-bar")).toBeHidden();
     await ctx.close();
+  }
+  // On docs pages too (Starlight's prose styles must not reach in): one panel shown, the others hidden, every row on one
+  // line at 1440; at 390 the stacked list, each panel below the last with no overlap.
+  for (const path of [`${BASE}/learn/`, `${BASE}/start/what-it-is/`, `${BASE}/how-it-works/pipeline/`]) {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      const ctx = await browser.newContext({ viewport });
+      const page = await ctx.newPage();
+      await page.goto(path, { waitUntil: "networkidle" });
+      const panels = page.locator(".aa-stages .aa-stage");
+      await expect(panels).toHaveCount(7);
+      if (viewport.width === 1440) {
+        await expect(page.locator(".aa-stages .aa-stage.is-current")).toBeVisible();
+        for (const p of await page.locator(".aa-stages .aa-stage:not(.is-current)").all()) await expect(p).toBeHidden();
+        const sql = page.locator(".aa-stages").getByRole("button", { name: "SQL", exact: true });
+        await sql.click();
+        // Each SQL row's label and value share a line.
+        const off = await page.locator(".aa-stages .aa-stage-sql tr").evaluateAll((rows) =>
+          rows.map((r) => {
+            const [a, b] = [...r.children].map((c) => c.getBoundingClientRect().top);
+            return Math.abs((a ?? 0) - (b ?? 0));
+          }),
+        );
+        expect(Math.max(...off), path).toBeLessThan(4);
+      } else {
+        const boxes = await panels.evaluateAll((ps) => ps.map((p) => p.getBoundingClientRect()).map((r) => [r.top, r.bottom]));
+        for (let i = 1; i < boxes.length; i++) expect(boxes[i]?.[0] ?? 0, path).toBeGreaterThanOrEqual((boxes[i - 1]?.[1] ?? 0) - 1);
+      }
+      await ctx.close();
+    }
   }
   const ctx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();

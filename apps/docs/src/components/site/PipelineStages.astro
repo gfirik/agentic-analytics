@@ -29,7 +29,7 @@ const v = run.verification;
 const a = run.action;
 ---
 
-<section class="aa-stages" id={id} data-stages aria-label="The pipeline, stage by stage, on one real run">
+<section class="aa-stages not-content" id={id} data-stages aria-label="The pipeline, stage by stage, on one real run">
   <p class="aa-stages-label">One real run · {run.run.example} · {run.run.model.replace(/ \(.*?\)/, "")}</p>
   <div class="aa-stages-bar">
     <ol class="aa-stages-rail">
@@ -48,11 +48,11 @@ const a = run.action;
   <div class="aa-stages-panels">
     {
       rail.map((s, i) => (
-        <section class:list={["aa-stage", { "is-current": i === last }]} id={key(s.node)} data-panel={i} aria-labelledby={`${key(s.node)}-h`}>
-          <h3 class="aa-stage-name" id={`${key(s.node)}-h`}>
+        <div class:list={["aa-stage", { "is-current": i === last }]} id={key(s.node)} data-panel={i} role="group" aria-labelledby={`${key(s.node)}-h`}>
+          <p class="aa-stage-name" id={`${key(s.node)}-h`}>
             <span class="aa-stage-n">{String(i + 1).padStart(2, "0")}</span> {s.node}
             <span class="aa-stage-engine">{s.stages.join(" · ")}</span>
-          </h3>
+          </p>
           {s.node === "Files" ? (
             <table class="aa-ledger aa-stage-files">
               <thead>
@@ -131,6 +131,15 @@ const a = run.action;
                   </span>
                 </li>
               ))}
+              {run.web ? (
+                <li>
+                  <q>{run.web.quote}</q>
+                  <span class="aa-stage-src">
+                    <span class="aa-chip-id">{run.web.source_id}</span> <span class="aa-stage-status">external</span> · {new URL(run.web.url).host}{" "}
+                    · a public benchmark, compared with the run's own numbers, never in place of them
+                  </span>
+                </li>
+              ) : null}
             </ul>
           ) : s.node === "Verify" ? (
             <>
@@ -141,7 +150,7 @@ const a = run.action;
                       <span class="aa-stage-n">{c.check}</span> {c.name}
                     </span>
                     <span class="aa-stage-result">
-                      <span class="aa-fig">{c.run}</span> run ·{" "}
+                      <span class="aa-fig">{c.run}</span> checked ·{" "}
                       {c.failed === 0 ? (
                         <span class="aa-verified">
                           <Fragment set:html={check} />
@@ -185,7 +194,7 @@ const a = run.action;
               </p>
             </>
           )}
-        </section>
+        </div>
       ))
     }
   </div>
@@ -260,6 +269,10 @@ const a = run.action;
   .aa-stages {
     margin: 0;
   }
+  /* In docs prose (.not-content opts out of Starlight's flow spacing), space it like any other figure. */
+  :global(.sl-markdown-content) .aa-stages {
+    margin-block: var(--aa-space-6);
+  }
   .aa-stages .aa-stages-label {
     margin: 0 0 var(--aa-space-3);
     font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
@@ -305,9 +318,7 @@ const a = run.action;
     text-transform: uppercase;
     color: var(--aa-ink-3);
     cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
     transition: color var(--aa-fast) var(--aa-ease);
   }
   .aa-stages .aa-stages-rail button:hover,
@@ -519,7 +530,7 @@ const a = run.action;
     border-radius: var(--aa-radius);
     background: var(--aa-page);
     overflow-x: auto;
-    font: 400 0.8125rem / 1.55 var(--aa-font-mono);
+    font: 400 var(--aa-text-note) / 1.55 var(--aa-font-mono);
     color: var(--aa-ink);
   }
   .aa-stages .aa-stage-code:focus-visible {
@@ -556,6 +567,6 @@ const a = run.action;
   /* Two classes deep, so Starlight's inline-code rule (0.8125em of the note) doesn't shrink it on docs pages. */
   .aa-stages .aa-stage code {
     font-family: var(--aa-font-mono);
-    font-size: 0.8125rem;
+    font-size: var(--aa-text-note);
   }
 </style>

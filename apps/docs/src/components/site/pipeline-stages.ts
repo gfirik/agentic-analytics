@@ -41,7 +41,7 @@ export function sqlRows(run: PipelineData): StageRow[] {
     { label: "Change", facts: [fact(c.delta)] },
     { label: "Change, percent", facts: [fact(c.pct)] },
     { label: `By ${d.dimension}: ${d.member}`, facts: [fact(d.delta)] },
-    { label: `${d.member}'s share of the change`, facts: [fact(d.share)] },
+    { label: `${d.member.charAt(0).toUpperCase()}${d.member.slice(1)}'s share of the change`, facts: [fact(d.share)] },
   ];
 }
 
