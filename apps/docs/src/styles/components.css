@@ -62,7 +62,7 @@
 
 /* Horizontal scroll boxes (the status strip, the hero's install line): one line that scrolls sideways on narrow
    screens. No scrollbar, in CSS from the start so its height never changes the layout; the edge with more to read
-   fades out (a transparency mask, like the graph paper's, not a coloured gradient), set by StatusStrip.astro's script.
+   fades out (a transparency mask, like the graph paper's, not a coloured gradient), set by ScrollFade.astro's script.
    Keyboard focus and scrolling are unchanged. */
 .aa-scroll-x {
   scrollbar-width: none;

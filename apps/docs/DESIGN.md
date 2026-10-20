@@ -93,7 +93,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 - **Larger than h2:** nothing renders larger than `--aa-text-h2` except the hero statement and a page's own h1 (the docs h1 is 2.5rem, 2rem on mobile).
 - **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Mono uppercase labels and fact chips are not reading text: they keep `--aa-text-label`, and nothing on the site is smaller than that.
-- **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks, Mermaid sources, page leads and inline code in prose. The one exception: code inside a heading keeps the heading's scale (0.875em of it). Quickstart commands are broken at a flag or a `\` and fit their cell; on the narrowest phones a URL may wrap, only at a slash marked `<wbr>`, never mid-word.
+- **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks, Mermaid sources, page leads and inline code in prose. The one exception: code inside a heading keeps the heading's scale (0.875em of it). Quickstart commands are broken at a flag or a `\` and fit their cell. The clone URL is longer than a Quickstart column at every width: it wraps only after `github.com/` (a `<wbr>`), and its second line starts under its first (an inline block), so it reads as one argument. Nothing splits mid-word.
 
 | Token | Size / line height | Face | Use |
 |---|---|---|---|

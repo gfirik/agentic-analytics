@@ -640,6 +640,60 @@ test("Quickstart and door commands fit their cells at 1440, 390 and 360, never s
       });
       expect(mid, `${width}`).toBe(0);
     }
+    // At 1440 the commands fit their columns line for line; the one allowed wrap is the clone URL's, and its second line
+    // starts where its first does.
+    if (width === 1440) {
+      // Rendered lines are counted from the text itself (the cells stretch to the tallest, so heights can't tell).
+      const soft = await page.locator(".aa-steps pre").evaluateAll((pres) =>
+        pres.map((e) => {
+          const range = document.createRange();
+          const rowsOf = (root: Element) => {
+            const tops = new Set<number>();
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+              const text = n.textContent ?? "";
+              for (let k = 0; k < text.length; k++) {
+                if (text[k] === "\n" || text[k] === " ") continue;
+                range.setStart(n, k);
+                range.setEnd(n, k + 1);
+                tops.add(Math.round(range.getBoundingClientRect().top));
+              }
+            }
+            return tops;
+          };
+          const lines = (e.textContent ?? "").split("\n").length;
+          const url = e.querySelector(".aa-url");
+          const urlTops = url ? [...rowsOf(url)] : [];
+          // The URL's continuation starts where its first line does: the inline block's left edge.
+          const first = url?.getBoundingClientRect().left ?? 0;
+          const starts: number[] = [];
+          if (url) {
+            const walker = document.createTreeWalker(url, NodeFilter.SHOW_TEXT);
+            let last = -1;
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+              const text = n.textContent ?? "";
+              for (let k = 0; k < text.length; k++) {
+                range.setStart(n, k);
+                range.setEnd(n, k + 1);
+                const r = range.getBoundingClientRect();
+                if (Math.round(r.top) !== last) starts.push(r.left);
+                last = Math.round(r.top);
+              }
+            }
+          }
+          // …and that is indented under "git clone \\" (it sits beside its two spaces, not on a line of its own).
+          const pad = e.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(e).paddingLeft);
+          return {
+            extra: rowsOf(e).size - lines - Math.max(0, urlTops.length - 1),
+            aligned: starts.every((x) => Math.abs(x - first) < 1) && (!url || first - pad > 8),
+          };
+        }),
+      );
+      for (const x of soft) {
+        expect(x.extra).toBe(0);
+        expect(x.aligned).toBe(true);
+      }
+    }
   }
 });
 

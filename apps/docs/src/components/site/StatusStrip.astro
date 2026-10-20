@@ -39,6 +39,10 @@ const { items } = Astro.props;
     background: var(--aa-surface);
     overflow-x: auto;
   }
+  /* Full-bleed at the top of the page: an outset ring would fall off three edges of the screen, so it sits inside. */
+  .aa-strip:focus-visible {
+    outline-offset: -2px;
+  }
   .aa-strip-inner {
     max-width: var(--aa-container);
     margin: 0 auto;

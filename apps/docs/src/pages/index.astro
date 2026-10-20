@@ -322,7 +322,7 @@ const doors = [
           <p class="aa-label">Step 1 · Install</p>
           <div class="aa-code">
             <pre tabindex="0" aria-label="Install"><code>git clone \
-  https://github.com/<wbr /><span class="aa-nowrap">gfirik/agentic-analytics</span>
+  <span class="aa-url">https://github.com/<wbr /><span class="aa-nowrap">gfirik/agentic-analytics</span></span>
 cd agentic-analytics
 bun install
 bun run aa doctor</code></pre>
@@ -374,14 +374,7 @@ AA_DEMO_MODEL=scripted \
                     {d.name}
                   </a>
                   <span class="aa-door-does">{d.does}</span>
-                  <code class="aa-door-cmd">
-                    {d.cmd.split(" ").map((w, i) => (
-                      <>
-                        {i > 0 ? " " : ""}
-                        <span class="aa-nowrap">{w}</span>
-                      </>
-                    ))}
-                  </code>
+                  <code class="aa-door-cmd">{d.cmd.split(" ").flatMap((w, i) => [i ? " " : "", <span class="aa-nowrap">{w}</span>])}</code>
                 </li>
               ))
             }
@@ -768,8 +761,9 @@ AA_DEMO_MODEL=scripted \
     border-top: 0;
     border-left: 1px solid var(--aa-rule);
   }
-  /* Commands are broken at a flag or a "\\" and fit their cell; on the narrowest phones a long URL may wrap, only at the
-     slash marked <wbr>, never mid-word. */
+  /* Commands are broken at a flag or a "\\" and fit their cell. The clone URL is longer than a column (even at 1440): it
+     wraps only after "github.com/" (the <wbr>), and as an inline block its second line starts under its first, so it
+     reads as one argument, not a new command. */
   .aa-steps .aa-code pre {
     font-size: var(--aa-text-code);
     white-space: pre-wrap;
@@ -778,6 +772,12 @@ AA_DEMO_MODEL=scripted \
   .aa-steps .aa-nowrap,
   .aa-door-cmd .aa-nowrap {
     white-space: nowrap;
+  }
+  /* Narrower than the line by its two-space indent, so it stays beside the indent and wraps inside itself. */
+  .aa-steps .aa-url {
+    display: inline-block;
+    max-width: calc(100% - 2ch);
+    vertical-align: top;
   }
   .aa-quick-more {
     display: grid;
