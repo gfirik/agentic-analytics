@@ -96,10 +96,11 @@ test.describe("no horizontal scroll at 360 px", () => {
   }
 });
 
-test("no horizontal scroll from 1000 to 1100 px: the docs' narrowest margin column, the landing page's frame", async ({ page }) => {
-  for (const width of [1000, 1024, 1072, 1100]) {
+test("no horizontal scroll from 1000 to 1440 px: the docs' narrowest margin column, the landing page's frame", async ({ page }) => {
+  // 1100 is where the landing rows go two columns (site v4).
+  for (const width of [1000, 1024, 1072, 1099, 1100, 1280, 1440]) {
     await page.setViewportSize({ width, height: 800 });
-    // The Learn page (the margin column's narrowest) and the landing page (its frame meets the screen edge up to 1180).
+    // The Learn page (the margin column's narrowest) and the landing page (its frame meets the screen edge up to 1440).
     for (const path of [`${BASE}/learn/stages/analysis/`, LANDING]) {
       await page.goto(path, { waitUntil: "networkidle" });
       const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -152,9 +153,9 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING);
   const wrap = page.locator("[data-exhibit]");
-  // The engine machine's strip puts the report page's top just under the fold at 1440 × 900: it verifies (timed) on the
-  // reader's first scroll, as it comes into view (DESIGN.md §6).
-  await page.mouse.wheel(0, 200);
+  // Site v4: the exhibit is the hero's right column, its report page's top above the bottom sixth of the first screen at
+  // 1440 × 900, so it verifies (timed) on load, with no scroll (DESIGN.md §5, §6).
+  expect(await page.locator(".aa-exhibit-page").evaluate((e) => e.getBoundingClientRect().top)).toBeLessThan((900 * 5) / 6);
   const chips = page.locator(".aa-exhibit a.aa-chip");
   const n = await chips.count();
   expect(n).toBeGreaterThan(5);
@@ -296,7 +297,7 @@ test("hero: stepping through the walkthrough never moves the page below it (1440
     const page = await ctx.newPage();
     await page.goto(LANDING, { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
-    // The report page in view, so the walkthrough has started (the machine's strip sits above it).
+    // The report page in view, so the walkthrough has started (on load at 1440, on scrolling to it at 390).
     await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
     const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
     const below = () => page.locator("#how").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
@@ -552,7 +553,9 @@ test("results: metrics as rows and runs as columns, no sideways scroll at 1440 o
   await ctx.close();
 });
 
-test("landing section heads: label, h2, one-sentence lead, the h2 on one line at 1440", async ({ page }) => {
+test("landing section heads: label, h2, one-sentence lead; at 1440 a wide row's head beside its visual, a band's h2 on one line", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
   await page.evaluate(() => document.fonts.ready);
@@ -569,7 +572,17 @@ test("landing section heads: label, h2, one-sentence lead, the h2 on one line at
     const [h, lh] = await head
       .locator("h2")
       .evaluate((el) => [el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el).lineHeight)]);
-    expect(h, `${id} h2 on one line`).toBeLessThan((lh ?? 0) * 1.5);
+    // Site v4: §3 is a full-width band, its h2 on one line; §1, §2 and §4 are wide rows, the head (h2 in at most two
+    // lines) in the left column and the visual to its right, both starting at the row's top.
+    if (id === "results") expect(h, `${id} h2 on one line`).toBeLessThan((lh ?? 0) * 1.5);
+    else {
+      expect(h, `${id} h2 in at most two lines`).toBeLessThan((lh ?? 0) * 2.5);
+      const [headBox, visualBox] = await page
+        .locator(`#${id} .aa-split`)
+        .evaluate((row) => [...row.children].slice(0, 2).map((c) => c.getBoundingClientRect().toJSON() as DOMRect));
+      expect(visualBox?.left ?? 0, `${id} visual right of its head`).toBeGreaterThan(headBox?.right ?? 0);
+      expect(Math.abs((visualBox?.top ?? 0) - (headBox?.top ?? 0)), `${id} same row`).toBeLessThan(1);
+    }
   }
 });
 
@@ -1158,9 +1171,9 @@ test.describe("engine machine", () => {
     await page.mouse.wheel(0, 40_000);
     await page.waitForLoadState("networkidle");
     await page.mouse.wheel(0, -40_000);
-    // The exhibit's top stays above the fold with the strip under the hero (DESIGN.md §5).
+    // The machine's row sits under the hero; the exhibit's report page stays on the first screen (DESIGN.md §5).
     await page.goto(LANDING, { waitUntil: "networkidle" });
-    expect(await page.locator(".aa-exhibit-sheet").evaluate((e) => e.getBoundingClientRect().top)).toBeLessThan(900);
+    expect(await page.locator(".aa-exhibit-page").evaluate((e) => e.getBoundingClientRect().top)).toBeLessThan((900 * 5) / 6);
     expect(requests.filter((u) => CHUNK.test(u))).toEqual([]);
 
     const open = page.locator("[data-machine-open]");

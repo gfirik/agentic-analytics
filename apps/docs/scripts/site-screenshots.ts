@@ -70,9 +70,9 @@ try {
         await document.fonts.ready;
       });
       await page.screenshot({ ...shot, path: join(out, `landing-01-top-${w}.jpg`) });
-      await page.locator(".aa-exhibit-sheet").scrollIntoViewIfNeeded();
+      await page.locator(".aa-hero-exhibit").scrollIntoViewIfNeeded();
       await page.waitForTimeout(3500);
-      await page.locator(".aa-exhibit-sheet").screenshot({ ...shot, path: join(out, `landing-02-exhibit-${w}.jpg`) });
+      await page.locator(".aa-hero-exhibit").screenshot({ ...shot, path: join(out, `landing-02-exhibit-${w}.jpg`) });
       for (const [i, id] of ["how", "why", "results", "quickstart"].entries())
         await page.locator(`#${id}`).screenshot({ ...shot, path: join(out, `landing-0${i + 3}-${id}-${w}.jpg`) });
       await page

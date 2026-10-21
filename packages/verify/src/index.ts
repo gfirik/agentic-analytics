@@ -5,6 +5,7 @@ export {
   checkFactRows,
   dataNames,
   isCausal,
+  NEUTRAL_TITLE,
   parseMeasured,
   persistChecks,
   rewriteCorrelational,

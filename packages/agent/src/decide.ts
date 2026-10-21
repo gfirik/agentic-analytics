@@ -16,7 +16,8 @@ import { data, renderPrompt } from "./prompts.ts";
 import { withheld } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
-const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
+const NUMERALS =
+  "write numbers only as {{N…}} fact placeholders; no other digits except dates (2026-04, March 2026, 2025-Q4; never a bare year) and quoted source text";
 const Text = z.string().min(3).max(400).refine(noNumerals, NUMERALS);
 /** Actions, risks, horizons, not_advised: plain words only; numbers belong in the rationale, where they're checked. */
 const Plain = Text.refine((t) => placeholders(t).length === 0, "no {{N…}} placeholders here; numbers belong in the rationale");
