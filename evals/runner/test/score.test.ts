@@ -5,8 +5,11 @@ import type { Fact, Finding, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
 import {
   canonicalMetrics,
+  citesLocation,
+  keyPeriod,
   matchesDistractor,
   matchesPlanted,
+  plantedDirection,
   rescore,
   type SuiteResult,
   scoreReport,
@@ -139,7 +142,7 @@ describe("scoring", () => {
   });
 
   it("credits a planted event only to a comparison that spans it (before < event ≤ after)", () => {
-    const p = { metric: "refund_rate", period: "2026-05" };
+    const p = { type: "regression" as const, metric: "refund_rate", period: "2026-05" };
     expect(matchesPlanted({ metric: "refund_rate", before: "2026-04", period: "2026-05" }, p)).toBe(true);
     expect(matchesPlanted({ metric: "refund_rate", before: "2025-06", period: "2026-06" }, p)).toBe(true); // year on year
     // Entirely before the switch (pre-event noise), or entirely after it: not the event.
@@ -148,11 +151,51 @@ describe("scoring", () => {
   });
 
   it("accepts the slice of the event's channel only, and the member must match", () => {
-    const p = { metric: "revenue", period: "2026-04", driver_alternatives: [{ dimension: "channel", member: "self-serve" }] };
+    const p = {
+      type: "regression" as const,
+      metric: "revenue",
+      period: "2026-04",
+      driver_alternatives: [{ dimension: "channel", member: "self-serve" }],
+    };
     expect(matchesPlanted({ metric: "self_serve_revenue", before: "2026-03", period: "2026-04" }, p)).toBe(true);
     expect(matchesPlanted({ metric: "retail_revenue", before: "2026-03", period: "2026-04" }, p)).toBe(false);
     const m = { metric: "revenue", member: { dimension: "customer", member: "X" }, before: "2026-03", period: "2026-04" };
     expect(matchesPlanted(m, p)).toBe(false);
+  });
+
+  it("a finding moving the other way is not the planted event (a regression lowers revenue, raises a refund rate)", () => {
+    const drop = { type: "regression" as const, metric: "revenue", period: "2026-04" };
+    expect(matchesPlanted({ metric: "revenue", before: "2026-03", period: "2026-04", direction: "down" }, drop)).toBe(true);
+    expect(matchesPlanted({ metric: "revenue", before: "2026-03", period: "2026-04", direction: "up" }, drop)).toBe(false);
+    const refunds = { type: "regression" as const, metric: "refund_rate", period: "2026-05" };
+    expect(plantedDirection(refunds)).toBe("up");
+    expect(matchesPlanted({ metric: "refund_rate", before: "2026-04", period: "2026-05", direction: "down" }, refunds)).toBe(false);
+  });
+
+  it("a one-member distractor reported on the whole metric at its period is the same false alarm", () => {
+    const d = { metric: "revenue", member: { dimension: "customer", member: "Cafe Nord" }, period: "2025-12" };
+    expect(matchesDistractor({ metric: "revenue", before: "2025-11", period: "2025-12" }, d)).toBe(true);
+    expect(matchesDistractor({ metric: "revenue", member: { dimension: "customer", member: "Other" }, period: "2025-12" }, d)).toBe(false);
+  });
+
+  it("a quality issue counts only on its key's sheet (and column, when both name a cell)", () => {
+    const r = {
+      sources: [
+        { id: "T1", file: "sales.xlsx", locator: { sheet: "Costs", range: "A1:E13", table_id: "t1" } },
+        { id: "T2", file: "sales.xlsx", locator: { sheet: "Orders", range: "A1:F300", table_id: "t2" } },
+      ],
+    } as unknown as Report;
+    const q = { file: "sales.xlsx", location: "sales.xlsx#Costs!D9" };
+    expect(citesLocation({ source_id: "T1", cells: ["D9"] }, q, r)).toBe(true);
+    expect(citesLocation({ source_id: "T1", rows: [9] }, q, r)).toBe(true);
+    expect(citesLocation({ source_id: "T2", cells: ["D9"] }, q, r)).toBe(false); // the right kind on the wrong sheet
+    expect(citesLocation({ source_id: "T1", cells: ["B4"] }, q, r)).toBe(false);
+  });
+
+  it("reads week and quarter periods whole, and a day as its month", () => {
+    expect(keyPeriod("2026-W12")).toBe("2026-W12");
+    expect(keyPeriod("2026-Q1")).toBe("2026-Q1");
+    expect(keyPeriod("2026-04-12")).toBe("2026-04");
   });
 
   it("reports a distractor at its period on its metric, on a metric it also moves, or a slice", () => {
@@ -188,6 +231,22 @@ describe("scoring", () => {
     const s = scoreReport(wrongDriver, key, { seconds: 1, tokens: { input: 0, output: 0 } });
     expect(s.planted[0]).toMatchObject({ detected: true, driver: false });
     expect(summarize([s]).find((b) => b.metric === "Planted recall@5")?.value).toBe(0); // 0 of 2: P1's driver is wrong
+  });
+
+  it("a run with no quote checked fails citation precision instead of passing by accident", () => {
+    const ok = scoreReport(report(), key, { seconds: 2, tokens: { input: 10, output: 5 } });
+    const bars = summarize([{ ...ok, citationsChecked: 0, citationsUnsupported: 0 }]);
+    expect(bars.find((b) => b.metric === "Citation precision")).toMatchObject({ value: undefined, pass: false });
+    // An optional bar with nothing to measure stays n/a.
+    const noCause = summarize([{ ...ok, planted: [] }]);
+    expect(noCause.find((b) => b.metric === "Cause grade accuracy")?.pass).toBeUndefined();
+    // A job aborted on a fact citing the wrong rows counts as a number mismatch.
+    const cited = scoreReport(undefined, key, {
+      seconds: 1,
+      tokens: { input: 0, output: 0 },
+      error: { code: "CITATION_MISMATCH", message: "m" },
+    });
+    expect(cited.numberMismatch).toBe(true);
   });
 
   it("summarizes with the EVALS bars (hand-computed)", () => {
@@ -251,7 +310,8 @@ describe("scoring", () => {
   });
 
   it("rescore re-scores completed datasets from kept reports and keeps timings", () => {
-    const old = scoreReport(report(), { ...key, planted: [] }, { seconds: 9, tokens: { input: 1, output: 2 } });
+    const routes = [{ role: "planner", route: "fake:m", calls: 3, cached: 0, failed: 0, inputTokens: 30, outputTokens: 9 }];
+    const old = { ...scoreReport(report(), { ...key, planted: [] }, { seconds: 9, tokens: { input: 1, output: 2 } }), routes };
     const result: SuiteResult = {
       suite: "smoke",
       model: "m",
@@ -265,6 +325,7 @@ describe("scoring", () => {
     const r = rescore(result, new Map([["t-v1", report()]]), [{ id: "t-v1", answers: key, files: {} }]);
     expect(r.scores[0]?.planted.map((p) => p.id)).toEqual(["P1", "P2"]);
     expect(r.scores[0]?.seconds).toBe(9);
+    expect(r.scores[0]?.routes).toEqual(routes); // the run's routes and tokens survive a rescore
     expect(r.bars.find((b) => b.metric === "Planted recall@5")?.value).toBe(0.5);
   });
 });

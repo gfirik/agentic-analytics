@@ -12,7 +12,8 @@ The eval runner and scoring (docs/EVALS.md §2–§4). It runs each dataset as a
 - **Recommendation relevance:** per completed dataset with good actions in its key. It passes only when the top recommendation is about a matching finding and uses one of the event's good scenario types; a top recommendation about anything else is a miss.
 - **Distractor reported:** a finding at the distractor's period on its metric, on a metric it also moves (`also`: orders for a seasonal peak), or on a slice of either.
 - **Quality issue found:** a data-quality item of the same kind cites the same file.
-- Number mismatches, citation precision, definition adherence and grounding come from the report's verification summary, or from a job that failed with `RECOMPUTE_MISMATCH`/`REDERIVE_MISMATCH`.
+- Citation precision, definition adherence and grounding come from the report's verification summary: they are the verifier's in-pipeline counts (docs/EVALS.md §2), and a run with nothing to count fails those bars. Number mismatches count jobs aborted with `RECOMPUTE_MISMATCH`, `REDERIVE_MISMATCH` or `CITATION_MISMATCH`; a shipped report has none by construction.
+- A planted event matches only a finding that moves the event's way, when the claim cites both points (`plantedDirection`); a quality issue matches only on its key's sheet (and column, when both name a cell).
 
 ## Baseline model
 

@@ -12,7 +12,7 @@ import type { Embedder } from "@agentic-analytics/retrieval";
 import { placeholders, type Report } from "@agentic-analytics/schema";
 import { EvalRunError } from "./errors.ts";
 import { keepDraftedMetrics } from "./run.ts";
-import { canonicalMetrics, subjectOf } from "./score.ts";
+import { canonicalMetrics, parseMeasured, subjectOf } from "./score.ts";
 
 export interface RealCheckResult {
   readonly id: string;
@@ -52,31 +52,14 @@ export interface RealSuiteResult {
   readonly seconds: number;
 }
 
-const MEASURED = /^([a-z][a-z0-9_]*)(?:\[([^=\]]+)=(.+)\])?_(\d{4}-\d{2})$/;
-
 /** Monthly values of one metric (no member) from the report's measured facts: "2010-11" → value. */
 export function monthlyFacts(report: Report, metric: string): Map<string, number> {
   const out = new Map<string, number>();
   for (const f of report.facts) {
-    const m = MEASURED.exec(f.label);
-    if (m && m[1] === metric && !m[2]) out.set(m[4] as string, f.value);
+    const m = parseMeasured(f.label);
+    if (m && m.metric === metric && !m.dimension && /^\d{4}-\d{2}$/.test(m.period)) out.set(m.period, f.value);
   }
   return out;
-}
-
-/** Up or down: the change's own measured points in the finding's first claim (after vs before), if it has them. */
-function directionOf(report: Report, f: Report["findings"][number], period: string, before: string | undefined): "up" | "down" | undefined {
-  if (!before) return undefined;
-  const labels = new Map(report.facts.map((x) => [x.id, x]));
-  const points = (f.claims[0]?.facts ?? []).flatMap((id) => {
-    const fact = labels.get(id);
-    const m = fact ? MEASURED.exec(fact.label) : null;
-    return fact && m ? [{ period: m[4] as string, value: fact.value }] : [];
-  });
-  const a = points.find((p) => p.period === period)?.value;
-  const b = points.find((p) => p.period === before)?.value;
-  if (a === undefined || b === undefined || a === b) return undefined;
-  return a > b ? "up" : "down";
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -148,12 +131,7 @@ export function scoreCheck(c: RealCheck, report: Report | undefined, error?: str
       const canonical = canonicalMetrics(report).get(c.metric) ?? c.metric;
       const hit = report.findings.find((f) => {
         const s = subjectOf(f, report);
-        return (
-          s !== undefined &&
-          (s.metric === c.metric || s.metric === canonical) &&
-          s.period === c.period &&
-          directionOf(report, f, s.period, s.before) === c.direction
-        );
+        return s !== undefined && (s.metric === c.metric || s.metric === canonical) && s.period === c.period && s.direction === c.direction;
       });
       const subjects = report.findings
         .map((f) => subjectOf(f, report))
@@ -241,6 +219,13 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
       ...(answers.confirmed_metrics ? { autoConfirm: false } : {}),
     };
     const bytes = new Uint8Array(readFileSync(join(o.dataDir, answers.file)));
+    // The published checksum is of the bytes read, never the manifest's constant: an edited file must not claim it.
+    const read = sha256(bytes);
+    if (meta && read !== meta.derived.sha256)
+      throw new EvalRunError(
+        "CHECKSUM_MISMATCH",
+        `${answers.file} does not match its pinned checksum (${read} ≠ ${meta.derived.sha256}); run eval:real:fetch again`,
+      );
     // A public dataset is described by its manifest; your own data by its answer file, with the file's own checksum.
     const about = meta
       ? {
@@ -249,9 +234,9 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
           licence: meta.licence.name,
           citation: meta.citation,
           page: meta.page,
-          sha256: meta.derived.sha256,
+          sha256: read,
         }
-      : { title: answers.title ?? answers.dataset, publisher: "", licence: "", citation: "", page: "", sha256: sha256(bytes), own: true };
+      : { title: answers.title ?? answers.dataset, publisher: "", licence: "", citation: "", page: "", sha256: read, own: true };
     let report: Report | undefined;
     let error: string | undefined;
     try {

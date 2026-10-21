@@ -67,14 +67,14 @@ How a finding is matched to a planted event (by the subject its code-written fir
 
 | Metric | Definition | v0.1 bar |
 |---|---|---|
-| Number mismatches | V2/V3 failures in shipped reports | 0 |
-| Planted recall@k | Share of planted events present among top-k findings (k = 5) with the correct driver | ≥ 80% (reference model) |
+| Number mismatches | Jobs aborted on a wrong number (V2 recompute, V3 re-derivation, or a fact citing rows that don't hold it). A shipped report never has one, so this counts aborted jobs | 0 |
+| Planted recall@k | Share of planted events present among top-k findings (k = 5) with the correct driver, moving the event's way (a regression lowers revenue, raises a refund rate) | ≥ 80% (reference model) |
 | Driver accuracy | Correct top driver for detected planted events | ≥ 90% |
 | Cause grade accuracy | Assigned causal grade ≥ expected | ≥ 80% |
-| Distractor FP rate | Distractors reported as findings | ≤ 10% |
-| Quality-issue recall | Planted data-quality issues reported | ≥ 90% |
-| Citation precision | Citations judged supporting (by a separate judge and spot-checked by hand on the golden set) | ≥ 95% |
-| Definition adherence | Facts matching confirmed definitions | 100% |
+| Distractor FP rate | Distractors reported as findings (a one-member blip also counts when reported on the whole metric at that period) | ≤ 10% |
+| Quality-issue recall | Planted data-quality issues reported with the right kind, file and sheet (and column, when both name a cell) | ≥ 90% |
+| Citation precision | Quotes the verifier's judge found supporting, of those it checked (V5). Measured in the pipeline by the judge under test, before drops; claims it rejected don't ship. No quote checked is a fail, not a pass. A separate post-ship judge is planned for the golden set (M14) | ≥ 95% |
+| Definition adherence | Completed jobs with no claim dropped for breaking a confirmed definition (V6). Measured in the pipeline, like citation precision; no completed job is a fail | 100% |
 | Recommendation grounding | Recs with ≥ 1 verified finding | 100% |
 | Recommendation relevance | Top rec matches a `good_actions` category | ≥ 70% |
 | Retrieval recall@8 | Answer-bearing chunk in the top 8 | ≥ 0.85 |
