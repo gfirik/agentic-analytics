@@ -1,6 +1,6 @@
 # Plan: the 3D engine machine on the landing page (for review)
 
-**Status:** plan only, for the maintainer's review (requested 2026-10-21, after M14a). Nothing is built until it's approved.
+**Status:** approved 2026-10-21 with the decisions in §5; built as one PR.
 
 **Source:** the approved prototype `~/startups/aa-design/engine-machine.html`. It is a design reference, not code to paste. It shows the pipeline as a factory line in an axonometric 3D view:
 - eleven numbered stations on a conveyor;
@@ -105,13 +105,9 @@ One PR, on its own branch from main:
 
 The two-agent and heavy-job rules apply. The site stays frozen apart from this change.
 
-## 5. Decisions for the maintainer
+## 5. Decisions (the maintainer, 2026-10-21)
 
-1. **Placement:** C (recommended), A (your first wish, which breaks the fold rule), or B.
-2. **The DESIGN.md exception** for one 3D explainer, as worded in §2.
-3. **Loading:** about 160 KB gzip, fetched on intent (hover, focus or tap on Open; recommended), or literally when the section scrolls into view (on every first screen under C), or only on the click.
-4. **The spec sheet:**
-   - the full sheet from the prototype (calls, tables, SQL, model pill);
-   - or a shorter sheet that links into Learn's stage pages, which already explain each stage. That keeps one source per stage.
-   
-   Recommended: the shorter sheet.
+1. **Placement: C**, the static strip under the hero with **Open the machine**.
+2. **DESIGN.md:** one written exception, for this component only (the §2 table's wording). 3D stays banned everywhere else.
+3. **Loading:** three.js loads on hover, focus or tap of the button, never on scroll.
+4. **The spec sheet:** the shorter one, linking each station to its Learn stage page.
