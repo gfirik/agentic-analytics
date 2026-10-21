@@ -399,7 +399,7 @@ export async function analyzeJob(
     )[0];
     if (top) drivers.set(d.insight, new Set([...(drivers.get(d.insight) ?? []), `${d.dimension}=${top.key}`]));
   }
-  const explain = topForExplain(ranked, 7, { drivers }).flatMap((r) => {
+  const explain = topForExplain(ranked, 7, { drivers, objective }).flatMap((r) => {
     const id = idOf.get(r.insight);
     return id ? [{ id, score: r.score }] : [];
   });

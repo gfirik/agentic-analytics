@@ -128,6 +128,9 @@ describe("ranking (spec §6)", () => {
         metric,
         series: member ? `${metric}|customer=${member}` : metric,
         period,
+        // A rate's change is in percentage points: that is what makes it a rate for the lead order.
+        roles: { change: "N1" },
+        calcs: [{ name: "change", value: 1, unit: metric.endsWith("_rate") ? "percent" : "currency" }],
         ...(member ? { member: { dimension: "customer", value: member } } : {}),
       } as unknown as Insight,
       impactShare: score,
@@ -151,6 +154,58 @@ describe("ranking (spec §6)", () => {
       ["refund_rate", "2026-05"],
       ["revenue|customer=Key Co", "2026-04"],
     ]);
+  });
+
+  it("the lead order: the strongest change, the strongest rate, the member story, then the other families (M14a)", () => {
+    // coffee_roaster-v3 and clinic-v2 in the 2026-10-19 nightly run, reduced: gross margin, a second sales measure and
+    // two count metrics each restate the revenue drop or score 0, yet as family firsts they took slots 2 and 3, so the
+    // refund rate (P2) and the product that collapsed (P3) were never explained in small-model mode (3 findings).
+    const mk = (o: { metric: string; score: number; unit: string; member?: string; pct?: number; period?: string }) => ({
+      insight: {
+        template: "period_change.v1",
+        metric: o.metric,
+        series: o.member ? `${o.metric}|product=${o.member}` : o.metric,
+        period: o.period ?? "2026-06",
+        roles: { change: "N1" },
+        calcs: [
+          { name: "change", value: -1, unit: o.unit },
+          ...(o.pct === undefined ? [] : [{ name: "change_pct", value: o.pct, unit: "percent" }]),
+        ],
+        ...(o.member ? { member: { dimension: "product", value: o.member } } : {}),
+      } as unknown as Insight,
+      impactShare: o.score,
+      score: o.score,
+    });
+    const rows = [
+      mk({ metric: "revenue", score: 0.12, unit: "currency" }),
+      mk({ metric: "gross_margin", score: 0.11, unit: "currency" }),
+      mk({ metric: "total_sales_amount", score: 0.1, unit: "currency" }),
+      mk({ metric: "customer_count", score: 0, unit: "count" }),
+      mk({ metric: "orders_count", score: 0, unit: "count" }),
+      mk({ metric: "refund_rate", score: 0.025, unit: "percent", period: "2026-03" }),
+      mk({ metric: "revenue", score: 0.05, unit: "currency", member: "Old", pct: -70, period: "2026-01" }),
+    ];
+    expect(topForExplain(rows, 3).map((r) => r.insight.series)).toEqual(["revenue", "refund_rate", "revenue|product=Old"]);
+    // Without a rate the member story is second; the other families follow it.
+    expect(
+      topForExplain(
+        rows.filter((r) => r.insight.metric !== "refund_rate"),
+        3,
+      ).map((r) => r.insight.series),
+    ).toEqual(["revenue", "revenue|product=Old", "gross_margin"]);
+    // printing_shop-v3, reduced: the product's change on a channel slice (a larger relative change) speaks through the
+    // objective's change for the same product and period, whose id the slice doesn't share.
+    const sliced = [
+      mk({ metric: "total_revenue", score: 0.12, unit: "currency" }),
+      mk({ metric: "revenue_by_channel_walkin", score: 0.05, unit: "currency", member: "Old", pct: -80, period: "2026-01" }),
+      mk({ metric: "total_revenue", score: 0.05, unit: "currency", member: "Old", pct: -70, period: "2026-01" }),
+    ];
+    expect(topForExplain(sliced, 2, { objective: "total_revenue" }).map((r) => r.insight.series)).toEqual([
+      "total_revenue",
+      "total_revenue|product=Old",
+    ]);
+    // Without the objective named, the slice speaks (its id isn't `<prefix>_total_revenue`).
+    expect(topForExplain(sliced, 2).map((r) => r.insight.series)).toEqual(["total_revenue", "revenue_by_channel_walkin|product=Old"]);
   });
 
   it("metricFamily: a slice id is <prefix>_<parent>", () => {

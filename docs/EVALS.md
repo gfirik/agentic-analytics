@@ -113,6 +113,8 @@ A run whose jobs didn't all finish (a free tier's daily quota ran out) is publis
 
 It never switches models. A second route for the same model adds quota on the first night. For the planner, Cloudflare Workers AI serves `@cf/qwen/qwen3.8-27b` on its free plan: 10,000 neurons a day with no card, and calls past that fail rather than bill (developers.cloudflare.com/workers-ai/platform/pricing). At 40,909 neurons per M input tokens and 290,909 per M output, that is about 16 businesses a day: `PLANNER_MODEL=openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cloudflare:@cf/qwen/qwen3.8-27b`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Cerebras serves the model as `qwen-3.8-27b`, but only on a $5, 30-day trial that needs a payment method, so it is not a free route. OpenRouter lists no free (`:free`) variant.
 
+**Replaying a real run's metrics, offline.** `aa eval --suite full --model baseline --small-model --replay-drafts data/eval-reports` answers each business's metric-draft request with the drafts a real model wrote on a kept nightly run (`<dataset>.metrics.drafted.json`); everything after the draft runs as in that night, with the scripted baseline for the other roles. The run is deterministic and spends no quota, so a ranking change can be measured against real drafted metrics before a nightly run. On the 2026-10-19 drafts it reproduces that night's planted recall (68% replayed, 69% real on finished jobs); the M14a ranking fix brings it to 92%. It doesn't replace the nightly run: the explain, decide and draft roles stay scripted.
+
 ## 5. Rules
 
 - Datasets and answer keys are versioned. Changing an answer key requires a note in the PR.

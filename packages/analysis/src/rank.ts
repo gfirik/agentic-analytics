@@ -100,6 +100,8 @@ export interface TopOptions {
    * already the driver of a whole-metric change chosen above it restates that story and doesn't take the member slot.
    */
   readonly drivers?: ReadonlyMap<Insight, ReadonlySet<string>>;
+  /** The objective metric (e.g. revenue): its family leads when it moved materially (see the lead order). */
+  readonly objective?: string;
 }
 
 export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions = {}): Ranked[] {
@@ -147,13 +149,33 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
     const parent = rs.find((r) => r.insight.metric === family);
     return parent && parent.score >= REPRESENTATIVE_SHARE * best.score ? parent : best;
   });
-  // Then one slot for the most dramatic change of a single member (a product, a customer): the largest relative
-  // change among members that matter (impact share ≥ MEMBER_MIN_SHARE: |Δ| over the objective's period total). A product cannibalized by a
-  // launch falls by most of its value; a member that only restates a whole-metric drop falls by that drop's share.
-  // Without the slot such a story always ranks below the whole-metric restatements (eval suite, M13a).
+  // Then one slot for the most dramatic change of a single member (a product, a customer); without it such a story
+  // always ranks below the whole-metric restatements (eval suite, M13a). The members the chosen changes' decompositions
+  // already name as their driver are told.
   const groupOf = (r: Ranked) => groups.get(`${r.insight.series}@${r.insight.period}`) ?? [r];
   const told = new Set(firsts.flatMap((f) => groupOf(f).flatMap((x) => [...(o.drivers?.get(x.insight) ?? [])])));
-  const member = reps
+
+  // The lead order (M14a). Small-model mode explains only three findings, and with a real model drafting 8–15 metrics
+  // the other families (gross margin, net profit, a second sales measure, a channel share, order counts) each restated
+  // the lead change and took the second and third slots, so the planted rate and member events were never explained
+  // (nightly run 2026-10-19: P2 found in 3 of 7 finished jobs, P3 in 0 of 7). The order is now: the lead; the most
+  // dramatic rate change; the member story; then the other families, other events before restatements.
+  //
+  // The lead is the objective's own change when it carries at least REPRESENTATIVE_SHARE of the best family's score:
+  // gross margin or net profit often scores a little higher on the same event, but the report is about revenue.
+  const objectiveFamily = o.objective === undefined ? undefined : metricFamily(o.objective, metrics);
+  const best = firsts[0];
+  const own = firsts.find((r) => metricFamily(r.insight.metric, metrics) === objectiveFamily);
+  const primary = own && best && own.score >= REPRESENTATIVE_SHARE * best.score ? own : best;
+  // A change in the lead's period, in any metric and either direction, is usually the lead event seen through another
+  // measure (margin falls with revenue; the other channel's share rises); a change in another period is another event.
+  const restates = (r: Ranked) => primary !== undefined && r.insight.period === primary.insight.period;
+  const otherEventsFirst = (a: Ranked, b: Ranked) => Number(restates(a)) - Number(restates(b));
+  // The member story: the largest relative change among members that matter (impact share ≥ MEMBER_MIN_SHARE: |Δ| over
+  // the objective's period total), another event before a restatement. A product cannibalized by a launch falls by
+  // most of its value; a member that only restates a whole-metric drop falls by that drop's share. A member that is
+  // already the driver of a whole-metric change chosen above it (told) restates that story and isn't a candidate.
+  const pick = reps
     .filter(
       (r) =>
         r.insight.member &&
@@ -161,8 +183,30 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
         r.impactShare >= MEMBER_MIN_SHARE &&
         !told.has(`${r.insight.member.dimension}=${r.insight.member.value}`),
     )
-    .sort((a, b) => Math.abs(relativeChange(b)) - Math.abs(relativeChange(a)) || b.score - a.score)[0];
-  const lead = member ? [...firsts, member] : firsts;
+    .sort((a, b) => otherEventsFirst(a, b) || Math.abs(relativeChange(b)) - Math.abs(relativeChange(a)) || b.score - a.score)[0];
+  // A member change on a slice (a channel's revenue) speaks through the objective's or its parent metric's change for
+  // the same member and period, as a family's slot does: "Flyers A5 revenue fell", not "walk-in revenue for Flyers A5
+  // fell". Drafted slice names often don't share the parent's id (`revenue_by_channel_walkin` next to `total_revenue`),
+  // so the objective counts as a parent too (replayed 2026-10-19 drafts).
+  const parentOf = (r: Ranked) =>
+    reps.find(
+      (x) =>
+        (x.insight.metric === o.objective || x.insight.metric === metricFamily(r.insight.metric, metrics)) &&
+        x.insight.metric !== r.insight.metric &&
+        x.insight.period === r.insight.period &&
+        x.insight.member?.dimension === r.insight.member?.dimension &&
+        x.insight.member?.value === r.insight.member?.value &&
+        x.score >= REPRESENTATIVE_SHARE * r.score,
+    );
+  const member = pick && (parentOf(pick) ?? pick);
+  // The rate story: a percent-unit family (a refund rate tripling is a few points, so on score it trails every money
+  // restatement), the largest relative change first, another event before a restatement.
+  const rest = firsts.filter((r) => r !== primary);
+  const rate = rest
+    .filter((r) => insightChange(r.insight)?.unit === "percent")
+    .sort((a, b) => otherEventsFirst(a, b) || Math.abs(relativeChange(b)) - Math.abs(relativeChange(a)) || b.score - a.score)[0];
+  const others = [...rest].sort(otherEventsFirst).filter((r) => r !== rate);
+  const lead = [...(primary ? [primary] : []), ...(rate ? [rate] : []), ...(member ? [member] : []), ...others];
   return [...lead, ...reps.filter((r) => !lead.includes(r))].slice(0, max);
 }
 
