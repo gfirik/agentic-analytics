@@ -31,4 +31,8 @@ if (mode === "--write") {
     process.exit(1);
   }
   process.stdout.write("prompts: up to date\n");
+} else {
+  // No mode, or a typo like `--chek`, must not pass silently as a check that never ran.
+  process.stderr.write(`usage: tsx scripts/prompts-gen.ts --write | --check${mode ? ` (unknown mode "${mode}")` : ""}\n`);
+  process.exit(2);
 }
