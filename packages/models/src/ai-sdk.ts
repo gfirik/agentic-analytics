@@ -173,10 +173,27 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
     },
 
     async generateWithTools(args: GenerateWithToolsArgs) {
+      // A tool that throws is an engine failure that stops the call (tools.ts returns request errors as data). The SDK
+      // would turn the throw into a "tool-error" part and send its raw message back to the model, so the loop is
+      // aborted and the original error rethrown instead.
+      let failure: { error: unknown } | undefined;
+      const stop = new AbortController();
       const tools = Object.fromEntries(
         Object.entries(args.tools).map(([name, t]) => [
           name,
-          tool({ description: t.description, inputSchema: t.inputSchema, execute: async (input: unknown) => t.execute(input) }),
+          tool({
+            description: t.description,
+            inputSchema: t.inputSchema,
+            execute: async (input: unknown) => {
+              try {
+                return await t.execute(input);
+              } catch (err) {
+                failure ??= { error: err };
+                stop.abort();
+                throw err;
+              }
+            },
+          }),
         ]),
       );
       const started = performance.now();
@@ -190,15 +207,15 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
             stopWhen: stepCountIs(args.maxSteps),
             maxRetries: 0,
             // Each step is one request with its own timeout (providerFetch); this bounds the loop, waits included.
-            abortSignal: AbortSignal.timeout(callCap(args.maxSteps)),
+            abortSignal: AbortSignal.any([AbortSignal.timeout(callCap(args.maxSteps)), stop.signal]),
           }),
         );
         const steps: Step[] = res.steps.map((s) => ({
           text: s.text,
           toolCalls: s.toolCalls.map((c): ToolCallRecord => {
             const result = s.toolResults.find((r) => r.toolCallId === c.toolCallId);
-            // A tool that threw or got invalid input is a "tool-error" part, which `toolResults` leaves out: keep it,
-            // so the agent sees (and logs) the failed call the way FakeModel reports it.
+            // A call the model got wrong (unknown tool, invalid input) is a "tool-error" part, which `toolResults`
+            // leaves out: keep it, so the agent sees (and logs) the failed call the way FakeModel reports it.
             const failed = s.content.find(
               (p): p is Extract<(typeof s.content)[number], { type: "tool-error" }> =>
                 p.type === "tool-error" && p.toolCallId === c.toolCallId,
@@ -212,9 +229,11 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           }),
           usage: usageOf(s.usage, 0),
         }));
+        if (failure) throw failure.error;
         const usage = steps.reduce((acc, s) => addUsage(acc, s.usage), ZERO_USAGE);
         return { steps, usage: { ...usage, latencyMs: performance.now() - started } };
       } catch (err) {
+        if (failure) throw failure.error;
         throw providerError(err);
       }
     },

@@ -7,7 +7,7 @@
 import { data, renderPrompt } from "@agentic-analytics/agent";
 import { externalFacts, readFacts } from "@agentic-analytics/analysis";
 import { type Catalog, compileMetric, compileMetricRows, type Grain, runMetric } from "@agentic-analytics/metrics";
-import type { ModelClient } from "@agentic-analytics/models";
+import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import {
   type Claim,
   checkReportIntegrity,
@@ -212,6 +212,9 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   let definitionViolations = 0;
   let citationsChecked = 0;
   let citationsUnsupported = 0;
+  /** Claims whose judge step was skipped because the provider failed; after a rate limit the judge isn't asked again. */
+  let judgeSkipped = 0;
+  let judgeDown: string | undefined;
 
   /**
    * The claim rules of V1 (and V4's decline sign) on a text with its facts and citations: free numerals, unknown
@@ -336,28 +339,39 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       }
     }
     let judged = ctx.judge ? "" : ", judge not configured";
-    if (quoted.length && ctx.judge) {
+    if (quoted.length && ctx.judge && judgeDown) {
+      judgeSkipped++;
+      judged = `, judge unavailable (${judgeDown})`;
+    } else if (quoted.length && ctx.judge) {
       // A quoted member name that reads as an instruction goes to the judge withheld, like at every planner door
       // (security §3): the judge still sees the claim's shape and the source excerpts.
       const claim = c.text.replace(/“[^”]*”|"[^"]*"/g, (q) => (screen(q) ? "“withheld”" : q));
+      const system = renderPrompt("judge", {
+        claim: data(claim),
+        sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))),
+      });
+      let supported = false;
       try {
-        const { object } = await ctx.judge.generateObject({
-          role: "judge",
-          schema: Judgement,
-          system: renderPrompt("judge", {
-            claim: data(claim),
-            sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))),
-          }),
-          prompt: "Do these excerpts support the claim?",
-        });
-        if (!object.supported) {
-          citationsUnsupported++;
-          return drop("V5", "the judge found the cited sources don't support the claim");
-        }
+        ({
+          object: { supported },
+        } = await ctx.judge.generateObject({ role: "judge", schema: Judgement, system, prompt: "Do these excerpts support the claim?" }));
       } catch (err) {
-        // The provider timed out, hit a limit or answered badly: the judge step is skipped for this claim and the
-        // check row says so (spec §7 V5), as with no judge; the quotes were still found in their sources.
-        judged = `, judge unavailable (${err instanceof Error ? err.message.slice(0, 120) : "error"})`;
+        // The provider is down, slow or out of quota: the judge step is skipped for this claim and the check row says
+        // so (spec §7 V5), as with no judge; the quotes were still found in their sources. An answer that never
+        // validated (the excerpts are untrusted text that could cause it) counts as "not supported". Anything else is
+        // an engine bug and stops VERIFY.
+        if (!(err instanceof ModelError)) throw err;
+        if (err.code === "INVALID_OUTPUT") supported = false;
+        else if (["TIMEOUT", "RATE_LIMITED", "PROVIDER", "NOT_AVAILABLE"].includes(err.code)) {
+          judgeSkipped++;
+          judged = `, judge unavailable (${err.code})`;
+          if (err.code === "RATE_LIMITED") judgeDown = err.code;
+          supported = true;
+        } else throw err;
+      }
+      if (!supported) {
+        citationsUnsupported++;
+        return drop("V5", "the judge found the cited sources don't support the claim");
       }
     }
     checks.push({
@@ -491,6 +505,8 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     });
   }
 
+  if (judgeSkipped)
+    checks.push({ check: "V5", passed: true, detail: `judge skipped for ${judgeSkipped} claim(s): the judge provider was unavailable` });
   // Summary after the cascade: bullets from the surviving findings; a headline that no longer holds falls back.
   const bullets = findings.flatMap((f) => f.claims.slice(0, 1)).slice(0, 5);
   const surviving = new Set(findings.flatMap((f) => f.claims.flatMap((c) => c.facts)));

@@ -158,7 +158,7 @@ describe("function steps", () => {
 });
 
 describe("tool errors", () => {
-  it("a tool that throws is reported on its call, as the AI SDK does, and the call goes on", async () => {
+  it("a tool that throws fails the call (an engine failure stops the stage)", async () => {
     const { z } = await import("zod");
     const tools = {
       boom: {
@@ -170,8 +170,8 @@ describe("tool errors", () => {
       },
     };
     const m = new FakeModel([{ role: "planner", steps: [{ toolCalls: [{ toolName: "boom", input: {} }] }, { text: "done" }] }]);
-    const r = await m.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 5 });
-    expect(r.steps[0]?.toolCalls[0]).toEqual({ toolName: "boom", input: {}, error: "no such fact" });
-    expect(r.steps[1]?.text).toBe("done");
+    await expect(
+      m.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 5 }),
+    ).rejects.toThrow("no such fact");
   });
 });

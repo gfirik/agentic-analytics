@@ -142,12 +142,16 @@ describe("AI SDK model client (stubbed transport)", () => {
     expect(seen).toHaveLength(2);
   });
 
-  it("reports a tool that throws on its call (error), and the loop goes on", async () => {
+  it("a tool that throws stops the call with that error; its message never goes back to the model", async () => {
+    const seen: { url: string; auth: string | null; body: Record<string, unknown> }[] = [];
     const client = createModelClient(resolveModelConfig({}), {
       env: {},
-      fetch: stubFetch([{ tool_calls: [{ id: "c1", name: "get_facts", arguments: '{"ids":["N9"]}' }] }, { content: "No such fact." }], []),
+      fetch: stubFetch(
+        [{ tool_calls: [{ id: "c1", name: "get_facts", arguments: '{"ids":["N9"]}' }] }, { content: "No such fact." }],
+        seen,
+      ),
     });
-    const res = await client.generateWithTools({
+    const call = client.generateWithTools({
       role: "planner",
       system: "s",
       messages: [{ role: "user", content: "explain" }],
@@ -156,15 +160,33 @@ describe("AI SDK model client (stubbed transport)", () => {
           description: "facts",
           inputSchema: z.object({ ids: z.array(z.string()) }),
           execute: async () => {
-            throw new Error("unknown fact N9");
+            throw new Error("Conversion Error: could not convert 'cell text' to DOUBLE");
           },
         },
       },
       maxSteps: 4,
     });
-    expect(res.steps[0]?.toolCalls[0]).toMatchObject({ toolName: "get_facts", error: "unknown fact N9" });
-    expect(res.steps[0]?.toolCalls[0]).not.toHaveProperty("output");
-    expect(res.steps.at(-1)?.text).toBe("No such fact.");
+    await expect(call).rejects.toThrow("Conversion Error");
+    expect(seen).toHaveLength(1);
+  });
+
+  it("a call with invalid tool input is reported on that call (error), and the loop goes on", async () => {
+    const client = createModelClient(resolveModelConfig({}), {
+      env: {},
+      fetch: stubFetch([{ tool_calls: [{ id: "c1", name: "get_facts", arguments: '{"ids":"N4"}' }] }, { content: "Retried." }], []),
+    });
+    const res = await client.generateWithTools({
+      role: "planner",
+      system: "s",
+      messages: [{ role: "user", content: "explain" }],
+      tools: {
+        get_facts: { description: "facts", inputSchema: z.object({ ids: z.array(z.string()) }), execute: async () => [] },
+      },
+      maxSteps: 4,
+    });
+    expect(res.steps[0]?.toolCalls[0]?.toolName).toBe("get_facts");
+    expect(res.steps[0]?.toolCalls[0]?.error).toBeDefined();
+    expect(res.steps.at(-1)?.text).toBe("Retried.");
   });
 
   it("maps provider failures to typed errors", async () => {
