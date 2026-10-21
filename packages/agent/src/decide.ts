@@ -62,8 +62,10 @@ export type DecideOutput = z.infer<typeof DecideOutput>;
  * The same shape with the prose unchecked, as the model's answer is read: each candidate is then repaired and held to
  * `Candidate` on its own (`repairCandidate`), so one candidate's stray numeral costs that candidate, not the set. In
  * the nightly runs a free numeral in one field ("a 5% tier", "within 30 days") failed the whole answer three times
- * over in 38 of 69 DECIDE responses; read per candidate, 64 of the 69 keep at least one (M14a). The answer is retried
- * only when no candidate survives.
+ * over in 38 of 69 DECIDE responses; read per candidate, 61 of the 69 keep at least one on the first attempt (M14a).
+ * The answer is retried only when no candidate survives, or when a candidate is malformed (a missing scenario, an
+ * unknown comparator: 3 of the 69): skipping a malformed item would need a JSON Schema default that strict
+ * structured-output endpoints refuse.
  */
 const AnswerCandidate = Candidate.extend({
   action: z.string(),
@@ -76,12 +78,21 @@ type AnswerCandidate = z.infer<typeof AnswerCandidate>;
 
 const firstIssue = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".")}: ${i.message}`)[0] ?? "invalid";
 const plainOk = (t: unknown): t is string => Plain.safeParse(t).success;
-/** The sentences of a text that hold the plain-words rule (a sentence with a numeral or a placeholder is left out). */
-const plainSentences = (t: string) =>
-  (t.match(/[^.!?;]+[.!?;]?/g) ?? [])
-    .map((s) => s.trim())
-    .filter(plainOk)
-    .join(" ");
+/** A sentence that leans on the one before it ("Otherwise margins collapse."): it goes when that one goes. */
+const LEANS = /^(?:otherwise|so|then|this|that|it|which|but|and|also|thus|hence)\b/i;
+/**
+ * The sentences of a text that hold the plain-words rule. A sentence with a numeral or a placeholder is left out, and
+ * so is a sentence that leans on a left-out one, so what is kept doesn't change its meaning.
+ */
+const plainSentences = (t: string) => {
+  const kept: string[] = [];
+  let dropped = false;
+  for (const sentence of (t.match(/[^.!?]+[.!?]?/g) ?? []).map((x) => x.trim()).filter(Boolean)) {
+    dropped = !plainOk(sentence) || (dropped && LEANS.test(sentence));
+    if (!dropped) kept.push(sentence);
+  }
+  return kept.join(" ");
+};
 
 /**
  * One candidate held to the full rules, after the only repairs that add nothing: an optional `not_advised` that
@@ -103,8 +114,9 @@ export function repairCandidate(c: AnswerCandidate): { readonly candidate: Candi
 
 /**
  * Ids bound by what they are, not by how the model named them (M14a), only where exactly one reading exists:
- * - the check measures the metric its threshold fact measures, when that is a known definition (the model wrote
- *   `corporate_revenue` with a `revenue` threshold: the check compares revenue with revenue);
+ * - a check naming a metric with no definition measures the metric its threshold fact measures, when that one has a
+ *   definition. A check naming a defined metric is never rebound: with two readings (the metric or the threshold is
+ *   wrong) the comparator could invert, so the mismatch drops it;
  * - an extract named by its file (`price-notice.pdf`) is that file's extract, when the file has exactly one.
  * Anything else is left as written, and the checks that follow drop it with its reason.
  */
@@ -115,7 +127,8 @@ export function bindIds(
   defs: readonly MetricDef[],
 ): Candidate {
   const measured = facts.get(c.check.threshold)?.metric_id;
-  const metric = measured && defs.some((d) => d.id === measured) ? measured : c.check.metric_id;
+  const known = (id: string) => defs.some((d) => d.id === id);
+  const metric = !known(c.check.metric_id) && measured && known(measured) ? measured : c.check.metric_id;
   const byFile = (id: string) => {
     if (extracts.has(id)) return id;
     const same = [...extracts.values()].filter((e) => e.file === id);
@@ -235,7 +248,10 @@ export async function decide(
   for (const answered of object.candidates) {
     const repaired = repairCandidate(answered);
     if ("reason" in repaired) {
-      dropped.push({ claim: "(candidate action)", reason: `breaks the output rules: ${repaired.reason}` });
+      dropped.push({
+        claim: plainOk(answered.action) ? answered.action : "(candidate action)",
+        reason: `breaks the output rules: ${repaired.reason}`,
+      });
       continue;
     }
     const drop = (reason: string) => dropped.push({ claim: repaired.candidate.action, reason });

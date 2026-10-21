@@ -486,10 +486,11 @@ describe("repairCandidate: one candidate held to the rules on its own (M14a)", a
     const r = repairCandidate({
       ...base,
       risk: "The discount lowers the margin. Expect 5% fewer orders.",
-      horizon: "next quarter; review after 30 days",
+      horizon: "next quarter. Review after 30 days. Then decide again.",
       not_advised: "",
     });
-    expect(r).toEqual({ candidate: { ...base, risk: "The discount lowers the margin.", horizon: "next quarter;" } });
+    // "Then decide again." leans on the left-out sentence, so it goes with it.
+    expect(r).toEqual({ candidate: { ...base, risk: "The discount lowers the margin.", horizon: "next quarter." } });
     expect(repairCandidate({ ...base, not_advised: null })).toEqual({ candidate: base });
   });
 
@@ -521,11 +522,14 @@ describe("bindIds: ids by what they are, only when one reading exists (M14a)", a
   const extract = (id: string, file: string) => [id, { id, file }] as const;
   const defs = [{ id: "revenue" }, { id: "corporate_revenue" }] as unknown as Parameters<typeof bindIds>[3];
 
-  it("checks the metric the threshold measures, and names a file's only extract by its id", () => {
+  it("checks the metric the threshold measures when the named one has no definition, and names a file's only extract by its id", () => {
     const extracts = new Map([extract("E1", "price-notice.pdf"), extract("E9", "email.eml")]) as unknown as Parameters<typeof bindIds>[2];
-    const b = bindIds(c, facts, extracts, defs);
+    const onlyRevenue = [{ id: "revenue" }] as unknown as Parameters<typeof bindIds>[3];
+    const b = bindIds(c, facts, extracts, onlyRevenue);
     expect(b.check.metric_id).toBe("revenue");
     expect(b.rationale.extract_ids).toEqual(["E1", "E9"]);
+    // Both are defined: two readings (the metric or the threshold is wrong), so nothing is rebound; the mismatch drops it.
+    expect(bindIds(c, facts, extracts, defs).check.metric_id).toBe("corporate_revenue");
   });
 
   it("leaves an ambiguous file or an unknown threshold metric as written", () => {

@@ -96,12 +96,12 @@ Drops and downgrades go to `verification.claims_dropped/claims_downgraded` alrea
 
 **Each candidate is held to the output rules on its own** (M14a). The model's answer is read with the same shape and unchecked prose (`DecideAnswer`), and is retried with feedback only when no candidate survives. Each candidate is then repaired and validated against the full rules (`repairCandidate`). Only repairs that add nothing are made:
 - an optional `not_advised` that breaks a rule (empty, a numeral, a placeholder) is left out;
-- `risk` and `horizon` keep only their sentences without numerals or placeholders.
+- `risk` and `horizon` keep only their sentences without numerals or placeholders; a sentence that leans on a left-out one ("Otherwise …") goes with it.
 
-The action, rationale, scenario and check are never repaired. A candidate that still breaks a rule is dropped with its reason. In the nightly runs, one candidate's stray numeral ("a 5% tier") failed the whole answer three times over in 38 of 69 DECIDE responses; read per candidate, 64 of the 69 keep at least one candidate.
+The action, rationale, scenario and check are never repaired. A candidate that still breaks a rule is dropped with its reason. In the nightly runs, one candidate's stray numeral ("a 5% tier") failed the whole answer three times over in 38 of 69 DECIDE responses; read per candidate, 61 of the 69 keep at least one candidate on the first attempt. A malformed candidate (a missing scenario, an unknown comparator; 3 of the 69) still sends the whole answer back for a retry: skipping it would need a JSON Schema default that strict structured-output endpoints refuse.
 
 **Ids are bound by what they are, only where exactly one reading exists** (`bindIds`):
-- the check measures the metric its threshold fact measures, when that is a known definition;
+- a check naming a metric with no definition measures the metric its threshold fact measures, when that one has a definition. A check naming a defined metric is never rebound: with two readings the comparator could invert, so a mismatch drops it;
 - an extract named by its file is that file's extract, when the file has exactly one.
 
 Any recommendation without at least one verified finding is invalid. In the draft, code also drops a candidate when:
