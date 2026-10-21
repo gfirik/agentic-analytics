@@ -19,7 +19,7 @@ The binary is `agentic-analytics`, alias `aa` (`bun run aa …` from a clone).
 | `aa eval --suite full --label "<name>" [--note "<text>"] [--only <id,…> --results-dir <dir>]` | A run under its own model row (a self-hosted model); `--only` runs some businesses, joined later with `bun run eval:merge`. |
 | `aa eval --suite full --model configured --passes 2` | A run over up to two nights (what `scripts/eval-daily.sh` runs): the next night resumes it and runs only the businesses a free tier's quota stopped. It is partial only if businesses are unfinished after the last pass. |
 | `aa eval --suite real --answers <dir> [--data <dir>]` | The real-data checks on your own files ([tutorial](../../learn/tutorials/evals-on-your-data/)); results in `./eval-results`. |
-| `aa usage [--day YYYY-MM-DD] [--log <path>] [--json]` | Tokens and calls per day (UTC), per role and per route, from `data/logs/model-calls.jsonl`, against each free tier's daily limit where it is known. Cached calls count 0. |
+| `aa usage [--day YYYY-MM-DD] [--log <path>] [--json]` | Tokens logged per route in the last 24 hours, with the provider's own count of its daily limit when a rate-limit error reported one, then tokens and calls per day (UTC), per role and per route, from `data/logs/model-calls.jsonl`, against each free tier's daily limit where it is known. Cached calls count 0. |
 | `aa doctor` | What this machine has, with a fix for each missing piece. |
 | `aa metrics <paths…>` | Draft and review metric definitions only; `--save` writes them for reuse. |
 | `aa run <paths…> --dir <folder>` / `--resume <folder>` | A job in an explicit folder, for scripts. |
