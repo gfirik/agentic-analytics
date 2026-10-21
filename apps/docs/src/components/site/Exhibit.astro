@@ -1,13 +1,13 @@
 ---
 // The hero exhibit (DESIGN.md §5–§6): a real report page from the recorded run (src/data/exhibit.json, written by
 // scripts/generate.ts from the same run as the pipeline scene), rendered by the server in its final, verified state,
-// full container width in its own framed section. It demonstrates itself, with no hover needed:
+// in the hero's right column from 1100px and below the statement under it (site v4). It demonstrates itself, with no hover needed:
 //   1. As it comes into view (only without prefers-reduced-motion) the figures verify one by one: each chip's box
 //      draws in, then its check appears (~250 ms per figure, ≤ 2.5 s in all).
 //   2. A guided walkthrough then steps through the story's key figures (walkthrough() in scripts/landing-data.ts),
 //      opening each figure's margin note (its SQL or function, the sheet rows it read, or the quoted source) under a
 //      step indicator. One behaviour at every size (site v3, D2): a step every few seconds while the notes are on
-//      screen (beside the exhibit from 900px, below it under 900px, where the step bar stays at the top), waiting
+//      screen (beside the exhibit when it is at least 48rem wide, below it otherwise, where the step bar stays at the top), waiting
 //      while the reader hovers or focuses inside; Pause stops it. Previous, next and replay are always there. Nothing
 //      is pinned to the scroll. Step 1's note is open from the start, so the margin is never empty.
 //   3. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
@@ -272,7 +272,15 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     const stepIds = JSON.parse(wrap.dataset.steps ?? "[]") as string[];
     const n = stepIds.length;
     const live = wrap.dataset.walk === "live";
-    const beside = matchMedia("(min-width: 56.25rem)"); // the notes sit beside the exhibit from 900px
+    // The notes sit beside the exhibit when the exhibit is at least 48rem wide: a container query on .aa-walk, since its
+    // width follows the hero's columns, not the screen (site v4: beside at 1440 in the hero's right column and from
+    // about 840px where the hero stacks; below it in between).
+    const besideAt = 48 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const beside = {
+      get matches() {
+        return wrap.clientWidth >= besideAt;
+      },
+    };
     const chipFor = (id: string) => chips.find((c) => c.dataset.note === id);
 
     // ── Notes ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -408,7 +416,12 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       place();
     };
     fold();
-    beside.addEventListener("change", fold);
+    let wasBeside = beside.matches;
+    new ResizeObserver(() => {
+      if (beside.matches === wasBeside) return;
+      wasBeside = beside.matches;
+      fold();
+    }).observe(wrap);
     // A narrower column makes its notes taller: measure again (once a frame) as the window changes.
     let resizing = 0;
     window.addEventListener("resize", () => {
@@ -503,10 +516,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       };
       setStep(0);
       showPause();
-      // The verification runs once the report page's top is above the bottom sixth of the screen. Under the engine
-      // machine's strip it sits just below the fold at 1440×900 (about 935 px), so it starts on the reader's first
-      // scroll and then runs on its timer (DESIGN §6). A margin, not a visible ratio: a ratio can't be reached by a box
-      // taller than the screen (a landscape phone).
+      // The verification runs once the report page's top is above the bottom sixth of the screen. In the two-column
+      // hero (from 1100px) the report page is on the first screen, so it plays on load; stacked, it starts as the page
+      // comes into view, then runs on its timer (DESIGN §6). A margin, not a visible ratio: a ratio can't be reached by
+      // a box taller than the screen (a landscape phone).
       const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page");
       new IntersectionObserver(
         ([e]) => {
@@ -570,6 +583,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   /* The walkthrough: a step bar over the exhibit and its margin column. */
   .aa-walk {
     position: relative;
+    container: aa-walk / inline-size;
   }
   .aa-walk-body {
     display: grid;
@@ -657,9 +671,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     gap: var(--aa-space-6);
     align-items: start;
   }
-  @media not all and (min-width: 56.25rem) {
-    /* Under 900px the notes are below the figure: the step bar stays at the top of the screen while the reader
-       scrolls from the figure to its note. Nothing else is pinned. */
+  @container aa-walk (width < 48rem) {
+    /* With the notes below the figure (the exhibit under 48rem wide), the step bar stays at the top of the screen
+       while the reader scrolls from the figure to its note. Nothing else is pinned. */
     [data-walk="live"] .aa-walk-bar {
       position: sticky;
       top: 0;
@@ -674,7 +688,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       display: none;
     }
   }
-  @media not all and (min-width: 56.25rem) {
+  @container aa-walk (width < 48rem) {
     .aa-walk-grid {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -720,7 +734,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     font: 400 var(--aa-text-note) / 1.45 var(--aa-font-sans);
     color: var(--aa-ink-2);
   }
-  @media not all and (min-width: 56.25rem) {
+  @container aa-walk (width < 48rem) {
     .aa-walk-item {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -844,7 +858,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     }
   }
 
-  /* The margin notes: a column to the right of the exhibit (below it under 900px). One note shows at a time, aligned
+  /* The margin notes: a column to the right of the exhibit (below it when the exhibit is under 48rem wide). One note shows at a time, aligned
      to its figure, joined to it by a hairline leader. */
   .aa-notes {
     position: relative;
@@ -895,7 +909,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       animation: none;
     }
   }
-  @media not all and (min-width: 56.25rem) {
+  @container aa-walk (width < 48rem) {
     .aa-notes {
       align-self: auto;
     }

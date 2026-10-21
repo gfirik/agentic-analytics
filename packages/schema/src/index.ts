@@ -1,7 +1,7 @@
 export { Config, type ConfigInput, OpenAICompatibleEndpoint, ProviderId, RoleModel, RouteModel } from "./config.ts";
 export { compareSchemas, type DriftReport, type GeneratedSchemas, generateJsonSchemas, hasDrift } from "./drift.ts";
 export { JobEvent, Stage } from "./events.ts";
-export { checkReportIntegrity, findFreeNumerals, type IntegrityIssue, placeholders } from "./integrity.ts";
+export { checkReportIntegrity, findFreeNumerals, type IntegrityIssue, periodYears, placeholders } from "./integrity.ts";
 export { Grain, MetricDef, MetricFile, MetricType, MetricUnit, RatioTerm } from "./metric.ts";
 export { jsonSchemaRegistry } from "./registry.ts";
 export {
