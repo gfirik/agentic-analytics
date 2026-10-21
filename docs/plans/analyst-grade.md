@@ -1,6 +1,6 @@
 # Analyst-grade analysis: plan
 
-**Status: DRAFT for the maintainer's review. Nothing in this plan is built yet.** It proposes milestones M14–M21 (§5); each starts only after the maintainer approves it. Decisions needed from the maintainer are in §6.
+**Status: approved 2026-10-21, with the maintainer's decisions in §6.** Launch comes after M14a, M14 and M15; M16–M17 follow right after as v0.2; M18–M20 later. M14a starts now. After M14a merges there is a code-quality pass before M14.
 
 ## 0. Goal
 
@@ -340,6 +340,8 @@ The other 9 jobs were rate-limited; the nightly fix handles them. The cap has tw
 
 Then decide whether small mode can afford 4 findings within Groq's per-minute token limit.
 
+**Before/after on the nightly suite:** the before is the 2026-10-20 nightly run (two nights, pre-fix); the after is the first two-night run on the merged fix. Until the after run finishes, the fix is shown on the same suite offline: the 30 businesses' real drafted metrics from the 2026-10-19 run (kept in `data/eval-reports/`), ranked before and after, with the planted events' positions in the explained set.
+
 **Acceptance:**
 - **Unit test:** `rank.test.ts` with rows mirroring coffee_roaster-v3 and clinic-v2. `topForExplain(…, 3)` = [P1 metric, the P3 member, the P2 rate].
 - **Engine test:** a FakeModel engine test, in small mode, replaying the real run's drafted metrics (`data/eval-reports/*metrics.drafted.json`), finds P2 and P3 in `report.findings`.
@@ -369,6 +371,13 @@ Acceptance: ≥ 70% on completed jobs.
 **4. Quality-issue recall 70%.**
 
 Every completed job found all of its planted quality issues (28/28). The 12 misses are the 9 rate-limited jobs. This is fixed by the nightly change (a run can't be cut short by the quota, and "partial" only when jobs are truly missing), not by the engine.
+
+**6. Token usage tracking (added by the maintainer, 2026-10-21).** The quota is the nightly suite's real limit, so it is measured:
+- every model call's input and output tokens are recorded in `data/logs/model-calls.jsonl`, from the provider's `usage` field; a cached call records 0 (it spends no quota);
+- `aa usage` prints tokens and calls per day, per role and per route, against each free tier's daily limit (from the route config, e.g. Groq's 200k tokens a day for qwen3.8-27b);
+- `evals/RESULTS.md` gives each run's totals (tokens in and out, calls, cached calls).
+
+Acceptance: unit tests with FakeModel usage (cached = 0; per-role and per-route sums; the limit shown when the route has one); `aa usage` on the kept 2026-10-19 log prints that night's planner total against 200k.
 
 **5. Shares over 100% (from site v3, finding 9).**
 
@@ -485,11 +494,13 @@ Starts only after the maintainer approves the spec change in 2.4.
 
 **Acceptance:** the bars in §4.7. Bars that are not met are published as they are, with the gap and the plan to close it. Launch waits on the maintainer's decision.
 
-## 6. Risks and open questions for the maintainer
+## 6. Decisions (the maintainer, 2026-10-21)
 
-1. **Forecasts** (2.4) reverse a written rule. Proposed: intervals only, backtest-gated. **Your decision.**
-2. **Role confirmation adds a step.** With `--yes` the roles are kept as assumptions, as metrics are today. Is one combined confirm screen (metrics and roles) acceptable?
-3. **The human reviewer** for the golden set and the 20-report grading: you, or an outside analyst?
-4. **The ablation's fairness** will be questioned. Proposed: publish the arm A/B prompts and harness, so anyone can rerun them.
-5. **Free-tier quota.** The release run (3 families × 5 repeats × all suites) is far beyond Groq's daily quota. The Kaggle vLLM notebook (#27) and OpenRouter/Cerebras free tiers would carry most of it, spread over days. The real-model runs are not CI-bound.
-6. **Scope.** M15–M17 are the core of "analyst-grade" for a small business. M18–M20 could follow v0.2 if launch should come sooner.
+1. **Forecasts:** yes. Ranges only, shown only when they beat a seasonal-naive baseline in backtests (2.4). Built in M19.
+2. **Confirmation:** one combined confirm screen for metrics and column roles. With `--yes` both are kept as assumptions.
+3. **Reviewer:** the maintainer reviews the golden set, capped at about 40 questions. An outside analyst grading the 20 reports is optional, later.
+4. **Ablation fairness:** the arm A/B prompts and the harness are published, so anyone can rerun them.
+5. **Free-tier quota:** as written (§4: Kaggle vLLM and the free tiers carry the release run, over days). The Cloudflare route is skipped for now; the two-night nightly run is enough.
+6. **Scope:** launch after M14a, M14 and M15 (the release run of §4.7, M21, is scoped to what those three build). M16–M17 follow right after as v0.2; M18–M20 later.
+
+Also decided: M14a gains token-usage tracking (item 6 there). After M14a merges, work stops for a code-quality pass before M14.
