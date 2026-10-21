@@ -196,6 +196,9 @@ export async function mount(root: HTMLElement, data: MachineData, opts: MountOpt
 
   // Hover (a mouse) shows a piece's card; a tap with no drag picks it.
   const ray = new Raycaster();
+  // The stations' hairline edges are LineSegments: with three's default 1-unit threshold a neighbour's edge near the
+  // pointer could win the pick.
+  ray.params.Line = { threshold: 0.02 };
   const ndc = new Vector2();
   const pieceAt = (e: PointerEvent): string | null => {
     const r = canvas.getBoundingClientRect();

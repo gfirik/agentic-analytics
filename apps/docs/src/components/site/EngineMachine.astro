@@ -31,7 +31,8 @@ const img = (file: string) => withBase(file);
 const callers = stations.filter((s) => s.info.calls.length > 0).map((s) => s.info.name);
 const and = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const kicker = (s: Station) =>
-  `${s.n ? `Station ${s.n}` : "Beside the line"} · ${s.info.name}${s.stages.length ? ` · ${s.stages.join(" · ")}` : ""}`;
+  // The stages, unless the only one is the station's own name ("Verify · Verify").
+  `${s.n ? `Station ${s.n}` : "Beside the line"} · ${s.info.name}${s.stages.length && !(s.stages.length === 1 && s.stages[0]?.toLowerCase() === s.info.name.toLowerCase()) ? ` · ${s.stages.join(" · ")}` : ""}`;
 const stillAlt = `The engine drawn as a factory line: ${stations.length} stations on a conveyor from the doors to the report, the job's database file in front and the model room behind glass. Every station is described in "Every station, as a list" below.`;
 ---
 
@@ -315,7 +316,9 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
         stop = -1;
         update();
       } catch {
-        // Deliberately quiet: the still frame and the scroll-linked card are the fallback; nothing to report to the reader.
+        // The still frame and the scroll-linked card are the fallback, so the reader sees nothing break; the state is
+        // marked so a test (or a developer) can see the live view failed to start.
+        root.dataset.gl = "failed";
       }
     };
     void start();
