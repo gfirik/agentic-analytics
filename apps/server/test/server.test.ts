@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { JobManager } from "@agentic-analytics/core";
+import { JobManager, ManagerError } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { mcpHttpHandler } from "@agentic-analytics/mcp";
@@ -83,6 +83,9 @@ describe("HTTP API", () => {
     const h1 = await app.request(`/v1/jobs/${id}/report`, { headers: { accept: "text/html" } });
     expect(h1.headers.get("content-type")).toMatch(/text\/html/);
     expect(await (await app.request(`/v1/jobs/${id}/report?format=html`)).text()).toMatch(/^<!doctype html>/i);
+    // Untrusted text on the viewer's origin: the HTML report runs sandboxed (security §4).
+    expect(h1.headers.get("content-security-policy")).toBe("sandbox allow-scripts");
+    expect(h1.headers.get("x-content-type-options")).toBe("nosniff");
   });
 
   it("POST /ask answers with verified claims; GET /facts explains a number", async () => {
@@ -100,6 +103,32 @@ describe("HTTP API", () => {
     expect(x.fact.id).toBe(fact?.id);
     expect((await app.request(`/v1/jobs/${id}/facts/N999999`)).status).toBe(404);
   }, 60_000);
+
+  it("refusals keep their status: 413 for an upload over the limit, 400 for /ask without a body, never a 500", async () => {
+    const logged: unknown[] = [];
+    const small = createApp(manager, { maxUpload: 1024, onError: (e) => logged.push(e) });
+    const big = await small.request("/v1/jobs", { method: "POST", body: upload({ currency: "USD" }) });
+    expect(big.status).toBe(413);
+    expect(await big.json()).toMatchObject({ error: { code: "TOO_LARGE" } });
+    // No Content-Type and no body: validated anyway (an optional body was skipped and asked an undefined question).
+    expect((await app.request(`/v1/jobs/${id}/ask`, { method: "POST" })).status).toBe(400);
+    const plain = await small.request(`/v1/jobs/${id}/ask`, { method: "POST", body: "why?", headers: { "content-type": "text/plain" } });
+    expect(plain.status).toBeGreaterThanOrEqual(400);
+    expect(plain.status).toBeLessThan(500);
+    expect(logged).toEqual([]);
+  });
+
+  it("an event stream whose job vanishes ends with one error event, not an unhandled rejection", async () => {
+    const vanished = Object.assign(Object.create(manager) as JobManager, {
+      subscribe: async () => {
+        throw new ManagerError("NOT_FOUND", "job x not found");
+      },
+    });
+    const res = await createApp(vanished).request(`/v1/jobs/${id}/events`);
+    const text = await res.text();
+    expect(text).toContain("event: error");
+    expect(text).toContain('"code":"NOT_FOUND"');
+  });
 
   it("validates input: bad options, no files, unknown job", async () => {
     expect((await app.request("/v1/jobs", { method: "POST", body: upload({ period: "2026-04" }) })).status).toBe(400);
@@ -148,6 +177,9 @@ describe("HTTP API", () => {
     const js = await withViewer.request("/assets/app.js");
     expect(js.headers.get("content-type")).toBe("text/javascript");
     expect(await (await withViewer.request("/jobs/x")).text()).toContain("<div id=root>");
+    // A directory whose name has a dot is not a file: the app shell, not a 500 (EISDIR).
+    mkdirSync(join(dir, "v1.2"), { recursive: true });
+    expect(await (await withViewer.request("/v1.2")).text()).toContain("<div id=root>");
     expect((await withViewer.request("/../../etc/passwd")).status).toBe(200);
     expect(await (await withViewer.request("/../../etc/passwd")).text()).toContain("<div id=root>");
     // A viewer folder without a build points at the build command; no viewer folder at all (the standalone binary)

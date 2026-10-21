@@ -72,6 +72,9 @@ const collect = (p: string): string[] =>
 const ENGINE_VERSION = "0.0.0";
 const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
+/** Unexpected server and MCP errors: the full detail goes to stderr, the caller gets a generic message. */
+const logInternal = (err: unknown) =>
+  process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`);
 
 /**
  * Every model call, with the provider and model that served it (M13a): appended to data/logs/model-calls.jsonl,
@@ -293,9 +296,10 @@ const serveCmd = defineCommand({
           .filter(Boolean),
       ],
       health,
-      onError: (err) => process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`),
+      onError: logInternal,
       mcp: mcpHttpHandler(manager, {
         version: ENGINE_VERSION,
+        onError: logInternal,
         roots: (process.env.AA_MCP_ROOTS ?? "")
           .split(",")
           .map((r) => r.trim())
