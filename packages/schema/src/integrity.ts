@@ -16,30 +16,78 @@ export function placeholders(text: string): string[] {
   return [...text.matchAll(PLACEHOLDER)].map((m) => m[1] ?? "");
 }
 
-/** Month words that make a number a day or a year. "may" counts only as "May": "the top 3 may churn" is not a date. */
-const cap = (w: string) => `[${w[0]?.toUpperCase()}${w[0]}]${w.slice(1)}`;
-const FULL = ["january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december"];
-const MONTH = `(?:${FULL.map(cap).join("|")}|May|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\\.?`;
-/** A year is a date only next to a date word, a month or another year (a bare "2000" may be a count). */
-const YEAR_BEFORE = `(?:${MONTH},?|[Ii]n|[Ss]ince|[Bb]y|[Ff]rom|[Tt]o|[Uu]ntil|[Tt]hrough|[Oo]f|[Dd]uring|[Bb]efore|[Aa]fter|FY|[Yy]ear|[Вв]|[Сс]|[Дд]о|[Пп]о|(?:19|20)\\d{2}\\s*(?:and|or|to|[–—-]))`;
+/** A word matched in any case ("dec", "Dec", "DEC"), built without the `i` flag so "May" can stay case-sensitive. */
+const anyCase = (w: string) => [...w].map((c) => (/\p{L}/u.test(c) ? `[${c.toUpperCase()}${c.toLowerCase()}]` : c)).join("");
+/** Month words. "may" is a verb, so only "May" or "MAY" count. */
+const MONTH = `(?:${[
+  "january",
+  "february",
+  "march",
+  "april",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "jun",
+  "jul",
+  "aug",
+  "sept",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+]
+  .map(anyCase)
+  .join("|")}|May|MAY)\\.?`; // an abbreviation may end with a full stop ("Dec.")
+const DAY = "\\d{1,2}(?:st|nd|rd|th)?";
+const YEAR = "(?:19|20)\\d{2}";
+const SP = "\\s{1,3}";
+// Every pattern is forward and bounded (no lookbehind scans, no unbounded runs), so long text stays linear.
 const DATE_PATTERNS = [
-  /\b\d{4}-\d{2}(?:-\d{2})?\b/g, // 2026-04, 2026-04-12
-  new RegExp(`\\b\\d{1,2}\\s+${MONTH}(?![\\p{L}])`, "gu"), // 12 April, 12 Apr
-  new RegExp(`(?<![\\p{L}])${MONTH}\\s+\\d{1,2}\\b`, "gu"), // April 12
-  new RegExp(`(?<=${YEAR_BEFORE}\\s+)(?:19|20)\\d{2}\\b`, "gu"), // in 2026, March 2026, FY 2026, 2025 and 2026
-  /(?:19|20)\d{2}(?=[- ]?(?:год[уа]?|г\.|yil|йил))/gu, // 2026 году, 2026-yil
+  new RegExp(`\\b${YEAR}-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\\d|3[01]))?\\b`, "g"), // 2026-04, 2026-04-12
+  new RegExp(`\\b${YEAR}-?(?:Q[1-4]|H[12]|W(?:0?[1-9]|[1-4]\\d|5[0-3]))\\b`, "g"), // 2025-Q4, 2026H1, 2025-W51
+  new RegExp(`\\b(?:Q[1-4]|H[12])${SP}${YEAR}\\b`, "g"), // Q1 2026
+  new RegExp(`(?<![\\p{L}])${MONTH}${SP}${DAY}(?:,?${SP}${YEAR})?(?![\\p{L}\\d])`, "gu"), // April 12, March 15, 2026
+  new RegExp(`\\b${DAY}${SP}(?:of${SP})?${MONTH}(?:,?${SP}${YEAR})?(?![\\p{L}])`, "gu"), // 12 April, 12th of April 2026
+  new RegExp(`(?<![\\p{L}])${MONTH},?${SP}${YEAR}\\b`, "gu"), // March 2026, MAY 2026
+  new RegExp(`\\b${YEAR}(?=[- ]?(?:год[уа]?|г\\.|yil|йил))`, "gu"), // 2026 году, 2026-yil
 ];
 const QUOTED = /“[^”]*”|"[^"]*"/g;
 
 /**
+ * The years of a job's own periods, read only from period-shaped strings (`2026-04`, `2025-Q4`, `2026`), so an amount
+ * like "2000" in a label can't vouch for itself. A bare year in report text is a date only if it is one of these.
+ */
+export function periodYears(texts: readonly string[]): Set<string> {
+  const out = new Set<string>();
+  const re = new RegExp(`(?<![\\d])(${YEAR})(?=-(?:0[1-9]|1[0-2])\\b|-?(?:Q[1-4]|H[12]|W\\d))`, "g");
+  for (const t of texts) {
+    // A string that is only a year (a yearly period) counts as one; a year inside a label needs its period shape.
+    if (new RegExp(`^${YEAR}$`).test(t)) out.add(t);
+    for (const m of t.matchAll(re)) out.add(m[1] as string);
+  }
+  return out;
+}
+
+/**
  * Numerals in model-written text that are not placeholders, dates or quoted source text: any decimal digit, in any
  * script ("٣٠٪" counts). Any hit is a "free numeral", which the verifier rejects (agent-and-verifier §7, V1).
+ *
+ * A date has a month next to it, or an ISO, quarter, half or week form. A bare year ("in 2026", "2025 vs 2026") is a
+ * date only when it is one of `years`, the job's own period years (`periodYears`); without them, never: "we lost
+ * 2000 customers" and "fell by 1999" are counts.
  */
-export function findFreeNumerals(text: string): string[] {
+export function findFreeNumerals(text: string, years: ReadonlySet<string> = new Set()): string[] {
   let rest = text.replace(PLACEHOLDER, " ").replace(QUOTED, " ");
-  // Date spans are found on the text as written, then blanked together (a blanked year can't vouch for the next).
-  const spans = DATE_PATTERNS.flatMap((p) => [...rest.matchAll(p)].map((m) => [m.index ?? 0, (m.index ?? 0) + m[0].length] as const));
-  for (const [a, b] of spans) rest = `${rest.slice(0, a)}${" ".repeat(b - a)}${rest.slice(b)}`;
+  for (const p of DATE_PATTERNS) rest = rest.replace(p, (m) => " ".repeat(m.length));
+  if (years.size) rest = rest.replace(new RegExp(`\\b${YEAR}\\b`, "g"), (m) => (years.has(m) ? " ".repeat(m.length) : m));
   return rest.match(/\p{Nd}[\p{Nd},.]*/gu) ?? [];
 }
 
@@ -66,9 +114,11 @@ export function checkReportIntegrity(report: Report): IntegrityIssue[] {
     list.forEach((c, i) => {
       if (!sourceIds.has(c.source_id)) add(`${path}[${i}].source_id`, `unknown source ${c.source_id}`);
     });
+  // The report's own period years: a bare "2026" in its text is a date only if the job covers 2026.
+  const years = periodYears([report.period.from, report.period.to, ...report.facts.map((f) => f.label)]);
   const text = (path: string, value: string) => {
     for (const ref of placeholders(value)) fact(path, ref);
-    const free = findFreeNumerals(value);
+    const free = findFreeNumerals(value, years);
     if (free.length) add(path, `free numerals not backed by a fact: ${free.join(", ")}`);
   };
   const claim = (path: string, c: Claim) => {

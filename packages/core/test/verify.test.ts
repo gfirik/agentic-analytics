@@ -240,8 +240,9 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     // A title that breaks the rules is replaced by a neutral one; its claims stand.
     expect(f1(r.report).title).toBe(NEUTRAL_TITLE);
     expect(f1(r.report).claims.length).toBe(f.claims.length);
-    // The headline falls back to the first finding's title (now neutral).
-    expect(r.report.summary.headline).toBe(NEUTRAL_TITLE);
+    // The headline falls back to the first title that kept its wording (F1's is neutral now), and is listed as dropped.
+    expect(r.report.summary.headline).toBe(r.report.findings.find((x) => x.title !== NEUTRAL_TITLE)?.title);
+    expect(r.report.verification.claims_dropped.some((x) => x.claim === d.summary.headline)).toBe(true);
     // A broken not_advised is left out; a broken action drops its recommendation.
     expect(r.report.recommendations.find((x) => x.id === r1.id)?.not_advised).toBeUndefined();
     if (r2) expect(r.report.recommendations.some((x) => x.id === r2.id)).toBe(false);

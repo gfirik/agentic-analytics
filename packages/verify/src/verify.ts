@@ -15,6 +15,7 @@ import {
   type Finding,
   findFreeNumerals,
   type MetricDef,
+  periodYears,
   placeholders,
   type Recommendation,
   type Report,
@@ -216,13 +217,16 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
    * placeholders, digits inside quotes, "fell {{N}}" with a signed value, and "more than the whole" without its
    * comparison. Claims, and every other text the report shows (the headline, titles, actions, not_advised), pass it.
    */
+  // The job's own period years (from its facts' period labels and the data's end): a bare year in report text is a
+  // date only if it is one of them (findFreeNumerals).
+  const jobYears = periodYears([...[...all.values()].map((f) => f.label), ctx.periodEnd.slice(0, 7)]);
   const ruleBreak = (
     text: string,
     facts: readonly string[],
     citations: Claim["citations"],
   ): readonly [CheckRow["check"], string] | undefined => {
     // V1: numbers only as placeholders, each a known fact listed by the claim.
-    const free = findFreeNumerals(text);
+    const free = findFreeNumerals(text, jobYears);
     if (free.length) return ["V1", `free numeral(s) ${free.join(", ")}`];
     const unknown = placeholders(text).find((id) => !factIds.has(id) || !facts.includes(id));
     if (unknown) return ["V1", `placeholder {{${unknown}}} is not a listed fact`];
@@ -454,8 +458,10 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       continue;
     }
     const notAdvisedBroken = r.not_advised ? ruleBreak(r.not_advised, rationaleFacts, []) : undefined;
-    if (notAdvisedBroken)
+    if (notAdvisedBroken) {
       dropped.push({ claim: r.not_advised ?? "", reason: `${notAdvisedBroken[0]}: not_advised of ${r.id}: ${notAdvisedBroken[1]}` });
+      checks.push({ check: notAdvisedBroken[0], passed: false, detail: `not_advised of ${r.id}: ${notAdvisedBroken[1]}` });
+    }
     checks.push({ check: "V7", passed: true, detail: `recommendation ${r.id}` });
     const backed = because.some((b) => documented.has(b));
     // Built without the drafted not_advised, so a broken one is left out rather than spread back in.
@@ -473,17 +479,22 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const bullets = findings.flatMap((f) => f.claims.slice(0, 1)).slice(0, 5);
   const surviving = new Set(findings.flatMap((f) => f.claims.flatMap((c) => c.facts)));
   // The headline passes the claim rules over the surviving findings' facts and citations (V1, V4's decline sign).
-  const headlineOk = !ruleBreak(
+  const headlineBroken = ruleBreak(
     draft.summary.headline,
     [...surviving],
     findings.flatMap((f) => f.claims.flatMap((c) => c.citations)),
   );
-  const headlineText = plain(
-    headlineOk ? draft.summary.headline : (findings[0]?.title ?? "No verified findings for this period."),
-    documented.size > 0,
-    "the headline",
-  );
-  checks.push({ check: "V1", passed: headlineOk, detail: headlineOk ? "headline" : "headline replaced by the first finding's title" });
+  // A headline that breaks the rules falls back to the first title that kept its own wording (a neutral title only
+  // when none did), and the replaced headline is listed like any dropped text.
+  const fallback = findings.find((f) => f.title !== NEUTRAL_TITLE)?.title ?? findings[0]?.title ?? "No verified findings for this period.";
+  if (headlineBroken)
+    dropped.push({ claim: draft.summary.headline, reason: `${headlineBroken[0]}: the headline: ${headlineBroken[1]}; replaced` });
+  const headlineText = plain(headlineBroken ? fallback : draft.summary.headline, documented.size > 0, "the headline");
+  checks.push({
+    check: headlineBroken ? headlineBroken[0] : "V1",
+    passed: !headlineBroken,
+    detail: headlineBroken ? `headline replaced by a finding's title: ${headlineBroken[1]}` : "headline",
+  });
 
   const verifiedFacts = new Set(v2.filter((r) => r.ok).map((r) => r.fact));
   // References to dropped findings and recommendations go too (assumptions, open questions).
