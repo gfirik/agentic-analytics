@@ -116,6 +116,8 @@ describe("MCP limits and errors", () => {
   it("an unexpected error reaches the log hook; the caller gets no paths or SQL", async () => {
     const logged: unknown[] = [];
     const broken = Object.assign(Object.create(manager) as JobManager, {
+      // A finished job whose report can't be read (a DuckDB error naming a path and SQL).
+      status: async () => ({ job_id: "x", status: "done" }) as Awaited<ReturnType<JobManager["status"]>>,
       report: async () => {
         throw new Error("Binder Error at /home/owner/jobs/x/job.duckdb: SELECT secret");
       },
