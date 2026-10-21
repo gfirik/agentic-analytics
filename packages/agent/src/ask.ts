@@ -37,7 +37,10 @@ export async function answerQuestion(model: ModelClient, question: string, repor
             .string()
             .min(3)
             .max(600)
-            .refine((t) => findFreeNumerals(t).length === 0, "numbers only as {{N…}} placeholders; no other digits except dates")
+            .refine(
+              (t) => findFreeNumerals(t).length === 0,
+              "numbers only as {{N…}} placeholders; no other digits except dates (2026-04, March 2026, 2025-Q4; never a bare year)",
+            )
             .refine((t) => placeholders(t).every((id) => facts.has(id)), "use only fact placeholders that appear in the report"),
           facts: z.array(z.string()),
           from: z.array(z.string()).min(1),

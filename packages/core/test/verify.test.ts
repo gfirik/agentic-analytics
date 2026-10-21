@@ -7,9 +7,9 @@ import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { type Catalog, loadCatalog } from "@agentic-analytics/metrics";
 import type { GenerateObjectArgs, ModelClient } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
-import type { Claim, MetricDef, Report } from "@agentic-analytics/schema";
+import { type Claim, checkReportIntegrity, type MetricDef, type Report } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
-import { verifyReport } from "@agentic-analytics/verify";
+import { NEUTRAL_TITLE, verifyReport } from "@agentic-analytics/verify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runJob } from "../src/index.ts";
 import { coffeePlanner } from "../testing/coffee-planner.ts";
@@ -225,6 +225,39 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     const r = await verify(d);
     for (const t of [stripped.text, borrowed.text, swapped.text])
       expect(reasonFor(r.report, t)).toBe("V1: “more than the whole” is not backed by a comparison fact for the member it names");
+  });
+
+  it("titles, actions, not_advised and the headline pass the claim rules too (V1, M14a)", async () => {
+    const d = clone(draft);
+    const f = f1(d);
+    f.title = "Revenue fell 15% in April";
+    d.summary.headline = "Revenue fell “by 2000” in April.";
+    const r1 = d.recommendations[0] as Report["recommendations"][number];
+    const r2 = d.recommendations[1];
+    r1.not_advised = "Do not cut retail prices by 10%.";
+    if (r2) r2.action = "Raise prices by 5% next month";
+    const r = await verify(d);
+    // A title that breaks the rules is replaced by a neutral one; its claims stand.
+    expect(f1(r.report).title).toBe(NEUTRAL_TITLE);
+    expect(f1(r.report).claims.length).toBe(f.claims.length);
+    // The headline falls back to the first title that kept its wording (F1's is neutral now), and is listed as dropped.
+    expect(r.report.summary.headline).toBe(r.report.findings.find((x) => x.title !== NEUTRAL_TITLE)?.title);
+    expect(r.report.verification.claims_dropped.some((x) => x.claim === d.summary.headline)).toBe(true);
+    // A broken not_advised is left out; a broken action drops its recommendation.
+    expect(r.report.recommendations.find((x) => x.id === r1.id)?.not_advised).toBeUndefined();
+    if (r2) expect(r.report.recommendations.some((x) => x.id === r2.id)).toBe(false);
+    expect(checkReportIntegrity(r.report)).toEqual([]);
+  });
+
+  it("a bare year is a date only when it is one of the job's period years (V1, M14a)", async () => {
+    const d = clone(draft);
+    const change = f1(d).claims[0]?.facts[2] as string;
+    const ours = claim(`Revenue moved {{${change}}} in 2026.`, [change]);
+    const count = claim(`Revenue moved {{${change}}} after 2000 customers left.`, [change]);
+    f1(d).claims.push(ours, count);
+    const r = await verify(d);
+    expect(f1(r.report).claims.map((c) => c.text)).toContain(ours.text);
+    expect(reasonFor(r.report, count.text)).toMatch(/^V1: /);
   });
 
   it("a recommendation whose whole rationale is dropped is dropped (V7)", async () => {
