@@ -375,6 +375,11 @@ const evalCmd = defineCommand({
     "small-model": { type: "boolean", description: "Small-model mode" },
     embedder: { type: "string", description: "'hash' (default) or a transformers embedding model" },
     "keep-reports": { type: "string", description: "Keep each dataset's report.json in this folder" },
+    "replay-drafts": {
+      type: "string",
+      description:
+        "With --model baseline: a --keep-reports folder whose <dataset>.metrics.drafted.json answer the metric drafts (a real model's metrics, no model call)",
+    },
     "results-dir": {
       type: "string",
       description: "Where results files and RESULTS.md go (default evals/results; ./eval-results with --answers)",
@@ -462,6 +467,7 @@ const evalCmd = defineCommand({
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
         ...(args.label ? { label: args.label } : {}),
         ...(args.note ? { note: args.note } : {}),
+        ...(args["replay-drafts"] ? { replayDrafts: args["replay-drafts"] } : {}),
         // A configured run is named after its routes (its file keeps the "configured" name), and --passes checks
         // each role's model before carrying an earlier result on.
         ...nightly,

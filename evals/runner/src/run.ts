@@ -199,7 +199,8 @@ export interface RunOptions {
    * A fresh model client per dataset (scripted models keep state). It reports every call to `onCall`, so the
    * results record which provider and model served the run (M13a).
    */
-  readonly model: (onCall: (c: CallRecord) => void) => ModelClient;
+  /** A model client per dataset (the dataset id lets a scripted model answer per dataset, e.g. replayed drafts). */
+  readonly model: (onCall: (c: CallRecord) => void, dataset: string) => ModelClient;
   readonly modelName: string;
   readonly note?: string;
   readonly embedder: Embedder;
@@ -229,7 +230,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
   for (const [i, ds] of datasets.entries()) {
     const dir = mkdtempSync(join(tmpdir(), `aa-eval-${ds.id}-`));
     const calls: CallRecord[] = [];
-    const { model, tokens } = counting(o.model((c) => calls.push(c)));
+    const { model, tokens } = counting(o.model((c) => calls.push(c), ds.id));
     const started = Date.now();
     const options: JobOptions = {
       today: ds.answers.today,

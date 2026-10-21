@@ -11,6 +11,7 @@ export {
   type RealEvalArgs,
   readPrevious,
   realEvalCommand,
+  replayedDrafts,
   resultsPage,
   selectDatasets,
 } from "./cli.ts";
