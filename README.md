@@ -205,7 +205,7 @@ Free models on generated businesses with planted events, distractors and data-qu
 | configured (small-model mode) | full (30), **partial: 21 of 30 jobs finished** | 70% | 48% | 100% | 0 | 100% | 34 min, 801k tokens | hosted | 2026-10-19 |
 <!-- table:evals:end -->
 
-Only the "planner, extractor, judge" rows ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
+Only the "planner, extractor, judge" rows and the 2026-10-19 "configured" row (the same Groq roles; kept as history, partial) ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
 
 ## Stack
 
