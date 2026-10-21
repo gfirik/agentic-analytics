@@ -2,7 +2,7 @@
 // the embedded report. Hash routes keep it a static bundle that `aa serve` can host at `/`.
 import type { JobEvent } from "@agentic-analytics/schema";
 import { type FormEvent, useEffect, useMemo, useReducer, useState } from "react";
-import { type Api, createApi } from "./api.ts";
+import { type Api, ApiError, createApi, errorText } from "./api.ts";
 import { initialView, type JobView, reduce, STAGES } from "./state.ts";
 
 const LABELS: Record<string, string> = {
@@ -39,6 +39,43 @@ function tokenFromStorage(): string | undefined {
   }
 }
 
+/** Asks for the API token after a 401 and keeps it in this browser (`aa-token`), then reloads with it. */
+export function TokenForm() {
+  const [token, setToken] = useState("");
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      localStorage.setItem("aa-token", token.trim());
+    } catch {
+      // Storage is blocked (a private window): the token can't be kept, so say so instead of reloading in a loop.
+      alert("This browser won't store the token; allow site data for this page.");
+      return;
+    }
+    location.reload();
+  };
+  return (
+    <form onSubmit={save} className="token">
+      <label>
+        API token
+        <input type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+      </label>
+      <button type="submit" disabled={!token.trim()}>
+        Save and reload
+      </button>
+    </form>
+  );
+}
+
+/** A failed call, said in the page; a 401 also offers the token field. */
+export function Failure({ error }: { error: unknown }) {
+  return (
+    <>
+      <p className="error">{errorText(error)}</p>
+      {error instanceof ApiError && error.status === 401 ? <TokenForm /> : null}
+    </>
+  );
+}
+
 export function App() {
   const route = useRoute();
   const api = useMemo(() => createApi("", tokenFromStorage()), []);
@@ -61,8 +98,9 @@ export function UploadPage({ api }: { api: Api }) {
   const [web, setWeb] = useState(false);
   const [error, setError] = useState<string>();
   const [jobs, setJobs] = useState<{ job_id: string; status: string }[]>([]);
+  const [listError, setListError] = useState<unknown>();
   useEffect(() => {
-    api.jobs().then(setJobs, () => setJobs([]));
+    api.jobs().then(setJobs, setListError);
   }, [api]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -71,7 +109,7 @@ export function UploadPage({ api }: { api: Api }) {
       const id = await api.createJob(files, { auto_confirm: !review, web, ...(objective ? { objective } : {}) });
       location.hash = `#/jobs/${id}`;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err));
     }
   };
   return (
@@ -100,6 +138,7 @@ export function UploadPage({ api }: { api: Api }) {
         </button>
         {error ? <p className="error">{error}</p> : null}
       </form>
+      {listError ? <Failure error={listError} /> : null}
       {jobs.length ? (
         <>
           <h2>Jobs</h2>
@@ -128,18 +167,25 @@ export function Pipeline({ view }: { view: JobView }) {
   );
 }
 
-function JobPage({ api, jobId }: { api: Api; jobId: string }) {
+export function JobPage({ api, jobId }: { api: Api; jobId: string }) {
   const [view, dispatch] = useReducer(reduce, undefined, initialView);
   const [html, setHtml] = useState<string>();
   const [round, setRound] = useState(0);
+  // A stream or report that fails is shown, not swallowed: a frozen all-pending pipeline says nothing.
+  const [failure, setFailure] = useState<unknown>();
   // biome-ignore lint/correctness/useExhaustiveDependencies: `round` re-opens the event stream after a confirmation resumes the job
   useEffect(() => {
     const ctl = new AbortController();
-    api.follow(jobId, (e: JobEvent) => dispatch(e), ctl.signal).catch(() => undefined);
+    setFailure(undefined);
+    api
+      .follow(jobId, (e: JobEvent) => dispatch(e), ctl.signal)
+      .catch((err: unknown) => {
+        if (!ctl.signal.aborted) setFailure(err);
+      });
     return () => ctl.abort();
   }, [api, jobId, round]);
   useEffect(() => {
-    if (view.phase === "done") api.reportHtml(jobId).then(setHtml, () => undefined);
+    if (view.phase === "done") api.reportHtml(jobId).then(setHtml, setFailure);
   }, [api, jobId, view.phase]);
   return (
     <section>
@@ -152,24 +198,23 @@ function JobPage({ api, jobId }: { api: Api; jobId: string }) {
         </p>
       ))}
       {view.phase === "failed" ? <p className="error">{view.error}</p> : null}
+      {failure ? <Failure error={failure} /> : null}
       {view.phase === "awaiting_confirmation" ? <MetricsForm api={api} jobId={jobId} onConfirmed={() => setRound((r) => r + 1)} /> : null}
       {html ? <iframe title="report" className="report" srcDoc={html} sandbox="allow-scripts" /> : null}
     </section>
   );
 }
 
-function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: string; onConfirmed: () => void }) {
+export function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: string; onConfirmed: () => void }) {
   const [data, setData] = useState<{ yaml: string; metrics: { id: string; text: string }[] }>();
   const [yaml, setYaml] = useState("");
   const [error, setError] = useState<string>();
+  const [loadError, setLoadError] = useState<unknown>();
   useEffect(() => {
-    api.metrics(jobId).then(
-      (m) => {
-        setData(m);
-        setYaml(m.yaml);
-      },
-      (e: unknown) => setError(String(e)),
-    );
+    api.metrics(jobId).then((m) => {
+      setData(m);
+      setYaml(m.yaml);
+    }, setLoadError);
   }, [api, jobId]);
   const confirm = async (e: FormEvent) => {
     e.preventDefault();
@@ -177,9 +222,10 @@ function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: string; onC
       await api.confirm(jobId, yaml);
       onConfirmed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err));
     }
   };
+  if (loadError) return <Failure error={loadError} />;
   if (!data) return <p className="muted">Loading the drafted metrics…</p>;
   return (
     <form onSubmit={confirm} className="metrics">
