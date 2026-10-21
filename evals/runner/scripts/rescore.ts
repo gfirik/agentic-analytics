@@ -11,7 +11,8 @@ if (!file || !dir) throw new EvalRunError("USAGE", "usage: rescore.ts <results.j
 const reports = new Map<string, Report>(
   existsSync(dir)
     ? readdirSync(dir)
-        .filter((f) => f.endsWith(".json"))
+        // Reports only: `<id>.metrics.drafted.json` files sit next to them.
+        .filter((f) => f.endsWith(".json") && !f.endsWith(".metrics.drafted.json"))
         .map((f) => [f.replace(/\.json$/, ""), JSON.parse(readFileSync(join(dir, f), "utf8")) as Report])
     : [],
 );

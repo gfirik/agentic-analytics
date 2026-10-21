@@ -10,9 +10,10 @@ The eval runner and scoring (docs/EVALS.md §2–§4). It runs each dataset as a
 - **Planted recall@5** counts an event only when it is found *with the correct driver* (EVALS §2).
 - **Cause:** a matching finding has a claim with grade ≥ the expected grade that cites the expected document.
 - **Recommendation relevance:** per completed dataset with good actions in its key. It passes only when the top recommendation is about a matching finding and uses one of the event's good scenario types; a top recommendation about anything else is a miss.
-- **Distractor reported:** a finding at the distractor's period on its metric, on a metric it also moves (`also`: orders for a seasonal peak), or on a slice of either.
-- **Quality issue found:** a data-quality item of the same kind cites the same file.
-- Number mismatches, citation precision, definition adherence and grounding come from the report's verification summary, or from a job that failed with `RECOMPUTE_MISMATCH`/`REDERIVE_MISMATCH`.
+- **Distractor reported:** a finding at the distractor's period on its metric, on a metric it also moves (`also`: orders for a seasonal peak), or on a slice of either; a one-member distractor also counts when reported on the whole metric at that period.
+- **Quality issue found:** a data-quality item of the same kind cites the same file and the key's sheet. The engine's items cite rows, not cells, so the column is compared only when a citation names cells.
+- Citation precision, definition adherence and grounding come from the report's verification summary: they are the verifier's in-pipeline counts (docs/EVALS.md §2), and a run with nothing to count fails those bars. Number mismatches count jobs aborted with `RECOMPUTE_MISMATCH`, `REDERIVE_MISMATCH` or `CITATION_MISMATCH`; a shipped report has none by construction.
+- A planted event matches only a finding that moves the event's way, when the claim cites both points (`plantedDirection`); the real tier's "verified" check passes when the verifier recomputed numbers and dropped nothing for a broken definition.
 
 ## Baseline model
 
