@@ -57,6 +57,24 @@ export function onlyProblem(
 }
 
 /**
+ * Why `--replay-drafts` can't run here, if it can't: its metrics are a real model's while its other roles are
+ * scripted, so it is neither the baseline row nor a model's row and never goes to evals/results.
+ */
+export function replayProblem(
+  replay: string | undefined,
+  resultsDir: string | undefined,
+  cwd: string,
+  checkoutDefault: string,
+): string | undefined {
+  if (replay === undefined) return undefined;
+  if (!resultsDir) return "--replay-drafts needs --results-dir (a replay's results never go to evals/results)";
+  const rel = relative(resolve(checkoutDefault), resolve(cwd, resultsDir));
+  if (!rel.startsWith("..") && !isAbsolute(rel))
+    return `--replay-drafts can't write to ${checkoutDefault} or a folder inside it: a replay is a measurement, not a published row`;
+  return undefined;
+}
+
+/**
  * The embedder to build: "hash" when asked for, or by default in the binary (Transformers.js needs the sharp and
  * onnxruntime native libraries, which the binary doesn't carry); otherwise the named or configured ONNX model.
  */

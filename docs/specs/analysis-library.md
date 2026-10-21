@@ -146,9 +146,20 @@ Insights that detect one event (same series and period) are grouped. A group is 
 
 The order that goes to EXPLAIN:
 
-1. **One slot per metric family**, in the order of each family's best score. A channel slice such as `wholesale_revenue` is in the `revenue` family. The slot goes to the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without the per-family slot a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
-2. **One slot for the most dramatic single-member change.** This is the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and never takes this slot. A member already named as the top driver of a change chosen above is excluded. A product cannibalized by a launch otherwise never reaches the top (M13a).
-3. Everything else, by score.
+First come the candidates:
+
+- **Family firsts.** One candidate per metric family: its best whole-metric change. A channel slice such as `wholesale_revenue` is in the `revenue` family. The family's candidate is the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without a per-family candidate a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
+- **The member story.** The most dramatic single-member change: the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and is never a candidate. A member already named as the top driver of a family first is excluded. A member change on a slice speaks through the same member's change, in the same period, on the objective metric or the slice's parent, when that carries at least half its score: drafted slice ids often don't share the parent's id (`revenue_by_channel_walkin` next to `total_revenue`). Without this slot a product cannibalized by a launch never reaches the top (M13a).
+
+Then the lead order (M14a). Small-model mode explains only 3 findings. With a real model drafting 8–15 metrics, the other families (gross margin, net profit, a second sales measure, a channel share) each restated the lead change and took slots 2 and 3, so the planted rate and member events were never explained. In the 2026-10-19 nightly run, P2 was found in 3 of 7 finished jobs and P3 in 0 of 7. The order:
+
+1. **The lead.** This is the objective's own family first when it carries at least half the best family first's score, else the best family first. Gross margin often scores a little higher on the same event, but the report is about the objective.
+2. **The rate story.** This is the percent-unit family first with the largest relative change.
+3. **The member story.**
+4. **The other family firsts.** Those with no measured change (score 0: counts, trends) come after every material one.
+5. Everything else, by score.
+
+In 2, 3 and 4, a change in another period than the lead's comes before one in the lead's period. A change in the lead's period, in any metric and either direction, is usually the lead event seen through another measure, while a change in another period is another event.
 
 ## 7. Tests
 

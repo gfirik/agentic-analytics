@@ -1,0 +1,142 @@
+{
+  "source": "model",
+  "proposals": [
+    {
+      "id": "total_revenue",
+      "label": "Total Revenue",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "amount",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "order_count",
+      "label": "Number of Orders",
+      "type": "count",
+      "table": "t_t1",
+      "expression": "order_id",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "average_order_value",
+      "label": "Average Order Value",
+      "type": "derived",
+      "table": "t_t1",
+      "expression": "total_revenue / order_count",
+      "filters": [],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "units_sold",
+      "label": "Units Sold",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "qty",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "total_amount_all",
+      "label": "Total Amount (All Statuses)",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "amount",
+      "filters": [],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "refunded_amount",
+      "label": "Refunded Amount",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "amount",
+      "filters": ["status = 'refunded'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "refund_rate",
+      "label": "Refund Rate",
+      "type": "ratio",
+      "table": "t_t1",
+      "filters": [],
+      "numerator": {
+        "metric": "refunded_amount"
+      },
+      "denominator": {
+        "metric": "total_amount_all"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "customer_count",
+      "label": "Customer Count",
+      "type": "count_distinct",
+      "table": "t_t1",
+      "expression": "customer",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["channel", "product"]
+    },
+    {
+      "id": "monthly_cost",
+      "label": "Monthly Cost",
+      "type": "sum",
+      "table": "t_t2",
+      "expression": "rent + staff + supplies",
+      "filters": [],
+      "time_column": "month",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": []
+    },
+    {
+      "id": "net_profit",
+      "label": "Net Profit",
+      "type": "derived",
+      "table": "t_t1",
+      "expression": "total_revenue - monthly_cost",
+      "filters": [],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "gross_margin",
+      "label": "Gross Margin",
+      "type": "ratio",
+      "table": "t_t1",
+      "filters": [],
+      "numerator": {
+        "metric": "net_profit"
+      },
+      "denominator": {
+        "metric": "total_revenue"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "channel", "product"]
+    }
+  ]
+}

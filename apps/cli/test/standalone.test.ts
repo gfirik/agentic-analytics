@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { embedderChoice, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "../src/standalone.ts";
+import { embedderChoice, onlyIds, onlyProblem, replayProblem, resultsLocation, runtimeVersion } from "../src/standalone.ts";
 
 const bin = { AA_STANDALONE: "1" };
 
@@ -13,6 +13,15 @@ describe("standalone binary choices", () => {
     // Your own answer files (--answers): never into the project's published results.
     const own = resultsLocation(undefined, {}, "/work", "/repo/evals/results", true);
     expect([own.dir, own.page].map((p) => p?.replace(/\\/g, "/"))).toEqual(["/work/eval-results", "/work/eval-results/RESULTS.md"]);
+  });
+
+  it("--replay-drafts needs a --results-dir outside the checkout's evals/results (M14a)", () => {
+    const repo = "/repo/evals/results";
+    expect(replayProblem(undefined, undefined, "/work", repo)).toBeUndefined();
+    expect(replayProblem("data/eval-reports", undefined, "/repo", repo)).toMatch(/needs --results-dir/);
+    expect(replayProblem("data/eval-reports", "evals/results/", "/repo", repo)).toMatch(/can't write to/);
+    expect(replayProblem("data/eval-reports", "/repo/evals/results/replay", "/work", repo)).toMatch(/or a folder inside it/);
+    expect(replayProblem("data/eval-reports", "/tmp/replay", "/repo", repo)).toBeUndefined();
   });
 
   it("--only (a chunk of a suite) needs a --results-dir that isn't the checkout's evals/results", () => {

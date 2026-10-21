@@ -1,0 +1,181 @@
+{
+  "source": "model",
+  "proposals": [
+    {
+      "id": "total_revenue",
+      "label": "Total Revenue",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "amount",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "total_orders",
+      "label": "Total Orders",
+      "type": "count_distinct",
+      "table": "t_t1",
+      "expression": "order_id",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "total_units_sold",
+      "label": "Total Units Sold",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "qty",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "average_order_value",
+      "label": "Average Order Value",
+      "type": "ratio",
+      "numerator": {
+        "table": "t_t1",
+        "expression": "amount",
+        "filters": ["status = 'paid'"]
+      },
+      "denominator": {
+        "table": "t_t1",
+        "expression": "order_id",
+        "filters": ["status = 'paid'"]
+      },
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "refund_amount_rate",
+      "label": "Refund Amount Rate",
+      "type": "ratio",
+      "numerator": {
+        "table": "t_t1",
+        "expression": "amount",
+        "filters": ["status = 'refunded'"]
+      },
+      "denominator": {
+        "table": "t_t1",
+        "expression": "amount",
+        "filters": []
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "refund_order_rate",
+      "label": "Refund Order Rate",
+      "type": "ratio",
+      "numerator": {
+        "table": "t_t1",
+        "expression": "order_id",
+        "filters": ["status = 'refunded'"]
+      },
+      "denominator": {
+        "table": "t_t1",
+        "expression": "order_id",
+        "filters": []
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "total_costs",
+      "label": "Total Costs",
+      "type": "sum",
+      "table": "t_t2",
+      "expression": "rent + staff + supplies",
+      "filters": [],
+      "time_column": "month",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": []
+    },
+    {
+      "id": "gross_margin",
+      "label": "Gross Margin",
+      "type": "derived",
+      "table": "t_t1",
+      "expression": "total_revenue - total_costs",
+      "filters": [],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "gross_margin_percent",
+      "label": "Gross Margin Percent",
+      "type": "ratio",
+      "numerator": {
+        "metric": "gross_margin"
+      },
+      "denominator": {
+        "metric": "total_revenue"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "customer_count",
+      "label": "Customer Count",
+      "type": "count_distinct",
+      "table": "t_t1",
+      "expression": "customer",
+      "filters": [],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product", "status"]
+    },
+    {
+      "id": "revenue_by_channel_business",
+      "label": "Revenue Business Channel",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "amount",
+      "filters": ["status = 'paid'", "channel = 'business'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "product", "status"]
+    },
+    {
+      "id": "revenue_by_channel_walkin",
+      "label": "Revenue Walk-in Channel",
+      "type": "sum",
+      "table": "t_t1",
+      "expression": "amount",
+      "filters": ["status = 'paid'", "channel = 'walk-in'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "product", "status"]
+    },
+    {
+      "id": "channel_revenue_share_business",
+      "label": "Business Channel Revenue Share",
+      "type": "ratio",
+      "numerator": {
+        "metric": "revenue_by_channel_business"
+      },
+      "denominator": {
+        "metric": "total_revenue"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "product", "status"]
+    }
+  ]
+}

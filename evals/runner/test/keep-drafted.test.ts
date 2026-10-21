@@ -1,11 +1,11 @@
 // `--keep-reports` also keeps each job's drafted metrics: the job folder is deleted after scoring, and a real model's
-// draft (construction_supplier-v1's self-ratio, M13h) can't be re-created later.
+// draft (construction_supplier-v1's self-ratio, M13h) can't be re-created later. `--replay-drafts` reads them back (M14a).
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DRAFTED_METRICS } from "@agentic-analytics/core";
 import { afterAll, describe, expect, it } from "vitest";
-import { keepDraftedMetrics } from "../src/index.ts";
+import { EvalRunError, keepDraftedMetrics, replayedDrafts } from "../src/index.ts";
 
 const dirs: string[] = [];
 const tempDir = () => {
@@ -30,5 +30,22 @@ describe("keepDraftedMetrics", () => {
     const keep = join(tempDir(), "kept");
     keepDraftedMetrics(tempDir(), keep, "x");
     expect(existsSync(keep)).toBe(false);
+  });
+});
+
+describe("replayedDrafts", () => {
+  it("returns a kept model draft's proposals, and none for a missing or scripted draft", () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "a.metrics.drafted.json"), '{"source":"model","proposals":[{"id":"revenue"}]}');
+    writeFileSync(join(dir, "b.metrics.drafted.json"), '{"source":"fallback","proposals":[{"id":"revenue"}]}');
+    expect(replayedDrafts(dir, "a")).toEqual([{ id: "revenue" }]);
+    expect(replayedDrafts(dir, "b")).toBeUndefined();
+    expect(replayedDrafts(dir, "c")).toBeUndefined();
+  });
+
+  it("refuses a file that isn't JSON", () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "a.metrics.drafted.json"), "{not json");
+    expect(() => replayedDrafts(dir, "a")).toThrow(EvalRunError);
   });
 });
