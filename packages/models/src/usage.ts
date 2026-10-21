@@ -4,7 +4,7 @@
 // A cached call spends no quota, so it counts 0 tokens whatever its line says (lines written before M14a carry the
 // cached answer's original usage). A live call with no token count (most failed calls, lines from before tokens
 // were logged) is unknown: it is counted apart, never as 0. Days are UTC dates, as in the log's `at` and in the
-// eval result files; Groq's daily quota also resets at 00:00 UTC.
+// eval result files; a provider counts its daily quota its own way (see windowUsage).
 import type { Config } from "@agentic-analytics/schema";
 import { ModelError } from "./errors.ts";
 import type { CallRecord } from "./fetch.ts";
@@ -209,7 +209,8 @@ export interface ReportedUse {
   readonly used: number;
 }
 
-const REPORTED = /Limit (\d+), Used (\d+)/;
+/** Groq's daily token quota in a 429's text; per-minute limits (TPM, OTPM) carry the same words and must not match. */
+const REPORTED = /tokens per day \(TPD\): Limit (\d+), Used (\d+)/;
 
 export interface WindowUsage {
   /** The window's end (ISO time) and length. */
@@ -219,11 +220,10 @@ export interface WindowUsage {
 }
 
 /**
- * Usage per route logged in the `hours` before `now`, with the provider's own latest count in that window when a
- * rate-limit error reported one. Neither a UTC day nor a plain 24-hour sum is the provider's count: on 2026-10-21 at
- * 10:46 UTC Groq reported 198,464 of 200,000 used, while that UTC day held 101,361 and the 24 hours before held 286,219
- * (it had let them all through); on 2026-10-17 its count matched the 24-hour sum. So the reported figure is shown as
- * it was said, and no remainder is estimated.
+ * Usage per route logged in the `hours` before `now`, with the provider's own latest daily-quota count in that window
+ * when a 429 reported one. Neither a UTC day nor a plain 24-hour sum reproduces Groq's count: on 2026-10-21 at 10:46 UTC
+ * it reported 198,464 of 200,000 used, while that UTC day held 101,361 and the 24 hours before held 286,219 (all let
+ * through). So the reported figure is shown as it was said, and no remainder is estimated.
  */
 export function windowUsage(
   calls: readonly LoggedCall[],
@@ -242,7 +242,7 @@ export function windowUsage(
     if (t <= start || t > end) continue;
     const key = routeOf(c);
     const prev = routes.get(key);
-    const m = c.error ? REPORTED.exec(c.error) : null;
+    const m = c.status === 429 && c.error ? REPORTED.exec(c.error) : null;
     const said = m ? { at: c.at, limit: Number(m[1]), used: Number(m[2]) } : undefined;
     const reported = said && (!prev?.reported || said.at >= prev.reported.at) ? said : prev?.reported;
     routes.set(key, {

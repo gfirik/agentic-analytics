@@ -1,5 +1,6 @@
-// `aa usage`: tokens and calls per UTC day, per role and per route, from data/logs/model-calls.jsonl, against each
-// route's free-tier daily limit when the route config knows one (docs/specs/models.md §5, "Token usage"). Read-only on the log.
+// `aa usage`: tokens per route logged in the last 24 hours (with the provider's own daily-quota count from a 429), then
+// tokens and calls per UTC day, per role and per route, from data/logs/model-calls.jsonl, against each route's free-tier
+// daily limit when the route config knows one (docs/specs/models.md §5, "Token usage"). Read-only on the log.
 import { readFileSync } from "node:fs";
 import {
   type CallRecord,
@@ -133,7 +134,7 @@ export function usageReport(text: string, o: UsageOptions = {}): string {
     );
   lines.push(
     "",
-    "Cached calls count 0 tokens (they spend no quota). Days are UTC dates. A provider counts its daily limit its own way (Groq's count matched neither a UTC day nor a plain 24-hour sum), so its own figure, from a rate-limit error, is shown when the log has one.",
+    "Cached calls count 0 tokens (they spend no quota). Days are UTC dates. A provider counts its daily limit its own way; its own figure, from a 429, is shown when the log has one.",
   );
   return `${lines.join("\n")}\n`;
 }

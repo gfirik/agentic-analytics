@@ -1,6 +1,17 @@
 // Token usage from the call log (models §5, token usage). Expected values are summed by hand from the lines below.
 import { describe, expect, it } from "vitest";
-import { dailyTokenLimit, dailyUsage, dayOf, ModelError, parseCallLog, resolveModelConfig, spendOf, sumCalls } from "../src/index.ts";
+import {
+  dailyTokenLimit,
+  dailyUsage,
+  dayOf,
+  type LoggedCall,
+  ModelError,
+  parseCallLog,
+  resolveModelConfig,
+  spendOf,
+  sumCalls,
+  windowUsage,
+} from "../src/index.ts";
 
 const qwen = `"provider":"openai-compatible","endpoint":"groq","model":"qwen/qwen3.8-27b"`;
 const LOG = [
@@ -116,5 +127,49 @@ describe("token usage", () => {
       outputTokens: 155,
       unknownTokens: 1,
     });
+  });
+});
+
+describe("windowUsage (M14a)", () => {
+  const call = (at: string, o: Partial<LoggedCall> = {}): LoggedCall => ({
+    at,
+    role: "planner",
+    provider: "openai-compatible",
+    endpoint: "groq",
+    model: "qwen/qwen3.8-27b",
+    status: 200,
+    cached: false,
+    ms: 1,
+    inputTokens: 100,
+    outputTokens: 10,
+    ...o,
+  });
+  const tpd = (used: number) => `Rate limit reached for model on tokens per day (TPD): Limit 200000, Used ${used}, Requested 900`;
+  const now = new Date("2026-10-21T12:00:00.000Z");
+
+  it("holds the calls in (now − 24 h, now]: the start is excluded, now is included", () => {
+    const w = windowUsage([call("2026-10-20T12:00:00.000Z"), call("2026-10-20T12:00:00.001Z"), call("2026-10-21T12:00:00.000Z")], { now });
+    // Two calls in the window: 2 × (100 + 10).
+    expect(w.routes[0]?.totals).toMatchObject({ calls: 2, inputTokens: 200, outputTokens: 20 });
+    expect(w.routes[0]?.dailyLimit).toBeUndefined();
+  });
+
+  it("keeps the latest daily-quota count a 429 reported, whatever the line order, and ignores per-minute limits", () => {
+    const w = windowUsage(
+      [
+        call("2026-10-21T10:46:00.000Z", { status: 429, error: tpd(198464) }),
+        call("2026-10-21T10:40:00.000Z", { status: 429, error: tpd(150000) }),
+        // A per-minute limit has the same words but is not the daily quota.
+        call("2026-10-21T11:00:00.000Z", {
+          status: 429,
+          error: "Rate limit reached on tokens per minute (TPM): Limit 6000, Used 5800, Requested 900",
+        }),
+        // Only a 429 reports the quota.
+        call("2026-10-21T11:30:00.000Z", { status: 500, error: tpd(1) }),
+      ],
+      { now, limitOf: () => 200000 },
+    );
+    expect(w.routes[0]?.reported).toEqual({ at: "2026-10-21T10:46:00.000Z", limit: 200000, used: 198464 });
+    expect(w.routes[0]?.dailyLimit).toBe(200000);
   });
 });

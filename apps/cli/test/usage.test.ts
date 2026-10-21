@@ -46,7 +46,7 @@ describe("aa usage", () => {
         "",
         "1 line of the log is not a call record and was skipped.",
         "",
-        "Cached calls count 0 tokens (they spend no quota). Days are UTC dates. A provider counts its daily limit its own way (Groq's count matched neither a UTC day nor a plain 24-hour sum), so its own figure, from a rate-limit error, is shown when the log has one.",
+        "Cached calls count 0 tokens (they spend no quota). Days are UTC dates. A provider counts its daily limit its own way; its own figure, from a 429, is shown when the log has one.",
         "",
       ].join("\n"),
     );
