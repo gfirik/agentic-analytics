@@ -181,6 +181,23 @@ describe("Telegram bot: limits, albums and concurrency", () => {
     expect(h.edits().at(-1)).toBe("Done.");
   }, 180_000);
 
+  it("a download slower than the album wait still keeps the album in one job", async () => {
+    // Each download takes 3× the album wait: before the fix, the first file's timer fired mid-album.
+    const slow = harness({
+      albumWaitMs: 40,
+      download: async (path) => {
+        await new Promise((r) => setTimeout(r, 120));
+        return files[path] as Uint8Array;
+      },
+    });
+    const [first, ...rest] = names;
+    await slow.doc(first as string, { media_group_id: "g2", caption: "Why did revenue fall?" });
+    for (const n of rest) await slow.doc(n, { media_group_id: "g2" });
+    await slow.bot.idle();
+    expect(slow.sent().filter((t) => t.startsWith("Starting:"))).toEqual([`Starting: ${names.length} file(s)…`]);
+    expect(slow.sent().some((t) => t.startsWith("Got "))).toBe(false);
+  }, 180_000);
+
   it("a caption on a single file starts the job at once; a second job in the same chat waits its turn", async () => {
     const h = harness();
     const [first] = names;

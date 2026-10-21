@@ -26,6 +26,6 @@ TELEGRAM_BOT_TOKEN=123:abc TELEGRAM_ALLOWED_CHATS=<your chat id> bun run --filte
 - `createBot(token, api, { allowedChats?, onError?, download?, botInfo?, maxFiles?, maxBytes?, pendingTtlMs?, maxPendingChats?, albumWaitMs? })`: a grammY `Bot` plus `idle()`, which resolves when no job is in flight.
   - Jobs run outside the update loop, one at a time per chat, so other chats and `/help` are answered while a job runs.
   - An album (several files sent at once with one caption) starts one job once all its files have arrived.
-  - Per job: at most `maxFiles` (20) files and `maxBytes` (200 MB, the API's upload limit); a question over 500 characters is refused with the limit. Files waiting for a question are forgotten after `pendingTtlMs` (one hour), and at most `maxPendingChats` (50) chats may hold files.
+  - Per job: at most `maxFiles` (20) files and `maxBytes` (195 MB, under the API's 200 MB upload limit with room for the multipart framing), and `maxHeldBytes` (1 GB) across all waiting files; a question over 500 characters is refused with the limit. Files waiting for a question are forgotten after `pendingTtlMs` (one hour), and at most `maxPendingChats` (50) chats may hold files.
   - `onError` gets every job and delivery error; the chat only gets a short message (a failed job shows its code).
 - `ApiClient`: a small client for the HTTP API (`createJob`, `follow` (SSE), `report`, `reportHtml`), used by the bot.

@@ -76,6 +76,14 @@ describe("JobPage", () => {
   });
 });
 
+describe("JobPage: a stream that ends early", () => {
+  it("says so instead of staying on running", async () => {
+    const api = fakeApi({ follow: async (_id, on) => on({ ...base, seq: 0, type: "stage_started", stage: "INGEST" } as JobEvent) });
+    const page = await render(createElement(JobPage, { api, jobId: "j" }));
+    await vi.waitFor(() => expect(page.textContent).toContain("The event stream ended before the job finished."));
+  });
+});
+
 describe("MetricsForm", () => {
   it("a failed load is shown instead of loading forever; a refused edit shows the API's message", async () => {
     const failed = await render(

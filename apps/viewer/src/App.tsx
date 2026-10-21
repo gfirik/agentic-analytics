@@ -42,13 +42,14 @@ function tokenFromStorage(): string | undefined {
 /** Asks for the API token after a 401 and keeps it in this browser (`aa-token`), then reloads with it. */
 export function TokenForm() {
   const [token, setToken] = useState("");
+  const [blocked, setBlocked] = useState(false);
   const save = (e: FormEvent) => {
     e.preventDefault();
     try {
       localStorage.setItem("aa-token", token.trim());
     } catch {
       // Storage is blocked (a private window): the token can't be kept, so say so instead of reloading in a loop.
-      alert("This browser won't store the token; allow site data for this page.");
+      setBlocked(true);
       return;
     }
     location.reload();
@@ -62,6 +63,7 @@ export function TokenForm() {
       <button type="submit" disabled={!token.trim()}>
         Save and reload
       </button>
+      {blocked ? <p className="error">This browser won't store the token; allow site data for this page.</p> : null}
     </form>
   );
 }
@@ -177,11 +179,26 @@ export function JobPage({ api, jobId }: { api: Api; jobId: string }) {
   useEffect(() => {
     const ctl = new AbortController();
     setFailure(undefined);
+    let ended = false;
     api
-      .follow(jobId, (e: JobEvent) => dispatch(e), ctl.signal)
-      .catch((err: unknown) => {
-        if (!ctl.signal.aborted) setFailure(err);
-      });
+      .follow(
+        jobId,
+        (e: JobEvent) => {
+          if (e.type === "done" || e.type === "failed" || e.type === "awaiting_confirmation") ended = true;
+          dispatch(e);
+        },
+        ctl.signal,
+      )
+      .then(
+        // A stream that closes before the job reaches a stopping point would leave the page "running" forever.
+        () => {
+          if (!ended && !ctl.signal.aborted)
+            setFailure(new Error("The event stream ended before the job finished. Reload to follow it again."));
+        },
+        (err: unknown) => {
+          if (!ctl.signal.aborted) setFailure(err);
+        },
+      );
     return () => ctl.abort();
   }, [api, jobId, round]);
   useEffect(() => {

@@ -31,3 +31,5 @@ await bot.start({
     process.stderr.write(`@${me.username} is polling for messages\n`);
   },
 });
+// Polling has stopped: let the jobs and albums in flight finish before the process exits.
+await bot.idle();
