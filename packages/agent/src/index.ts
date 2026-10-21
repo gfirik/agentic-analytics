@@ -1,4 +1,6 @@
 // Public API of @agentic-analytics/agent (docs/specs/agent-and-verifier.md §2–§9).
+
+export { screenText } from "@agentic-analytics/schema";
 export { type AskDraft, answerQuestion, reportClaims } from "./ask.ts";
 export {
   type BudgetedRequest,
@@ -61,7 +63,6 @@ export {
 export { buildFactSheet, type FactSheet, type SheetFact, sheetFact } from "./factsheet.ts";
 export { data, PromptError, type PromptName, promptVersion, renderPrompt } from "./prompts.ts";
 export { type ScreenSummary, screenDocuments, screenTables, screenWorkspace } from "./quarantine.ts";
-export { screenText } from "./screen.ts";
 export { writeHeadline } from "./summary.ts";
 export { Budget, buildTools, type OpenQuestionDraft, type ToolContext } from "./tools.ts";
 export { privateTerms, searchAndStore, type WebLane } from "./web.ts";

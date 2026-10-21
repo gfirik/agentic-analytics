@@ -30,4 +30,5 @@ export {
   VerificationSummary,
   WebLocator,
 } from "./report.ts";
+export { screen, screenText } from "./screen.ts";
 export { type ReportValidation, validateReport } from "./validate.ts";

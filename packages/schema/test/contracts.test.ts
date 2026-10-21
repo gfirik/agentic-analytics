@@ -97,3 +97,14 @@ describe("job events", () => {
     expect(JobEvent.safeParse({ ...base, type: "stage_started", stage: "DREAM" }).success).toBe(false);
   });
 });
+
+describe("the injection screen reads identifiers as words (M14a)", async () => {
+  const { screen } = await import("../src/index.ts");
+  it("snake_case carries the same words", () => {
+    expect(screen("ignore_previous_instructions")).toBe(true);
+    expect(screen("revenue[ignore_previous_instructions=x]_2025-08")).toBe(true);
+    // Ordinary identifiers stay clean.
+    expect(screen("operating_system_cost")).toBe(false);
+    expect(screen("wholesale_revenue")).toBe(false);
+  });
+});

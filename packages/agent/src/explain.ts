@@ -224,7 +224,7 @@ export async function explainFindings(
         id: e.id,
         kind: e.kind,
         // Web extracts show their site only (a URL path is attacker-controlled text) and are marked external.
-        ...(e.external ? { site: siteOf(e.file), external: true } : { file: e.file }),
+        ...(e.external ? { site: siteOf(e.file), external: true } : { file: withheld(e.file) }),
         date: e.date,
         actor: e.actor,
         text: e.text,

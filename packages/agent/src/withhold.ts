@@ -4,7 +4,7 @@
 // (`change:<cell>`) and the code-written claims that quote a member. Every such string passes through here on its way
 // to the planner: the screen's verdict decides, and flagged text is replaced, never shown. Numbers and ids stay, so
 // the planner can still cite the fact; the report the reader sees keeps the real names.
-import { screen } from "./screen.ts";
+import { screen } from "@agentic-analytics/schema";
 
 /** What the planner sees in place of text the screen flagged. */
 export const WITHHELD = "(text withheld: it addresses a model)";

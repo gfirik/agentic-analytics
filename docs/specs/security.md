@@ -30,7 +30,12 @@
   - NFKC folding, invisible characters removed, accents dropped from Latin letters, Latin look-alikes folded, spaced-out letters joined.
   - Every column label and every distinct text cell of every table is screened right after PROFILE, before METRICS_DRAFT shows cell samples to a model. Flagged samples and labels are withheld from the digest.
   - A quarantined table's numbers still go through analysis, so its text can travel on in fact labels (`revenue[customer=<cell>]`), member values, decomposition keys (`change:<cell>`) and the code-written claims that quote a member. Every such string is screened again on its way into a planner prompt: the fact sheet, the EXPLAIN brief, `drill_down`, DECIDE's findings, the headline and `ask` (`withhold.ts`). Flagged text is replaced by "(text withheld: it addresses a model)"; ids and values stay, so the planner can still cite the fact, and the report the reader sees keeps the real names.
-  - The extractor's own prose (its paraphrase, the actor, the topic) is screened too: an instruction there counts as the extractor's flag and quarantines the source.
+  - The extractor's own prose (its paraphrase, the actor, the topic, the date) is screened too: an instruction there counts as the extractor's flag and quarantines the source.
+  - Identifiers are read as words: the screen treats `_` as a space, since a flagged header becomes a snake_case column, dimension or metric id. The screen lives in `packages/schema` (`screen`), so every layer uses the same one:
+    - the METRICS_DRAFT digest leaves out a column whose label or name is flagged, and screens by default for every caller;
+    - the heuristic drafter never turns a flagged channel value into a metric;
+    - the validator refuses a definition whose id, label or dimension is flagged.
+  - Third-party file names (email attachments) are screened on their way to the planner, and `get_facts` matches on the screened label, so a query can't probe withheld text.
   - Every document and email is screened at INDEX_DOCS.
   - Web pages are screened on their readable text and their hidden text (hidden elements, comments). Scripts, styles and link URLs are not prose and are not screened. A hit goes into the `quarantine` table and the source is never sent to the extractor. The extractor's own flag adds to the same table.
 - **Per source.** Quarantine applies to the whole source: one flagged chunk excludes every extract of that document, including extracts found earlier in the job.

@@ -63,7 +63,8 @@ export function buildFactSheet(input: {
     period: input.period,
     metrics: input.defs.map((d) => ({
       id: d.id,
-      label: d.label,
+      // Labels are screened at validation (validate.ts); this is the last check before the planner reads it.
+      label: withheld(d.label),
       unit: d.unit,
       ...(d.currency ? { currency: d.currency } : {}),
       assumed: d.status !== "confirmed",
@@ -80,7 +81,13 @@ export function buildFactSheet(input: {
     })),
     decompositions: input.decompositions
       .filter((d) => keep.has(d.insight))
-      .map((d) => ({ id: d.id, insight: d.insight, method: d.method, dimension: d.dimension, facts: withheldKeys(pick(d.facts)) })),
+      .map((d) => ({
+        id: d.id,
+        insight: d.insight,
+        method: d.method,
+        dimension: withheld(d.dimension),
+        facts: withheldKeys(pick(d.facts)),
+      })),
     quality: input.quality.map((q) => ({ id: q.id, kind: q.kind, severity: q.severity })),
   };
 }

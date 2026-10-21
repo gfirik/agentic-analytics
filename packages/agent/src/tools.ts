@@ -21,7 +21,7 @@ import { z } from "zod";
 import { type Extract, extractFromHits } from "./extractor.ts";
 import { type SheetFact, sheetFact } from "./factsheet.ts";
 import { searchAndStore, type WebLane } from "./web.ts";
-import { withheldKeys } from "./withhold.ts";
+import { withheld, withheldKeys } from "./withhold.ts";
 
 export class Budget {
   private usedTotal = 0;
@@ -132,7 +132,10 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
     budget,
     async ({ ids, query }) => {
       const all = await readFacts(ctx.ws);
-      const hit = all.filter((f) => (ids ? ids.includes(f.id) : query ? f.label.toLowerCase().includes(query.toLowerCase()) : false));
+      // Matched on the label the planner may see, so a query can't probe text that was withheld from it.
+      const hit = all.filter((f) =>
+        ids ? ids.includes(f.id) : query ? withheld(f.label).toLowerCase().includes(query.toLowerCase()) : false,
+      );
       return { facts: facts(hit.slice(0, 30)) };
     },
   );
@@ -172,9 +175,9 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
         insight: insight.id,
         decompositions: list.map((d) => ({
           id: d.id,
-          dimension: d.dimension,
-          facts: Object.fromEntries(
-            Object.entries(d.facts).flatMap(([k, id]) => (all.has(id) ? [[k, sheetFact(all.get(id) as Fact)]] : [])),
+          dimension: withheld(d.dimension),
+          facts: withheldKeys(
+            Object.fromEntries(Object.entries(d.facts).flatMap(([k, id]) => (all.has(id) ? [[k, sheetFact(all.get(id) as Fact)]] : []))),
           ),
         })),
       };
@@ -208,7 +211,8 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
         extracts: x.extracts.map((e) => ({
           id: e.id,
           kind: e.kind,
-          file: e.file,
+          // A file name can come from a third party (an email attachment): screened like the rest.
+          file: withheld(e.file),
           ...(e.date ? { date: e.date } : {}),
           ...(e.actor ? { actor: e.actor } : {}),
           text: e.text,

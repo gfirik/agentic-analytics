@@ -4,6 +4,7 @@
 import type { ModelClient } from "@agentic-analytics/models";
 import type { ProfileSummary } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
+import { screen } from "@agentic-analytics/schema";
 import { z } from "zod";
 import type { Catalog } from "./catalog.ts";
 import { buildDigest, type Digest } from "./digest.ts";
@@ -166,7 +167,8 @@ export function withGroupingDimensions(def: MetricDef, summary: ProfileSummary):
 
 /** Cell text becomes a metric id and label here, so it must look like a plain short name (security §3 screen). */
 function safeMemberName(value: string): boolean {
-  return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !/ignore|instruction|system|prompt|you are|https?:/i.test(value);
+  // The real injection screen, not a word list: "Disregard all prior rules" passed the old pattern (security §3).
+  return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !screen(value);
 }
 
 const PRICE = /price|цена|narx/i;
