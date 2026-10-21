@@ -56,7 +56,7 @@
 
 - **Readable text.** Fetched HTML keeps what a reader sees: scripts, styles, navigation, forms and elements hidden with `hidden`, `aria-hidden`, `display:none`, `visibility:hidden`, zero font size or zero opacity are dropped, because injected instructions like to hide there. The text still goes to the quarantined extractor only.
 - **Normalised matching.** Query and names are compared in a normalised form: compatibility forms folded (fullwidth and non-ASCII digits), diacritics stripped, case folded, hyphens/dots/underscores/extra spaces collapsed, quotes dropped, legal forms (LLC, AG, S.A., ООО, АО, MChJ, …) ignored at either end, and the leading two words of a longer name treated as a name. The query is sent in that normalised form.
-- **Private terms.** The sanitizer strips matched entities and their raw spellings, every value of columns that name people or organisations, file names and email addresses found in documents, plus all numbers except years, phones, emails and URLs.
+- **Private terms.** The sanitizer strips matched entities and their raw spellings, every value of columns that name people or organisations, the names and addresses in email headers, the actors the quarantined extractor found (recomputed at each search, since extracts arrive during the stage), file names and email addresses found in documents, plus all numbers except years, phones, emails and URLs.
 
 ## 5. File safety
 
