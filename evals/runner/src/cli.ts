@@ -34,6 +34,11 @@ export interface EvalArgs {
   /** Keep each dataset's report.json in this folder. */
   readonly keepReports?: string;
   /**
+   * With the baseline model only: a folder of kept drafts (`<dataset>.metrics.drafted.json`, from --keep-reports) whose
+   * proposals answer each dataset's metric-draft request, so a run measures ranking under a real model's metrics.
+   */
+  readonly replayDrafts?: string;
+  /**
    * The model as RESULTS.md and the README name it, e.g. "vllm (Kaggle 2×T4) Qwen3.8-27B-AWQ": its own row, apart
    * from other runs of `configured`. It also names the results file (evalSlug). Default: the --model value.
    */
@@ -164,6 +169,21 @@ export function mergeChunks(
   });
 }
 
+/**
+ * A dataset's kept drafts: the proposals in `<dir>/<dataset>.metrics.drafted.json`. None when the file is absent or the
+ * draft wasn't the model's (the job fell back to the scripted draft); a file that isn't JSON is `BAD_RESULTS`.
+ */
+export function replayedDrafts(dir: string, dataset: string): readonly unknown[] | undefined {
+  const file = join(dir, `${dataset}.metrics.drafted.json`);
+  if (!existsSync(file)) return undefined;
+  try {
+    const kept = JSON.parse(readFileSync(file, "utf8")) as { source?: string; proposals?: unknown };
+    return kept.source === "model" && Array.isArray(kept.proposals) ? kept.proposals : undefined;
+  } catch (cause) {
+    throw new EvalRunError("BAD_RESULTS", `${file} is not a kept metrics draft`, { cause });
+  }
+}
+
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
@@ -211,8 +231,23 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
       `resuming the ${plan.from.date} pass (${prevFile}): ${all.length - plan.run.length} of ${all.length} jobs finished, running the other ${plan.run.length}`,
     );
   const datasets = plan ? all.filter((x) => plan.run.includes(x.id)) : all;
+  if (a.replayDrafts && !baseline) throw new EvalRunError("USAGE", "--replay-drafts goes with --model baseline");
+  // Replayed drafts are read up front: a missing or mistyped folder must not quietly run the scripted drafts instead.
+  const replayed = new Map<string, readonly unknown[]>();
+  if (a.replayDrafts) {
+    if (!existsSync(a.replayDrafts)) throw new EvalRunError("USAGE", `--replay-drafts: no folder ${a.replayDrafts}`);
+    for (const x of datasets) {
+      const proposals = replayedDrafts(a.replayDrafts, x.id);
+      if (proposals) replayed.set(x.id, proposals);
+    }
+    if (!replayed.size) throw new EvalRunError("USAGE", `--replay-drafts: no model draft in ${a.replayDrafts} for these datasets`);
+    d.print(`replaying model drafts for ${replayed.size} of ${datasets.length} datasets (the rest use the scripted draft)`);
+  }
   const make = baseline
-    ? () => baselineModel({ small: a.smallModel === true })
+    ? (_onCall: (c: CallRecord) => void, id: string) => {
+        const proposals = replayed.get(id);
+        return baselineModel({ small: a.smallModel === true, ...(proposals ? { drafts: proposals } : {}) });
+      }
     : (onCall: (c: CallRecord) => void) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
   const r = await runSuite({
     suite: a.suite,

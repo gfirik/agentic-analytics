@@ -150,10 +150,24 @@ function judge(r: FakeRequest): unknown {
   return { supported: [...words(between(r.system, "<sources>", "</sources>"))].filter((w) => a.has(w)).length >= 2 };
 }
 
-/** The baseline scripted model for any generated dataset (normal or small-model mode). */
-export function baselineModel(options: { small?: boolean } = {}): FakeModel {
+/**
+ * The baseline scripted model for any generated dataset (normal or small-model mode). With `drafts`, the metric-draft
+ * request answers with those proposals (a real model's drafts, kept by an earlier run): `aa eval --replay-drafts`
+ * measures detection, ranking and the findings cap under real metrics, with no model call.
+ */
+export function baselineModel(options: { small?: boolean; drafts?: readonly unknown[] } = {}): FakeModel {
   const small = options.small === true;
   return new FakeModel([
+    ...(options.drafts
+      ? [
+          {
+            role: "extractor" as const,
+            match: "Propose metric definitions for this data.",
+            repeat: true,
+            object: { metrics: options.drafts },
+          },
+        ]
+      : []),
     { role: "extractor", match: "<document", repeat: true, object: extract },
     { role: "planner", match: "Investigate finding", repeat: true, steps: investigate },
     { role: "planner", match: /Write the explanation|Fill the form/, repeat: true, object: (r: FakeRequest) => explanation(r, small) },

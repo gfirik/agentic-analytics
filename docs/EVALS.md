@@ -116,6 +116,12 @@ To see how much of the day's quota a night used: `aa usage --day <YYYY-MM-DD>` (
 
 It never switches models. A second route for the same model adds quota on the first night. For the planner, Cloudflare Workers AI serves `@cf/qwen/qwen3.8-27b` on its free plan: 10,000 neurons a day with no card, and calls past that fail rather than bill (developers.cloudflare.com/workers-ai/platform/pricing). At 40,909 neurons per M input tokens and 290,909 per M output, that is about 16 businesses a day: `PLANNER_MODEL=openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cloudflare:@cf/qwen/qwen3.8-27b`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Cerebras serves the model as `qwen-3.8-27b`, but only on a $5, 30-day trial that needs a payment method, so it is not a free route. OpenRouter lists no free (`:free`) variant.
 
+**Replaying a real run's metrics, offline.** `aa eval --suite full --model baseline --small-model --replay-drafts data/eval-reports --results-dir <scratch dir>` answers each business's metric-draft request with the drafts a real model wrote on a kept nightly run (`<dataset>.metrics.drafted.json`, kept by `--keep-reports`). Detection, ranking and the findings cap then run on those metrics, and the scripted baseline plays the other roles. The run is deterministic and spends no quota, so a ranking change can be measured against real drafted metrics before a nightly run.
+- It needs a `--results-dir` outside `evals/results`: its metrics are a model's and its other roles scripted, so it is neither the baseline row nor that model's row.
+- A missing folder, or one with no model draft for the chosen datasets, is refused.
+- On the 2026-10-20 run's kept drafts it gives P1 30/30, P2 4/10 and P3 0/10 with the code that run used. The run itself found P1 29/29, P2 4/10 and P3 0/9 on its finished jobs. The M14a ranking fix brings the replay to 92%.
+- It doesn't replace the nightly run: the explain, decide and draft roles stay scripted, so causes and recommendations are the baseline's.
+
 ## 5. Rules
 
 - Datasets and answer keys are versioned. Changing an answer key requires a note in the PR.

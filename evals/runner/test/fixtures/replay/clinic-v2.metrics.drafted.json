@@ -1,0 +1,150 @@
+{
+  "source": "model",
+  "proposals": [
+    {
+      "id": "revenue_total",
+      "label": "Total Revenue",
+      "type": "sum",
+      "table": "t_t2",
+      "expression": "coalesce(amount,0)",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "total_orders",
+      "label": "Total Orders",
+      "type": "count",
+      "table": "t_t2",
+      "expression": "order_id",
+      "filters": [],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "orders_paid",
+      "label": "Paid Orders",
+      "type": "count",
+      "table": "t_t2",
+      "expression": "order_id",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "avg_order_value",
+      "label": "Average Order Value",
+      "type": "avg",
+      "table": "t_t2",
+      "expression": "amount",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "units_sold",
+      "label": "Units Sold",
+      "type": "sum",
+      "table": "t_t2",
+      "expression": "qty",
+      "filters": ["status = 'paid'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "refunds_count",
+      "label": "Refunded Orders",
+      "type": "count",
+      "table": "t_t2",
+      "expression": "order_id",
+      "filters": ["status = 'refunded'"],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "refund_rate",
+      "label": "Refund Rate",
+      "type": "ratio",
+      "numerator": {
+        "metric": "refunds_count"
+      },
+      "denominator": {
+        "metric": "total_orders"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "channel", "product"]
+    },
+    {
+      "id": "customer_count",
+      "label": "Unique Customers",
+      "type": "count_distinct",
+      "table": "t_t2",
+      "expression": "customer",
+      "filters": [],
+      "time_column": "date",
+      "unit": "count",
+      "dimensions": []
+    },
+    {
+      "id": "revenue_private",
+      "label": "Revenue (Private Channel)",
+      "type": "sum",
+      "table": "t_t2",
+      "expression": "coalesce(amount,0)",
+      "filters": ["status = 'paid'", "channel = 'private'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "product"]
+    },
+    {
+      "id": "revenue_corporate",
+      "label": "Revenue (Corporate Channel)",
+      "type": "sum",
+      "table": "t_t2",
+      "expression": "coalesce(amount,0)",
+      "filters": ["status = 'paid'", "channel = 'corporate'"],
+      "time_column": "date",
+      "unit": "currency",
+      "currency": "USD",
+      "dimensions": ["customer", "product"]
+    },
+    {
+      "id": "channel_share_private",
+      "label": "Private Channel Revenue Share",
+      "type": "ratio",
+      "numerator": {
+        "metric": "revenue_private"
+      },
+      "denominator": {
+        "metric": "revenue_total"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "product"]
+    },
+    {
+      "id": "channel_share_corporate",
+      "label": "Corporate Channel Revenue Share",
+      "type": "ratio",
+      "numerator": {
+        "metric": "revenue_corporate"
+      },
+      "denominator": {
+        "metric": "revenue_total"
+      },
+      "time_column": "date",
+      "unit": "percent",
+      "dimensions": ["customer", "product"]
+    }
+  ]
+}

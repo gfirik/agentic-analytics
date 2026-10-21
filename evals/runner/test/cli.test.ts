@@ -236,3 +236,24 @@ describe("evalCommand with --label, --note and --only", () => {
     expect(md).toContain("### configured (small-model mode) · full suite");
   }, 120_000);
 });
+
+describe("evalCommand with --replay-drafts (M14a)", () => {
+  const run = (replayDrafts: string, results: string) =>
+    evalCommand(
+      { suite: "full", model: "baseline", replayDrafts, only: ["clinic-v2"], resultsDir: results },
+      { embedder: hashEmbedder(), print: () => {} },
+    );
+
+  it("refuses a missing folder rather than running the scripted drafts", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-eval-replay-"));
+    await expect(run(join(dir, "no-such-folder"), join(dir, "results"))).rejects.toMatchObject({ code: "USAGE" });
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it("refuses a folder with no model draft for the chosen datasets", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-eval-replay-"));
+    writeFileSync(join(dir, "clinic-v2.metrics.drafted.json"), '{"source":"fallback","proposals":[]}');
+    await expect(run(dir, join(dir, "results"))).rejects.toThrow(EvalRunError);
+    await expect(run(dir, join(dir, "results"))).rejects.toThrow(/no model draft/);
+  });
+});
