@@ -7,13 +7,23 @@ import { join } from "node:path";
 export const DOCS_DIR = join(import.meta.dirname, "..");
 const ROOT = join(DOCS_DIR, "..", "..");
 
-/** The inputs, as paths relative to the repo root: the run data, the mark, the renderer and the font versions. */
+/**
+ * The inputs, as paths relative to the repo root: the run data, the mark, the renderer and the font versions; for the
+ * engine machine's static images also its scene, its station data and the colour tokens (three's version is in
+ * package.json).
+ */
 export const SITE_ASSET_INPUTS = [
   "docs/assets/readme/pipeline.json",
   "apps/docs/public/favicon.svg",
   "apps/docs/scripts/site-assets.ts",
   "apps/docs/package.json",
+  "apps/docs/src/components/site/machine-scene.ts",
+  "apps/docs/src/components/site/engine-machine.ts",
+  "apps/docs/src/styles/tokens.css",
 ] as const;
+
+/** The engine machine's static images (public/), rendered by site-assets.ts from the same scene as the 3D view. */
+export const MACHINE_STILLS = ["machine-strip.webp", "machine-strip.png", "machine-full.webp", "machine-full.png"] as const;
 
 export function siteAssetInputsHash(): string {
   const h = createHash("sha256");
@@ -35,6 +45,7 @@ export function siteAssetsManifest() {
     outputs: {
       "public/og.png": sha256(join(DOCS_DIR, "public", "og.png")),
       "public/favicon.ico": sha256(join(DOCS_DIR, "public", "favicon.ico")),
+      ...Object.fromEntries(MACHINE_STILLS.map((f) => [`public/${f}`, sha256(join(DOCS_DIR, "public", f))])),
     },
   };
 }

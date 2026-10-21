@@ -503,9 +503,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       };
       setStep(0);
       showPause();
-      // The verification runs once the report page's top is above the bottom sixth of the screen (on the first screen
-      // at 1440×900). A margin, not a visible ratio: a ratio can't be reached by a box taller than the screen (a
-      // landscape phone).
+      // The verification runs once the report page's top is above the bottom sixth of the screen. Under the engine
+      // machine's strip it sits just below the fold at 1440×900 (about 935 px), so it starts on the reader's first
+      // scroll and then runs on its timer (DESIGN §6). A margin, not a visible ratio: a ratio can't be reached by a box
+      // taller than the screen (a landscape phone).
       const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page");
       new IntersectionObserver(
         ([e]) => {

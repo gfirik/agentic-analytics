@@ -152,6 +152,9 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING);
   const wrap = page.locator("[data-exhibit]");
+  // The engine machine's strip puts the report page's top just under the fold at 1440 × 900: it verifies (timed) on the
+  // reader's first scroll, as it comes into view (DESIGN.md §6).
+  await page.mouse.wheel(0, 200);
   const chips = page.locator(".aa-exhibit a.aa-chip");
   const n = await chips.count();
   expect(n).toBeGreaterThan(5);
@@ -293,6 +296,8 @@ test("hero: stepping through the walkthrough never moves the page below it (1440
     const page = await ctx.newPage();
     await page.goto(LANDING, { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
+    // The report page in view, so the walkthrough has started (the machine's strip sits above it).
+    await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
     const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
     const below = () => page.locator("#how").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
     // Step by hand (the timer stops); the section after the exhibit stays where it is at every step and back.
@@ -1073,6 +1078,10 @@ test("site files are served", async ({ request }) => {
     ["favicon.svg", "image/svg+xml"],
     ["favicon.ico", "image/"],
     ["og.png", "image/png"],
+    ["machine-strip.webp", "image/webp"],
+    ["machine-strip.png", "image/png"],
+    ["machine-full.webp", "image/webp"],
+    ["machine-full.png", "image/png"],
     ["sitemap.xml", "xml"],
     ["sitemap-index.xml", "xml"],
   ] as const) {
@@ -1096,4 +1105,206 @@ test("head: favicons, absolute OG image and canonical on the landing page and th
       "https://gfirik.github.io/agentic-analytics/og.png",
     );
   }
+});
+
+// The engine machine (apps/docs/DESIGN.md §6 "Engine machine", §7). WebGL runs on SwiftShader (playwright.config.ts);
+// the device is made a capable one, except in the weak-device test.
+test.describe("engine machine", () => {
+  const CHUNK = /\/_astro\/machine-3d\.[^/]*\.js$/;
+  /** An init script: the device's cores and memory as the page sees them. */
+  const device = ([cores, memory]: number[]) => {
+    Object.defineProperty(navigator, "hardwareConcurrency", { get: () => cores });
+    Object.defineProperty(navigator, "deviceMemory", { get: () => memory });
+  };
+  const offOrigin = (url: string) => {
+    const u = new URL(url);
+    return !["127.0.0.1", "localhost"].includes(u.hostname) && !["data:", "blob:"].includes(u.protocol);
+  };
+  /** The share of the canvas's pixels within 1 of an sRGB colour, read from a screenshot of it (no hooks in the page). */
+  const share = async (page: import("@playwright/test").Page, png: Buffer, token: string) =>
+    page.evaluate(
+      async ([b64, tok]) => {
+        const want = getComputedStyle(document.documentElement).getPropertyValue(tok).trim();
+        const rgb = [1, 3, 5].map((i) => Number.parseInt(want.slice(i, i + 2), 16));
+        const img = new Image();
+        img.src = `data:image/png;base64,${b64}`;
+        await img.decode();
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext("2d");
+        if (!ctx) return 0;
+        ctx.drawImage(img, 0, 0);
+        const d = ctx.getImageData(0, 0, c.width, c.height).data;
+        let hit = 0;
+        for (let i = 0; i < d.length; i += 4)
+          if (
+            Math.abs((d[i] ?? 0) - (rgb[0] ?? 0)) <= 1 &&
+            Math.abs((d[i + 1] ?? 0) - (rgb[1] ?? 0)) <= 1 &&
+            Math.abs((d[i + 2] ?? 0) - (rgb[2] ?? 0)) <= 1
+          )
+            hit++;
+        return hit / (d.length / 4);
+      },
+      [png.toString("base64"), token] as const,
+    );
+
+  test("loads nothing until asked, fetches on hover, opens on click, tabs through the stations, stays on the site", async ({ page }) => {
+    await page.addInitScript(device, [8, 8]);
+    const requests: string[] = [];
+    page.on("request", (r) => requests.push(r.url()));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.mouse.wheel(0, 40_000);
+    await page.waitForLoadState("networkidle");
+    await page.mouse.wheel(0, -40_000);
+    // The exhibit's top stays above the fold with the strip under the hero (DESIGN.md §5).
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    expect(await page.locator(".aa-exhibit-sheet").evaluate((e) => e.getBoundingClientRect().top)).toBeLessThan(900);
+    expect(requests.filter((u) => CHUNK.test(u))).toEqual([]);
+
+    const open = page.locator("[data-machine-open]");
+    await open.hover();
+    await expect.poll(() => requests.some((u) => CHUNK.test(u))).toBe(true);
+    await expect(page.locator(".aa-machine-stage")).toBeHidden();
+    await open.click();
+    await expect(page.locator("[data-machine]")).toHaveAttribute("data-open", "3d");
+    await expect(open).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator(".aa-machine-strip")).toBeHidden();
+    await expect(page.locator("canvas[data-canvas]")).toHaveAttribute("role", "img");
+    await expect(page.locator(".aa-machine-sheet [data-sheet-title]")).not.toBeEmpty();
+
+    // The labels are buttons, in station order, and the keyboard reaches each one.
+    const tags = page.locator("[data-tag]");
+    await expect(tags.first()).toBeVisible();
+    const ids = await tags.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.id ?? ""));
+    expect(ids.slice(0, 11)).toEqual(
+      await page
+        .locator(".aa-stations li[data-station]")
+        .evaluateAll((els) => els.slice(0, 11).map((e) => (e as HTMLElement).dataset.station ?? "")),
+    );
+    await tags.first().focus();
+    const seen = [ids[0]];
+    for (let i = 1; i < ids.length; i++) {
+      await page.keyboard.press("Tab");
+      seen.push(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.id ?? ""));
+    }
+    expect(seen).toEqual(ids);
+    const analysis = page.locator('[data-tag][data-id="analysis"]');
+    await analysis.focus();
+    await page.keyboard.press("Enter");
+    await expect(analysis).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('[data-tag][aria-pressed="true"]')).toHaveCount(1);
+    const sheet = page.locator(".aa-machine-sheet");
+    await expect(sheet.locator("[data-sheet-title]")).toHaveText(
+      (await page.locator('.aa-stations li[data-station="analysis"] .aa-station-title').textContent()) ?? "?",
+    );
+    await expect(sheet.locator('a[href$="/learn/stages/analysis/"]')).toHaveCount(1);
+
+    // "Follow" walks its steps from the generated data; the label is the headline fact's value.
+    const follow = page.locator('[data-guide="follow"]');
+    await follow.click();
+    await expect(follow).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-step-count]")).toHaveText(/^1 \/ \d+$/);
+    await page.locator("[data-step-next]").click();
+    await expect(page.locator("[data-step-count]")).toHaveText(/^2 \/ \d+$/);
+
+    const axe = await new AxeBuilder({ page }).include(".aa-machine").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+    expect(requests.filter(offOrigin)).toEqual([]);
+  });
+
+  test("the canvas draws the tokens: the page and the --aa-surface sides, unshifted by colour management", async ({ page }) => {
+    await page.addInitScript(device, [8, 8]);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.locator("[data-machine-open]").click();
+    await expect(page.locator('[data-tag][data-id="analysis"]')).toBeVisible();
+    await page.locator('[data-tag][data-id="analysis"]').click();
+    const png = await page.locator("canvas[data-canvas]").screenshot();
+    expect(await share(page, png, "--aa-page")).toBeGreaterThan(0.2);
+    expect(await share(page, png, "--aa-surface")).toBeGreaterThan(0.01);
+  });
+
+  test("nothing moves by itself; under reduced motion Run the line and the guided modes show their end state, still", async ({ page }) => {
+    await page.addInitScript(device, [8, 8]);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.locator("[data-machine-open]").click();
+    const canvas = page.locator("canvas[data-canvas]");
+    await expect(page.locator("[data-tag]").first()).toBeVisible();
+    await page.waitForTimeout(500);
+    const a = await canvas.screenshot();
+    await page.waitForTimeout(1000);
+    expect((await canvas.screenshot()).equals(a)).toBe(true);
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.locator("[data-machine-open]").click();
+    await expect(page.locator("[data-tag]").first()).toBeVisible();
+    await page.waitForTimeout(300);
+    const before = await canvas.screenshot();
+    await page.locator('[data-guide="flow"]').click();
+    await page.waitForTimeout(300);
+    const run = await canvas.screenshot();
+    expect(run.equals(before)).toBe(false);
+    await page.waitForTimeout(800);
+    expect((await canvas.screenshot()).equals(run)).toBe(true);
+    // The tour and "Follow" open at their last stop.
+    await page.locator('[data-guide="follow"]').click();
+    const count = (await page.locator("[data-step-count]").textContent()) ?? "";
+    const [at, of] = count.split(" / ");
+    expect(at).toBe(of);
+  });
+
+  test("phones: the label and the button only, no strip fetched; open, nothing scrolls sideways at 360", async ({ page }) => {
+    await page.addInitScript(device, [8, 8]);
+    const requests: string[] = [];
+    page.on("request", (r) => requests.push(r.url()));
+    for (const width of [390, 360]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(LANDING, { waitUntil: "networkidle" });
+      await expect(page.locator(".aa-machine-strip")).toBeHidden();
+      await expect(page.locator("[data-machine-open]")).toBeVisible();
+      await page.locator("[data-machine-open]").click();
+      await expect(page.locator("[data-tag]").first()).toBeVisible();
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(over, `${width}`).toBeLessThanOrEqual(0);
+    }
+    expect(requests.filter((u) => /machine-strip/.test(u))).toEqual([]);
+  });
+
+  test("a weak device gets the station list over the still image, and three never loads", async ({ page }) => {
+    await page.addInitScript(device, [2, 8]);
+    const requests: string[] = [];
+    page.on("request", (r) => requests.push(r.url()));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const open = page.locator("[data-machine-open]");
+    await open.hover();
+    await open.click();
+    await expect(page.locator("[data-machine]")).toHaveAttribute("data-open", "static");
+    await expect(page.locator(".aa-machine-list")).toHaveAttribute("open", "");
+    await expect(page.locator(".aa-machine-still img")).toBeVisible();
+    await expect(page.locator("ol.aa-stations > li[data-station]")).toHaveCount(11);
+    await expect(page.locator(".aa-machine-stage")).toBeHidden();
+    await page.waitForLoadState("networkidle");
+    expect(requests.filter((u) => CHUNK.test(u))).toEqual([]);
+  });
+
+  test("without JS the button opens the station list with the image, each station linking its Learn page", async ({ browser }) => {
+    const ctx = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING);
+    const summary = page.locator(".aa-machine-list > summary");
+    await expect(summary).toHaveText("Open the machine", { useInnerText: true });
+    await expect(page.locator("[data-machine-open]")).toBeHidden();
+    await summary.click();
+    await expect(page.locator(".aa-machine-still img")).toBeVisible();
+    const stations = page.locator(".aa-stations li[data-station]");
+    await expect(stations).toHaveCount(13);
+    for (const li of await stations.all()) await expect(li.locator('a[href*="/learn/stages/"]').first()).toBeVisible();
+    await ctx.close();
+  });
 });
