@@ -27,6 +27,17 @@ describe("parseDate (spec §6 formats)", () => {
     expect(parseDate("13/13/2026")).toBeUndefined();
     expect(parseDate("Espresso blend")).toBeUndefined();
     expect(parseDate("12")).toBeUndefined();
+    // A time DuckDB can't load is not a date (it used to break the load).
+    expect(parseDate("2026-03-15 24:00")).toBeUndefined();
+    expect(parseDate("15.03.2026 12:75")).toBeUndefined();
+    expect(parseDate("2026-03-15 23:59:59")?.iso).toBe("2026-03-15 23:59:59");
+  });
+
+  it("reads a two-digit year as POSIX %y does (69–99 → 19xx, 00–68 → 20xx)", () => {
+    expect(parseDate("04/03/98")?.iso).toBe("1998-03-04");
+    expect(parseDate("04/03/69")?.iso).toBe("1969-03-04");
+    expect(parseDate("04/03/68")?.iso).toBe("2068-03-04");
+    expect(parseDate("04/03/26")?.iso).toBe("2026-03-04");
   });
 
   it("reads Excel serials", () => {

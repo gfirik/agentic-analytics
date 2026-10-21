@@ -88,7 +88,7 @@ These last three and the incomplete month were added after running the engine on
 ## 6. Normalization
 
 - **Dates:**
-  - Formats: ISO, `dd.mm.yyyy`, `dd/mm/yyyy`, `mm/dd/yyyy`, Excel serial numbers, and month names in EN/RU/UZ.
+  - Formats: ISO, `dd.mm.yyyy`, `dd/mm/yyyy`, `mm/dd/yyyy`, Excel serial numbers, and month names in EN/RU/UZ. A two-digit year reads as POSIX `%y` does (69–99 → 1969–1999, 00–68 → 2000–2068). A time past 23:59:59 ("24:00") makes the cell not a date.
   - `year.month` numbers in a date-named column (`Period`: `2002.10` is October 2002), as Stats NZ and Infoshare publish them. The month is read from the number's two decimals, so `2002.1` (how `2002.10` parses) is October.
 - **Identifiers:** a column of whole numbers mixed with the same numbers behind a short letter prefix (`489434`, `C489434`) is an `id` column. Read as numbers, every prefixed cell would be emptied as unparseable.
   - Ambiguous dd/mm vs mm/dd is resolved per column by a majority test (any value above 12 in either position). If it is still ambiguous, raise an `Assumption`.

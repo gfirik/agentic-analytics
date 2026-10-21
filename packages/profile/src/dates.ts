@@ -42,8 +42,13 @@ function build(y: number, m: number, d: number, time?: readonly (string | undefi
   if (!valid(y, m, d)) return undefined;
   const date = `${y}-${pad(m)}-${pad(d)}`;
   if (time?.[0] === undefined) return { iso: date, hasTime: false };
+  // "24:00" or "12:75" isn't a time DuckDB accepts, so the cell is not a date rather than a failed load.
+  if (Number(time[0]) > 23 || Number(time[1] ?? 0) > 59 || Number(time[2] ?? 0) > 59) return undefined;
   return { iso: `${date} ${pad(Number(time[0]))}:${time[1] ?? "00"}:${time[2] ?? "00"}`, hasTime: true };
 }
+
+/** A two-digit year, read as POSIX `%y` does: 69–99 are 1969–1999, 00–68 are 2000–2068 ("98" is 1998, not 2098). */
+const century = (yy: number) => (yy >= 69 ? 1900 + yy : 2000 + yy);
 
 const NUMERIC = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
 const ISO = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
@@ -105,7 +110,7 @@ export function parseDate(raw: string, order: DateOrder = "dmy"): ParsedDate | u
   if (m) return build(Number(m[1]), Number(m[2]), 1);
   m = NUMERIC.exec(s);
   if (m) {
-    const y = m[3]?.length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    const y = m[3]?.length === 2 ? century(Number(m[3])) : Number(m[3]);
     const [d, mo] = order === "dmy" ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])];
     return build(y, mo, d, [m[4], m[5], m[6]]);
   }

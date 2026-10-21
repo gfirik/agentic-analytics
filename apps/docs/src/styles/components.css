@@ -47,7 +47,8 @@
 .aa-chip::after {
   content: "";
   position: absolute;
-  inset: -6px 0; /* from the padding box: about 5px beyond the hairline, so the target is about 28px tall */
+  inset: -5.5px 0; /* from the padding box: 4.5px beyond the hairline, so the target is about 27px tall, under one
+     line of the exhibit (1rem / 1.75 = 28px): chips on adjacent lines never overlap their hit boxes (site v4) */
 }
 .aa-chip:hover {
   border-color: var(--aa-ink);

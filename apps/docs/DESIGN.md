@@ -6,7 +6,7 @@ This is the design system for the product site in `apps/docs`: the landing page,
 
 The site is an **audited working paper**:
 
-- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself as you scroll, and again when you touch it.
+- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself on the first screen, and again when you touch it.
 - **The docs are the bound appendix.** They are long-form, quiet and built for reading, with evidence in the margin.
 
 The product's promise is that every number can be traced, so the site shows numbers the same way the report does. Each one sits next to the ID of the fact it came from, and a mark shows that it was recomputed.
@@ -115,29 +115,34 @@ The scale (rem, root 16px; mobile values apply under 640px):
 ## 5. Layout and spacing
 
 - **Spacing scale:** `--aa-space-1` … `--aa-space-9` = 4, 8, 12, 16, 24, 32, 48, 64, 96 px. Never use a value outside the scale.
-- **Container:** 1180px max, 24px side gutters (16px under 480px).
+- **Container (site v4):** `--aa-container` is 1440px max (90rem), with `--aa-gutter` side gutters of 32px (16px under 480px). The landing page's frame, the site header and the footer use it. Section backgrounds, the section hairlines and the graph paper run full-bleed, edge to edge; only the content keeps to the frame.
+- **Reading measure:** the narrow column is for long reading text only: docs and Learn prose keep `--aa-article` (≈ 64ch) and their own columns (below). Landing copy keeps its 56ch measure inside a wide row; nothing on the landing page sits in a centred narrow column.
 - **Radii:** 2px for chips, 4px for buttons, panels and code. Nothing rounder.
 - **Width:** at 360px nothing scrolls sideways. Wide tables and code scroll inside their own container.
 
 ### The landing page (the cover sheet)
 
 - **The frame.** The page content sits inside one long vertical frame, running the full height of the page:
-  - 1px `rule` lines left and right of the 1180px container;
-  - sections divided by full-width hairlines that meet the frame;
+  - 1px `rule` lines left and right of the 1440px container (at the screen's edges below 1440px);
+  - sections divided by full-bleed hairlines that meet the frame;
   - a small `+` tick in `rule-strong` where the lines cross.
 
-  This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain.
-- **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero and the section heads only. It fades to the plain page at the edges through a CSS mask (no image) and is never behind long text.
+  This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain. The paper clips anything outside the screen (`overflow-x: clip`), so the ticks and the graph paper never scroll the page sideways (the graph paper is sized with `vw`, which includes a classic scrollbar's width; the clip hides that excess).
+- **Wide rows (site v4).** From 1100px a section is one row of two columns, about 2:3: the text on the left (label, `h2`, lead, at the 56ch measure) and a large visual on the right. A visual that needs the room (the results table) gets a full-width band instead, with the head above it. Below 1100px the columns stack, the head centred above its visual.
+- **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero statement and the section heads only. It is full-bleed: stacked, a head's field spans the screen's width over the head's height; in a wide row it runs from the screen's left edge to the middle of the gap before the visual. It fades to the plain page at its edges through a CSS mask (no image) and is never behind a visual or long text.
 - **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways instead of wrapping (a horizontal scroll box, §6: keyboard-focusable, no scrollbar, a fade at the edge with more), so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
-- **Section heads** (site v3): every landing section opens with the same three lines, `--aa-space-4` apart, centred on the graph paper: the bracketed label, the `h2` (a 30ch measure, so it is one line from 1100px), and a one-sentence lead. Caveats go next to what they qualify (§3's under its table), not in the lead.
+- **Section heads:** every landing section opens with the same three lines, `--aa-space-4` apart: the bracketed label, the `h2` (at most a 48ch measure) and a one-sentence lead. Stacked, they are centred on the graph paper with the label's hairline on both sides; in a wide row or band (from 1100px) they sit on the left, and the label's hairline runs only after it. Caveats go next to what they qualify (§3's under its table), not in the lead.
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
-  1. Status strip, header, then the hero, in hex.tech's structure rather than two columns:
-     - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
-     - under the install line, **the engine machine's strip** (§6, `EngineMachine.astro`): a label, **Open the machine**, and a still image of the machine, 170px tall at 1440 (on phones the label and the button only);
-     - below it, **the exhibit as its own framed section**, full container width, its top visible above the fold on 1440×900.
-  2. `§1 HOW IT WORKS`: the pipeline stages (§6), full container width, inside the frame, one sentence above it.
-  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, a title, one sentence and one real example in a framed box: the report's first sentence as the model wrote it (`{{N…}}` placeholders) and as the reader sees it (figures and chips); the metric's definition with the 2-line SQL it compiles to; a quoted citation. The cells share their rows (CSS subgrid), so the three example boxes line up and match in height.
-  4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, **metrics as rows, runs as columns**, so it fits the 1180px container with no sideways scroll.
+  1. Status strip, header, then **the hero**, two columns from 1100px:
+     - **left, the statement:** a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line (two fixed lines, the clone and then `cd … && bun install`, so the column never cuts it mid-word at 1440; a box that scrolls sideways on phones);
+     - **right, the exhibit** (§6): its label and the report page with its walkthrough, so the verification replay plays on the first screen (the report page's top at about 260px at 1440×900). At 1440 the right column is about 795px, wide enough for the notes to sit beside the report page; between 1100 and about 1410px they sit below it;
+     - **below 1100px** the statement is centred and the exhibit follows it.
+  2. **The engine machine's strip** (§6, `EngineMachine.astro`), in its own row under the hero, full container width: a label, **Open the machine**, and a still image of the machine (on phones the label and the button only). Site v4's PR 2 replaces it with a live section.
+  3. `§1 HOW IT WORKS`: a wide row, the head on the left and the pipeline stages (§6) on the right.
+  4. `§2 WHY IT'S DIFFERENT`: a wide row, the head on the left and exactly three proofs on the right: "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, a title, one sentence and one real example in a framed box: the report's first sentence as the model wrote it (`{{N…}}` placeholders) and as the reader sees it (figures and chips); the metric's definition with the 2-line SQL it compiles to; a quoted citation.
+     - **In the wide row** the proofs are three ruled rows, the words on the left and the example on the right.
+     - **From 52rem to 1100px** they are three cells side by side that share their rows (CSS subgrid), so the three example boxes line up and match in height; stacked on phones.
+  5. `§3 RESULTS, AS THEY ARE`: a full-width band, the head over one ruled table from `evals/results`, **metrics as rows, runs as columns**, so it fits the container with no sideways scroll.
      - **Rows:** the seven headline bars (planted recall, distractor false positives, driver accuracy, cause grade, citation precision, recommendation relevance, number mismatches), including every bar the smoke run misses, each with its bar stated once in the row label. The rest are in RESULTS.md.
      - **Columns:** real public data, the real-model smoke run, the nightly regression, then the offline baseline. Each head gives the run, a one-line note, its jobs and its date.
      - **Cells:** a figure plus the check, or an underlined "below bar" in ink; "meets the bar" is screen-reader text only.
@@ -147,8 +152,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
        - Each spanning cell names its column head (`headers`), so a screen reader reads it under its run, not under the first metric.
      - **Sources:** the result files sit in a `<details>` under the table, with the RESULTS.md link.
      - **Under 60rem** the table scrolls inside its wrapper with the metric column held in place.
-  5. `§4 QUICKSTART`: three steps (install, model, analyze) with code, the binary downloads and the Docker line, and the four doors (CLI, API, MCP, Telegram) as a ruled list.
-  6. The footer.
+  6. `§4 QUICKSTART`: a wide row. On the left the head, then the binary downloads and the Docker line; on the right the three steps (install, model, analyze), each a ruled row with its label and note beside its code, then the four doors (CLI, API, MCP, Telegram) as a ruled list. From 56rem to 1100px the steps are three columns; stacked on phones (head, steps, binaries, doors).
+  7. The footer.
 
 ### Docs and Learn (the bound appendix)
 
@@ -163,6 +168,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Epigraph-style lead** at the top of each Learn stage page: one sentence on the problem the stage solves, in serif italic (`epigraph` frontmatter, rendered by `PageTitle.astro`).
 - **Headings:** `h1`/`h2` in the serif, no rule under `h2`; `h3` in Plex Sans 600.
 - **The header** is shared with the landing page. Search (Pagefind) stays. There is no theme control.
+- **Width (site v4):** the docs keep their reading measure and columns; the wider frame changes only the landing page and the pages outside Starlight (the 404), and the site header and footer there. Starlight's own header already spans the screen, and the docs' compact footer sits in the article column.
 
 ## 6. Ledger motifs (components)
 
@@ -185,19 +191,20 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - **What it is.** A `raised` panel with a hairline, styled like a report page and titled in mono (`REPORT · COFFEE-ROASTER · APRIL`).
     - It shows the recorded run's first finding (`src/data/exhibit.json`): its two headline claims, the document-supported cause with its source chip, and the top recommendation with its impact range.
     - This is the report's own text, with every figure a fact's stored value.
-  - **The verification replay.** As the exhibit comes into view (its report page's top above the bottom sixth of the screen), and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
+  - **The verification replay.** As the exhibit comes into view (its report page's top above the bottom sixth of the screen: on load in the two-column hero), and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
   - **The guided walkthrough.** The exhibit demonstrates itself, with no hover needed. After the verification it steps through the story's key figures, opening each one's margin note under a step indicator (`1/4 Revenue fell −17.9% → how it was computed`), with a progress rule and previous, next and replay buttons.
     - The steps are chosen from the run's data by role (`walkthrough()` in `scripts/landing-data.ts`), never by typed id: the headline change and how it was computed; its current-period SQL input with the SQL and the sheet rows it read; the driver's share of the change; the quoted document.
-    - **One behaviour at every size (site v3), nothing pinned to the scroll.** The figures verify as the exhibit comes into view; then the steps advance every 4.5 seconds while the notes are on screen (beside the exhibit from 900px, below it under 900px, where the step bar stays at the top of the screen).
+    - **One behaviour at every size (site v3), nothing pinned to the scroll.** The figures verify as the exhibit comes into view; then the steps advance every 4.5 seconds while the notes are on screen (beside the report page when the exhibit is at least 48rem wide, below it otherwise, where the step bar stays at the top of the screen).
+    - **Beside or below is a container query (site v4)** on the exhibit's own width (`.aa-walk`), not the screen's, because the exhibit sits in the hero's right column from 1100px: beside at 1440 and wider, below between 1100 and about 1410px, beside again from about 840px to 1100px where the hero stacks, and below on phones. The script reads the same width.
     - The timer waits while the pointer is on a figure or a note, or focus is inside the exhibit; a Pause/Play button stops it (WCAG 2.2.2), and stepping by hand pauses it. At the last step it stops and offers Play, which starts again from step 1. The step caption is announced (`aria-live="polite"`) only when the reader moves a step: the region is `aria-busy` while it advances by itself.
     - **Step 1's note is open from the start**, so the margin is never an empty box; its figure isn't marked until step 1.
-    - **Notes size to their own content.** The notes column keeps the room of its tallest note (measured in the browser beside the exhibit, again when the fonts arrive or the window changes, and it only grows; one shared grid cell below 900px), and each note sits at the top of that room, never stretched. The step captions share one grid cell too. So stepping never moves the page.
-    - **Under 900px the SQL is folded** behind "SQL, run in DuckDB · show" (a `<details>`; "· hide" once open; a 24px target at label size), so the tallest note stays short on a phone; beside the exhibit it is open.
+    - **Notes size to their own content.** The notes column keeps the room of its tallest note (measured in the browser beside the exhibit, again when the fonts arrive or the window changes, and it only grows; one shared grid cell when the notes are below), and each note sits at the top of that room, never stretched. The step captions share one grid cell too. So stepping never moves the page.
+    - **With the notes below the report page, the SQL is folded** behind "SQL, run in DuckDB · show" (a `<details>`; "· hide" once open; a 24px target at label size), so the tallest note stays short on a phone; beside the exhibit it is open.
     - The step's figure takes the `mark` wash in the text, and its chip shows open. Prev and next use `aria-disabled` at the ends, so keyboard focus is never lost.
     - Step 0 says what the verifier did to what is shown: the figures recomputed and the quotes checked, counted from the notes.
     - Under reduced motion, or without JS, the steps are a static ruled list under the exhibit, each with its note (SQL unfolded); no step bar.
     - The walkthrough is switched on before first paint (`data-walk="live"`), so the step bar and the list never shift the layout.
-  - **Margin notes.** Hovering or focusing a figure slides a Tufte-style margin note out to the right of the exhibit, joined to the figure by a hairline leader. From 900px it sits beside the exhibit; under 900px it sits below. The note shows:
+  - **Margin notes.** Hovering or focusing a figure slides a Tufte-style margin note out to the right of the exhibit, joined to the figure by a hairline leader. When the exhibit is at least 48rem wide it sits beside the report page; otherwise below. The note shows:
     - the fact's ID and label, its value and its recomputed mark;
     - the SQL that computed it, laid out one clause per line and tinted in ink shades only, with its parameters; or, for a function fact, the function and its input facts as a ruled table;
     - the cited sheet rows: the first cited row and its neighbours, read back from the run's DuckDB, with the cited rows in the `mark` wash;
@@ -254,10 +261,10 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - The wordmark, then the links. The wordmark is the name alone, in the interface sans; there is no icon mark. The favicon is an "aa" lettermark: IBM Plex Mono Medium outlined to paths (so it needs no font), ink on paper (`--aa-ink` on `--aa-page`), with no check symbol. Green stays reserved for verified states.
   - Landing: How it works, Results, Docs, GitHub. Docs: search, Results, GitHub.
   - Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`; Escape closes it and returns focus).
-- **Engine machine** (`components/site/EngineMachine.astro`; the one 3D exception of §1, §2.6 and §9), in the hero under the install line:
+- **Engine machine** (`components/site/EngineMachine.astro`; the one 3D exception of §1, §2.6 and §9), in its own row under the hero (site v4; PR 2 replaces it with a live section):
   - **What it is.** The pipeline drawn as a factory line in an axonometric 3D view: eleven numbered stations on a conveyor (the doors, then one station per group of the run's stages), the job's database file in front, the model room behind glass, dashed cables to the stations that call a model, and the verifier's gate with one light per check the run ran: green for a check that passed, ink for one that failed a claim.
   - **Data.** The stations, their names and their order come from the same run as the pipeline stages (`docs/assets/readme/pipeline.json`'s `stages`, grouped by one mapping in `engine-machine.ts`, which also holds each station's wording and Learn pages). Every figure in it is the run's own, with its fact chip. "Follow −17.9%" follows the run's headline fact (the exhibit walkthrough's first step) through its real inputs, from `src/data/exhibit.json`; its label is the fact's stored value.
-  - **Closed: the strip.** A label, **Open the machine** and a still of the machine. The still is rendered at build time from the same scene by the docs `assets` script (`machine-strip`, WebP and PNG at 1.5× its 1440 size, about 30 KB as WebP, explicit width and height, so the box never shifts) and covered by `site-assets.test.ts`. Under 40rem only the label and the button show; the strip's image is lazy and isn't fetched there. With the strip, the exhibit's section frame stays above the fold (its top at about 800px at 1440×900, 715px at 390×844), but its report page starts just below it (about 935px), so the verification replay starts on the reader's first scroll, as the report page comes into view. The replay itself stays timed, never tied to the scroll.
+  - **Closed: the strip.** A label, **Open the machine** and a still of the machine. The still is rendered at build time from the same scene by the docs `assets` script (`machine-strip`, WebP and PNG at 1.5× its 1440 size, about 30 KB as WebP, explicit width and height, so the box never shifts) and covered by `site-assets.test.ts`. Under 40rem only the label and the button show; the strip's image is lazy and isn't fetched there. Under the two-column hero it no longer pushes the exhibit down: the replay plays on the first screen. The replay itself stays timed, never tied to the scroll.
   - **Open: the machine.** The button expands it in place: the 3D view (520px tall from 60rem, 420px below) with its sheet beside it (below it under 60rem). Both heights are fixed in CSS, so opening moves the page once, on the click, before the canvas draws. The camera fits the machine's bounds to the canvas's own shape, from the axonometric direction that draws it largest.
     - **Look.** Light only: the clear colour, surfaces and edges are the CSS tokens, read at runtime with `getComputedStyle` and set as sRGB so three's colour management returns them unchanged (`site.spec.ts` samples the canvas against `--aa-surface`). Unlit `MeshBasicMaterial` only: the raised tone on top faces, the surface tone on the sides, 1px ink edges, glass as a dashed outline with no fill. No light, shadow, glow or translucency.
     - **Everything readable is HTML**, never canvas text: the station labels (buttons with `aria-pressed`, placed over the canvas from projected coordinates, kept inside it and moved up past a label they would cover, in station order for the keyboard; on a narrow, zoomed-out view they show their number, with the name in their text), the legend, the view buttons (zoom, Front, From above, Reset), the guided modes (Take the tour, Follow, Run the line) and the sheet. Every size is a type token, from `--aa-text-label` up.
@@ -308,6 +315,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
 8. Do the type floors hold: nothing larger than h2 except the hero and a page's own h1, reading text in a figure at least `--aa-text-note`, nothing under `--aa-text-label`, and one code size (`site.spec.ts` checks every page in the sitemap)?
 9. Is there one source per rule: a new component gets its entry in §6 in the same PR?
 10. Are the engine machine's labels, legend, toolbar and sheet HTML (never canvas text), and does it load nothing until the reader asks?
+11. Width (site v4): does a new landing section use the 1440px frame as a wide row (text left, visual right) or a full-width band, with backgrounds and the graph paper full-bleed, and stack below 1100px? Is long reading text (docs, Learn) still at its reading measure, never stretched to the frame?
+12. Is it checked at 1920, 1440, 1100, 1000, 390 and 360px (screenshots at 1920, 1440 and 390 in the PR), with no horizontal scroll at any of them and CLS under 0.05?
 
 ## 11. Site v3 (October 2026): what the review found, and what it settled
 
