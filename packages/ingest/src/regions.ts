@@ -75,7 +75,8 @@ class View {
     return this.cells.length;
   }
   get nCols(): number {
-    return Math.max(0, ...this.cells.map((r) => r.length));
+    // A loop, not Math.max(...rows): spreading ~150k rows overflows the call stack.
+    return this.cells.reduce((m, r) => Math.max(m, r.length), 0);
   }
   cell(r: number, c: number): Cell | undefined {
     return this.cells[r]?.[c];

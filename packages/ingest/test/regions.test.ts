@@ -13,6 +13,14 @@ const grid = (rows: (string | number | boolean | null)[][]): Grid => ({
 });
 
 describe("detectTables", () => {
+  it("reads a sheet too large to spread into Math.max (about 150k rows overflowed the call stack)", () => {
+    const rows: (string | number)[][] = [["Item", "Amount"]];
+    for (let i = 0; i < 200_000; i++) rows.push([`sku${i % 50}`, i]);
+    const t = detectTables(grid(rows));
+    expect(t.length).toBe(1);
+    expect(t[0]?.range).toBe("A1:B200001");
+  });
+
   it("rejects a block without type-consistent columns (spec §3.2)", () => {
     const scattered = grid([
       ["call back", 12, true],

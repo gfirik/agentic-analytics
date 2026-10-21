@@ -11,14 +11,32 @@ export interface Api {
   jobs(): Promise<{ job_id: string; status: string; updated_at: string }[]>;
 }
 
+/** An API refusal, with the HTTP status and the error code the API sent. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/** What the page shows for a failed call: a 401 asks for the token; anything else says what failed. */
+export function errorText(err: unknown): string {
+  if (err instanceof ApiError && err.status === 401) return "This API needs a token. Paste it below.";
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function createApi(base = "", token?: string, f: typeof fetch = (u, i) => fetch(u, i)): Api {
   const call = async (path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
     if (token) headers.set("authorization", `Bearer ${token}`);
     const res = await f(`${base}${path}`, { ...init, headers });
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-      throw new Error(body.error?.message ?? res.statusText);
+      const body = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
+      throw new ApiError(res.status, body.error?.code ?? String(res.status), body.error?.message ?? res.statusText);
     }
     return res;
   };
