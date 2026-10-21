@@ -54,7 +54,7 @@ distractors:
   - id: D1
     description: a 3% blip for Online orders, inside the noise band
     metric: revenue
-    period: 2026-01
+    period: 2025-11
     member:
       dimension: customer
       member: Online orders

@@ -141,9 +141,10 @@ export function generateDataset(a: Archetype, variant: 0 | 1 | 2, seed?: number)
   const S = n - 2; // supplier switch (variant 1)
   const C = n - 5; // product launch (variant 2)
   // The noise blip (distractor D1). n − 7 is 2025-12 in every variant, which in variant 2 is a planted December peak
-  // (×1.25 on the blip customer's channel): there the blip moves to 2026-01 so it stays a 3% move inside the noise
-  // band. Variants 0 and 1 keep n − 7, so their datasets and published results are unchanged.
-  const N = variant === 2 ? n - 6 : n - 7;
+  // (×1.25 on the blip customer's channel). There the blip moves to 2025-11, before the peak: a month after it
+  // (2026-01) would sit on the post-peak drop, so a real January-vs-December finding would count as the false alarm.
+  // Variants 0 and 1 keep n − 7, so their datasets and published results are unchanged.
+  const N = variant === 2 ? n - 8 : n - 7;
   const blipCustomer = a.counter[1] as string;
   const oldProduct = a.products[0][0] as string;
   const accountShares = [0.45, ...allocate(55, a.accounts.length - 1, rand).map((x) => x / 100)];

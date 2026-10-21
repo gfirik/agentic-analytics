@@ -8,7 +8,7 @@ The seeded dataset generator (docs/EVALS.md §1). It produces 10 archetypes × 3
 | v2 | 18 | `orders.csv` + `costs.xlsx` | P1 · P2 refund rate rises after a supplier switch · Q1 · D1 |
 | v3 | 24 | `sales.xlsx`, a December peak | P1 · P3 a new product cannibalizes an old one · Q1 · D1 · D2 seasonal peak |
 
-The D1 blip (3% on one counter customer) sits in 2025-12 in v1 and v2, and in 2026-01 in v3, so it never lands on v3's planted December peak (code-quality fix 11b; until then v3's D1 shared 2025-12 with D2, and RESULTS.md v3 scores before that change used the old data).
+The D1 blip (3% on one counter customer) sits in 2025-12 in v1 and v2, and in 2025-11 in v3, so it never lands on v3's planted December peak or the drop after it (code-quality fix 11b; until then v3's D1 shared 2025-12 with D2, and RESULTS.md v3 scores before that change used the old data).
 
 Every dataset also has the cause documents (the key client's email, a price notice, ops notes, a launch plan) and distractor documents: a coincidental event and an irrelevant policy.
 
