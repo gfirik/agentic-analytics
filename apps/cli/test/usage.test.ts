@@ -25,7 +25,7 @@ describe("aa usage", () => {
       [
         // The window 2026-10-19 10:00 → 2026-10-20 10:00 holds the 19th's calls, not the 18th's judge call.
         "Logged in the last 24 hours (to 2026-10-20 10:00 UTC):",
-        "  openai-compatible:groq:openai/gpt-oss-120b  1 call   500 tokens    no known limit",
+        "  openai-compatible:groq:openai/gpt-oss-120b  1 call   500 tokens    limit 200,000 a day",
         // The provider's own count (from the 429's text) is shown as it was said, not derived from the log.
         "  openai-compatible:groq:qwen/qwen3.8-27b     3 calls  9,600 tokens  limit 200,000 a day; the provider said 199,100 of 200,000 used at 22:02 UTC",
         "",
@@ -34,7 +34,8 @@ describe("aa usage", () => {
         "    extractor  1 call   400 in    100 out",
         "    planner    3 calls  9,000 in  600 out  (1 cached, 1 failed, 1 without a token count)",
         "  Per route (a daily limit counts input + output tokens):",
-        "    openai-compatible:groq:openai/gpt-oss-120b  1 call   500 tokens    no known limit",
+        // 500 of 200,000 = 0.25%, shown with one decimal
+        "    openai-compatible:groq:openai/gpt-oss-120b  1 call   500 tokens    of 200,000 a day (0.3%)",
         // 9,600 of 200,000 = 4.8%
         "    openai-compatible:groq:qwen/qwen3.8-27b     3 calls  9,600 tokens  of 200,000 a day (4.8%)",
         "",
@@ -50,6 +51,14 @@ describe("aa usage", () => {
         "",
       ].join("\n"),
     );
+  });
+
+  it("--json carries the window without --day, and leaves it out with --day (M14a)", () => {
+    const all = JSON.parse(usageReport(LOG, { json: true, limitOf, now: new Date("2026-10-20T10:00:00Z") })) as {
+      window?: { routes: { route: string; reported?: { used: number } }[] };
+    };
+    expect(all.window?.routes.find((r) => r.route.endsWith("qwen3.8-27b"))?.reported?.used).toBe(199100);
+    expect(JSON.parse(usageReport(LOG, { json: true, day: "2026-10-19", limitOf })).window).toBeUndefined();
   });
 
   it("the last 24 hours cross UTC midnight (M14a)", () => {
@@ -74,7 +83,7 @@ describe("aa usage", () => {
     };
     expect(j.skippedLines).toBe(1);
     expect(j.days.map((d) => d.day)).toEqual(["2026-10-19"]);
-    expect(j.days[0]?.routes.map((r) => r.dailyLimit)).toEqual([undefined, 200_000]);
+    expect(j.days[0]?.routes.map((r) => r.dailyLimit)).toEqual([200_000, 200_000]);
   });
 
   it("an empty --day is refused, not read as every day", () => {

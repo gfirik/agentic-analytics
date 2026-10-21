@@ -244,7 +244,7 @@ export function windowUsage(
     const prev = routes.get(key);
     const m = c.status === 429 && c.error ? REPORTED.exec(c.error) : null;
     const said = m ? { at: c.at, limit: Number(m[1]), used: Number(m[2]) } : undefined;
-    const reported = said && (!prev?.reported || said.at >= prev.reported.at) ? said : prev?.reported;
+    const reported = said && (!prev?.reported || Date.parse(said.at) >= Date.parse(prev.reported.at)) ? said : prev?.reported;
     routes.set(key, {
       totals: addCall(prev?.totals ?? EMPTY_TOTALS, c),
       limit: prev ? prev.limit : o.limitOf?.(c),

@@ -60,6 +60,7 @@ describe("token usage", () => {
       {
         route: "openai-compatible:groq:openai/gpt-oss-120b",
         totals: { calls: 1, cached: 0, failed: 0, inputTokens: 300, outputTokens: 50, unknownTokens: 0 },
+        dailyLimit: 200_000,
       },
       {
         route: "openai-compatible:groq:qwen/qwen3.8-27b",
@@ -85,6 +86,7 @@ describe("token usage", () => {
 
   it("the daily limit comes from the route config: Groq's preset, a config file's own, none for Ollama", () => {
     expect(limitOf({ provider: "openai-compatible", endpoint: "groq", model: "qwen/qwen3.8-27b" })).toBe(200_000);
+    expect(limitOf({ provider: "openai-compatible", endpoint: "groq", model: "openai/gpt-oss-120b" })).toBe(200_000);
     expect(limitOf({ provider: "openai-compatible", endpoint: "groq", model: "openai/gpt-oss-20b" })).toBeUndefined();
     expect(limitOf({ provider: "ollama", model: "qwen3.5:9b" })).toBeUndefined();
     const custom = resolveModelConfig(
@@ -114,6 +116,7 @@ describe("token usage", () => {
     expect(groq.providers["openai-compatible"]?.groq?.structured_outputs).toBe(true);
     expect(groq.providers["openai-compatible"]?.groq?.daily_token_limits).toEqual({
       "qwen/qwen3.8-27b": 200_000,
+      "openai/gpt-oss-120b": 200_000,
       "openai/gpt-oss-20b": 1_000,
     });
   });
