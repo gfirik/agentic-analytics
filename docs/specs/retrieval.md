@@ -21,7 +21,7 @@ Retrieval covers documents, emails and fetched web pages only. Tables are never 
 1. The agent issues a query plus optional filters (source, date range) through the `search_documents` tool.
 2. BM25 top 50 and vector top 50 are fused with Reciprocal Rank Fusion (k = 60).
 3. The top 30 fused results are reranked with `bge-reranker-v2-m3` (ONNX via `@huggingface/transformers`, CPU; default `onnx-community/bge-reranker-v2-m3-ONNX`), keeping the top 8. If the reranker isn't available, keep the fused order and set `degraded: rerank`.
-4. Results go to the **quarantined extractor**, never straight to the planner (see specs/security.md).
+4. Results go to the **quarantined extractor**, never straight to the planner (see specs/security.md). A source in the `quarantine` table is never returned: the search filter excludes it at query time.
 
 ## 4. Citations
 
