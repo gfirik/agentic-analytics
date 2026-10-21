@@ -5,8 +5,9 @@ import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics"
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
-import { beyondKeys, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
-import { FactBook, type SeriesInfo } from "./factbook.ts";
+import { beyondKeys, cancelsOut, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
+import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
+import { fillPeriods } from "./periods.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
 import { seasonalMatch, touchesSeason } from "./seasonal.ts";
@@ -22,7 +23,7 @@ import {
   trend,
   trendBreak,
 } from "./templates.ts";
-import { OTHER, point, type Series, type Unit } from "./types.ts";
+import { OTHER, type Point, point, type Series, type Unit } from "./types.ts";
 
 export interface AnalyzeOptions {
   readonly from: string;
@@ -109,18 +110,30 @@ export async function analyzeJob(
   // MEASURE (spec §1): every metric per period, and per dimension member (top N + "other").
   const totals: Series[] = [];
   const members = new Map<string, { dimension: string; series: Series[] }[]>();
+  const measured = new Map<string, { period: string; value: number }[]>();
+  for (const def of defs) {
+    const rows = await runMetric(ws, def.id, defs, catalog, range);
+    measured.set(
+      def.id,
+      rows.filter((r) => r.value !== null).map((r) => ({ period: r.period, value: Number(r.value) })),
+    );
+  }
+  // Inside a metric's own first..last period, every series has every job period (a period where some metric has
+  // data), so the time-series tests, which work by position, never compare March with January across a missing
+  // February. Outside that span nothing is added: a table that starts later has no zeros before its first row, and
+  // a period with no data at all stays a gap (profile's missing_periods). An additive metric is 0 where it has no
+  // rows (FactBook.point makes the same 0 a fact); an average or ratio is unknown there (NaN, which the baselines and
+  // templates skip). Spec analysis-library §1.
+  const jobPeriods = [...new Set([...measured.values()].flatMap((ps) => ps.map((p) => p.period)))].sort();
+  const fill = (points: readonly Point[], additive: boolean, span: readonly { period: string }[]) =>
+    fillPeriods(points, jobPeriods, additive, span);
   for (const def of defs) {
     const unit = DIM_UNIT[def.unit] ?? "other";
-    const rows = await runMetric(ws, def.id, defs, catalog, range);
-    const total: Series = {
-      id: def.id,
-      metric: def.id,
-      unit,
-      points: rows.filter((r) => r.value !== null).map((r) => ({ period: r.period, value: Number(r.value) })),
-    };
+    const additive = def.type === "sum" || def.type === "count";
+    const own = measured.get(def.id) ?? [];
+    const total: Series = { id: def.id, metric: def.id, unit, points: fill(own, additive || def.type === "count_distinct", own) };
     series.set(total.id, { series: total, def });
     totals.push(total);
-    const additive = def.type === "sum" || def.type === "count";
     for (const dimension of additive ? (def.dimensions ?? []) : []) {
       const grouped = await runMetric(ws, def.id, defs, catalog, { ...range, groupBy: [dimension] });
       const byMember = new Map<string | null, { period: string; value: number }[]>();
@@ -131,7 +144,13 @@ export async function analyzeJob(
       const ranked = [...byMember.entries()].sort((a, b) => sumAbs(b[1]) - sumAbs(a[1]) || String(a[0]).localeCompare(String(b[0])));
       const kept = ranked.slice(0, maxMembers);
       const list: Series[] = kept.map(([value, points]) => {
-        const s: Series = { id: `${def.id}|${dimension}=${value ?? "(none)"}`, metric: def.id, unit, member: { dimension, value }, points };
+        const s: Series = {
+          id: `${def.id}|${dimension}=${value ?? "(none)"}`,
+          metric: def.id,
+          unit,
+          member: { dimension, value },
+          points: fill(points, true, total.points),
+        };
         series.set(s.id, { series: s, def, where: memberFilter(dimension, value) });
         return s;
       });
@@ -149,7 +168,11 @@ export async function analyzeJob(
           metric: def.id,
           unit,
           member: { dimension, value: OTHER },
-          points: otherRows.map((r) => ({ period: r.period, value: Number(r.value ?? 0) })),
+          points: fill(
+            otherRows.map((r) => ({ period: r.period, value: Number(r.value ?? 0) })),
+            true,
+            total.points,
+          ),
         };
         series.set(s.id, { series: s, def, where });
         list.push(s);
@@ -166,8 +189,9 @@ export async function analyzeJob(
   for (const s of totals) {
     const def = series.get(s.id)?.def;
     // Spec §2: the same-period-last-year baseline needs 13+ months; say so rather than skip it silently.
-    if (grain === "month" && s.points.length < MIN_PERIODS.yoy_months)
-      openQuestions.push(`Year-over-year for ${s.metric} needs ${MIN_PERIODS.yoy_months}+ months; only ${s.points.length} available.`);
+    const known = s.points.filter((p) => Number.isFinite(p.value)).length;
+    if (grain === "month" && known < MIN_PERIODS.yoy_months)
+      openQuestions.push(`Year-over-year for ${s.metric} needs ${MIN_PERIODS.yoy_months}+ months; only ${known} available.`);
     const change = def?.type === "ratio" ? ratioShift(s, undefined, grain) : periodChange(s, grain);
     if (change) found.push(change);
     for (const r of [trend(s), trendBreak(s)]) {
@@ -245,12 +269,15 @@ export async function analyzeJob(
           .filter((c) => Number.isFinite(c.before.value) && Number.isFinite(c.after.value));
         if (changes.length < 2) continue;
         const total = series.get(def.id)?.series as Series;
-        decompositions.push({
-          insight,
-          method: "contribution.v1",
-          dimension,
-          contribution: topContributors(total, changes, total.unit, after, dimension),
-        });
+        // A level shift can be material while its two edge points are equal (spec §3): with no change between them
+        // there is nothing to split into shares. The other splits (new and lost members, mix, PVM) still run.
+        if (!cancelsOut(changes))
+          decompositions.push({
+            insight,
+            method: "contribution.v1",
+            dimension,
+            contribution: topContributors(total, changes, total.unit, after, dimension),
+          });
         if (insight.template === "trend_break.v1") {
           const nl = newLost(def.id, total, list, before, after, dimension);
           if (nl) found.push(nl);
@@ -358,18 +385,18 @@ export async function analyzeJob(
     if (d.contribution) {
       const scope = await book.calcs(d.contribution.calcs, context, d.insight.metric);
       for (const c of d.contribution.contribution?.contributors ?? []) {
-        facts[`change:${c.key}`] = scope.get(c.delta.name) ?? "";
-        facts[`share:${c.key}`] = scope.get(c.share.name) ?? "";
+        facts[`change:${c.key}`] = factOf(scope, c.delta.name);
+        facts[`share:${c.key}`] = factOf(scope, c.share.name);
       }
       for (const [key, name] of d.contribution.contribution ? beyondKeys(d.contribution.contribution) : [])
-        facts[key] = scope.get(name) ?? "";
-      facts.total = scope.get("delta:total") ?? "";
+        facts[key] = factOf(scope, name);
+      facts.total = factOf(scope, "delta:total");
       details = { ...d.contribution.details };
     } else if (d.pvm) {
       const p = d.pvm;
       const calcs = [...p.parts, p.total];
       const scope = await book.calcs(calcs, context, d.insight.metric);
-      for (const c of calcs) facts[c.name.replace("pvm:", "")] = scope.get(c.name) ?? "";
+      for (const c of calcs) facts[c.name.replace("pvm:", "")] = factOf(scope, c.name);
     } else if (d.ratemix) {
       const r = d.ratemix;
       // Entering/exiting/unattributed effects only exist as facts when such segments do: a 0 with no inputs would cite nothing.
@@ -381,7 +408,7 @@ export async function analyzeJob(
         ...(r.unattributedKeys.length ? [r.unattributed] : []),
       ];
       const scope = await book.calcs(calcs, context);
-      for (const c of calcs) facts[c.name.replace("ratemix:", "")] = scope.get(c.name) ?? "";
+      for (const c of calcs) facts[c.name.replace("ratemix:", "")] = factOf(scope, c.name);
       details = {
         simpson_risk: r.simpsonRisk,
         segments: r.segments,

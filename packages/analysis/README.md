@@ -3,7 +3,10 @@
 The engine's deterministic numbers core. It measures metrics, detects changes, decomposes them into drivers, computes impact ranges and ranks findings. Everything is SQL (through the metric compiler) or a pure TypeScript function with a hand-computed test. The model never replaces any of it (DECISIONS D9).
 
 - **Spec:** docs/specs/analysis-library.md
-- **Status:** M5.
+- **Status:** M5, with the code-quality fixes of Oct 2026:
+  - every series has a point for each job period inside its metric's own span (0 for additive metrics, NaN otherwise), so the time-series tests never skip a missing period;
+  - a percent change is stated only from a positive base;
+  - a derived value that isn't finite throws `NO_VALUE`, and a calc with no fact throws `CALC_UNDEFINED`; a level shift whose edge points are equal is not split by member.
 
 ## Public API
 

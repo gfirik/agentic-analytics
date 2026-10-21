@@ -40,14 +40,14 @@ export interface Insight {
 }
 
 const dir = (x: number): Insight["direction"] => (x > 0 ? "up" : x < 0 ? "down" : "flat");
-const pctChange = (name: string, after: Ref, before: Ref, a: number, b: number, unit: Calc["unit"] = "percent"): Calc => ({
-  name,
-  label: "percent change",
-  value: b !== 0 ? (a / b - 1) * 100 : Number.NaN,
-  unit,
-  fn: "pct_change",
-  inputs: [after, before],
-});
+/**
+ * The reported percent change, only against a positive base (spec §2): from 0 it is undefined, and from a negative
+ * base (a loss going −10 → −5) `(a ÷ b − 1)` flips the sign, so no % is stated and the change stands alone.
+ */
+const pctChange = (name: string, after: Ref, before: Ref, a: number, b: number, unit: Calc["unit"] = "percent"): Calc | undefined =>
+  b > 0 ? { name, label: "percent change", value: (a / b - 1) * 100, unit, fn: "pct_change", inputs: [after, before] } : undefined;
+/** The relative size of a change for the materiality test only (never a fact): against |base|, NaN from 0. */
+const relative = (a: number, b: number) => (b !== 0 ? ((a - b) / Math.abs(b)) * 100 : Number.NaN);
 const valuesOf = (points: readonly Point[]) => points.map((p) => p.value).filter(Number.isFinite);
 
 function baselineRef(s: Series, b: Baseline, calcs: Calc[]): Ref {
@@ -84,12 +84,12 @@ export function periodChange(s: Series, grain: Grain = "month", minPct = 5): Ins
     inputs: [after, before],
   };
   const pct = pctChange("change_pct", after, before, last.value, base.value);
-  calcs.push(delta, pct);
+  calcs.push(delta, ...(pct ? [pct] : []));
   // The band comes from period-over-period changes whatever the baseline (spec §2 needs one for every
   // change with 6+ periods). For YoY there are rarely 6 year-over-year changes to measure, so the
   // period-over-period band stands in; recorded in STATE.md.
   const band = noiseBand(s.points, i);
-  const m = materiality(delta.value, pct.value, band, mean(valuesOf(s.points)), { minPct });
+  const m = materiality(delta.value, relative(last.value, base.value), band, mean(valuesOf(s.points)), { minPct });
   return {
     template: "period_change.v1",
     series: s.id,
@@ -100,7 +100,7 @@ export function periodChange(s: Series, grain: Grain = "month", minPct = 5): Ins
     material: m.material,
     confidence: m.confidenceCap ? "medium" : "high",
     calcs,
-    roles: { before, after, change: calcRef("change"), change_pct: calcRef("change_pct") },
+    roles: { before, after, change: calcRef("change"), ...(pct ? { change_pct: calcRef("change_pct") } : {}) },
     details: { baseline: base.method, ...m, ...(band !== undefined ? { noise_band: band } : {}) },
     notes: band === undefined ? ["Fewer than 6 periods: no noise band, so confidence is capped at medium."] : [],
   };
@@ -221,16 +221,16 @@ export function trendBreak(s: Series, minPct = 5): Insight | { readonly skipped:
     direction: dir(shift.value),
     material,
     confidence: pts.length >= 2 * side + 2 ? "high" : "medium",
-    calcs: [meanBefore, meanAfter, shift, breakChange, breakPct, since, sincePct],
+    calcs: [meanBefore, meanAfter, shift, breakChange, ...(breakPct ? [breakPct] : []), since, ...(sincePct ? [sincePct] : [])],
     roles: {
       before: ref(lastBefore),
       after: ref(firstAfter),
       latest: ref(latest),
       change: calcRef("change"),
-      change_pct: calcRef("change_pct"),
+      ...(breakPct ? { change_pct: calcRef("change_pct") } : {}),
       shift: calcRef("shift"),
       change_since: calcRef("change_since"),
-      change_since_pct: calcRef("change_since_pct"),
+      ...(sincePct ? { change_since_pct: calcRef("change_since_pct") } : {}),
     },
     details: { split_after: lastBefore.period, noise_band: band, shift_pct: shiftPct },
     notes: [],
@@ -258,7 +258,7 @@ export function anomalies(s: Series, threshold = 3.5, minPct = 5): Insight[] | {
     const at = pts[i + 1] as Point;
     const prev = pts[i] as Point;
     // An unusual change must also be a real one: the % and absolute thresholds apply (spec §2 materiality).
-    const pct = prev.value !== 0 ? (r / prev.value) * 100 : Number.NaN;
+    const pct = relative(at.value, prev.value);
     const real = materiality(r, pct, undefined, mean(valuesOf(pts)), { minPct });
     if (!(Math.abs(z) > threshold) || !real.passesPct || !real.passesAbs) return;
     const residual: Calc = {

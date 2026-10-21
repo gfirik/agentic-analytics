@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contribution, diff, type PvmItem, pvm, rateMix } from "../src/decompose.ts";
+import { cancelsOut, contribution, diff, type PvmItem, pvm, rateMix } from "../src/decompose.ts";
 
 describe("contribution.v1 (spec §4.1)", () => {
   it("coffee-roaster April: wholesale −8,500 and retail +600 → total −7,900, wholesale 108%", () => {
@@ -229,5 +229,28 @@ describe("diff.v1 (spec §4.4)", () => {
     expect(out.map((c) => JSON.stringify(c.attrs))).toContain(JSON.stringify({ channel: "retail", packaging: "new" }));
     // channel = retail: a = 70, b = 60 → RR = (70/130)/(30/70) = 1.256 < 2 → dropped
     expect(out.some((c) => JSON.stringify(c.attrs) === JSON.stringify({ channel: "retail" }))).toBe(false);
+  });
+});
+
+describe("cancelling member changes", () => {
+  it("float noise around a zero total counts as zero: no ±10¹⁶ % shares", () => {
+    // A 10.1 → 10.2 (+0.1), B 5.2 → 5.1 (−0.1): in floats the sum is −8.9e-16, not 0.
+    const m = (b: number, a: number) => ({ before: { period: "2026-05", value: b }, after: { period: "2026-06", value: a } });
+    expect(10.2 - 10.1 + (5.1 - 5.2)).not.toBe(0);
+    expect(cancelsOut([m(10.1, 10.2), m(5.2, 5.1)])).toBe(true);
+    // Large values: Δ = 0.09999999962747097 and −0.10000000009313226, Σ = −4.66e-10 (> 1e-9 · Σ|Δ| = 2e-10), yet
+    // the totals 14,691,357.02 before and after are equal: still a cancelled total.
+    expect(cancelsOut([m(12345678.91, 12345679.01), m(2345678.11, 2345678.01)])).toBe(true);
+    // A genuine one-cent net change on ~29 million is not noise (tolerance 1e-12 × 5.9e7 ≈ 5.9e-5).
+    expect(cancelsOut([m(12345678.91, 12345679.02), m(2345678.11, 2345678.01)])).toBe(false);
+    expect(cancelsOut([m(1, 1.1), m(2, 1.95)])).toBe(false);
+    const c = contribution(
+      [
+        { key: "A", series: "m|k=A", before: { period: "2026-05", value: 10.1 }, after: { period: "2026-06", value: 10.2 } },
+        { key: "B", series: "m|k=B", before: { period: "2026-05", value: 5.2 }, after: { period: "2026-06", value: 5.1 } },
+      ],
+      "currency",
+    );
+    expect(c.contributors.every((x) => Number.isNaN(x.share.value))).toBe(true);
   });
 });
