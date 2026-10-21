@@ -36,13 +36,16 @@ export function sectionsFromBlocks(blocks: readonly Block[]): { text: string; se
 /** Markdown: `#` headings; plain text: paragraphs separated by blank lines. Offsets are into `text`. */
 export function sectionsFromText(text: string, markdown: boolean): RawSection[] {
   if (markdown) {
+    // A CRLF file keeps its "\r" in each line so offsets stay exact; the heading match and the heading text skip it.
     const lines = text.split("\n");
     const blocks: Block[] = lines.map((l) => {
-      const m = /^(#{1,6})\s+(.*)$/.exec(l);
+      const m = /^(#{1,6})\s+(.*?)\r?$/.exec(l);
       return m ? { text: l, level: m[1]?.length ?? 1 } : { text: l };
     });
     const { sections } = sectionsFromBlocks(blocks);
-    return sections.map((s) => ({ ...s, heading_path: s.heading_path.map((h) => h.replace(/^#+\s+/, "")) })).filter((s) => s.text.trim());
+    return sections
+      .map((s) => ({ ...s, heading_path: s.heading_path.map((h) => h.replace(/^#+\s+/, "").replace(/\r$/, "")) }))
+      .filter((s) => s.text.trim());
   }
   const out: RawSection[] = [];
   for (const m of text.matchAll(/[^\n]+(?:\n(?!\s*\n)[^\n]*)*/g)) {
