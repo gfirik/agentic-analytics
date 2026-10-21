@@ -19,7 +19,8 @@ export const OPENAI_COMPATIBLE_PRESETS: Readonly<
   groq: {
     base_url: "https://api.groq.com/openai/v1",
     api_key_env: "GROQ_API_KEY",
-    daily_token_limits: { "qwen/qwen3.8-27b": 200_000 },
+    // Both measured from Groq's own TPD 429s ("Limit 200000"): 2026-10-17 to 2026-10-21.
+    daily_token_limits: { "qwen/qwen3.8-27b": 200_000, "openai/gpt-oss-120b": 200_000 },
   },
   openrouter: { base_url: "https://openrouter.ai/api/v1", api_key_env: "OPENROUTER_API_KEY" },
   cerebras: { base_url: "https://api.cerebras.ai/v1", api_key_env: "CEREBRAS_API_KEY" },

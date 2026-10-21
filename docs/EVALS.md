@@ -112,7 +112,7 @@ A run whose jobs didn't all finish (a free tier's daily quota ran out) is publis
 - refuses a rerun on the day of a run's last pass (it would overwrite the combined file), and sets an unreadable earlier file aside as `<file>.bad` (gitignored);
 - sends a one-line summary through `scripts/notify.sh`.
 
-To see how much of the day's quota a night used: `aa usage --day <YYYY-MM-DD>` (UTC). On 2026-10-19 the planner route spent 188,852 tokens of Groq's 200,000 (94.4%).
+To see where the quota stands now: `aa usage` (its first section is the last 24 hours, with Groq's own count from its latest rate-limit error). To see what a night used: `aa usage --day <YYYY-MM-DD>` (UTC). On 2026-10-19 the planner route spent 188,852 tokens of Groq's 200,000 (94.4%).
 
 It never switches models. A second route for the same model adds quota on the first night. For the planner, Cloudflare Workers AI serves `@cf/qwen/qwen3.8-27b` on its free plan: 10,000 neurons a day with no card, and calls past that fail rather than bill (developers.cloudflare.com/workers-ai/platform/pricing). At 40,909 neurons per M input tokens and 290,909 per M output, that is about 16 businesses a day: `PLANNER_MODEL=openai-compatible:groq:qwen/qwen3.8-27b|openai-compatible:cloudflare:@cf/qwen/qwen3.8-27b`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Cerebras serves the model as `qwen-3.8-27b`, but only on a $5, 30-day trial that needs a payment method, so it is not a free route. OpenRouter lists no free (`:free`) variant.
 

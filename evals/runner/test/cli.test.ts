@@ -253,7 +253,9 @@ describe("evalCommand with --replay-drafts (M14a)", () => {
   it("refuses a folder with no model draft for the chosen datasets", async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-replay-"));
     writeFileSync(join(dir, "clinic-v2.metrics.drafted.json"), '{"source":"fallback","proposals":[]}');
-    await expect(run(dir, join(dir, "results"))).rejects.toThrow(EvalRunError);
-    await expect(run(dir, join(dir, "results"))).rejects.toThrow(/no model draft/);
+    // One run: each builds the suite's generated datasets, which takes seconds on a busy machine.
+    const err = await run(dir, join(dir, "results")).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(EvalRunError);
+    expect(String(err)).toMatch(/no model draft/);
   });
 });
