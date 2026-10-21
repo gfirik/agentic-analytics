@@ -74,6 +74,7 @@ export {
   failedCall,
   type LoggedCall,
   parseCallLog,
+  type ReportedUse,
   type RoleUsage,
   type RouteUsage,
   routeOf,
@@ -81,4 +82,6 @@ export {
   spendOf,
   sumCalls,
   type UsageTotals,
+  type WindowUsage,
+  windowUsage,
 } from "./usage.ts";

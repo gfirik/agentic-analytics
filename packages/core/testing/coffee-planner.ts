@@ -337,18 +337,40 @@ function answer(r: FakeRequest): unknown {
 }
 
 /** The scripted model for a full coffee-roaster job (normal or small-model mode). */
-export function coffeePlanner(options: { small?: boolean; web?: boolean } = {}): FakeModel {
+/**
+ * `sloppyDecide` answers DECIDE as the nightly runs' real planner often did (M14a): a numeral sentence in one
+ * candidate's risk, an empty not_advised, and one extra candidate whose rationale carries a free numeral.
+ */
+export function coffeePlanner(options: { small?: boolean; web?: boolean; sloppyDecide?: boolean } = {}): FakeModel {
   const small = options.small === true;
   const web = options.web === true;
+  const decideAnswer = options.sloppyDecide ? sloppy : candidates;
   return new FakeModel([
     { role: "extractor", match: "<document", repeat: true, object: extract },
     { role: "planner", match: "Investigate finding", repeat: true, steps: (r: FakeRequest) => investigate(r, web) },
     { role: "planner", match: /Write the explanation|Fill the form/, repeat: true, object: (r: FakeRequest) => explanation(r, small) },
-    { role: "planner", match: "Propose the candidate actions", repeat: true, object: candidates },
+    { role: "planner", match: "Propose the candidate actions", repeat: true, object: decideAnswer },
     { role: "planner", match: "Write the headline", repeat: true, object: headline },
     { role: "planner", match: "Answer the question", repeat: true, object: answer },
     { role: "judge", repeat: true, object: judge },
   ]);
+}
+
+function sloppy(r: FakeRequest): unknown {
+  const { candidates: out } = candidates(r) as { candidates: Record<string, unknown>[] };
+  const [first, ...rest] = out;
+  if (!first) return { candidates: out };
+  return {
+    candidates: [
+      { ...first, risk: `${String(first.risk)} Expect about 5% fewer orders in the first month.`, not_advised: "" },
+      {
+        ...first,
+        action: "Raise wholesale prices again",
+        rationale: { text: "Wholesale buyers accept a 3% rise.", facts: [], extract_ids: [] },
+      },
+      ...rest,
+    ],
+  };
 }
 
 /** A fake web for the coffee job: one benchmark page (with a hidden injection), and one result the fetcher must refuse. */

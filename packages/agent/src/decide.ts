@@ -34,32 +34,119 @@ const Scenario = z.discriminatedUnion("type", [
   z.object({ type: z.literal("retain_at_risk"), atRisk: z.string(), low: z.number(), high: z.number(), cost: z.number().optional() }),
 ]);
 
-export const DecideOutput = z.object({
-  candidates: z
-    .array(
-      z.object({
-        action: Plain,
-        because: z.array(z.string()).min(1).max(5),
-        scenario: Scenario,
-        justified_by: z.array(z.string()).max(5),
-        rationale: z.object({ text: Text, facts: z.array(z.string()).max(8), extract_ids: z.array(z.string()).max(4) }),
-        effort: z.enum(["low", "medium", "high"]),
-        risk: Plain,
-        confidence: z.enum(["high", "medium", "low"]),
-        horizon: Plain,
-        check: z.object({
-          metric_id: z.string(),
-          comparator: z.enum([">=", "<=", "between"]),
-          threshold: z.string(),
-          by: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        }),
-        not_advised: Plain.optional(),
-      }),
-    )
-    .min(1)
-    .max(6),
+/** A candidate action as DECIDE keeps it: every prose rule holds (§6). */
+const Candidate = z.object({
+  action: Plain,
+  because: z.array(z.string()).min(1).max(5),
+  scenario: Scenario,
+  justified_by: z.array(z.string()).max(5),
+  rationale: z.object({ text: Text, facts: z.array(z.string()).max(8), extract_ids: z.array(z.string()).max(4) }),
+  effort: z.enum(["low", "medium", "high"]),
+  risk: Plain,
+  confidence: z.enum(["high", "medium", "low"]),
+  horizon: Plain,
+  check: z.object({
+    metric_id: z.string(),
+    comparator: z.enum([">=", "<=", "between"]),
+    threshold: z.string(),
+    by: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }),
+  not_advised: Plain.optional(),
 });
+type Candidate = z.infer<typeof Candidate>;
+
+export const DecideOutput = z.object({ candidates: z.array(Candidate).min(1).max(6) });
 export type DecideOutput = z.infer<typeof DecideOutput>;
+
+/**
+ * The same shape with the prose unchecked, as the model's answer is read: each candidate is then repaired and held to
+ * `Candidate` on its own (`repairCandidate`), so one candidate's stray numeral costs that candidate, not the set. In
+ * the nightly runs a free numeral in one field ("a 5% tier", "within 30 days") failed the whole answer three times
+ * over in 38 of 69 DECIDE responses; read per candidate, 61 of the 69 keep at least one on the first attempt (M14a).
+ * The answer is retried only when no candidate survives, or when a candidate is malformed (a missing scenario, an
+ * unknown comparator: 3 of the 69): skipping a malformed item would need a JSON Schema default that strict
+ * structured-output endpoints refuse.
+ */
+const AnswerCandidate = Candidate.extend({
+  action: z.string(),
+  rationale: z.object({ text: z.string(), facts: z.array(z.string()).max(8), extract_ids: z.array(z.string()).max(4) }),
+  risk: z.string(),
+  horizon: z.string(),
+  not_advised: z.string().nullable().optional(),
+});
+type AnswerCandidate = z.infer<typeof AnswerCandidate>;
+
+const firstIssue = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".")}: ${i.message}`)[0] ?? "invalid";
+const plainOk = (t: unknown): t is string => Plain.safeParse(t).success;
+/** A sentence that leans on the one before it ("Otherwise margins collapse."): it goes when that one goes. */
+const LEANS = /^(?:otherwise|so|then|this|that|it|which|but|and|also|thus|hence|however|instead|else|if not|not)\b/i;
+/**
+ * The sentences of a text that hold the plain-words rule. A sentence with a numeral or a placeholder is left out, and
+ * so is a sentence that leans on a left-out one, so what is kept doesn't change its meaning.
+ */
+const plainSentences = (t: string) => {
+  const kept: string[] = [];
+  let dropped = false;
+  for (const sentence of (t.match(/[^.!?]+[.!?]?/g) ?? []).map((x) => x.trim()).filter(Boolean)) {
+    dropped = !plainOk(sentence) || (dropped && LEANS.test(sentence));
+    if (!dropped) kept.push(sentence);
+  }
+  return kept.join(" ");
+};
+
+/**
+ * One candidate held to the full rules, after the only repairs that add nothing: an optional `not_advised` that
+ * breaks a rule (empty, a numeral) is left out, and `risk` and `horizon` keep only their sentences without numerals.
+ * The action, rationale, scenario and check are never repaired: a candidate whose rationale carries a free numeral
+ * is dropped with its reason.
+ */
+export function repairCandidate(c: AnswerCandidate): { readonly candidate: Candidate } | { readonly reason: string } {
+  const { not_advised, ...rest } = c;
+  const fixed = {
+    ...rest,
+    risk: plainOk(c.risk) ? c.risk : plainSentences(c.risk),
+    horizon: plainOk(c.horizon) ? c.horizon : plainSentences(c.horizon),
+    ...(plainOk(not_advised) ? { not_advised } : {}),
+  };
+  const r = Candidate.safeParse(fixed);
+  return r.success ? { candidate: r.data } : { reason: firstIssue(r.error) };
+}
+
+/**
+ * Ids bound by what they are, not by how the model named them (M14a), only where exactly one reading exists:
+ * - a check naming a metric with no definition measures the metric its threshold fact measures, when that one has a
+ *   definition. A check naming a defined metric is never rebound: with two readings (the metric or the threshold is
+ *   wrong) the comparator could invert, so the mismatch drops it;
+ * - an extract named by its file (`price-notice.pdf`) is that file's extract, when the file has exactly one.
+ * Anything else is left as written, and the checks that follow drop it with its reason.
+ */
+export function bindIds(
+  c: Candidate,
+  facts: ReadonlyMap<string, Fact>,
+  extracts: ReadonlyMap<string, Extract>,
+  defs: readonly MetricDef[],
+): Candidate {
+  const measured = facts.get(c.check.threshold)?.metric_id;
+  const known = (id: string) => defs.some((d) => d.id === id);
+  const metric = !known(c.check.metric_id) && measured && known(measured) ? measured : c.check.metric_id;
+  const byFile = (id: string) => {
+    if (extracts.has(id)) return id;
+    const same = [...extracts.values()].filter((e) => e.file === id);
+    return same.length === 1 && same[0] ? same[0].id : id;
+  };
+  return {
+    ...c,
+    check: { ...c.check, metric_id: metric },
+    rationale: { ...c.rationale, extract_ids: c.rationale.extract_ids.map(byFile) },
+  };
+}
+
+export const DecideAnswer = z.object({ candidates: z.array(AnswerCandidate).min(1).max(6) }).superRefine((o, ctx) => {
+  const reasons = o.candidates.map(repairCandidate).flatMap((r) => ("reason" in r ? [r.reason] : []));
+  if (reasons.length === o.candidates.length)
+    ctx.addIssue({ code: "custom", path: ["candidates"], message: `no candidate holds the rules; the first: ${reasons[0]}` });
+});
+export type DecideAnswer = z.infer<typeof DecideAnswer>;
 
 export interface DecideInput {
   readonly ws: Workspace;
@@ -98,7 +185,7 @@ export function decideRequest(input: {
 }): DecideRequest {
   return fitToBudget(
     (sheet, findings) => ({
-      schema: DecideOutput,
+      schema: DecideAnswer,
       system: renderPrompt("decide", {
         objective: input.objective,
         findings: data(findings),
@@ -140,11 +227,11 @@ export async function decide(
     return { recommendations: [], dropped };
   }
   const request = { estimate: req.estimate, untrimmed: req.untrimmed, steps: req.steps };
-  let object: DecideOutput;
+  let object: DecideAnswer;
   try {
     ({ object } = await input.model.generateObject({
       role: "planner",
-      schema: DecideOutput,
+      schema: DecideAnswer,
       system: req.system,
       prompt: req.prompt,
       ...(input.maxInputTokens !== undefined ? { maxInputTokens: input.maxInputTokens } : {}),
@@ -158,14 +245,23 @@ export async function decide(
   }
   const findingIds = new Set(input.findings.map((f) => f.id));
   const scored: { rec: Omit<Recommendation, "id">; score: number }[] = [];
-  for (const c of object.candidates) {
-    const drop = (reason: string) => dropped.push({ claim: c.action, reason });
-    const because = c.because.filter((b) => findingIds.has(b));
+  for (const answered of object.candidates) {
+    const repaired = repairCandidate(answered);
+    if ("reason" in repaired) {
+      dropped.push({
+        claim: plainOk(answered.action) ? answered.action : "(candidate action)",
+        reason: `breaks the output rules: ${repaired.reason}`,
+      });
+      continue;
+    }
+    const drop = (reason: string) => dropped.push({ claim: repaired.candidate.action, reason });
+    const because = repaired.candidate.because.filter((b) => findingIds.has(b));
     if (!because.length) {
       drop("no finding supports it");
       continue;
     }
     let facts = await input.facts();
+    const c = bindIds(repaired.candidate, facts, input.extracts, input.defs);
     if (!facts.has(c.check.threshold)) {
       drop(`unknown threshold fact ${c.check.threshold}`);
       continue;
