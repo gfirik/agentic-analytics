@@ -65,6 +65,6 @@ export function deriveOnlineRetailSample(xlsx: Uint8Array, every = 10): string {
 export function deriveCardSpendByIndustry(csv: string): string {
   const lines = csv.replace(/^﻿/, "").split(/\r?\n/);
   const out = [lines[0] ?? ""];
-  for (const l of lines.slice(1)) if (/^ECTM\.S1GA\d,/.test(l)) out.push(l);
+  for (const l of lines.slice(1)) if (/^ECTM\.S1GA[1-8],/.test(l)) out.push(l);
   return `${out.join("\n")}\n`;
 }
