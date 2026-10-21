@@ -2,7 +2,7 @@
 // data. The exhibit's figures are the recorded run's facts (the same run as the pipeline scene), its SQL is the
 // facts' own SQL laid out on lines, its cited rows are the facts' cited rows read back from the run's DuckDB, and the
 // strip's items are counts from the committed results and the repository.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -17,7 +17,19 @@ import {
 import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
 import { formatWithCurrency } from "../../apps/docs/src/components/format.ts";
 import type { PipelineData } from "../../apps/docs/src/components/pipeline-scene.ts";
+import {
+  type FollowExhibit,
+  follow,
+  LEARN_STAGES,
+  machineStations,
+  STATION_INFO,
+  STATION_OF_STAGE,
+  sceneInput,
+  sidePieces,
+  tourOrder,
+} from "../../apps/docs/src/components/site/engine-machine.ts";
 import { firstSentence, monthName, placeholders, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
+import { buildMachine, TONES, type Tokens } from "../../apps/docs/src/components/site/machine-scene.ts";
 import { shownFacts } from "../../apps/docs/src/components/site/pipeline-stages.ts";
 
 let run: ReturnType<typeof recordRun<Awaited<ReturnType<typeof exhibitRows>>>> | undefined;
@@ -329,5 +341,121 @@ describe("status strip", () => {
     expect(g.test("packages/models/test/deep/x.test.ts")).toBe(true);
     expect(g.test("packages/models/src/fetch.test.ts")).toBe(false);
     expect(g.test("packages/a/b/test/x.test.ts")).toBe(false);
+  });
+});
+
+describe("engine machine (the same run as the pipeline stages and the exhibit)", () => {
+  const ROOT = join(import.meta.dirname, "..", "..");
+  const pipeline = JSON.parse(readFileSync(join(ROOT, "docs/assets/readme/pipeline.json"), "utf8")) as PipelineData;
+
+  it("its stations are the run's stages, in the run's order, grouped by the one mapping, after the doors", () => {
+    const stations = machineStations(pipeline);
+    expect(stations[0]?.key).toBe("doors");
+    expect(stations.map((s) => s.n)).toEqual(stations.map((_, i) => String(i).padStart(2, "0")));
+    // Every stage the run completed is on exactly one station, and reading the stations back gives the run's order.
+    expect(stations.flatMap((s) => s.stages)).toEqual(pipeline.stages.filter((st) => st in STATION_OF_STAGE));
+    expect(pipeline.stages.every((st) => st in STATION_OF_STAGE)).toBe(true);
+    for (const s of stations.slice(1)) for (const st of s.stages) expect(STATION_OF_STAGE[st]).toBe(s.key);
+    // The scene draws the same stations, in the same order, and one gate light per check the verifier ran.
+    const scene = sceneInput(pipeline);
+    expect(scene.stations.map((s) => s.key)).toEqual(stations.map((s) => s.key));
+    expect(scene.checks).toEqual(pipeline.checks.map((c) => ({ check: c.check, failed: c.failed })));
+    // The tour visits every station and both side pieces once.
+    const tour = tourOrder(stations);
+    expect([...tour].sort()).toEqual([...stations.map((s) => s.key), "vault", "models"].sort());
+  });
+
+  it("each station's sheet links to Learn stage pages that exist, and every Learn stage page is linked", () => {
+    const linked = new Set<string>();
+    for (const info of Object.values(STATION_INFO))
+      for (const slug of info.learn) {
+        expect(LEARN_STAGES).toContain(slug);
+        linked.add(slug);
+      }
+    for (const slug of LEARN_STAGES)
+      expect(existsSync(join(ROOT, "apps/docs/src/content/docs/learn/stages", `${slug}.mdx`)), slug).toBe(true);
+    expect([...linked].sort()).toEqual([...LEARN_STAGES].sort());
+    // The wording carries no typed figures.
+    for (const info of Object.values(STATION_INFO)) expect([info.simple, ...info.plain].join(" ")).not.toMatch(/\d/);
+  });
+
+  it("every figure on a station's sheet is the run's own fact, with its id", async () => {
+    const { report } = await recorded();
+    const facts = new Map(report.facts.map((f) => [f.id, f]));
+    const shown = [...machineStations(pipeline), ...sidePieces(pipeline)].flatMap((s) => s.run.flatMap((r) => r.facts ?? []));
+    expect(shown.length).toBeGreaterThanOrEqual(8);
+    for (const f of shown) {
+      const fact = facts.get(f.id);
+      expect(fact, f.id).toBeDefined();
+      expect(f.text, f.id).toBe(formatWithCurrency(fact as Parameters<typeof formatWithCurrency>[0]));
+    }
+  }, 120_000);
+
+  it("'Follow' follows the run's headline fact through its real inputs, and its label is the fact's stored value", async () => {
+    const { report, exhibit } = await recorded();
+    const facts = new Map(report.facts.map((f) => [f.id, f]));
+    const f = follow(pipeline, exhibit as unknown as FollowExhibit);
+    // The headline is the run's percent change: the pipeline stages' and the exhibit walkthrough's both.
+    expect(f.head.id).toBe(pipeline.change.pct.id);
+    expect(f.head.id).toBe(exhibit.walk[0]?.id);
+    expect(f.head.value).toBe(pipeline.change.pct.text);
+    const head = facts.get(f.head.id);
+    expect(f.head.value).toBe(formatWithCurrency(head as Parameters<typeof formatWithCurrency>[0]));
+    // Its inputs are the fact's own computation inputs, each with its stored value.
+    expect(f.head.inputs?.map((i) => i.id)).toEqual(head?.computation.inputs);
+    for (const i of f.head.inputs ?? [])
+      expect(i.value).toBe(formatWithCurrency(facts.get(i.id) as Parameters<typeof formatWithCurrency>[0]));
+    // The steps stop at stations on the line, in line order.
+    const order = machineStations(pipeline).map((s) => s.key);
+    const at = f.steps.map((s) => order.indexOf(s.at as (typeof order)[number]));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    // The SQL step shows one of the headline's inputs: its recorded query, with cited sheet rows.
+    const sql = f.steps.find((s) => s.kind === "sql");
+    if (sql?.kind !== "sql") throw new Error("no SQL step");
+    expect(head?.computation.inputs).toContain(sql.note.id);
+    expect(flat(sql.note.sql?.join(" ") ?? "")).toBe(flat(facts.get(sql.note.id)?.computation.sql ?? ""));
+    expect(sql.note.rows?.rows.some((r) => r.cited)).toBe(true);
+    // The model's sentence holds the headline as a placeholder, never as a figure; the rendered one holds the value.
+    const raw = f.steps.find((s) => s.kind === "placeholders");
+    if (raw?.kind !== "placeholders") throw new Error("no placeholder step");
+    expect(raw.sentence).toContain(`{{${f.head.id}}}`);
+    expect(raw.sentence.replace(/\{\{N\d+\}\}/g, "").replace(/\b\d{4}-\d{2}\b/g, "")).not.toMatch(/\d/);
+    // The verify step counts the run's own recompute check.
+    const v = f.steps.find((s) => s.kind === "verify");
+    if (v?.kind !== "verify") throw new Error("no verify step");
+    expect(v.recomputed).toBe(pipeline.checks.find((c) => c.check === "V2")?.run);
+    // Titles and badges carry only the stored value, an id or a cited row number: no typed figures.
+    for (const s of f.steps)
+      expect(
+        `${s.title} ${s.badge}`
+          .replaceAll(f.head.value, "")
+          .replace(/N\d+/g, "")
+          .replace(/row \d+/, ""),
+      ).not.toMatch(/\d/);
+  }, 120_000);
+
+  it("the verifier's gate has one light per check: green for a check that passed, ink for one that failed a claim", () => {
+    const css = readFileSync(join(ROOT, "apps/docs/src/styles/tokens.css"), "utf8");
+    const tokens = Object.fromEntries(
+      Object.entries(TONES).map(([k, v]) => [k, new RegExp(`${v}:\\s*(#[0-9a-f]{6});`).exec(css)?.[1] ?? ""]),
+    ) as unknown as Tokens;
+    const built = buildMachine(sceneInput(pipeline), tokens);
+    const lights: { check: string; pass: boolean; hex: string }[] = [];
+    built.scene.traverse((o) => {
+      if (typeof o.userData.check === "string") {
+        const m = (o as unknown as { material: { color: { getHexString(cs?: string): string } } }).material;
+        lights.push({ check: o.userData.check, pass: o.userData.pass === true, hex: `#${m.color.getHexString("srgb")}` });
+      }
+    });
+    expect(lights.map((l) => l.check)).toEqual(pipeline.checks.map((c) => c.check));
+    for (const c of pipeline.checks) {
+      const l = lights.find((x) => x.check === c.check);
+      expect(l?.pass, c.check).toBe(c.failed === 0);
+      expect(l?.hex, c.check).toBe(c.failed === 0 ? tokens.verified : tokens.ink);
+    }
+    // The run has both: checks that passed everything, and one that caught claims (V6).
+    expect(lights.some((l) => l.pass)).toBe(true);
+    expect(lights.some((l) => !l.pass)).toBe(true);
   });
 });

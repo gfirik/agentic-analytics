@@ -111,3 +111,13 @@ The product site (apps/docs/DESIGN.md) adds three font packages and one test too
 - **`@axe-core/playwright`** (MPL-2.0; axe-core is MPL-2.0 too) is a root dev dependency. The `site-browser` CI job uses it to check WCAG 2 A/AA, light and dark, on every page of the built site.
 
 Both reuse Playwright (D15). No paid service is involved.
+
+## D18. three.js for the landing page's engine machine (2026-10-21)
+
+The landing page's engine machine (apps/docs/DESIGN.md §6, the plan in `docs/plans/site-3d.md`) draws the pipeline in 3D with **three.js** (`three`, MIT), pinned to `0.186.1` as a dependency of `apps/docs` only, with `@types/three` `0.186.0` as a dev dependency:
+
+- It is imported as ES modules (`three`, `three/examples/jsm/controls/OrbitControls.js`), so the bundler keeps only what the machine uses. With the machine's own code it is one lazy chunk of about 140 KB gzip, fetched only when a reader shows intent on **Open the machine** (hover, focus or pointerdown), never with the page.
+- It is bundled into the site: no CDN, no third-party request.
+- The docs `assets` script also uses it at build time, in Playwright's Chromium, to render the machine's still images from the same scene.
+
+Nothing in the engine uses it, and no paid service is involved. Hand-written WebGL was the alternative: smaller, but the scene, the orbit controls and the picking would be ours to maintain.
