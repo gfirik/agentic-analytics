@@ -32,7 +32,7 @@ import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
-import { embedderChoice, isStandalone, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
+import { embedderChoice, isStandalone, onlyIds, onlyProblem, replayProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
 import { UsageError, usageCommand } from "./usage.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
@@ -421,7 +421,9 @@ const evalCmd = defineCommand({
     );
     const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
     // A chunk is a partial run: it must never become the published row in evals/results.
-    const refused = onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults);
+    const refused =
+      onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults) ??
+      replayProblem(args["replay-drafts"], args["results-dir"], process.cwd(), checkoutResults);
     if (refused) throw new Error(refused);
     const only = args.only === undefined ? undefined : onlyIds(args.only);
     const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");

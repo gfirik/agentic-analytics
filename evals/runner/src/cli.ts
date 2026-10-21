@@ -169,15 +169,18 @@ export function mergeChunks(
   });
 }
 
-/** A dataset's kept drafts: the proposals in `<dir>/<dataset>.metrics.drafted.json` (none when absent or unreadable). */
+/**
+ * A dataset's kept drafts: the proposals in `<dir>/<dataset>.metrics.drafted.json`. None when the file is absent or the
+ * draft wasn't the model's (the job fell back to the scripted draft); a file that isn't JSON is `BAD_RESULTS`.
+ */
 export function replayedDrafts(dir: string, dataset: string): readonly unknown[] | undefined {
   const file = join(dir, `${dataset}.metrics.drafted.json`);
   if (!existsSync(file)) return undefined;
   try {
     const kept = JSON.parse(readFileSync(file, "utf8")) as { source?: string; proposals?: unknown };
     return kept.source === "model" && Array.isArray(kept.proposals) ? kept.proposals : undefined;
-  } catch {
-    throw new EvalRunError("BAD_RESULTS", `${file} is not a kept metrics draft`);
+  } catch (cause) {
+    throw new EvalRunError("BAD_RESULTS", `${file} is not a kept metrics draft`, { cause });
   }
 }
 
@@ -229,10 +232,20 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
     );
   const datasets = plan ? all.filter((x) => plan.run.includes(x.id)) : all;
   if (a.replayDrafts && !baseline) throw new EvalRunError("USAGE", "--replay-drafts goes with --model baseline");
-  const drafts = (id: string) => (a.replayDrafts ? replayedDrafts(a.replayDrafts, id) : undefined);
+  // Replayed drafts are read up front: a missing or mistyped folder must not quietly run the scripted drafts instead.
+  const replayed = new Map<string, readonly unknown[]>();
+  if (a.replayDrafts) {
+    if (!existsSync(a.replayDrafts)) throw new EvalRunError("USAGE", `--replay-drafts: no folder ${a.replayDrafts}`);
+    for (const x of datasets) {
+      const proposals = replayedDrafts(a.replayDrafts, x.id);
+      if (proposals) replayed.set(x.id, proposals);
+    }
+    if (!replayed.size) throw new EvalRunError("USAGE", `--replay-drafts: no model draft in ${a.replayDrafts} for these datasets`);
+    d.print(`replaying model drafts for ${replayed.size} of ${datasets.length} datasets (the rest use the scripted draft)`);
+  }
   const make = baseline
     ? (_onCall: (c: CallRecord) => void, id: string) => {
-        const proposals = drafts(id);
+        const proposals = replayed.get(id);
         return baselineModel({ small: a.smallModel === true, ...(proposals ? { drafts: proposals } : {}) });
       }
     : (onCall: (c: CallRecord) => void) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
