@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { JobManager, runJob } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
-import { type DatasetScore, type RealSuiteResult, summarize } from "@agentic-analytics/eval-runner";
+import { type DatasetScore, type Passes, type RealSuiteResult, summarize } from "@agentic-analytics/eval-runner";
 import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
 import type { JobEvent } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
@@ -25,6 +25,7 @@ import {
   LandingDataError,
   landingData,
   statusStrip,
+  suiteRunLabels,
 } from "./landing-data.ts";
 import { PIPELINE_JSON, recordRun } from "./pipeline-data.ts";
 
@@ -202,7 +203,7 @@ for (const d of ["architecture", "pipeline"])
     if (!name) throw new Error(`docs: no evals/results/*${suffix}`);
     return { name, data: JSON.parse(readFileSync(join(RESULTS, name), "utf8")) as unknown };
   };
-  type SuiteFile = { suite: string; model: string; note?: string; date: string; datasets: number; scores: DatasetScore[] };
+  type SuiteFile = { suite: string; model: string; note?: string; date: string; datasets: number; scores: DatasetScore[]; passes?: Passes };
   const suite = (suffix: string) => {
     const { name, data } = latest(suffix);
     const s = data as SuiteFile;
@@ -214,6 +215,9 @@ for (const d of ["architecture", "pipeline"])
       date: s.date,
       datasets: s.scores.length,
       completed: s.scores.filter((x) => x.completed).length,
+      passes: s.passes ?? null,
+      // Partial, in progress (between a nightly run's passes) or complete: the eval runner's runStatus.
+      ...suiteRunLabels({ completed: s.scores.filter((x) => x.completed).length, datasets: s.scores.length, passes: s.passes ?? null }),
       bars: summarize(s.scores),
     };
   };

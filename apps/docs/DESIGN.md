@@ -29,7 +29,7 @@ The product's promise is that every number can be traced, so the site shows numb
    - passed eval checks;
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
-5. **One moment of motion.** The hero exhibit's verification replay and its guided walkthrough are the only motion on the landing page. Everything else is still, apart from 150ms hover and focus changes (§7).
+5. **One moment of motion.** The hero exhibit's verification replay and its guided walkthrough are the only motion that starts by itself. The pipeline stages move only after the reader presses Play. Everything else is still, apart from 150ms hover and focus changes (§7).
 6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji.
 7. **Every number is real.**
    - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
@@ -91,6 +91,10 @@ All three faces are self-hosted through `@fontsource` and imported once, in `src
 
 The scale (rem, root 16px; mobile values apply under 640px):
 
+- **Larger than h2:** nothing renders larger than `--aa-text-h2` except the hero statement and a page's own h1 (the docs h1 is 2.5rem, 2rem on mobile).
+- **Reading text in figures:** no reading text inside a figure is smaller than `--aa-text-note`. A figure is any diagram, island, ledger or framed panel, with everything inside its frame. Labels are not reading text: mono uppercase labels (and what sits in their line, such as a run's jobs count in a results-table head), fact chips, and short mono tags and ids (a fact id outside a chip, "bar ≥ 80%", "recomputed", a grade) keep `--aa-text-label`. A figure's numbers (`.aa-fig`) are reading text. Nothing on the site is smaller than `--aa-text-label`.
+- **Code:** one size everywhere, `--aa-text-code` (0.8125rem): the hero's install line, §2, Quickstart, the exhibit's notes, StageFlow, the fact ledgers, Transcript, Expressive Code blocks, Mermaid sources, page leads and inline code in prose. The one exception: code inside a heading keeps the heading's scale (0.875em of it). Quickstart commands are broken at a flag or a `\` and fit their cell. The clone URL is longer than a Quickstart column at every width: it wraps only after `github.com/` (a `<wbr>`), and its second line starts under its first (an inline block), so it reads as one argument. Nothing splits mid-word.
+
 | Token | Size / line height | Face | Use |
 |---|---|---|---|
 | `--aa-text-display` | 3.5 / 1.05 (2.25 mobile), −0.02em | Serif 450 | The hero statement (one per page) |
@@ -102,8 +106,9 @@ The scale (rem, root 16px; mobile values apply under 640px):
 | `--aa-text-small` | 0.875 / 1.5 | Sans 400 | Captions, caveats |
 | `--aa-text-note` | 0.8125 / 1.5 | Sans 400, `ink-2` | Sidenotes, margin notes, the TOC |
 | `--aa-text-label` | 0.75 / 1.3, uppercase, `--aa-label-tracking` (+0.08em) | Mono 500, `ink-3` | Labels, ledger column heads, section references |
+| `--aa-text-code` | 0.8125 / 1.5–1.65 | Mono 400 | Every code block and inline code |
 
-- **Labels:** Plex Mono at 0.6875–0.75rem, uppercase, +0.08em tracking, in `ink-3`.
+- **Labels:** Plex Mono at `--aa-text-label` (0.75rem), uppercase, +0.08em tracking, in `ink-3`.
 - **Bracketed section labels** on the landing page: `⊣ §1 HOW IT WORKS ⊢`, in mono, centred on a hairline (`SectionLabel.astro`).
 - **Measures:** docs prose is 62–66ch (`--aa-article`, 36rem ≈ 64ch of the serif at 17px). Landing copy is 56ch (`--aa-measure`).
 
@@ -123,14 +128,24 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
   This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain.
 - **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero and the section heads only. It fades to the plain page at the edges through a CSS mask (no image) and is never behind long text.
-- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways (keyboard-focusable) instead of wrapping, so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
+- **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways instead of wrapping (a horizontal scroll box, §6: keyboard-focusable, no scrollbar, a fade at the edge with more), so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
+- **Section heads** (site v3): every landing section opens with the same three lines, `--aa-space-4` apart, centred on the graph paper: the bracketed label, the `h2` (a 30ch measure, so it is one line from 1100px), and a one-sentence lead. Caveats go next to what they qualify (§3's under its table), not in the lead.
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
   1. Status strip, header, then the hero, in hex.tech's structure rather than two columns:
      - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
      - below it, **the exhibit as its own framed section**, full container width, its top visible above the fold on 1440×900.
-  2. `§1 HOW IT WORKS`: the pipeline scene, full container width, inside the frame, no extra box, one sentence above it.
-  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, one sentence and one real tiny example: a chip, the metric's definition with the 2-line SQL it compiles to, a citation.
-  4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, with the model rows and the real-data checks. Partial runs are labelled partial, and there is a link to RESULTS.md.
+  2. `§1 HOW IT WORKS`: the pipeline stages (§6), full container width, inside the frame, one sentence above it.
+  3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, a title, one sentence and one real example in a framed box: the report's first sentence as the model wrote it (`{{N…}}` placeholders) and as the reader sees it (figures and chips); the metric's definition with the 2-line SQL it compiles to; a quoted citation. The cells share their rows (CSS subgrid), so the three example boxes line up and match in height.
+  4. `§3 RESULTS, AS THEY ARE`: one ruled table from `evals/results`, **metrics as rows, runs as columns**, so it fits the 1180px container with no sideways scroll.
+     - **Rows:** the seven headline bars (planted recall, distractor false positives, driver accuracy, cause grade, citation precision, recommendation relevance, number mismatches), including every bar the smoke run misses, each with its bar stated once in the row label. The rest are in RESULTS.md.
+     - **Columns:** real public data, the real-model smoke run, the nightly regression, then the offline baseline. Each head gives the run, a one-line note, its jobs and its date.
+     - **Cells:** a figure plus the check, or an underlined "below bar" in ink; "meets the bar" is screen-reader text only.
+     - **A run without rates gets one cell spanning every metric row:**
+       - the real public data, scored by its own checks (12/12);
+       - a run with jobs missing: partial after its last pass, in progress between passes, labelled from the generated status, with its jobs-finished count.
+       - Each spanning cell names its column head (`headers`), so a screen reader reads it under its run, not under the first metric.
+     - **Sources:** the result files sit in a `<details>` under the table, with the RESULTS.md link.
+     - **Under 60rem** the table scrolls inside its wrapper with the metric column held in place.
   5. `§4 QUICKSTART`: three steps (install, model, analyze) with code, the binary downloads and the Docker line, and the four doors (CLI, API, MCP, Telegram) as a ruled list.
   6. The footer.
 
@@ -139,11 +154,11 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (≈ 64ch) | **margin column** (~260px, narrowing to 176px between 1000 and 1200px) for sidenotes.
   - Built by overriding Starlight's `TwoColumnContent` and `PageSidebar`.
   - The article is left-aligned next to the sidebar.
-- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap; it marks the current heading with an ink rule. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure or a sidenote passes beneath it, it steps aside (JS), so neither is covered; without JS it stays on top.
+- **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap (the screen below the header, less `--aa-space-8`); Learn stage pages list their h2s only (`tableOfContents.maxHeadingLevel: 2`), so the list fits with no inner scrollbar; it marks the current heading with an ink rule. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure or a sidenote passes beneath it, it steps aside (JS), so neither is covered; without JS it stays on top.
 - **Sidebar:** mono section labels, sans items, the active item marked with a 2px ink rule on the left.
 - **Measure between 1000 and ~1072px:** article, gap and margin column always fit beside the sidebar; the article gives up a little measure there rather than letting notes and figures run off the page.
 - **Sidenotes** for fact IDs and sources, definitions of terms (with a glossary link) and caveats (§6). From 1000px they sit in the margin; under 1000px they are tap-to-expand inline notes.
-- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline scene) run across the margin column from 1000px, clearing any sidenote beside them.
+- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline stages) run across the margin column from 1000px, clearing any sidenote beside them.
 - **Epigraph-style lead** at the top of each Learn stage page: one sentence on the problem the stage solves, in serif italic (`epigraph` frontmatter, rendered by `PageTitle.astro`).
 - **Headings:** `h1`/`h2` in the serif, no rule under `h2`; `h3` in Plex Sans 600.
 - **The header** is shared with the landing page. Search (Pagefind) stays. There is no theme control.
@@ -151,7 +166,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
 ## 6. Ledger motifs (components)
 
 - **Fact-ID chip** (`.aa-chip`):
-  - mono 0.75rem in `ink-2`, inside a 1px `rule-strong` box with a 2px radius, e.g. `N30`; a verified fact's chip starts with the green check (`✓N30`);
+  - quiet in running text (site v3): mono at `--aa-text-label` in `ink-3`, inside a 1px `rule` box with a 2px radius and a tight padding that doesn't open up the line, e.g. `N30`; a verified fact's chip starts with the green check (`✓N30`), in the exhibit only once its verification has run;
+  - its target is still at least 24px tall: a transparent hit box (`::after`) reaches above and below the visible box;
   - it follows the figure it backs: `−17.9% N30`;
   - it is a link to that fact's row in a fact ledger (`#fact-N30`), so it works without JS;
   - hover and focus show an `ink` box, and the open chip is filled `ink` with `page` text.
@@ -162,7 +178,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Ruled table** (`.aa-ledger`):
   - no outer box: a 1px `rule-strong` line under the header, `rule` hairlines between rows, a label-style header;
   - IDs in the first column in mono, figures right-aligned in mono with tabular numbers;
-  - on narrow screens it scrolls inside a wrapper (`.aa-ledger-wrap`) that is keyboard-focusable, has a label, and shows its edge with a hairline.
+  - on narrow screens it scrolls inside a wrapper (`.aa-ledger-wrap`) that is keyboard-focusable, has a label, and shows its edge with a hairline; a row-label column may stay in place (`position: sticky`) while the rest scrolls;
+  - a value that doesn't exist for a whole column (a run without rates) is one cell spanning those rows, with hairlines either side and its reason in it, never a column of repeated "n/a".
 - **The hero exhibit** (`components/site/Exhibit.astro`):
   - **What it is.** A `raised` panel with a hairline, styled like a report page and titled in mono (`REPORT · COFFEE-ROASTER · APRIL`).
     - It shows the recorded run's first finding (`src/data/exhibit.json`): its two headline claims, the document-supported cause with its source chip, and the top recommendation with its impact range.
@@ -170,19 +187,22 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - **The verification replay.** As the exhibit comes into view (its report page's top above the bottom sixth of the screen), and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
   - **The guided walkthrough.** The exhibit demonstrates itself, with no hover needed. After the verification it steps through the story's key figures, opening each one's margin note under a step indicator (`1/4 Revenue fell −17.9% → how it was computed`), with a progress rule and previous, next and replay buttons.
     - The steps are chosen from the run's data by role (`walkthrough()` in `scripts/landing-data.ts`), never by typed id: the headline change and how it was computed; its current-period SQL input with the SQL and the sheet rows it read; the driver's share of the change; the quoted document.
-    - From 1100px wide and 704px tall, scroll drives the steps: the exhibit section is sticky, centred on screen, while a track of half a screen per step (plus one for the verification) scrolls past. Previous and next scroll to their step; Replay scrolls back without flashing the steps it passes. Every step's note fits on screen there (a browser test checks 1100×704).
-    - On smaller screens the same steps advance every 4.5 seconds while the notes (below the figure under 900px) are on screen, under a sticky step bar. The timer waits while the reader hovers or focuses inside the exhibit, a Pause/Play button stops it (WCAG 2.2.2), and stepping by hand pauses it. The notes and the step captions each share one grid cell as tall as the tallest, so stepping never moves the page.
+    - **One behaviour at every size (site v3), nothing pinned to the scroll.** The figures verify as the exhibit comes into view; then the steps advance every 4.5 seconds while the notes are on screen (beside the exhibit from 900px, below it under 900px, where the step bar stays at the top of the screen).
+    - The timer waits while the pointer is on a figure or a note, or focus is inside the exhibit; a Pause/Play button stops it (WCAG 2.2.2), and stepping by hand pauses it. At the last step it stops and offers Play, which starts again from step 1. The step caption is announced (`aria-live="polite"`) only when the reader moves a step: the region is `aria-busy` while it advances by itself.
+    - **Step 1's note is open from the start**, so the margin is never an empty box; its figure isn't marked until step 1.
+    - **Notes size to their own content.** The notes column keeps the room of its tallest note (measured in the browser beside the exhibit, again when the fonts arrive or the window changes, and it only grows; one shared grid cell below 900px), and each note sits at the top of that room, never stretched. The step captions share one grid cell too. So stepping never moves the page.
+    - **Under 900px the SQL is folded** behind "SQL, run in DuckDB · show" (a `<details>`; "· hide" once open; a 24px target at label size), so the tallest note stays short on a phone; beside the exhibit it is open.
     - The step's figure takes the `mark` wash in the text, and its chip shows open. Prev and next use `aria-disabled` at the ends, so keyboard focus is never lost.
     - Step 0 says what the verifier did to what is shown: the figures recomputed and the quotes checked, counted from the notes.
-    - Under reduced motion, or without JS, the steps are a static ruled list under the exhibit, each with its note; no sticky track, no step bar.
-    - The walkthrough is switched on before first paint (`data-walk="live"`), so the track and the list never shift the layout.
+    - Under reduced motion, or without JS, the steps are a static ruled list under the exhibit, each with its note (SQL unfolded); no step bar.
+    - The walkthrough is switched on before first paint (`data-walk="live"`), so the step bar and the list never shift the layout.
   - **Margin notes.** Hovering or focusing a figure slides a Tufte-style margin note out to the right of the exhibit, joined to the figure by a hairline leader. From 900px it sits beside the exhibit; under 900px it sits below. The note shows:
     - the fact's ID and label, its value and its recomputed mark;
     - the SQL that computed it, laid out one clause per line and tinted in ink shades only, with its parameters; or, for a function fact, the function and its input facts as a ruled table;
     - the cited sheet rows: the first cited row and its neighbours, read back from the run's DuckDB, with the cited rows in the `mark` wash;
     - for a document, the exact quote and where it is.
 
-    Esc or blur closes it, and a click pins it (for touch); letting go returns to the walkthrough's current note. The empty margin column carries a small mono hint.
+    Esc or blur closes it, and a click pins it (for touch); letting go returns to the walkthrough's current note (step 1's before the first step). There is no hint text: the margin holds a note except after Esc, which closes it until the next step or hover.
   - **The fact ledger.** It holds every fact behind the exhibit and is collapsed under the hero until one of its rows is the link target (`:has(:target)`). The chips link to it without JS.
   - **Caption.** A small mono caption: "Recorded from a real engine run. Any number opens how it was computed."
 - **Sidenote** (`components/learn/Sidenote.astro`, MDX):
@@ -197,22 +217,37 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - hover changes the background tone only.
 - **Code:**
   - Expressive Code with `github-light` only, re-based onto `raised` (so its contrast correction targets our real background);
-  - a hairline frame, a mono 0.875rem body, a mono caption label, no window dots.
+  - a hairline frame, a mono body at `--aa-text-code`, a mono caption label, no window dots.
+- **Horizontal scroll boxes** (`.aa-scroll-x`: the status strip, the hero's install line): one line that scrolls sideways on narrow screens, a labelled focusable region. No scrollbar (in CSS from the start, so the box's height never changes); the edge with more to read fades over `--aa-space-7` with a transparency mask (not a coloured gradient), set by a small script (`ScrollFade.astro`, in the site layout); without JS there is no fade, and keyboard and touch scrolling work as before. Focused (the box or a link in it), the mask is off, so the focus ring shows (WCAG 2.4.7). A frame (hairline, background) sits on a wrapper, not on the masked box, so it never fades. Text in the fade is scroll-off content: axe doesn't evaluate masks, and it isn't meant to read as body text.
 - **Diagrams:**
   - Mermaid is initialised with the token colours and Plex Sans.
-  - The pipeline scene (`pipeline-scene.ts`) is shared with the README GIF, so the site re-themes it rather than changing its colours. It does this through the scene's `--pp-*` custom properties and class hooks:
-    - `ink` for progress;
-    - `mark` for packets;
-    - fact IDs as hairline chips;
-    - V1–V8 pass marks and the "verified, cited" stamp in `--aa-verified`;
-    - corners at 4px.
-  - The scene's own dark variant exists only for the README's dark mode; the site never asks for it.
-  - The scene is still until the reader presses Play or a stage. Under 30rem the island also tells the same run as a ruled list of steps.
+  - The pipeline scene (`pipeline-scene.ts`) draws the README GIF only. The site never uses it: its fixed 640×480 canvas scaled its type past the h2 on desktop and below reading size on phones.
+- **Pipeline stages** (`components/site/PipelineStages.astro`), on the landing page (§1), Learn, What it is and Pipeline overview:
+  - **The run:** one real run of the example (`docs/assets/readme/pipeline.json`, the same data as the README GIF), told as a **rail** of seven stops above **one ledger panel per stop**, at the site's own sizes. Every figure is the run's fact with its chip (`pipeline-stages.ts` only picks rows; it computes nothing).
+  - **The rail:** mono labels at `--aa-text-label` on a 1px `rule`, a 2px ink rule under the stops up to the current one. Each stop is a button (`aria-pressed`, `aria-controls` its panel); its title lists the engine stages behind it, from the run's event log.
+  - **The panels:**
+    - Files is a ledger of name, kind and how it's read.
+    - Profile gives the three counts.
+    - Metric is the definition and its compiled SQL.
+    - SQL is a ledger of the two periods, the change and the driver.
+    - Evidence holds the document quotes with source, file and grade, and the web quote labelled external.
+    - Verify is the eight checks V1–V8 as ruled cells (how many times each ran, then a pass mark or how many claims it caught) plus the verifier's totals.
+    - Report is the headline and the top action with its impact range and dated check.
+  - **Live** (JS, from 40rem; switched on before first paint, so nothing shifts): the panels share one grid cell as tall as the tallest, and the finished report shows first. Play steps through the stops once, every 2.5 seconds while on screen, and stops at Report; it reads Pause while running, and pressing a stop stops it there. Changing stop crossfades the panel content only, in 150ms. Under reduced motion there is no Play and no crossfade; the stops still work.
+  - **Without JS, or under 40rem,** the panels are a stacked ruled list, with no rail.
+  - **Markup:** each panel is a `role="group"` named by its title (not a heading, so it fits under any page's outline). On docs pages the root carries `not-content`, so Starlight's flow margins and the prose table and inline-code rules don't reach in (the prose colour, link and strong rules still do, and match).
 - **Stage diagram** (`StageFlow`, Learn):
   - three ruled columns on a `raised` panel: In → the stage's steps → Out, full width;
   - figures in mono with their fact chips; a selected step and its outputs take the `mark` wash;
   - the server renders every step done; buttons step through it, and Play is offered only without reduced motion;
-  - under 50rem the columns stack, with ↓ between them.
+  - under 50rem the columns stack, with ↓ between them;
+  - step descriptions and every other reading text in it at `--aa-text-note`; column heads at `--aa-text-label`.
+- **Contribution bridge** (`Decomposition.tsx`; Learn's analysis page, Your first report, Finding drivers):
+  - start total → each member's change → end total, one row each (label · bar · figure with its fact id); the rows share one set of columns (CSS subgrid), so every bar is on the same scale, and dashed `rule-strong` connectors run from one bar's end to the next one's start (hidden under 40rem, where the bars stack under their labels); the name and the figure take their own width and the track the rest, with each share on its own line under its figure;
+  - titled by the decomposition's own dimension ("Contribution by channel");
+  - the totals are drawn from a broken axis, marked ≈ on the bar with no numeric tick, so the changes show at the scale of the change; the bar geometry is layout only, and every figure shown is a fact's stored value;
+  - negative changes solid ink, positive ones outlined (§3);
+  - no "everyone else" row and no figure the page subtracted: members in the decomposition's total that aren't drawn are named by their fact ids; the caption says the members drawn are all of them only when the total fact shows it (its value with its id).
 - **Recorded output** (`Transcript`, Learn): a `surface` block in mono with a label-style caption; long lines scroll inside it, and a note names what was replaced.
 - **Header:**
   - The wordmark, a mark, then the links. The mark is a ruled square with a check, `aria-hidden`, drawn in `currentColor`. It is the brand, not a verified state, so it is never green; the favicon is the same mark in ink.
@@ -222,9 +257,9 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ## 7. Motion
 
-- **Landing:** the hero verification replay and its walkthrough only (scroll-linked on desktop, timed on small screens), plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
+- **Landing:** the hero verification replay and its walkthrough are the only motion that starts by itself (timed at every size, never scroll-linked). The pipeline stages move only after Play. Plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
 - **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
-- **The pipeline scene** never plays by itself: Play loops it while it is on screen. Without JS the same still frame is in the HTML.
+- **The pipeline stages** never play by themselves: Play steps through the stops once while on screen and stops at Report, with a 150ms crossfade of the panel content only and no moving parts. Without JS every panel is in the HTML as a stacked list.
 - **No other motion:** no entrance animations, no parallax, no looping decoration.
 - **Reduced motion** turns off the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
 
@@ -233,8 +268,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - WCAG 2.1 AA, checked by axe in CI on every page in the sitemap and the 404.
 - A skip link on every page, landmarks (`header`, `nav`, `main`, `footer`), one `h1` per page, and headings in order.
 - A visible `:focus-visible` ring on everything: 2px `ink`, 2px offset.
-- Targets are at least 24×24px (the chips and sidenote numbers have padding).
-- Decorative SVGs and the graph paper are `aria-hidden` or background-only. The pipeline and the exhibit have text labels.
+- Targets are at least 24×24px: sidenote numbers have padding, and fact chips have a transparent hit box above and below their visible box.
+- Decorative SVGs and the graph paper are `aria-hidden` or background-only. The pipeline stages and the exhibit are real text and tables.
 - Margin notes are tied to their chips with `aria-describedby` and `aria-expanded`/`aria-controls`.
 
 ## 9. What we don't use
@@ -255,3 +290,15 @@ The scale (rem, root 16px; mobile values apply under 640px):
 5. Are there no requests to any origin but the site's own?
 6. Is green used only for "verified"?
 7. Is it light only (`scripts/test/site-light.test.ts`)?
+8. Do the type floors hold: nothing larger than h2 except the hero and a page's own h1, reading text in a figure at least `--aa-text-note`, nothing under `--aa-text-label`, and one code size (`site.spec.ts` checks every page in the sitemap)?
+9. Is there one source per rule: a new component gets its entry in §6 in the same PR?
+
+## 11. Site v3 (October 2026): what the review found, and what it settled
+
+The site v3 design pass (`docs/plans/site-v3.md`, five PRs, #38–#42) started from a review of the live site against this document. Its brief is folded in here; the rules it set are in the sections above.
+
+- **What it found.** The top of the landing page followed this document; from §1 down it didn't. The main cause was the pipeline scene, the README GIF's fixed 640×480 canvas, stretched to the container: its type rendered larger than every heading on desktop and too small to read on phones. Around it, visuals had been built one at a time and didn't share a scale, frame or motion logic: a results table that scrolled sideways even at 1920, code at four sizes, section heads in three patterns.
+- **What works, and stays.** One statement and one lead in the hero, with clear actions. The exhibit, a real report whose figures verify and open their SQL, rows and quote, is the strongest thing on the site. Green only on verified. The hairline frame, the quiet status strip, the four doors as a ruled list, the footer.
+- **Motion: rethought, not removed.** The verification replay stays (short and meaningful). The walkthrough stays, timed at every size, with nothing pinned to the scroll. The pipeline moves only when the reader presses Play, and then only its panel content crossfades. Nothing else moves.
+- **Scale, settled.** One type scale with three floors (labels, reading text in figures, code) and one ceiling (h2, except the hero and a page's own h1); one frame (hairlines, `raised` panels, 4px radius); every visual a component with an entry in §6.
+- **Moved out.** The report template's wording for shares over 100% ("accounted for 108% of the change") is an engine task in the analyst-grade plan, not a site change.

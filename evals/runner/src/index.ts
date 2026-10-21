@@ -1,6 +1,7 @@
 // Public API of @agentic-analytics/eval-runner (docs/EVALS.md §2–§4).
 export { baselineModel } from "./baseline.ts";
 export {
+  configuredName,
   type EvalArgs,
   type EvalDeps,
   EvalRunError,
@@ -8,6 +9,7 @@ export {
   evalSlug,
   mergeChunks,
   type RealEvalArgs,
+  readPrevious,
   realEvalCommand,
   resultsPage,
   selectDatasets,
@@ -29,11 +31,17 @@ export {
   keepDraftedMetrics,
   mergeResults,
   mergeRoutes,
+  type Passes,
+  planResume,
+  type ResumePlan,
   type RouteUse,
   type RunOptions,
+  type RunStatus,
   rescore,
   resultsMarkdown,
+  resumeResult,
   routeSummary,
+  runStatus,
   runSuite,
   type Suite,
   type SuiteResult,

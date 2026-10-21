@@ -96,12 +96,15 @@ test.describe("no horizontal scroll at 360 px", () => {
   }
 });
 
-test("no horizontal scroll where the docs' margin column is narrowest (1000–1100 px)", async ({ page }) => {
+test("no horizontal scroll from 1000 to 1100 px: the docs' narrowest margin column, the landing page's frame", async ({ page }) => {
   for (const width of [1000, 1024, 1072, 1100]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
-    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(over, `${width} px`).toBeLessThanOrEqual(0);
+    // The Learn page (the margin column's narrowest) and the landing page (its frame meets the screen edge up to 1180).
+    for (const path of [`${BASE}/learn/stages/analysis/`, LANDING]) {
+      await page.goto(path, { waitUntil: "networkidle" });
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(over, `${path} at ${width} px`).toBeLessThanOrEqual(0);
+    }
   }
 });
 
@@ -161,7 +164,10 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
   await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).toHaveCount(n);
 });
 
-test("hero: scrolling steps through the walkthrough on desktop, each step opening its note; prev, next and replay", async ({ page }) => {
+test("hero: at 1440 the walkthrough advances on a timer, step 1's note open from the start; nothing is pinned to the scroll", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING);
   const wrap = page.locator("[data-exhibit]");
@@ -170,35 +176,47 @@ test("hero: scrolling steps through the walkthrough on desktop, each step openin
   expect(steps.length).toBeLessThanOrEqual(4);
   const cap = (k: number) => page.locator(`.aa-walk-cap[data-step="${k}"]`);
   const open = page.locator(".aa-note.is-open");
-  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 3_500 });
+  // No sticky section and no scroll track: the exhibit section is as tall as its content.
+  expect(await page.locator(".aa-walk-body").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  await expect(page.locator(".aa-walk-track")).toHaveCount(0);
+  // The margin is never empty: step 1's note is open before the first step, with no hint text.
   await expect(cap(0)).toBeVisible();
-  await expect(open).toHaveCount(0);
-  // The section sticks while its track scrolls past: half a screen per step after the verification's own.
-  const stick = page.locator(".aa-walk-stick");
-  const start = await page.evaluate(() => {
-    const w = document.querySelector("[data-exhibit]") as HTMLElement;
-    const s = document.querySelector(".aa-walk-stick") as HTMLElement;
-    return window.scrollY + w.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(s).top);
-  });
+  await expect(open).toHaveCount(1);
+  await expect(open).toHaveAttribute("id", `aa-note-${steps[0]}`);
+  await expect(page.locator(".aa-notes-hint")).toHaveCount(0);
+  await page.locator(".aa-exhibit-page").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
   for (let k = 1; k <= steps.length; k++) {
-    await page.evaluate((y) => window.scrollTo(0, y), start + k * 450 + 20);
-    await expect(page.locator(".aa-walk-stick")).toBeInViewport({ ratio: 1 });
-    await expect(cap(k)).toBeVisible();
+    // Real time: a step every 4.5 s while the notes are on screen.
+    await expect(cap(k)).toBeVisible({ timeout: 7_000 });
     await expect(cap(k)).toContainText(`${k}/${steps.length}`);
     await expect(open).toHaveCount(1);
     await expect(open).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
     await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[k - 1]}"]`)).toHaveAttribute("aria-expanded", "true");
-    // The exhibit is still on screen: the section is sticky.
-    const box = await stick.boundingBox();
-    expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
-    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(900);
+    if (k === 1) {
+      // Pause stops it and Play resumes (WCAG 2.2.2); the pointer on a figure holds it, and leaving lets it run.
+      const pause = page.locator("[data-walk-pause]");
+      await pause.click();
+      await expect(pause).toHaveText("Play");
+      await page.waitForTimeout(5_000);
+      await expect(cap(1)).toBeVisible();
+      await pause.click();
+      await expect(pause).toHaveText("Pause");
+      await page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[0]}"]`).hover();
+      await page.waitForTimeout(5_000);
+      await expect(cap(1)).toBeVisible();
+      await page.mouse.move(5, 5);
+    }
     if (k === 2) {
-      // The second step is the change's SQL input: its SQL and the sheet rows it read.
+      // The change's SQL input: its SQL (open beside the exhibit) and the sheet rows it read.
+      await expect(open.locator(".aa-note-sql")).toBeVisible();
       await expect(open.locator(".aa-note-sql")).toContainText("FROM");
       await expect(open.locator("tr.is-cited")).not.toHaveCount(0);
     }
   }
+  // At the end it stops, and the button offers Play.
   await expect(page.locator("[data-walk-next]")).toHaveAttribute("aria-disabled", "true");
+  await expect(page.locator("[data-walk-pause]")).toHaveText("Play");
   await page.locator("[data-walk-prev]").click();
   await expect(cap(steps.length - 1)).toBeVisible();
   // Exploring mid-walkthrough: hovering another figure opens its note; leaving returns to the step's note.
@@ -209,26 +227,84 @@ test("hero: scrolling steps through the walkthrough on desktop, each step openin
   await expect(open).toHaveAttribute("id", stepNote ?? "");
   await page.locator("[data-walk-replay]").click();
   await expect(cap(0)).toBeVisible();
+  await expect(open).toHaveAttribute("id", `aa-note-${steps[0]}`);
   await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
-  await page.waitForTimeout(1_200);
-  await expect(cap(0)).toBeVisible();
   await page.locator("[data-walk-next]").click();
   await expect(cap(1)).toBeVisible();
 });
 
-test("hero: from 1100 × 704 px (where scroll drives the steps) every step's note fits on screen", async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 704 });
-  await page.goto(LANDING);
-  const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
-  const start = await page.evaluate(() => {
-    const w = document.querySelector("[data-exhibit]") as HTMLElement;
-    const s = document.querySelector(".aa-walk-stick") as HTMLElement;
-    return window.scrollY + w.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(s).top);
-  });
-  for (let k = 1; k <= steps.length; k++) {
-    await page.evaluate((y) => window.scrollTo(0, y), start + k * 352 + 20);
-    await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toBeVisible();
-    await expect(page.locator(".aa-note.is-open")).toBeInViewport({ ratio: 1 });
+test("chips and the SQL toggle are at least 24 px tall to tap or click, and the hit box reaches above and below the chip", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const reach = (sel: string) =>
+    page
+      .locator(sel)
+      .first()
+      .evaluate((el) => {
+        // Mid-screen, so every probed point is inside the viewport (elementFromPoint returns nothing outside it).
+        el.scrollIntoView({ block: "center" });
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const hit = (y: number) => {
+          const at = document.elementFromPoint(x, y);
+          return at === el || el.contains(at);
+        };
+        // The tallest run of points that land on the element, in 0.5px steps through a 40px band around it.
+        let best = 0;
+        let run = 0;
+        for (let y = r.top - 20; y <= r.bottom + 20; y += 0.5) {
+          run = hit(y) ? run + 0.5 : 0;
+          best = Math.max(best, run);
+        }
+        return { height: best, above: hit(r.top - 4), below: hit(r.bottom + 4) };
+      });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  for (let k = 0; k < (await page.locator(".aa-exhibit a.aa-chip").count()); k++) {
+    const r = await reach(`.aa-exhibit a.aa-chip >> nth=${k}`);
+    expect(r.height, `exhibit chip ${k}`).toBeGreaterThanOrEqual(24);
+    expect(r.above && r.below, `exhibit chip ${k}`).toBe(true);
+  }
+  await page.goto(`${BASE}/learn/stages/analysis/`, { waitUntil: "networkidle" });
+  const learn = await reach(".sl-markdown-content p a.aa-chip");
+  expect(learn.height).toBeGreaterThanOrEqual(24);
+  expect(learn.above && learn.below).toBe(true);
+  // The SQL toggle under 900 px.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const id = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]")[1] as string;
+  await page.locator(`.aa-exhibit a.aa-chip[data-note="${id}"]`).click();
+  const summary = page.locator(`#aa-note-${id} details[data-fold] > summary`);
+  await summary.scrollIntoViewIfNeeded();
+  expect((await summary.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(24);
+  await summary.click();
+  await expect(page.locator(`#aa-note-${id} details[data-fold]`)).toHaveAttribute("open", "");
+  await expect(summary).toContainText("hide");
+});
+
+test("hero: stepping through the walkthrough never moves the page below it (1440, 390)", async ({ browser }) => {
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    const ctx = await browser.newContext({ viewport });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
+    const below = () => page.locator("#how").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
+    // Step by hand (the timer stops); the section after the exhibit stays where it is at every step and back.
+    const y = await below();
+    for (let k = 1; k <= steps.length; k++) {
+      await page.locator("[data-walk-next]").click();
+      await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toBeVisible();
+      expect(await below(), `step ${k} at ${viewport.width}`).toBe(y);
+    }
+    await page.locator("[data-walk-prev]").click();
+    expect(await below()).toBe(y);
+    await ctx.close();
   }
 });
 
@@ -244,7 +320,7 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(LANDING);
   // The figures verify as the exhibit comes into view; the steps advance once the notes below it are on screen.
-  await page.locator(".aa-walk-stick").scrollIntoViewIfNeeded();
+  await page.locator(".aa-walk-body").scrollIntoViewIfNeeded();
   await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
   await expect(page.locator('.aa-walk-cap[data-step="0"]')).toBeVisible();
   await page.locator(".aa-notes").evaluate((el) => el.scrollIntoView({ block: "center" }));
@@ -256,11 +332,19 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   const open = page.locator(".aa-note.is-open");
   const [b, e] = await Promise.all([open.boundingBox(), page.locator(".aa-exhibit").boundingBox()]);
   expect(b?.y ?? 0).toBeGreaterThan((e?.y ?? 0) + (e?.height ?? 0) - 1);
+  // Each note keeps its own height at the top of the shared cell: its last line ends near its bottom, not stretched.
+  const slack = await open.evaluate((el) => el.getBoundingClientRect().bottom - (el.lastElementChild?.getBoundingClientRect().bottom ?? 0));
+  expect(slack).toBeLessThan(24);
   // Stepping never moves what follows: the notes share one cell as tall as the tallest.
   const below = async () => (await page.locator("#how").boundingBox())?.y ?? 0;
   const before = await below();
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible({ timeout: 6_000 });
   expect(await below()).toBe(before);
+  // On a phone the step's SQL is folded behind "Show SQL"; opening it is the reader's own move.
+  const fold = page.locator(".aa-note.is-open details[data-fold]");
+  await expect(fold).toHaveCount(1);
+  await expect(fold).not.toHaveAttribute("open", /.*/);
+  await expect(fold.locator(".aa-note-sql")).toBeHidden();
   // Pause stops the timer (WCAG 2.2.2), Play resumes it; stepping by hand pauses too.
   const pause = page.locator("[data-walk-pause]");
   await pause.click();
@@ -271,7 +355,7 @@ test("hero: under 900 px the walkthrough advances by itself, its notes below the
   await pause.click();
   await expect(pause).toHaveText("Pause");
   // Exploring holds the timer: while the pointer is inside the exhibit no step passes; leaving lets it run again.
-  await page.locator(".aa-walk-grid").hover();
+  await page.locator(".aa-notes").hover();
   await page.waitForTimeout(5_500);
   await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
   await page.mouse.move(195, 5);
@@ -322,7 +406,6 @@ test("hero: with reduced motion the walkthrough is a static ruled list, every st
   await page.goto(LANDING, { waitUntil: "networkidle" });
   const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
   await expect(page.locator(".aa-walk-bar")).toBeHidden();
-  await expect(page.locator(".aa-walk-track")).toBeHidden();
   const items = page.locator(".aa-walk-list > li");
   await expect(items).toHaveCount(steps.length);
   await expect(items.nth(0)).toBeVisible();
@@ -380,7 +463,7 @@ test("without JS the landing page is complete and chips link into the fact ledge
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
   await page.goto(LANDING);
-  await expect(page.locator(".aa-pipe-frame svg")).toHaveCount(1);
+  await expect(page.locator(".aa-stages .aa-stage")).toHaveCount(7);
   await expect(page.locator(".aa-exhibit a.aa-chip .aa-check").first()).toBeVisible();
   const chip = page.locator(".aa-exhibit a.aa-chip").first();
   const href = await chip.getAttribute("href");
@@ -393,6 +476,253 @@ test("without JS the landing page is complete and chips link into the fact ledge
   await expect(page.locator(href as string)).toBeVisible();
   await expect(page.locator("#results table tbody tr")).not.toHaveCount(0);
   await ctx.close();
+});
+
+test("results: metrics as rows and runs as columns, no sideways scroll at 1440 or 1920, one cell for a run without rates", async ({
+  browser,
+}) => {
+  type Bars = { bars: { metric: string; value: number | null; pass: boolean | null }[] };
+  const evals = JSON.parse(readFileSync(join(import.meta.dirname, "../../../apps/docs/src/data/evals.json"), "utf8")) as {
+    full: Bars & { status: string; completed: number; datasets: number };
+    smoke: Bars & { status: string };
+    synthetic: Bars & { status: string };
+    real: { datasets: { checks: { pass: boolean }[] }[] };
+  };
+  const fmt = (metric: string, v: number) => (metric === "Number mismatches" ? String(v) : `${(v * 100).toFixed(1)}%`);
+  for (const width of [1440, 1920]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const wrap = page.locator("#results .aa-ledger-wrap");
+    expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth), `width ${width}`).toBe(0);
+    const table = page.locator("#results table");
+    await expect(table.locator('thead th[scope="col"]')).toHaveCount(5);
+    await expect(table.locator('tbody th[scope="row"]')).toHaveCount(7);
+    // Screen-reader text stays off screen: no "meets the bar" painted in the cells.
+    const painted = await table.locator(".aa-sr").evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width > 1).length);
+    expect(painted).toBe(0);
+    // A run that didn't finish has one cell spanning every metric row, labelled from the generated status.
+    if (evals.full.status !== "complete") {
+      const span = table.locator("td.aa-span", { hasText: `${evals.full.completed}/${evals.full.datasets}` });
+      await expect(span).toHaveAttribute("rowspan", "7");
+    }
+    // Every figure is its run's own value from evals.json, in the row of its metric, with "below bar" exactly where the
+    // run missed the bar. Columns with rates, in page order: smoke, then the nightly run if complete, then the baseline.
+    const shown = [evals.smoke, evals.full, evals.synthetic].filter((r) => r.status === "complete");
+    const rows = await table.locator("tbody tr").all();
+    for (const row of rows) {
+      const metric = ((await row.locator('th[scope="row"] .aa-metric').textContent()) ?? "").trim();
+      const cells = row.locator("td.num");
+      await expect(cells).toHaveCount(shown.length);
+      for (const [k, run] of shown.entries()) {
+        const b = run.bars.find((x) => x.metric === metric);
+        expect(b, metric).toBeTruthy();
+        const cell = cells.nth(k);
+        await expect(cell.locator(".aa-fig"), metric).toHaveText(fmt(metric, b?.value ?? Number.NaN));
+        if (b?.pass === false) await expect(cell.locator(".aa-below"), metric).toHaveCount(1);
+        else await expect(cell.locator(".aa-below"), metric).toHaveCount(0);
+      }
+    }
+    // The real public data cell: the checks passed of all checks, counted from the result file.
+    const checks = evals.real.datasets.flatMap((d) => d.checks);
+    await expect(table.locator('td.aa-span[headers="aa-run-real"]')).toContainText(
+      `${checks.filter((c) => c.pass).length}/${checks.length}`,
+    );
+    await ctx.close();
+  }
+  // At 390 the table scrolls inside its wrapper and the metric column stays at its left edge.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const wrap = page.locator("#results .aa-ledger-wrap");
+  expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeGreaterThan(0);
+  await wrap.evaluate((e) => {
+    e.scrollLeft = e.scrollWidth;
+  });
+  const [wrapLeft, labelLeft] = await wrap.evaluate((e) => [
+    e.getBoundingClientRect().left,
+    (e.querySelector('tbody th[scope="row"]') as HTMLElement).getBoundingClientRect().left,
+  ]);
+  expect(Math.abs((labelLeft ?? 0) - (wrapLeft ?? 0))).toBeLessThan(2);
+  await ctx.close();
+});
+
+test("landing section heads: label, h2, one-sentence lead, the h2 on one line at 1440", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  for (const id of ["how", "why", "results", "quickstart"]) {
+    const head = page.locator(`#${id} .aa-cell-head`);
+    await expect(head.locator(".aa-seclabel")).toHaveCount(1);
+    await expect(head.locator("h2")).toHaveCount(1);
+    const lead = head.locator("p.aa-lead");
+    await expect(lead, id).toHaveCount(1);
+    // One sentence (a semicolon may join two clauses), about 90 characters at most.
+    const text = ((await lead.textContent()) ?? "").trim().replace(/\s+/g, " ");
+    expect(text.split(/[.!?](\s|$)/).filter((x) => x.trim().length > 2).length, id).toBe(1);
+    expect(text.length, id).toBeLessThanOrEqual(90);
+    const [h, lh] = await head
+      .locator("h2")
+      .evaluate((el) => [el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el).lineHeight)]);
+    expect(h, `${id} h2 on one line`).toBeLessThan((lh ?? 0) * 1.5);
+  }
+});
+
+test("code is one size everywhere: blocks, inline code and Expressive Code (--aa-text-code); headings keep their scale", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const path of [
+    LANDING,
+    `${BASE}/start/quickstart/`,
+    `${BASE}/learn/stages/analysis/`,
+    `${BASE}/how-it-works/verifier/`,
+    `${BASE}/how-it-works/drivers/`,
+    `${BASE}/how-it-works/pipeline/`,
+    `${BASE}/use-it/cli/`,
+    MISSING,
+  ]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const sizes = await page.evaluate(() => {
+      const want = getComputedStyle(document.documentElement).getPropertyValue("--aa-text-code").trim();
+      const px = Number.parseFloat(want) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const shown = [...document.querySelectorAll<HTMLElement>("main pre, main code")].filter(
+        (e) => e.getClientRects().length > 0 && (e.textContent ?? "").trim(),
+      );
+      // The one exception: code in a heading keeps the heading's scale (0.875em of it).
+      const heading = (e: HTMLElement) => e.closest<HTMLElement>("h1, h2, h3, h4, h5, h6");
+      const off = shown
+        .filter((e) => !heading(e))
+        .map((e) => Number.parseFloat(getComputedStyle(e).fontSize))
+        .filter((v) => Math.abs(v - px) > 0.1);
+      const headingOff = shown.filter((e) => {
+        const h = heading(e);
+        if (!h) return false;
+        return Math.abs(Number.parseFloat(getComputedStyle(e).fontSize) - 0.875 * Number.parseFloat(getComputedStyle(h).fontSize)) > 0.2;
+      }).length;
+      return { off: [...new Set(off)], headingOff, n: shown.length };
+    });
+    if (path !== MISSING) expect(sizes.n, path).toBeGreaterThan(0);
+    expect(sizes.off, path).toEqual([]);
+    expect(sizes.headingOff, path).toBe(0);
+  }
+});
+
+test("Quickstart and door commands fit their cells at 1440, 390 and 360, never split mid-word", async ({ page }) => {
+  for (const width of [1440, 390, 360]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    for (const pre of await page.locator(".aa-steps pre, .aa-door-cmd").all()) {
+      expect(await pre.evaluate((e) => e.scrollWidth - e.clientWidth), `${width}`).toBeLessThanOrEqual(0);
+      // A visual line never starts inside a word: each new line follows a space, a slash or a line break.
+      const mid = await pre.evaluate((e) => {
+        const range = document.createRange();
+        const walker = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+        let lastTop = -1;
+        let prev = "\n";
+        let count = 0;
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const text = n.textContent ?? "";
+          for (let i = 0; i < text.length; i++) {
+            const ch = text[i] ?? "";
+            if (ch !== "\n") {
+              range.setStart(n, i);
+              range.setEnd(n, i + 1);
+              const top = Math.round(range.getBoundingClientRect().top);
+              if (lastTop >= 0 && top > lastTop && prev !== "\n" && !/[\s/]/.test(prev)) count++;
+              lastTop = top;
+            }
+            prev = ch;
+          }
+        }
+        return count;
+      });
+      expect(mid, `${width}`).toBe(0);
+    }
+    // At 1440 the commands fit their columns line for line; the one allowed wrap is the clone URL's, and its second line
+    // starts where its first does.
+    {
+      // Rendered lines are counted from the text itself (the cells stretch to the tallest, so heights can't tell).
+      const soft = await page.locator(".aa-steps pre").evaluateAll((pres) =>
+        pres.map((e) => {
+          const range = document.createRange();
+          const rowsOf = (root: Element) => {
+            const tops = new Set<number>();
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+              const text = n.textContent ?? "";
+              for (let k = 0; k < text.length; k++) {
+                if (text[k] === "\n" || text[k] === " ") continue;
+                range.setStart(n, k);
+                range.setEnd(n, k + 1);
+                tops.add(Math.round(range.getBoundingClientRect().top));
+              }
+            }
+            return tops;
+          };
+          const lines = (e.textContent ?? "").split("\n").length;
+          const url = e.querySelector(".aa-url");
+          const urlTops = url ? [...rowsOf(url)] : [];
+          // The URL's continuation starts where its first line does: the inline block's left edge.
+          const first = url?.getBoundingClientRect().left ?? 0;
+          const starts: number[] = [];
+          if (url) {
+            const walker = document.createTreeWalker(url, NodeFilter.SHOW_TEXT);
+            let last = -1;
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+              const text = n.textContent ?? "";
+              for (let k = 0; k < text.length; k++) {
+                range.setStart(n, k);
+                range.setEnd(n, k + 1);
+                const r = range.getBoundingClientRect();
+                if (Math.round(r.top) !== last) starts.push(r.left);
+                last = Math.round(r.top);
+              }
+            }
+          }
+          // …and that is indented under "git clone \\" (it sits beside its two spaces, not on a line of its own).
+          const pad = e.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(e).paddingLeft);
+          return {
+            extra: rowsOf(e).size - lines - Math.max(0, urlTops.length - 1),
+            aligned: starts.every((x) => Math.abs(x - first) < 1) && (!url || first - pad > 8),
+          };
+        }),
+      );
+      for (const x of soft) {
+        // Every source line fits its column at 1440; at every width the URL's continuation is indented under it.
+        if (width === 1440) expect(x.extra).toBe(0);
+        expect(x.aligned, `${width}`).toBe(true);
+      }
+    }
+  }
+});
+
+test("the status strip and the install line scroll sideways with no scrollbar and a fade where there is more", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  for (const sel of [".aa-strip", ".aa-hero-cmd"]) {
+    const box = page.locator(sel);
+    expect(
+      await box.evaluate((e: HTMLElement) => e.offsetHeight - e.clientHeight - 2 * Number.parseFloat(getComputedStyle(e).borderTopWidth)),
+      sel,
+    ).toBeLessThanOrEqual(1);
+    await expect(box, sel).toHaveAttribute("data-overflow", "end");
+    await box.evaluate((e) => {
+      e.scrollLeft = e.scrollWidth;
+    });
+    await expect(box, sel).toHaveAttribute("data-overflow", "start");
+    await box.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(box, sel).toHaveAttribute("data-overflow", "both");
+    // Focused, nothing is masked, so the focus ring outside the box shows (WCAG 2.4.7).
+    expect(await box.evaluate((e) => getComputedStyle(e).maskImage), sel).toBe("none");
+    await page.locator("h1").click();
+    expect(await box.evaluate((e) => getComputedStyle(e).maskImage), sel).not.toBe("none");
+  }
+  // Where the whole line fits, nothing fades (at 1440 the strip is still a little wider than the screen).
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await expect(page.locator(".aa-strip")).toHaveAttribute("data-overflow", "none");
 });
 
 test("the status strip leads with proven results and links the nightly regression suite to §3", async ({ page }) => {
@@ -481,14 +811,231 @@ test("Learn: a stage diagram is complete without JS, and a step marks what it pr
   await expect(live.locator(".aa-flow-col").nth(2).locator("li.is-current")).not.toHaveCount(0);
 });
 
-test("the pipeline scene is still until Play is pressed (the hero is the one moment of motion)", async ({ page }) => {
+test("pipeline stages: still until Play; a stop opens its panel; Play steps once to Report and stops; nothing moves", async ({ page }) => {
+  await page.clock.install();
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
-  const frame = page.locator(".aa-pipe-frame");
-  await frame.scrollIntoViewIfNeeded();
-  const before = await frame.innerHTML();
-  await page.waitForTimeout(1500);
-  expect(await frame.innerHTML()).toBe(before);
-  await expect(page.locator(".aa-pipe button", { hasText: "Play" })).toHaveAttribute("aria-pressed", "false");
+  const root = page.locator(".aa-stages");
+  await root.scrollIntoViewIfNeeded();
+  const current = root.locator(".aa-stage.is-current");
+  const stop = (name: string) => root.getByRole("button", { name, exact: true });
+  // The finished report first, and still.
+  await expect(current).toHaveCount(1);
+  await expect(current.locator(".aa-stage-name")).toContainText("Report");
+  await page.clock.runFor(6000);
+  await expect(current.locator(".aa-stage-name")).toContainText("Report");
+  const below = async () => page.locator("#why").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
+  const y = await below();
+  // A stop opens its panel; only that panel is visible.
+  await stop("Files").click();
+  await expect(stop("Files")).toHaveAttribute("aria-pressed", "true");
+  await expect(root.locator("#aa-stages-files")).toBeVisible();
+  await expect(root.locator("#aa-stages-report")).toBeHidden();
+  expect(await below()).toBe(y);
+  // Play steps through the stops, reads Pause while it runs, and stops at Report.
+  const play = root.locator("[data-stages-play]");
+  await play.click();
+  await expect(play).toHaveText("Pause");
+  await page.clock.runFor(2600);
+  await expect(current.locator(".aa-stage-name")).toContainText("Profile");
+  await page.clock.runFor(2600 * 6);
+  await expect(current.locator(".aa-stage-name")).toContainText("Report");
+  await expect(play).toHaveText("Play");
+  expect(await below()).toBe(y);
+  // Pressing a stop while playing stops it there.
+  await play.click();
+  await page.clock.runFor(2600);
+  await stop("SQL").click();
+  await expect(play).toHaveText("Play");
+  await page.clock.runFor(6000);
+  await expect(current.locator(".aa-stage-name")).toContainText("SQL");
+});
+
+test("pipeline stages: a stacked list without JS and under 40rem, no Play under reduced motion; type at the site's sizes", async ({
+  browser,
+}) => {
+  for (const opts of [{ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } }, { viewport: { width: 390, height: 844 } }]) {
+    const ctx = await browser.newContext(opts);
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const root = page.locator(".aa-stages");
+    await expect(root.locator(".aa-stage")).toHaveCount(7);
+    for (const panel of await root.locator(".aa-stage").all()) await expect(panel).toBeVisible();
+    await expect(root.locator(".aa-stages-bar")).toBeHidden();
+    await ctx.close();
+  }
+  // On docs pages too (Starlight's prose styles must not reach in): one panel shown, the others hidden, every row on one
+  // line at 1440; at 390 the stacked list, each panel below the last with no overlap.
+  for (const path of [`${BASE}/learn/`, `${BASE}/start/what-it-is/`, `${BASE}/how-it-works/pipeline/`]) {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      const ctx = await browser.newContext({ viewport });
+      const page = await ctx.newPage();
+      await page.goto(path, { waitUntil: "networkidle" });
+      const panels = page.locator(".aa-stages .aa-stage");
+      await expect(panels).toHaveCount(7);
+      if (viewport.width === 1440) {
+        await expect(page.locator(".aa-stages .aa-stage.is-current")).toBeVisible();
+        for (const p of await page.locator(".aa-stages .aa-stage:not(.is-current)").all()) await expect(p).toBeHidden();
+        const sql = page.locator(".aa-stages").getByRole("button", { name: "SQL", exact: true });
+        await sql.click();
+        // Each SQL row's label and value share a line.
+        const off = await page.locator(".aa-stages .aa-stage-sql tr").evaluateAll((rows) =>
+          rows.map((r) => {
+            const [a, b] = [...r.children].map((c) => c.getBoundingClientRect().top);
+            return Math.abs((a ?? 0) - (b ?? 0));
+          }),
+        );
+        expect(Math.max(...off), path).toBeLessThan(4);
+      } else {
+        const off = await page.locator(".aa-stages .aa-stage-sql tr").evaluateAll((rows) =>
+          rows.map((r) => {
+            const [a, b] = [...r.children].map((c) => c.getBoundingClientRect().top);
+            return Math.abs((a ?? 0) - (b ?? 0));
+          }),
+        );
+        expect(Math.max(...off), path).toBeLessThan(4);
+        const boxes = await panels.evaluateAll((ps) => ps.map((p) => p.getBoundingClientRect()).map((r) => [r.top, r.bottom]));
+        for (let i = 1; i < boxes.length; i++) expect(boxes[i]?.[0] ?? 0, path).toBeGreaterThanOrEqual((boxes[i - 1]?.[1] ?? 0) - 1);
+      }
+      await ctx.close();
+    }
+  }
+  const ctx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/learn/`, { waitUntil: "networkidle" });
+  const root = page.locator(".aa-stages");
+  await expect(root.locator(".aa-stages-bar")).toBeVisible();
+  await expect(root.locator("[data-stages-play]")).toBeHidden();
+  await root.getByRole("button", { name: "Verify", exact: true }).click();
+  await expect(root.locator("#aa-stages-verify")).toBeVisible();
+  // DESIGN.md §4: reading text in a figure is at least note size (13px); labels and chips at least label size (12px).
+  const small = await root.evaluate((el) =>
+    [...el.querySelectorAll<HTMLElement>("*")]
+      .filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent?.trim()))
+      .map((e) => {
+        const cs = getComputedStyle(e);
+        const label = cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null;
+        return { text: e.textContent?.trim().slice(0, 30), px: Number.parseFloat(cs.fontSize), min: label ? 12 : 13 };
+      })
+      .filter((x) => x.px < x.min),
+  );
+  expect(small).toEqual([]);
+  await ctx.close();
+});
+
+test("type on every page in the sitemap: nothing above h2 but the hero and the page's h1; floors for reading text and labels", async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(400_000);
+  const off: string[] = [];
+  const paths = await sitemapPaths(request);
+  // Every page at 1440; the landing page and two Learn pages at 390 too (the mobile scale differs).
+  const runs = [
+    ...paths.map((p) => [p, 1440] as const),
+    ...[LANDING, `${BASE}/learn/`, `${BASE}/learn/stages/analysis/`].map((p) => [p, 390] as const),
+  ];
+  for (const [path, width] of runs) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    const found = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const rem = Number.parseFloat(root.fontSize);
+      const h2 = Number.parseFloat(root.getPropertyValue("--aa-text-h2")) * rem;
+      // A figure: any diagram, island, ledger or framed panel (DESIGN.md §4).
+      const figures = document.querySelectorAll(
+        ".aa-island, .aa-flow, .aa-stages, .aa-exhibit, .aa-notes, .aa-walk-list, .aa-ledger-wrap, .aa-transcript, .aa-diagram, .aa-proofs, .aa-map",
+      );
+      const out: string[] = [];
+      const seen = new Set<Element>();
+      const check = (e: Element, inFigure: boolean) => {
+        if (seen.has(e) || !e.getClientRects().length || e.closest(".aa-sr")) return;
+        seen.add(e);
+        const own = [...e.childNodes]
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent ?? "")
+          .join("")
+          .trim();
+        if (!own) return;
+        const cs = getComputedStyle(e);
+        const px = Number.parseFloat(cs.fontSize);
+        // The ceiling: only the hero statement and the page's own h1 may be larger than h2.
+        if (px > h2 + 0.5 && !e.closest(".aa-display, h1")) out.push(`${px}px above h2: "${own.slice(0, 30)}"`);
+        // Labels: mono uppercase labels, chips, and short mono tags and ids ("N141", "bar ≥ 80%", "recomputed"); a
+        // figure (.aa-fig) is reading text, whatever its face.
+        const label =
+          !e.closest(".aa-fig") &&
+          (cs.textTransform === "uppercase" || e.closest(".aa-chip") !== null || (/mono/i.test(cs.fontFamily) && own.length <= 32));
+        if (px < 11.95) out.push(`${px}px under the label size: "${own.slice(0, 30)}"`);
+        else if (inFigure && !label && px < 12.95) out.push(`${px}px reading text in a figure: "${own.slice(0, 30)}"`);
+      };
+      for (const f of figures) for (const e of f.querySelectorAll("*")) check(e, true);
+      for (const e of document.querySelectorAll("main *")) check(e, false);
+      return out;
+    });
+    for (const x of found) off.push(`${path} at ${width}: ${x}`);
+  }
+  expect(off).toEqual([]);
+});
+
+test("the contribution bridge: one row per total and member, bars on one shared scale, connectors joining them", async ({ page }) => {
+  for (const path of [`${BASE}/learn/stages/analysis/`, `${BASE}/start/first-report/`, `${BASE}/how-it-works/drivers/`]) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    const bridge = page.locator(".aa-bridge").first();
+    await bridge.scrollIntoViewIfNeeded();
+    await expect(bridge.locator(".aa-island-label")).toContainText("Contribution by channel");
+    await expect(bridge.locator(".aa-bridge-row")).toHaveCount(4);
+    await expect(bridge).not.toContainText("Everyone else");
+    // The page's own data (coffee.json) proves every member is drawn: the caption says so with the total's id.
+    await expect(bridge.locator("p.aa-small")).toContainText("The members drawn are all of them");
+    await expect(bridge.locator("p.aa-small")).toContainText("N143");
+    await expect(bridge).not.toContainText("not drawn");
+    const geo = await bridge.evaluate((el) => {
+      const tracks = [...el.querySelectorAll(".aa-bridge-track")].map((t) => t.getBoundingClientRect());
+      const rows = [...el.querySelectorAll(".aa-bridge-row")];
+      // Each connector sits at an end of the bar above it: the level it carries down to the next bar.
+      const joins = rows.slice(1).map((row, i) => {
+        const link = row.querySelector(".aa-bridge-link")?.getBoundingClientRect();
+        const above = rows[i]?.querySelector(".aa-bridge-bar")?.getBoundingClientRect();
+        if (!link || !above) return 999;
+        return Math.min(Math.abs(link.left - above.left), Math.abs(link.left - above.right));
+      });
+      // The bridge itself: March ends where wholesale starts (its right edge, a fall), wholesale ends where retail starts
+      // (its left edge), retail ends where April does.
+      const bars = rows.map((r) => r.querySelector(".aa-bridge-bar")?.getBoundingClientRect());
+      const ends = [
+        Math.abs((bars[0]?.right ?? 0) - (bars[1]?.right ?? 9)),
+        Math.abs((bars[1]?.left ?? 0) - (bars[2]?.left ?? 9)),
+        Math.abs((bars[2]?.right ?? 0) - (bars[3]?.right ?? 9)),
+      ];
+      return {
+        lefts: tracks.map((t) => Math.round(t.left)),
+        widths: tracks.map((t) => Math.round(t.width)),
+        joins,
+        ends,
+        track: tracks[0]?.width ?? 0,
+      };
+    });
+    expect(new Set(geo.lefts).size, path).toBe(1);
+    expect(new Set(geo.widths).size, path).toBe(1);
+    for (const j of geo.joins) expect(j, path).toBeLessThan(2);
+    for (const e of geo.ends) expect(e, path).toBeLessThan(2);
+    // Legible: the track has most of the island, not its minimum.
+    expect(geo.track, path).toBeGreaterThan(200);
+    // On a phone the bars stack under their labels at full width, and the connectors are hidden.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const phone = await bridge.evaluate((el) => ({
+      links: [...el.querySelectorAll(".aa-bridge-link")].filter((l) => l.getClientRects().length > 0).length,
+      tracks: [...el.querySelectorAll(".aa-bridge-track")].map((t) => Math.round(t.getBoundingClientRect().width)),
+      rows: Math.round((el.querySelector(".aa-bridge-rows") as HTMLElement).getBoundingClientRect().width),
+    }));
+    expect(phone.links, path).toBe(0);
+    for (const w of phone.tracks) expect(w, path).toBe(phone.rows);
+  }
 });
 
 test("mobile menu: aria-expanded toggles and Escape closes it", async ({ page }) => {

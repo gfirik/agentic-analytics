@@ -27,6 +27,26 @@ describe("evalsTable", () => {
     expect(rows[1]).not.toContain("partial");
   });
 
+  it("labels a nightly run partial only when jobs are unfinished after its last pass (EVALS §4)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-evals-table-"));
+    // 2026-10-19: Groq's daily quota stopped 9 of 30 jobs on the first night; the second night runs them.
+    writeFileSync(join(dir, "a-full.json"), JSON.stringify({ ...result("full", 30, 0.7), passes: { dates: ["2026-10-19"], of: 2 } }));
+    writeFileSync(
+      join(dir, "b-full.json"),
+      JSON.stringify({ ...result("full", 30, 29 / 30), passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } }),
+    );
+    writeFileSync(
+      join(dir, "c-full.json"),
+      JSON.stringify({ ...result("full", 30, 1), passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } }),
+    );
+    const rows = evalsTable(dir).split("\n").slice(2);
+    expect(rows[0]).toContain("| full (30), **in progress: 21 of 30 jobs finished, the next pass runs the rest** |");
+    expect(rows[0]).not.toContain("partial");
+    expect(rows[1]).toContain("| full (30), **partial: 29 of 30 jobs finished** |");
+    expect(rows[2]).toContain("| full (30) |");
+    expect(rows[2]).not.toMatch(/partial|in progress/);
+  });
+
   it("shows a labelled self-hosted vLLM run (aa eval --label) as its own row, with the hardware from its label", () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-evals-table-"));
     writeFileSync(join(dir, "2026-10-17-configured-small-full.json"), JSON.stringify(result("full", 30, 0.1)));

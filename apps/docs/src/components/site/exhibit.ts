@@ -109,3 +109,28 @@ export function monthName(period: string): string {
   if (!m) return period;
   return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1)).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
 }
+
+/** A part of an exhibit line: report text, or a fact by id (`exhibit.json` lines). */
+export type LinePart = { text?: string; fact?: string; source?: string };
+
+/**
+ * The first sentence of a report line, as parts (site v3, finding 13: §2 shows it before and after rendering). The
+ * line is the report's own claim, split into text and facts; the sentence ends at the first ". " in a text part (the
+ * engine's claim templates write no abbreviations such as "e.g. "; a unit test checks the result is the claim's start).
+ */
+export function firstSentence(line: readonly LinePart[]): LinePart[] {
+  const out: LinePart[] = [];
+  for (const p of line) {
+    const end = p.text?.indexOf(". ") ?? -1;
+    if (p.text !== undefined && end >= 0) {
+      out.push({ text: p.text.slice(0, end + 1) });
+      return out;
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+/** The sentence as the model wrote it: each fact as its `{{N…}}` placeholder. */
+export const placeholders = (parts: readonly LinePart[]) =>
+  parts.map((p) => (p.fact ? `{{${p.fact}}}` : p.source ? "" : (p.text ?? ""))).join("");

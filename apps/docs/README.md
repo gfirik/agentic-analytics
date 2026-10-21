@@ -21,7 +21,7 @@ The product site: a custom landing page and the Astro Starlight docs, deployed t
   - `landing.json`: finding F1 of the hero's web-enabled run (the same run as `pipeline.json`, checked), with every fact behind it;
   - `evals.json`: the eval runner's own `summarize()` over the latest `evals/results/*.json`, plus the real-data checks.
 
-Everything it writes is gitignored. The `Pipeline` island's data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
+Everything it writes is gitignored. The pipeline stages' data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
 
 The Learn section's data is checked in too, at `docs/assets/learn/learn.json`: `scripts/learn-data.ts --write` records it from real runs (the same web-enabled run as `pipeline.json`, the CLI's own output for each tutorial, the MCP server, the model router on a scripted transport, an injection fixture), and `scripts/test/learn.test.ts` re-records it and fails on drift.
 
@@ -29,13 +29,13 @@ Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the READM
 
 ## Islands (React, `client:visible`)
 
-- `Pipeline`: the animated pipeline, the same scene the README GIF is recorded from (`src/components/pipeline-scene.ts`), played from `docs/assets/readme/pipeline.json`.
+- `PipelineStages` (`src/components/site/PipelineStages.astro`): the run in `docs/assets/readme/pipeline.json`, stage by stage, as a rail and one ledger panel per stage. The README GIF draws the same data with its own scene (`src/components/pipeline-scene.ts`), which the site doesn't use.
 - `CitationDemo`: click a citation to see the cited rows or passage.
-- `Decomposition`: the contribution waterfall.
+- `Decomposition`: the contribution bridge (start total, each member's change, end total, with connectors and a broken axis; DESIGN.md §6).
 - `RagStepper`: BM25 → vectors → RRF → rerank → extract.
 - `VerifierDiff`: the draft against the verified report.
 - `Mermaid`: the shared diagrams, in the site's colours and type.
-- `Exhibit.astro` (landing page): the report page, its verification as it comes into view, and its guided walkthrough (M13k): the steps from `walkthrough()` in `scripts/landing-data.ts`, each opening a margin note under a step bar (← → Pause/Play, Replay). Scroll drives the steps from 1100×704 px (a sticky section), a timer drives them on smaller screens, and reduced motion or no JS shows them as a static ruled list. Hover and focus open any figure's note. Without JS the chips link into the static fact ledger.
+- `Exhibit.astro` (landing page): the report page, its verification as it comes into view, and its guided walkthrough (M13k): the steps from `walkthrough()` in `scripts/landing-data.ts`, each opening a margin note under a step bar (← → Pause/Play, Replay). A timer drives the steps at every size while the notes are on screen (site v3: nothing is pinned to the scroll); step 1's note is open from the start; under 900 px the SQL is folded behind "show"; reduced motion or no JS shows them as a static ruled list. Hover and focus open any figure's note. Without JS the chips link into the static fact ledger.
 - `ExhibitNote.astro`: a margin note's body (the fact's value, its SQL or function, the cited sheet rows, or a document's quote), shared by the margin column and the static list.
 - `Sidenote.astro` / `MarginNote.astro` (Learn): notes in the margin column, inline under 1000px.
 - `learn/StageFlow` (Learn): one stage as in → stage → out with the run's real numbers, stepped through; `learn/Transcript`, `learn/Fact`, `learn/FactLedger`, `learn/Claim` and `learn/LearnMap` are static Astro components.

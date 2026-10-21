@@ -5,10 +5,20 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type ExhibitData, exhibitData, exhibitIds, exhibitRows, globToRegExp, statusStrip } from "../../apps/docs/scripts/landing-data.ts";
+import {
+  type ExhibitData,
+  exhibitData,
+  exhibitIds,
+  exhibitRows,
+  globToRegExp,
+  statusStrip,
+  suiteRunLabels,
+} from "../../apps/docs/scripts/landing-data.ts";
 import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
 import { formatWithCurrency } from "../../apps/docs/src/components/format.ts";
-import { monthName, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
+import type { PipelineData } from "../../apps/docs/src/components/pipeline-scene.ts";
+import { firstSentence, monthName, placeholders, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
+import { shownFacts } from "../../apps/docs/src/components/site/pipeline-stages.ts";
 
 let run: ReturnType<typeof recordRun<Awaited<ReturnType<typeof exhibitRows>>>> | undefined;
 /** Whitespace-insensitive SQL, for comparing a laid-out query with the recorded one. */
@@ -136,6 +146,40 @@ describe("hero exhibit (from the recorded run)", () => {
     for (const l of exhibit.compiled.lines) expect(flat(f?.computation.sql ?? "")).toContain(l);
   }, 120_000);
 
+  it("every chip in the pipeline stages links to a row of the landing fact ledger, with the same value", async () => {
+    const { exhibit } = await recorded();
+    const run = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "..", "docs", "assets", "readme", "pipeline.json"), "utf8"),
+    ) as PipelineData;
+    const shown = shownFacts(run);
+    expect(shown.length).toBe(8);
+    for (const f of shown) expect(exhibit.notes[f.id]?.value, f.id).toBe(f.text);
+  });
+
+  it("§2 shows the report's own first sentence, as the model wrote it (placeholders) and as rendered (facts)", async () => {
+    const { report, exhibit } = await recorded();
+    const sentence = firstSentence(exhibit.lines[0] ?? []);
+    const raw = placeholders(sentence);
+    expect(raw.endsWith(".")).toBe(true);
+    expect(raw).toMatch(/\{\{N\d+\}\}/);
+    // The claim text in report.json starts with exactly this sentence.
+    expect(report.findings[0]?.claims[0]?.text.startsWith(raw)).toBe(true);
+    for (const p of sentence) if (p.fact) expect(exhibit.notes[p.fact]?.value, p.fact).toBeTruthy();
+  });
+
+  it("the contribution bridge's drivers are every member of the split: the total's inputs are exactly the drivers' deltas", async () => {
+    const { report } = await recorded();
+    const finding = report.findings.find((f) => f.drivers?.length);
+    const drivers = (finding?.drivers ?? []).map((d) => d.fact);
+    expect(drivers.length).toBeGreaterThan(1);
+    const first = report.facts.find((f) => f.id === drivers[0]);
+    const prefix = (first?.label ?? "").replace(/:delta:[^:]*$/, "");
+    const total = report.facts.find((f) => f.label === `${prefix}:delta:total`);
+    expect(total?.computation.kind).toBe("function");
+    const inputs = (total?.computation.kind === "function" ? total.computation.inputs : undefined) ?? [];
+    expect([...inputs].sort()).toEqual([...drivers].sort());
+  });
+
   it("the cited document's quote is the claim's own citation", async () => {
     const { report, exhibit } = await recorded();
     const quotes = report.findings[0]?.claims.flatMap((c) => c.citations.map((x) => x.quote)) ?? [];
@@ -167,10 +211,11 @@ describe("landing markup", () => {
     return out.replace(/\s[a-z-]+="[^"]*"/g, "").replace(ALLOWED, "");
   };
 
-  it("index.astro and Exhibit.astro type no figures in their text", () => {
+  it("index.astro, Exhibit.astro and PipelineStages.astro type no figures in their text", () => {
     for (const [f, known] of [
       ["pages/index.astro", "An AI analyst you can audit."],
       ["components/site/Exhibit.astro", "Recorded from a real engine run."],
+      ["components/site/PipelineStages.astro", "Play"],
     ] as const) {
       const text = markup(f);
       expect(text).toContain(known); // the scan reads the page's text, not nothing
@@ -215,6 +260,32 @@ describe("exhibit helpers", () => {
   it("monthName names the month of a period", () => {
     expect(monthName("2026-04")).toBe("April");
     expect(monthName("Q2")).toBe("Q2");
+  });
+});
+
+describe("results table run labels (docs/EVALS.md §4)", () => {
+  it("shows a nightly run between its passes as in progress, not partial", () => {
+    // 2026-10-19: the first night finished 21 of 30 before Groq's daily quota ran out; the second night runs the rest.
+    expect(suiteRunLabels({ completed: 21, datasets: 30, passes: { dates: ["2026-10-19"], of: 2 } })).toEqual({
+      status: "resuming",
+      flag: "in progress: 21 of 30 jobs, the next pass runs the rest",
+    });
+  });
+  it("labels it partial only when jobs are unfinished after its last pass (or it had a single pass)", () => {
+    const partial = { status: "partial", flag: "partial" };
+    expect(suiteRunLabels({ completed: 29, datasets: 30, passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } })).toEqual(partial);
+    // A first night closed because the second never came (planResume) reads partial too.
+    expect(suiteRunLabels({ completed: 21, datasets: 30, passes: { dates: ["2026-10-19"], of: 1 } })).toEqual(partial);
+    expect(suiteRunLabels({ completed: 8, datasets: 30, passes: null })).toEqual(partial);
+    expect(suiteRunLabels({ completed: 30, datasets: 30, passes: { dates: ["2026-10-19", "2026-10-20"], of: 2 } })).toEqual({
+      status: "complete",
+      flag: null,
+    });
+  });
+  it("index.astro takes the labels from the generated data, never from its own count", () => {
+    const page = readFileSync(join(import.meta.dirname, "../../apps/docs/src/pages/index.astro"), "utf8");
+    expect(page).not.toMatch(/completed\s*<\s*(\w+\.)*datasets|n\/a \(partial run\)/);
+    expect(page).toContain("const { flag, status, completed, datasets } = c.suite;");
   });
 });
 

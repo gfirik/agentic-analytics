@@ -22,8 +22,11 @@ interface Props {
   n: Note;
   /** The id of the note's summary line (the chip's aria-describedby); omitted in the static list. */
   sumId?: string;
+  /** The live margin column: the SQL sits in a "Show SQL" disclosure, which the exhibit's script opens beside the
+   * exhibit (from 900px) and leaves closed below it, so the tallest note stays short on a phone. */
+  foldSql?: boolean;
 }
-const { n, sumId } = Astro.props;
+const { n, sumId, foldSql = false } = Astro.props;
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const tint = (t: SqlToken) => (t.kind === "plain" ? escapeHtml(t.text) : `<span class="t-${t.kind}">${escapeHtml(t.text)}</span>`);
 const sqlHtml = (lines: string[]) => lines.map((l) => sqlTokens(l).map(tint).join("")).join("\n");
@@ -44,7 +47,13 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     ) : null}
   </p>
 ) : null}
-{n.sql ? (
+{n.sql && foldSql ? (
+  <details class="aa-note-fold" data-fold>
+    <summary class="aa-note-cap">SQL, run in DuckDB <span class="aa-note-show">· show</span><span class="aa-note-hide">· hide</span></summary>
+    <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
+    {n.params?.length ? <p class="aa-note-params">{n.params.map(([k, val]) => `${k} = ${val}`).join(" · ")}</p> : null}
+  </details>
+) : n.sql ? (
   <>
     <p class="aa-note-cap">SQL, run in DuckDB</p>
     <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
@@ -143,11 +152,11 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     align-items: baseline;
   }
   .aa-note-id {
-    font: 500 0.75rem / 1.3 var(--aa-font-mono);
+    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
     color: var(--aa-ink);
   }
   .aa-note-label {
-    font: 400 0.75rem / 1.3 var(--aa-font-mono);
+    font: 400 var(--aa-text-note) / 1.3 var(--aa-font-mono);
     color: var(--aa-ink-3);
     overflow-wrap: anywhere;
   }
@@ -163,15 +172,49 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    font: 400 0.75rem / 1.3 var(--aa-font-mono);
+    font: 400 var(--aa-text-label) / 1.3 var(--aa-font-mono);
     color: var(--aa-verified);
   }
   .aa-note-cap {
     margin-top: var(--aa-space-1);
-    font: 500 0.6875rem / 1.3 var(--aa-font-mono);
+    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
     letter-spacing: var(--aa-label-tracking);
     text-transform: uppercase;
     color: var(--aa-ink-3);
+  }
+  /* "Show SQL" (the live column under 900px): the caption is the toggle; open, it reads as the plain caption. */
+  /* A 24px target (DESIGN.md §8), at label size. */
+  .aa-note-fold > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    width: fit-content;
+    min-height: 1.5rem;
+    font-size: var(--aa-text-label);
+    cursor: pointer;
+    list-style: none;
+  }
+  .aa-note-fold > summary::-webkit-details-marker {
+    display: none;
+  }
+  .aa-note-fold > summary:focus-visible {
+    outline: 2px solid var(--aa-ink);
+    outline-offset: 2px;
+  }
+  .aa-note-show,
+  .aa-note-hide {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--aa-rule-strong);
+    text-underline-offset: 2px;
+  }
+  .aa-note-fold[open] .aa-note-show,
+  .aa-note-fold:not([open]) .aa-note-hide {
+    display: none;
+  }
+  .aa-note-fold > .aa-note-sql,
+  .aa-note-fold > .aa-note-params {
+    margin-top: var(--aa-space-2);
   }
   .aa-note-sql {
     margin: 0;
@@ -179,7 +222,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     border: 1px solid var(--aa-rule);
     border-radius: var(--aa-radius);
     background: var(--aa-raised);
-    font: 400 0.6875rem / 1.55 var(--aa-font-mono);
+    font: 400 var(--aa-text-code) / 1.55 var(--aa-font-mono);
     color: var(--aa-ink-2);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -202,14 +245,14 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     text-decoration-color: var(--aa-rule-strong);
   }
   .aa-note-params {
-    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
+    font: 400 var(--aa-text-code) / 1.4 var(--aa-font-mono);
     color: var(--aa-ink-2);
     overflow-wrap: anywhere;
   }
   .aa-note-table {
     width: 100%;
     border-collapse: collapse;
-    font: 400 0.6875rem / 1.4 var(--aa-font-mono);
+    font: 400 var(--aa-text-note) / 1.4 var(--aa-font-mono);
     font-variant-numeric: tabular-nums;
     color: var(--aa-ink);
   }
@@ -243,7 +286,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     color: var(--aa-ink);
   }
   .aa-note-more {
-    font-size: 0.75rem;
+    font-size: var(--aa-text-note);
   }
   .aa-note-more a::after {
     content: " →";

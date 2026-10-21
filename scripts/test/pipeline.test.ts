@@ -1,4 +1,4 @@
-// The README pipeline GIF and the docs <Pipeline /> island (docs/DOCS-SITE.md §3.3): the data they show is a real
+// The README pipeline GIF and the site's pipeline stages (docs/DOCS-SITE.md §3.3): the data they show is a real
 // run's, the checked-in copy can't drift from the engine, the scene is deterministic, and the asset limits hold.
 import { describe, expect, it } from "vitest";
 import { extractPipelineData, pipelineJson, recordRun, senderOf } from "../../apps/docs/scripts/pipeline-data.ts";

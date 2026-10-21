@@ -57,7 +57,7 @@
   background: var(--aa-mark);
 }
 .aa-flow-name {
-  font: 500 0.8125rem / 1.4 var(--aa-font-sans);
+  font: 500 var(--aa-text-note) / 1.4 var(--aa-font-sans);
   color: var(--aa-ink);
 }
 .aa-flow-value {
@@ -66,7 +66,7 @@
   align-items: center;
   gap: 0.15rem 0.35rem;
   font-family: var(--aa-font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--aa-text-note);
   font-variant-numeric: tabular-nums;
   color: var(--aa-ink);
 }
@@ -76,8 +76,9 @@
 .aa-flow-value .aa-chip {
   margin-inline: 0;
 }
+/* Reading text in a figure: at least the note size (DESIGN.md §4). */
 .aa-flow-note {
-  font-size: 0.75rem;
+  font-size: var(--aa-text-note);
   line-height: 1.45;
   color: var(--aa-ink-2);
 }
@@ -116,7 +117,7 @@
   border-radius: var(--aa-radius);
   background: var(--aa-surface);
   color: var(--aa-ink);
-  font: 400 0.8125rem / 1.65 var(--aa-font-mono);
+  font: 400 var(--aa-text-code) / 1.65 var(--aa-font-mono);
   font-variant-ligatures: none;
   white-space: pre;
 }
@@ -156,12 +157,12 @@
   border: 1px solid var(--aa-rule);
   border-radius: var(--aa-radius);
   background: var(--aa-surface);
-  font: 400 0.75rem / 1.55 var(--aa-font-mono);
+  font: 400 var(--aa-text-code) / 1.55 var(--aa-font-mono);
   white-space: pre;
 }
 .sl-markdown-content .aa-learn-params {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: var(--aa-text-code);
   color: var(--aa-ink-2);
 }
 
@@ -230,13 +231,13 @@
   font: 600 1rem / 1.35 var(--aa-font-sans);
 }
 .aa-map-io {
-  font-size: 0.8125rem;
+  font-size: var(--aa-text-note);
   line-height: 1.5;
   color: var(--aa-ink-2);
   overflow-wrap: anywhere;
 }
 .aa-map-io b {
-  font: 500 0.75rem / 1.5 var(--aa-font-mono);
+  font: 500 var(--aa-text-label) / 1.5 var(--aa-font-mono);
   color: var(--aa-ink-3);
 }
 .aa-map-io .aa-fig {
@@ -254,7 +255,7 @@
 /* A recorded detail line in prose: mono like a figure, but allowed to wrap at 360 px. */
 .aa-mono-wrap {
   font-family: var(--aa-font-mono);
-  font-size: 0.875em;
+  font-size: var(--aa-text-code);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -278,7 +279,7 @@
   border-radius: var(--aa-radius);
   background: var(--aa-surface);
   color: var(--aa-ink);
-  font: 400 0.8125rem / 1.6 var(--aa-font-mono);
+  font: 400 var(--aa-text-code) / 1.6 var(--aa-font-mono);
   white-space: pre;
 }
 .sl-markdown-content pre.aa-learn-yaml:focus-visible {
