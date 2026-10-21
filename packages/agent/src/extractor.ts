@@ -5,10 +5,10 @@
 import type { ModelClient } from "@agentic-analytics/models";
 import { findQuote, type SearchHit } from "@agentic-analytics/retrieval";
 import type { Citation } from "@agentic-analytics/schema";
+import { screen } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
 import { renderPrompt } from "./prompts.ts";
-import { screen } from "./screen.ts";
 
 export const ExtractOutput = z.object({
   events: z
@@ -43,7 +43,7 @@ export interface Extract {
   readonly citation: Citation & { readonly char_start: number; readonly char_end: number; readonly page?: number };
 }
 
-export { screen } from "./screen.ts";
+export { screen } from "@agentic-analytics/schema";
 
 export interface ExtractResult {
   readonly extracts: Extract[];
@@ -87,11 +87,21 @@ export async function extractFromHits(
       // The data can't close its own block: a literal "</document>" in the text is neutralised.
       prompt: `<document source="${hit.file.replace(/["<>]/g, "_")}">\n${hit.text.replace(/<\/?document/gi, "‹document")}\n</document>`,
     });
-    const suspicious = object.suspicious_instructions;
     const items = [
       ...object.events.map((e) => ({ kind: "event" as const, text: e.what, quote: e.quote, date: e.date, actor: e.actor })),
       ...object.statements.map((s) => ({ kind: "statement" as const, text: s.claim, quote: s.quote, topic: s.topic })),
     ];
+    // The extractor's own prose (its paraphrase, the actor, the topic) reaches the planner as an extract's text, so
+    // it is screened like the source: an instruction the extractor repeated, or wrote itself after reading the
+    // chunk, counts as its flag and quarantines the source (security §3). Quotes are checked against the source.
+    const wrote = items.flatMap((i) => [
+      i.text,
+      "actor" in i ? (i.actor ?? "") : "",
+      "topic" in i ? (i.topic ?? "") : "",
+      // The date is free text in the schema (40 characters fit an instruction), and the planner reads it.
+      "date" in i ? (i.date ?? "") : "",
+    ]);
+    const suspicious = object.suspicious_instructions || wrote.some((t) => t !== "" && screen(t));
     for (const item of items) {
       const q = findQuote(hit, item.quote);
       if (!q) {

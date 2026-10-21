@@ -13,6 +13,7 @@ import type { Dropped } from "./explain.ts";
 import type { Extract } from "./extractor.ts";
 import type { FactSheet } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
+import { withheld } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
@@ -213,7 +214,13 @@ export async function decide(
   try {
     req = decideRequest({
       objective: input.objective,
-      findings: input.findings.map((f) => ({ id: f.id, type: f.type, title: f.title, claims: f.claims.map((c) => c.text) })),
+      // Titles and claims quote members from the data: screened on their way to the planner (withhold.ts).
+      findings: input.findings.map((f) => ({
+        id: f.id,
+        type: f.type,
+        title: withheld(f.title),
+        claims: f.claims.map((c) => withheld(c.text)),
+      })),
       factsheet: input.factsheet,
       periodEnd: input.periodEnd,
       cites: input.findings.flatMap((f) => f.claims.flatMap((c) => c.facts)),

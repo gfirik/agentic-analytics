@@ -101,7 +101,9 @@ const PATTERNS: readonly RegExp[] = [
 
 /** True when the text looks like it carries instructions for a model (after normalising it). */
 export function screen(text: string): boolean {
-  const t = screenText(text);
+  // Identifiers carry the same words with "_" for spaces (a flagged header becomes a snake_case column, dimension
+  // or metric id): read "ignore_previous_instructions" as words too.
+  const t = screenText(text).replace(/_+/g, " ");
   const s = skeleton(t);
   return [t, s, despace(s)].some((v) => PATTERNS.some((re) => re.test(v)));
 }

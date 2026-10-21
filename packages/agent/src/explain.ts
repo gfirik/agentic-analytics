@@ -12,6 +12,7 @@ import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
 import type { Budget, ToolContext } from "./tools.ts";
+import { withheld, withheldMember } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
@@ -183,9 +184,10 @@ export async function explainFindings(
       id: insight.id,
       template: insight.template,
       metric: insight.metric,
-      ...(insight.member ? { member: insight.member } : {}),
+      ...(insight.member ? { member: withheldMember(insight.member) } : {}),
       period: insight.period,
-      observed: observed.map((c) => c.text),
+      // Code wrote these claims, but they quote members from the data: screened like any table text.
+      observed: observed.map((c) => withheld(c.text)),
     });
     // By id, not by position: a source quarantined during this finding removes earlier extracts from the list.
     const known = new Set(ctx.found.extracts.map((e) => e.id));
@@ -222,7 +224,7 @@ export async function explainFindings(
         id: e.id,
         kind: e.kind,
         // Web extracts show their site only (a URL path is attacker-controlled text) and are marked external.
-        ...(e.external ? { site: siteOf(e.file), external: true } : { file: e.file }),
+        ...(e.external ? { site: siteOf(e.file), external: true } : { file: withheld(e.file) }),
         date: e.date,
         actor: e.actor,
         text: e.text,

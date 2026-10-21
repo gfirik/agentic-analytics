@@ -4,6 +4,7 @@
 import type { ModelClient } from "@agentic-analytics/models";
 import type { ProfileSummary } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
+import { screen } from "@agentic-analytics/schema";
 import { z } from "zod";
 import type { Catalog } from "./catalog.ts";
 import { buildDigest, type Digest } from "./digest.ts";
@@ -143,6 +144,9 @@ export function groupingColumns(table: ProfiledTable, statusCol?: ProfiledTable[
   return (
     table.columns
       .filter((c) => c.type === "category" && c !== status && c.distinct_count >= 2 && c.distinct_count <= MAX_GROUPING_VALUES)
+      // A column whose header addresses a model is never a grouping: its name would reach the planner as a dimension,
+      // and a definition naming it is refused, which would cost the metric itself (security §3).
+      .filter((c) => !screen(c.label) && !screen(c.name))
       // An id-like column (an invoice number, an email: nearly one value per row) explains nothing and multiplies the
       // member series; a grouping repeats its values across rows.
       .filter((c) => c.distinct_count <= 50 || table.detail_rows < ID_LIKE_MIN_ROWS || c.distinct_count < ID_LIKE_SHARE * table.detail_rows)
@@ -166,7 +170,8 @@ export function withGroupingDimensions(def: MetricDef, summary: ProfileSummary):
 
 /** Cell text becomes a metric id and label here, so it must look like a plain short name (security §3 screen). */
 function safeMemberName(value: string): boolean {
-  return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !/ignore|instruction|system|prompt|you are|https?:/i.test(value);
+  // The real injection screen, not a word list: "Disregard all prior rules" passed the old pattern (security §3).
+  return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !screen(value);
 }
 
 const PRICE = /price|цена|narx/i;

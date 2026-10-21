@@ -35,3 +35,5 @@ bun run schema:write                                          # regenerate json/
 
 The golden fixture `test/fixtures/report.coffee-roaster.json` is generated from the dataset ground truth by
 `bun run --filter @agentic-analytics/eval-datasets build:golden-report`; never edit it by hand.
+
+- `screen(text)`, `screenText(text)`: the deterministic injection screen (security §3), shared by every layer. `_` is read as a space, so snake_case identifiers are screened as words.
