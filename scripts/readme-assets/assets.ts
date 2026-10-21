@@ -183,7 +183,10 @@ export function statusBlock(dir = join(ROOT, "evals/results")): string {
     const model = smoke.model.replace(/^openai-compatible:groq:/, "").replace(/ \(small-model mode\)$/, "");
     const host = hostOf(smoke.model).replace(/ \((hosted|see note)\)$/, "");
     lines.push(
-      `> - **A free real model:** ${model} (${host}) finished ${done} of ${smoke.datasets} smoke jobs${wrong === undefined ? "" : ` with ${wrong} wrong number${wrong === 1 ? "" : "s"}`}${precision === undefined ? "" : ` and ${(precision * 100).toFixed(0)}% citation precision`} ([details](#real-model-runs)).`,
+      `> - **A free real model:** ${model} (${host}) finished ${done} of ${smoke.datasets} smoke jobs${
+        // "Number mismatches" counts jobs stopped on a wrong number (a shipped report can't hold one): say what it is.
+        wrong === undefined ? "" : wrong === 0 ? ", every number recomputed before shipping," : `, ${wrong} stopped on a wrong number,`
+      }${precision === undefined ? "" : ` and ${(precision * 100).toFixed(0)}% citation precision`} ([details](#real-model-runs)).`,
     );
   }
   lines.push(

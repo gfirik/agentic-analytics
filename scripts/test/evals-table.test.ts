@@ -90,7 +90,7 @@ describe("statusBlock", () => {
     const lines = text.split("\n");
     expect(lines[2]).toContain("2 of 3 checks pass on 2 public datasets");
     expect(lines[3]).toContain(
-      "qwen/qwen3.8-27b (Groq free tier) finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision",
+      "qwen/qwen3.8-27b (Groq free tier) finished 3 of 3 smoke jobs, every number recomputed before shipping, and 100% citation precision",
     );
     expect(lines.at(-1)).toContain("30 generated businesses with planted events are the nightly regression check");
     // The full suite's partial pass is linked, never headlined.
