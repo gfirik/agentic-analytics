@@ -148,6 +148,8 @@ describe("query flow (spec §3)", () => {
     expect(memo.length).toBeGreaterThan(0);
     const before = await searchDocuments(ws, "price increase", { embedder });
     expect(before.hits.some((h) => h.file === "pricing-memo.docx")).toBe(true);
+    // Both paths ran (BM25 didn't fall back), so both are shown to filter.
+    expect(before.degraded).not.toContain("bm25");
     for (const m of memo) await ws.run(sql`INSERT INTO quarantine VALUES (${m.id}, 'test', 'screen')`);
     try {
       const after = await searchDocuments(ws, "price increase", { embedder });

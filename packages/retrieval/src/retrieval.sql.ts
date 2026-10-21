@@ -81,6 +81,7 @@ export function vectorTop(embedding: readonly number[], f: Filters, limit: numbe
     ORDER BY list_cosine_similarity(c.embedding, ${JSON.stringify(embedding)}::FLOAT[]) DESC, c.id LIMIT ${limit}`;
 }
 
+/** Chunks by id, unfiltered: callers pass ids that already came through `filterSql` (bm25Top / vectorTop). */
 export function chunksById(ids: readonly string[]): Sql {
   return sql`
     SELECT c.id, c.source_id, f.name AS file, c.page, c.heading_path, c.char_start, c.char_end, c.text, c.prefix
