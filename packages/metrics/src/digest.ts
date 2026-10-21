@@ -3,6 +3,7 @@
 // contact are masked. Cell text is untrusted (security §2), so it is only ever sent as delimited data.
 import type { ProfileSummary } from "@agentic-analytics/profile";
 import { entityKind } from "@agentic-analytics/profile";
+import { screen } from "@agentic-analytics/schema";
 
 export interface DigestColumn {
   readonly name: string;
@@ -52,7 +53,8 @@ export interface DigestOptions {
 }
 
 export function buildDigest(summary: ProfileSummary, options: DigestOptions = {}): Digest {
-  const bad = options.suspicious ?? (() => false);
+  // The injection screen by default: every caller (the job, `aa metrics`, the API) gets it.
+  const bad = options.suspicious ?? screen;
   return {
     grain: summary.grain,
     tables: summary.tables.map((t) => ({
@@ -60,14 +62,20 @@ export function buildDigest(summary: ProfileSummary, options: DigestOptions = {}
       source: `${t.file}${t.sheet ? `#${t.sheet}` : ""}`,
       rows: t.detail_rows,
       ...(t.date_column ? { date_column: t.date_column } : {}),
-      columns: t.columns.map((c) => ({
-        name: c.name,
-        label: bad(c.label) ? `<withheld label: ${c.name}>` : c.label,
-        type: c.type,
-        ...(c.currency ? { currency: c.currency } : {}),
-        distinct: c.distinct_count,
-        samples: c.top_values.slice(0, MAX_SAMPLES).map((v, i) => (bad(v.value) ? "<withheld>" : maskSample(v.value, c.label, i, c.type))),
-      })),
+      // A column whose label (or its snake_case name) addresses a model is left out: its name is the label's text, so
+      // "<withheld label: name>" would still carry it (security §3).
+      columns: t.columns
+        .filter((c) => !bad(c.label) && !bad(c.name))
+        .map((c) => ({
+          name: c.name,
+          label: c.label,
+          type: c.type,
+          ...(c.currency ? { currency: c.currency } : {}),
+          distinct: c.distinct_count,
+          samples: c.top_values
+            .slice(0, MAX_SAMPLES)
+            .map((v, i) => (bad(v.value) ? "<withheld>" : maskSample(v.value, c.label, i, c.type))),
+        })),
     })),
   };
 }

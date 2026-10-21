@@ -16,7 +16,7 @@ EXPLAIN and DECIDE.
   - Quotes must be exact substrings of the excerpt.
   - Suspicious text, flagged by the model or by `screen()`, is stored, flagged and excluded.
 - **`answerQuestion(model, question, report)`**: follow-up answers as claims with placeholders. Each claim names the report claims it rests on (`F1#0`, `R2#1`), and code copies their citations and the weakest causal grade. The caller verifies the claims (`askJob` in core). Prompt `ask.md`.
-- **`screen(text)` / `screenText(text)`**: the deterministic injection screen (security §3). Text is normalised first (NFKC, invisible characters, Latin accents, look-alike letters, spaced-out letters); EN/RU/UZ patterns.
+- **`screen(text)` / `screenText(text)`**: the deterministic injection screen (security §3), defined in `@agentic-analytics/schema` and re-exported here; `_` reads as a space. Text is normalised first (NFKC, invisible characters, Latin accents, look-alike letters, spaced-out letters); EN/RU/UZ patterns.
 - **`screenTables(ws)`, `screenDocuments(ws)`, `screenWorkspace(ws)`**: run the screen over table labels and text cells (after PROFILE) and over documents and emails (at INDEX_DOCS). Hits go to the `quarantine` table and are never sent to any model.
 - **`buildTools(ctx, budget)`**: `get_facts`, `drill_down`, `decompose`, `search_documents`, `search_web` (off), `propose_scenario` and `ask_user`.
   - `Budget` allows 25 calls per job and 8 per finding by default.
@@ -25,6 +25,7 @@ EXPLAIN and DECIDE.
   - The planner investigates, then writes explanations with causal grades and rejected alternatives.
   - Unknown fact or extract ids are dropped, and causal grades without a document are downgraded.
   - In small-model mode, a code-run search and a fill-in form replace this. The search (`smallModeQuery`) names the metric, the top member of each contribution split (`topDrivers`, never "(other)"), the period and the change type's event words (`RATE_EVENT_WORDS` for a refund, return, defect or complaint rate; `CHANGE_EVENT_WORDS` otherwise).
+- **`withheld`, `withheldMember`, `withheldKeys`** (`src/withhold.ts`): table text on its way into a planner prompt (fact labels, member values, decomposition keys, claims that quote a member). Text the injection screen flags is replaced; ids and values stay (security §3).
 - **`decide(...)`**:
   - The answer is read per candidate (`DecideAnswer`, `repairCandidate`): one candidate breaking the output rules is dropped alone; `bindIds` binds the check's metric and file-named extracts when exactly one reading exists.
   - The planner proposes candidate actions and code computes each impact range (`scenarioFacts`).

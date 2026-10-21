@@ -4,6 +4,7 @@ import type { ModelClient } from "@agentic-analytics/models";
 import { type Finding, findFreeNumerals, placeholders } from "@agentic-analytics/schema";
 import { z } from "zod";
 import { data, renderPrompt } from "./prompts.ts";
+import { withheld } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
 
@@ -24,7 +25,8 @@ export async function writeHeadline(model: ModelClient, findings: readonly Findi
     role: "planner",
     schema: Headline,
     system: renderPrompt("summary", {
-      findings: data(findings.map((f) => ({ id: f.id, title: f.title, claims: f.claims.map((c) => c.text) }))),
+      // Titles and claims quote members from the data: screened on their way to the planner (withhold.ts).
+      findings: data(findings.map((f) => ({ id: f.id, title: withheld(f.title), claims: f.claims.map((c) => withheld(c.text)) }))),
     }),
     prompt: "Write the headline.",
   });

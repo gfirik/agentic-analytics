@@ -1,6 +1,6 @@
 // Code validates every metric proposal (docs/specs/metric-layer.md §2.3). The model is never trusted to be
 // right: each proposal is accepted (normalized, with defaults filled) or rejected with the reasons why.
-import { MetricDef } from "@agentic-analytics/schema";
+import { MetricDef, screen } from "@agentic-analytics/schema";
 import { type Catalog, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
 import { describeExpr, type Expr, exprColumns, filterColumns, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 
@@ -100,6 +100,10 @@ export function validateMetrics(proposals: readonly unknown[], catalog: Catalog,
       def = parsed.data;
       if (seen.has(def.id)) reasons.push(`id "${def.id}" is used by another metric`);
       reasons.push(...checkSemantics(def, catalog, accepted));
+      // A definition names things the planner reads (its id, label and dimensions reach every prompt): one that
+      // addresses a model is refused, and the reason doesn't repeat its text (security §3).
+      if ([def.id, def.label, ...(def.dimensions ?? [])].some((t) => screen(t)))
+        reasons.push("its id, label or a dimension reads as instructions to a model");
     }
     if (def && !reasons.length) {
       const table = def.table ? catalog.get(def.table) : undefined;
