@@ -1,0 +1,1684 @@
+{
+  "suite": "full",
+  "model": "configured (small-model mode)",
+  "date": "2026-10-19",
+  "datasets": 30,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 39.963,
+      "tokens": {
+        "input": 20304,
+        "output": 5565
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 16,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 7.045,
+      "tokens": {
+        "input": 25223,
+        "output": 6330
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 3,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 2,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 2,
+          "cached": 2,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 5.883,
+      "tokens": {
+        "input": 19640,
+        "output": 4830
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 1,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 1,
+          "cached": 1,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 4.078,
+      "tokens": {
+        "input": 33126,
+        "output": 6987
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 16,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "printing_shop-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 6.077,
+      "tokens": {
+        "input": 27612,
+        "output": 8074
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "printing_shop-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 5.351,
+      "tokens": {
+        "input": 27442,
+        "output": 8018
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "clinic-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 4.357,
+      "tokens": {
+        "input": 25099,
+        "output": 8174
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 16,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "clinic-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 8.026,
+      "tokens": {
+        "input": 31617,
+        "output": 8940
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 5,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "clinic-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 29.618,
+      "tokens": {
+        "input": 28251,
+        "output": 7276
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 4,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 2,
+          "failed": 2
+        }
+      ]
+    },
+    {
+      "dataset": "online_store-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 133.216,
+      "tokens": {
+        "input": 26499,
+        "output": 7592
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 9,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 3,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 7,
+          "cached": 0,
+          "failed": 3
+        }
+      ]
+    },
+    {
+      "dataset": "online_store-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 186.615,
+      "tokens": {
+        "input": 28156,
+        "output": 7216
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 7,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 7,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 7,
+          "cached": 6,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 10,
+          "cached": 0,
+          "failed": 6
+        }
+      ]
+    },
+    {
+      "dataset": "online_store-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 90.074,
+      "tokens": {
+        "input": 28407,
+        "output": 7025
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 11,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 3,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 0,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "distributor-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 100.439,
+      "tokens": {
+        "input": 23699,
+        "output": 5237
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 1,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 9,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 1,
+          "cached": 0,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 0,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "distributor-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 164.81,
+      "tokens": {
+        "input": 32544,
+        "output": 9046
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 14,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 6,
+          "cached": 4,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 7,
+          "cached": 0,
+          "failed": 2
+        }
+      ]
+    },
+    {
+      "dataset": "distributor-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 93.76,
+      "tokens": {
+        "input": 26794,
+        "output": 6671
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 13,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 6,
+          "cached": 5,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 7,
+          "cached": 1,
+          "failed": 3
+        }
+      ]
+    },
+    {
+      "dataset": "restaurant-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 148.717,
+      "tokens": {
+        "input": 27968,
+        "output": 6034
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 9,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 3,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 0,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "restaurant-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 155.458,
+      "tokens": {
+        "input": 29057,
+        "output": 6813
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": false
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 2,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 14,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 2,
+          "cached": 1,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 8,
+          "cached": 0,
+          "failed": 3
+        }
+      ]
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 61.358,
+      "tokens": {
+        "input": 30613,
+        "output": 7766
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 6,
+          "cached": 4,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "saas-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 184.434,
+      "tokens": {
+        "input": 19726,
+        "output": 5822
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 9,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 5,
+          "cached": 4,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 9,
+          "cached": 0,
+          "failed": 3
+        }
+      ]
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 4.894,
+      "tokens": {
+        "input": 25334,
+        "output": 6849
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 3,
+          "cause": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 19,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 4,
+          "cached": 4,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "saas-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 123.556,
+      "tokens": {
+        "input": 27789,
+        "output": 7202
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 2,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 3,
+      "actionRelevant": false,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 19,
+          "cached": 11,
+          "failed": 0
+        },
+        {
+          "role": "judge",
+          "route": "openai-compatible:groq:openai/gpt-oss-20b",
+          "calls": 4,
+          "cached": 3,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 5,
+          "cached": 0,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "dataset": "logistics-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 160.76,
+      "tokens": {
+        "input": 18091,
+        "output": 5290
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: DECIDE failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1964 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 16,
+          "cached": 6,
+          "failed": 0
+        },
+        {
+          "role": "planner",
+          "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+          "calls": 9,
+          "cached": 0,
+          "failed": 5
+        }
+      ]
+    },
+    {
+      "dataset": "logistics-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 6.149,
+      "tokens": {
+        "input": 5302,
+        "output": 3492
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1958 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 7,
+          "cached": 7,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "logistics-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 10.604,
+      "tokens": {
+        "input": 5302,
+        "output": 3210
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1948 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 7,
+          "cached": 6,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "construction_supplier-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.732,
+      "tokens": {
+        "input": 4614,
+        "output": 2619
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1945 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 6,
+          "cached": 6,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "construction_supplier-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 10.566,
+      "tokens": {
+        "input": 5313,
+        "output": 3317
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1934 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 7,
+          "cached": 1,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "construction_supplier-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 118.595,
+      "tokens": {
+        "input": 5341,
+        "output": 2967
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1816 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 7,
+          "cached": 0,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "agency-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 12.931,
+      "tokens": {
+        "input": 4597,
+        "output": 3199
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1803 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 6,
+          "cached": 0,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "agency-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 69.029,
+      "tokens": {
+        "input": 5302,
+        "output": 2659
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1734 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 7,
+          "cached": 3,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "dataset": "agency-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 62.246,
+      "tokens": {
+        "input": 5305,
+        "output": 2997
+      },
+      "completed": false,
+      "error": "RATE_LIMITED: EXPLAIN failed: every route is rate-limited: openai-compatible:groq:qwen/qwen3.8-27b for 1672 s. Stopped instead of switching models; rerun later (cached calls are free) or add a route for the same model.",
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": false
+        },
+        {
+          "id": "P3",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [],
+      "citationsChecked": 0,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 0,
+      "groundedRecommendations": 0,
+      "findings": 0,
+      "routes": [
+        {
+          "role": "extractor",
+          "route": "openai-compatible:groq:openai/gpt-oss-120b",
+          "calls": 7,
+          "cached": 0,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 0.7,
+      "bar": "100%",
+      "pass": false
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0.48,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Driver accuracy",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "value": 0.7083333333333334,
+      "bar": "≥ 80%",
+      "pass": false
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "≤ 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 0.7,
+      "bar": "≥ 90%",
+      "pass": false
+    },
+    {
+      "metric": "Citation precision",
+      "value": 1,
+      "bar": "≥ 95%",
+      "pass": true
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 0.38095238095238093,
+      "bar": "≥ 70%",
+      "pass": false
+    }
+  ],
+  "routes": [
+    {
+      "role": "extractor",
+      "route": "openai-compatible:groq:openai/gpt-oss-120b",
+      "calls": 448,
+      "cached": 335,
+      "failed": 0
+    },
+    {
+      "role": "judge",
+      "route": "openai-compatible:groq:openai/gpt-oss-20b",
+      "calls": 92,
+      "cached": 79,
+      "failed": 0
+    },
+    {
+      "role": "planner",
+      "route": "openai-compatible:groq:qwen/qwen3.8-27b",
+      "calls": 131,
+      "cached": 47,
+      "failed": 31
+    }
+  ],
+  "seconds": 2011.558,
+  "tokens": {
+    "input": 624067,
+    "output": 177217
+  },
+  "note": "History, not a headline: the first scheduled nightly pass (cron, 2026-10-19 22:00 UTC), under the old one-night rule. 21 of 30 jobs finished; then Groq's free tier (200k tokens a day for the qwen/qwen3.8-27b planner) stopped the rest with RATE_LIMITED, so the rates count those jobs as misses. Same Groq roles as the smoke run (planner qwen/qwen3.8-27b, extractor openai/gpt-oss-120b, judge openai/gpt-oss-20b), small-model mode. Since #37 a nightly run spans two nights and is labelled partial only if jobs are still unfinished after the second; this pass is kept as the record that led to that change."
+}

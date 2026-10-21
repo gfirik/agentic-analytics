@@ -63,6 +63,65 @@ Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-o
 
 </details>
 
+### configured (small-model mode) · full suite · 2026-10-19
+
+History, not a headline: the first scheduled nightly pass (cron, 2026-10-19 22:00 UTC), under the old one-night rule. 21 of 30 jobs finished; then Groq's free tier (200k tokens a day for the qwen/qwen3.8-27b planner) stopped the rest with RATE_LIMITED, so the rates count those jobs as misses. Same Groq roles as the smoke run (planner qwen/qwen3.8-27b, extractor openai/gpt-oss-120b, judge openai/gpt-oss-20b), small-model mode. Since #37 a nightly run spans two nights and is labelled partial only if jobs are still unfinished after the second; this pass is kept as the record that led to that change.
+
+30 datasets · 2012 s · 801284 tokens
+
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 335 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (92 calls, 79 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (131 calls, 47 cached, 31 failed)
+
+| Metric | Result | v0.1 bar | Pass |
+|---|---|---|---|
+| Jobs completed | 70.0% | 100% | **no** |
+| Number mismatches | 0 | 0 | n/a (partial run) |
+| Planted recall@5 | 48.0% | ≥ 80% | n/a (partial run) |
+| Driver accuracy | 100.0% | ≥ 90% | n/a (partial run) |
+| Cause grade accuracy | 70.8% | ≥ 80% | n/a (partial run) |
+| Distractor FP rate | 0.0% | ≤ 10% | n/a (partial run) |
+| Quality-issue recall | 70.0% | ≥ 90% | n/a (partial run) |
+| Citation precision | 100.0% | ≥ 95% | n/a (partial run) |
+| Definition adherence | 100.0% | 100% | n/a (partial run) |
+| Recommendation grounding | 100.0% | 100% | n/a (partial run) |
+| Recommendation relevance | 38.1% | ≥ 70% | n/a (partial run) |
+
+<details><summary>Per dataset</summary>
+
+| Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
+|---|---|---|---|---|---|---|
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 40.0 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 7.0 s |
+| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 5.9 s |
+| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 4.1 s |
+| printing_shop-v2 | yes | 1/2 | none | 1/1 | 3 | 6.1 s |
+| printing_shop-v3 | yes | 1/2 | none | 1/1 | 3 | 5.4 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 4.4 s |
+| clinic-v2 | yes | 1/2 | none | 1/1 | 3 | 8.0 s |
+| clinic-v3 | yes | 1/2 | none | 1/1 | 3 | 29.6 s |
+| online_store-v1 | yes | 1/1 | none | 2/2 | 3 | 133.2 s |
+| online_store-v2 | yes | 1/2 | none | 1/1 | 3 | 186.6 s |
+| online_store-v3 | yes | 1/2 | none | 1/1 | 3 | 90.1 s |
+| distributor-v1 | yes | 1/1 | none | 2/2 | 3 | 100.4 s |
+| distributor-v2 | yes | 1/2 | none | 1/1 | 3 | 164.8 s |
+| distributor-v3 | yes | 1/2 | none | 1/1 | 3 | 93.8 s |
+| restaurant-v1 | yes | 1/1 | none | 2/2 | 3 | 148.7 s |
+| restaurant-v2 | yes | 2/2 | none | 1/1 | 3 | 155.5 s |
+| restaurant-v3 | yes | 1/2 | none | 1/1 | 3 | 61.4 s |
+| saas-v1 | yes | 1/1 | none | 2/2 | 3 | 184.4 s |
+| saas-v2 | yes | 2/2 | none | 1/1 | 3 | 4.9 s |
+| saas-v3 | yes | 1/2 | none | 1/1 | 3 | 123.6 s |
+| logistics-v1 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/1 | none | 0/2 | 0 | 160.8 s |
+| logistics-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 6.1 s |
+| logistics-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 10.6 s |
+| construction_supplier-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.7 s |
+| construction_supplier-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 10.6 s |
+| construction_supplier-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 118.6 s |
+| agency-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 12.9 s |
+| agency-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 69.0 s |
+| agency-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 62.2 s |
+
+</details>
+
 ### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-17
 
 **Partial run: 8 of 30 jobs finished** (pass of 2026-10-17 20:46–21:01 UTC, after the M13h fixes). Same Groq roles as the smoke run. Groq's free tier allows 200k tokens a day for qwen/qwen3.8-27b, so the other jobs stopped on the rate limit (RATE_LIMITED, never switching models); coffee_roaster-v1, which finished in an earlier pass, failed this one on a network error ("Cannot connect to API") in DECIDE; its DECIDE request changed with the M13h input budget, so the next pass re-sends that call live (its earlier calls are cached). The rates below count every unfinished job as a miss, so they are not the model's quality. Over the 8 finished jobs (coffee_roaster v2–v3, printing_shop v1–v3, clinic v1–v2, saas-v2): 10 of 14 planted events found, 0 of 12 distractors reported, 10 of 10 quality issues found, 0 number mismatches. printing_shop-v1 now finishes: with the M13h small-model input budget every planner call with a token count in this pass stayed at or under 5,378 input tokens (the tier allows 7,000 per minute). One pass runs per day after the quota resets (scripts/eval-daily.sh; finished calls are cached) until every job finishes.
