@@ -38,6 +38,11 @@ export const OpenAICompatibleEndpoint = z.object({
     .optional(),
   /** Send the JSON Schema as `response_format: json_schema`. Off by default: not every free model supports it. */
   structured_outputs: z.boolean().optional(),
+  /**
+   * The free tier's tokens a day (input + output) per model id as sent, e.g. Groq's 200k for qwen/qwen3.8-27b.
+   * Data for `aa usage` only: nothing is refused or throttled by it (docs/specs/models.md §4).
+   */
+  daily_token_limits: z.record(z.string(), z.number().int().positive()).optional(),
 });
 
 export const Config = z.object({

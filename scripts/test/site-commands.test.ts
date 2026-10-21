@@ -73,7 +73,7 @@ function problemsIn(file: string, lines: readonly string[] = codeOf(readFileSync
 
 describe("commands on the site", () => {
   it("reads the CLI's commands and flags", () => {
-    expect([...top].sort()).toEqual(["analyze", "ask", "doctor", "eval", "explain", "jobs", "mcp", "metrics", "run", "serve"]);
+    expect([...top].sort()).toEqual(["analyze", "ask", "doctor", "eval", "explain", "jobs", "mcp", "metrics", "run", "serve", "usage"]);
     expect(commands.get("analyze")?.has("small-model")).toBe(true);
     expect([...(nested.jobs ?? [])].sort()).toEqual(["ls", "resume", "rm"]);
   });

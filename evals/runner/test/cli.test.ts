@@ -229,6 +229,7 @@ describe("evalCommand with --label, --note and --only", () => {
       "seconds",
       "suite",
       "tokens",
+      "usage",
     ]);
     const md = resultsPage(results);
     expect(md).toContain(`### ${LABEL} · full suite · 2026-10-20`);

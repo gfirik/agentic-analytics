@@ -12,6 +12,8 @@ Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-o
 
 30 datasets · 127 s · 23085 tokens
 
+Usage: n/a (tokens per call not recorded for this run)
+
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
 | Jobs completed | 100.0% | 100% | yes |
@@ -128,6 +130,8 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 
 
 30 datasets · 929 s · 488896 tokens
 
+Usage: n/a (tokens per call not recorded for this run)
+
 Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (314 calls, 269 cached, 1 failed); judge → openai-compatible:groq:openai/gpt-oss-20b (32 calls, 30 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (58 calls, 40 cached, 3 failed)
 
 | Metric | Result | v0.1 bar | Pass |
@@ -187,6 +191,8 @@ Groq free tier. The daily token quota (200k/day) ran out after the first job, so
 
 3 datasets · 192 s · 30752 tokens
 
+Usage: n/a (tokens per call not recorded for this run)
+
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
 | Jobs completed | 33.3% | 100% | **no** |
@@ -216,6 +222,8 @@ Groq free tier. The daily token quota (200k/day) ran out after the first job, so
 Groq free tier. Run before DECIDE degraded gracefully on invalid output: two jobs failed at DECIDE on Groq's own JSON validation (fixed since; rerun pending quota). Rescored from the kept report with the final scoring.
 
 3 datasets · 703 s · 91087 tokens
+
+Usage: n/a (tokens per call not recorded for this run)
 
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
@@ -247,6 +255,8 @@ Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, 
 
 3 datasets · 1174 s · 100559 tokens
 
+Usage: n/a (tokens per call not recorded for this run)
+
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
 | Jobs completed | 100.0% | 100% | yes |
@@ -276,6 +286,8 @@ Groq free tier, small-model mode. The model drafted metrics on the Costs sheet, 
 Groq free tier, every role on Groq (planner qwen/qwen3.8-27b, extractor openai/gpt-oss-120b, judge openai/gpt-oss-20b), small-model mode, run with --model configured. All 3 jobs finished. The free judges tried first (Gemma 4 on Google AI Studio, OpenRouter free, Mistral) were dropped: overloaded (503/429, 44–127 s per call) or rate-limited on the first request. Bars missed: cause grade 75% (< 80%) and recommendation relevance 66.7% (< 70%).
 
 3 datasets · 37 s · 97619 tokens
+
+Usage: n/a (tokens per call not recorded for this run)
 
 Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (54 calls, 54 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (15 calls, 13 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (15 calls, 14 cached)
 

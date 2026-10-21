@@ -53,6 +53,10 @@ export interface CallRecord {
   readonly status: number;
   readonly cached: boolean;
   readonly ms: number;
+  /**
+   * Tokens from the provider's `usage` field (prompt_tokens, completion_tokens); 0 for a cached call, which spends
+   * no quota. Absent when the response carried no usage (most failed calls): unknown, not 0.
+   */
   readonly inputTokens?: number;
   readonly outputTokens?: number;
   /** For a failed call, the provider's own short error message (never the prompt; key-like strings masked). */
@@ -150,7 +154,7 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
         status,
         cached,
         ms: Date.now() - started,
-        ...(text ? usageOf(text) : {}),
+        ...(cached ? { inputTokens: 0, outputTokens: 0 } : text ? usageOf(text) : {}),
         ...(error ? { error } : {}),
       });
     const fail = async (res: Response) => record(res.status, false, undefined, errorOf(await res.clone().text(), o.secrets));
@@ -160,7 +164,8 @@ export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOption
       if (hit !== undefined) {
         // A cached step counts as progress like a live one: tools may have run on it, so the call stays on this route.
         o.lease?.started();
-        record(200, true, hit);
+        // A cached answer spends no quota: it records 0 tokens, not the usage stored in the answer.
+        record(200, true);
         return new Response(hit, { status: 200, headers: { "content-type": "application/json" } });
       }
     }
