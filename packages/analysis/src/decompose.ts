@@ -18,6 +18,23 @@ export interface Contribution {
   /** Keys of members that moved with / against the total. */
   readonly positive: readonly string[];
   readonly negative: readonly string[];
+  /**
+   * When the top member moved by more than the whole change (its share is over 100%, members offset each other):
+   * the magnitudes a sentence states ("wholesale fell 8,500, more than the whole drop; retail rose 600")
+   * and the comparison itself as a fact, so the verifier recomputes "more than" like any number (spec §4.1).
+   */
+  readonly beyond?: {
+    readonly key: string;
+    readonly magnitude: Calc;
+    readonly exceeds: Calc;
+    /** The largest member that moved against the total, with its magnitude. */
+    readonly offset?: { readonly key: string; readonly magnitude: Calc };
+  };
+}
+
+/** |x| as a fact of the same unit: prose states a decline as a magnitude (report-schema §5a). */
+function magnitude(of: Calc, name: string, label: string): Calc {
+  return { name, label, value: Math.abs(of.value), unit: of.unit, fn: "abs", inputs: [calcRef(of.name)] };
 }
 
 /**
@@ -60,13 +77,61 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
       },
     }))
     .sort((a, b) => Math.abs(b.delta.value) - Math.abs(a.delta.value) || a.key.localeCompare(b.key));
+  const negative = contributors.filter((c) => Math.sign(c.delta.value) !== Math.sign(total) && c.delta.value !== 0);
+  const top = contributors[0];
+  const offset = negative[0];
+  const beyond =
+    top && total !== 0 && Math.abs(top.delta.value) > Math.abs(total)
+      ? {
+          key: top.key,
+          magnitude: magnitude(top.delta, `magnitude:${top.key}`, `size of the change in ${top.key}`),
+          exceeds: {
+            name: `exceeds:${top.key}`,
+            label: `${top.key} moved more than the total`,
+            value: 1,
+            unit: "other" as const,
+            fn: "abs_exceeds",
+            inputs: [calcRef(top.delta.name), calcRef(totalDelta.name)],
+          },
+          ...(offset
+            ? {
+                offset: {
+                  key: offset.key,
+                  magnitude: magnitude(offset.delta, `magnitude:${offset.key}`, `size of the change in ${offset.key}`),
+                },
+              }
+            : {}),
+        }
+      : undefined;
   return {
     method: "contribution.v1",
     totalDelta,
     contributors,
     positive: contributors.filter((c) => Math.sign(c.delta.value) === Math.sign(total) && c.delta.value !== 0).map((c) => c.key),
-    negative: contributors.filter((c) => Math.sign(c.delta.value) !== Math.sign(total) && c.delta.value !== 0).map((c) => c.key),
+    negative: negative.map((c) => c.key),
+    ...(beyond ? { beyond } : {}),
   };
+}
+
+/** The calcs a contribution records: the total, each member's change and share, and the "beyond" facts if any. */
+export function contributionCalcs(c: Contribution): Calc[] {
+  const b = c.beyond;
+  return [
+    c.totalDelta,
+    ...c.contributors.flatMap((x) => [x.delta, x.share]),
+    ...(b ? [b.magnitude, b.exceeds, ...(b.offset ? [b.offset.magnitude] : [])] : []),
+  ];
+}
+
+/** The decomposition's fact keys for its "beyond" calcs: `magnitude:<member>` and `exceeds:<member>`. */
+export function beyondKeys(c: Contribution): [string, string][] {
+  const b = c.beyond;
+  if (!b) return [];
+  return [
+    [b.magnitude.name, b.magnitude.name],
+    [b.exceeds.name, b.exceeds.name],
+    ...(b.offset ? ([[b.offset.magnitude.name, b.offset.magnitude.name]] as [string, string][]) : []),
+  ];
 }
 
 // ── 4.2 Price–volume–mix (pvm.v1) ───────────────────────────────────────────────────────────────────────────

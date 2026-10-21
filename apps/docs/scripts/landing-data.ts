@@ -221,10 +221,16 @@ export function exhibitIds(report: Report): { claims: Report["findings"][number]
   const withFacts = finding.claims.filter((c) => c.facts.length > 0).slice(0, 2);
   const cause = finding.claims.find((c) => c.causal_grade === "document_supported" && c.citations.some((x) => x.quote));
   const claims = cause ? [...withFacts, cause] : withFacts;
+  // The ledger also holds what the pipeline scene shows of the same story: the signed change behind each magnitude a
+  // claim states ("fell $8,500" is |−8,500|, analysis-library §4.1) and the top action's rationale facts (the share).
+  const byId = new Map(report.facts.map((f) => [f.id, f]));
+  const shown = claims.flatMap((c) => c.facts);
   const facts = [
-    ...claims.flatMap((c) => c.facts),
+    ...shown,
+    ...shown.flatMap((id) => (byId.get(id)?.computation.fn === "abs" ? (byId.get(id)?.computation.inputs ?? []) : [])),
+    ...(rec.rationale[0]?.facts ?? []),
     ...[rec.impact?.low, rec.impact?.high].filter((x): x is string => typeof x === "string"),
-  ];
+  ].filter((id, i, all) => all.indexOf(id) === i);
   const sources = cause ? cause.citations.filter((x) => x.quote).map((x) => x.source_id) : [];
   return { claims, facts, sources };
 }
@@ -374,16 +380,26 @@ export function walkthrough(x: {
       figures: [{ id: sqlInput.id }],
       how: "the SQL and the sheet rows it read",
     });
-  // The driver: the line's first contribution delta, with its share of the change when the line has one.
+  // The driver: the line's first contribution delta, with its share of the change when the line has one; or, when
+  // the driver moved more than the whole change (analysis-library §4.1), its magnitude.
   const shown = x.lines.flat().flatMap((p) => ("fact" in p ? [p.fact] : []));
-  const delta = shown.map((id) => notes[id]).find((n) => n?.fn === "delta" && /contribution\.v1 .* by (\w+):delta:/.test(n.label));
-  if (delta) {
-    const m = /by (\w+):delta:(.+)$/.exec(delta.label);
-    const share = shown.map((id) => notes[id]).find((n) => n?.fn === "contribution.v1" && n.inputs?.some((i) => i.id === delta.id));
+  const driver = shown
+    .map((id) => notes[id])
+    .find(
+      (n) =>
+        (n?.fn === "delta" && /contribution\.v1 .* by (\w+):delta:/.test(n.label)) ||
+        (n?.fn === "abs" && /contribution\.v1 .* by (\w+):magnitude:/.test(n.label)),
+    );
+  if (driver) {
+    const m = /by (\w+):(?:delta|magnitude):(.+)$/.exec(driver.label);
+    const second =
+      driver.fn === "abs"
+        ? undefined
+        : shown.map((id) => notes[id]).find((n) => n?.fn === "contribution.v1" && n.inputs?.some((i) => i.id === driver.id));
     steps.push({
-      id: delta.id,
+      id: driver.id,
       title: `${titleCase(m?.[2] ?? "the driver")}:`,
-      figures: share ? [{ id: delta.id }, { id: share.id, note: "of the change" }] : [{ id: delta.id }],
+      figures: second ? [{ id: driver.id }, { id: second.id, note: "of the change" }] : [{ id: driver.id }],
       how: `the change split by ${m?.[1] ?? "dimension"}`,
     });
   }

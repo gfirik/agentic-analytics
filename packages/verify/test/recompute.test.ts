@@ -161,6 +161,19 @@ describe("V2 rules", () => {
     expect((await check(calc("b:gap", 1.4, "benchmark_gap.v1", [point("own", 3.4), low.id, point("hi", 2)])))?.ok).toBe(true);
   });
 
+  it("abs and abs_exceeds (a member beyond the whole change, M14a)", async () => {
+    const w = point("delta:wholesale", -8500);
+    const total = point("delta:total", -7900);
+    const small = point("delta:a", -5000);
+    // |−8,500| = 8,500
+    expect(await check(calc("magnitude:wholesale", 8500, "abs", [w]))).toMatchObject({ ok: true, computed: 8500 });
+    // |−8,500| > |−7,900| → 1; |−5,000| > |−7,900| is false → 0
+    expect(await check(calc("exceeds:wholesale", 1, "abs_exceeds", [w, total]))).toMatchObject({ ok: true, computed: 1 });
+    expect(await check(calc("exceeds:a", 0, "abs_exceeds", [small, total]))).toMatchObject({ ok: true, computed: 0 });
+    // A stored 1 that recomputes to 0 is a mismatch.
+    expect(await check(calc("exceeds:a", 1, "abs_exceeds", [small, total]))).toMatchObject({ ok: false, computed: 0 });
+  });
+
   it("a function without a rule can't be verified", async () => {
     const r = await check(calc("c:mystery", 1, "mystery_fn", []));
     expect(r?.ok).toBe(false);

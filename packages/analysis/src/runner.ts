@@ -5,7 +5,7 @@ import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics"
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
-import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
+import { beyondKeys, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import { FactBook, type SeriesInfo } from "./factbook.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
@@ -361,6 +361,8 @@ export async function analyzeJob(
         facts[`change:${c.key}`] = scope.get(c.delta.name) ?? "";
         facts[`share:${c.key}`] = scope.get(c.share.name) ?? "";
       }
+      for (const [key, name] of d.contribution.contribution ? beyondKeys(d.contribution.contribution) : [])
+        facts[key] = scope.get(name) ?? "";
       facts.total = scope.get("delta:total") ?? "";
       details = { ...d.contribution.details };
     } else if (d.pvm) {

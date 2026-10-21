@@ -981,6 +981,22 @@ test("type on every page in the sitemap: nothing above h2 but the hero and the p
   expect(off).toEqual([]);
 });
 
+/** The id of the drivers' total change in the page's own data (coffee.json): never typed, since fact ids follow the run. */
+function coffeeTotalId(): string {
+  const { report } = JSON.parse(readFileSync(join(import.meta.dirname, "../../../apps/docs/src/data/coffee.json"), "utf8")) as {
+    report: { findings: { drivers?: { fact: string }[] }[]; facts: { id: string; label: string; computation: { inputs?: string[] } }[] };
+  };
+  const drivers = new Set((report.findings.find((f) => f.drivers?.length)?.drivers ?? []).map((d) => d.fact));
+  const total = report.facts.find(
+    (f) =>
+      f.label.endsWith(":delta:total") &&
+      (f.computation.inputs ?? []).length === drivers.size &&
+      (f.computation.inputs ?? []).every((i) => drivers.has(i)),
+  );
+  if (!total) throw new Error("coffee.json has no total change for its drivers");
+  return total.id;
+}
+
 test("the contribution bridge: one row per total and member, bars on one shared scale, connectors joining them", async ({ page }) => {
   for (const path of [`${BASE}/learn/stages/analysis/`, `${BASE}/start/first-report/`, `${BASE}/how-it-works/drivers/`]) {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -992,7 +1008,7 @@ test("the contribution bridge: one row per total and member, bars on one shared 
     await expect(bridge).not.toContainText("Everyone else");
     // The page's own data (coffee.json) proves every member is drawn: the caption says so with the total's id.
     await expect(bridge.locator("p.aa-small")).toContainText("The members drawn are all of them");
-    await expect(bridge.locator("p.aa-small")).toContainText("N143");
+    await expect(bridge.locator("p.aa-small")).toContainText(coffeeTotalId());
     await expect(bridge).not.toContainText("not drawn");
     const geo = await bridge.evaluate((el) => {
       const tracks = [...el.querySelectorAll(".aa-bridge-track")].map((t) => t.getBoundingClientRect());

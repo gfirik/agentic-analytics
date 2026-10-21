@@ -3,7 +3,14 @@
 import type { StoredDecomposition } from "@agentic-analytics/analysis";
 import type { Fact } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { CHANGE_EVENT_WORDS, contributionDrivers, RATE_EVENT_WORDS, smallModeQuery, topDrivers } from "../src/index.ts";
+import {
+  CHANGE_EVENT_WORDS,
+  contributionDrivers,
+  decompositionClaims,
+  RATE_EVENT_WORDS,
+  smallModeQuery,
+  topDrivers,
+} from "../src/index.ts";
 
 /** A contribution decomposition over `dimension` with members' Δ and share-of-change, plus the facts they cite. */
 function split(id: string, dimension: string, members: Record<string, [change: number, share: number]>) {
@@ -90,5 +97,49 @@ describe("topDrivers and the small-model search (M14a)", () => {
     expect(query.length).toBeLessThanOrEqual(200);
     // With all three: 7 + 3×60 + 7 + 48 + 5 spaces = 247 > 200; without the third: 7 + 120 + 7 + 48 + 4 = 186.
     expect(query).toBe(`Revenue ${"a".repeat(60)} ${"b".repeat(60)} 2026-04 ${CHANGE_EVENT_WORDS}`);
+  });
+});
+
+describe("a member beyond the whole change is stated in magnitudes (M14a, analysis-library §4.1)", () => {
+  /** A split with the "beyond" facts: total Δ, the top member's |Δ|, the offset's |Δ| and the comparison. */
+  function beyond(total: number, top: [string, number, number], offset?: [string, number]) {
+    const s = split("X9", "channel", {
+      [top[0]]: [top[1], top[2]],
+      ...(offset ? { [offset[0]]: [offset[1], (offset[1] / total) * 100] } : {}),
+    });
+    const add = (id: string, value: number) => s.facts.set(id, { value } as unknown as Fact);
+    add("T", total);
+    add("M1", Math.abs(top[1]));
+    add("E1", 1);
+    const refs: Record<string, string> = { ...s.d.facts, total: "T", [`magnitude:${top[0]}`]: "M1", [`exceeds:${top[0]}`]: "E1" };
+    if (offset) {
+      add("M2", Math.abs(offset[1]));
+      refs[`magnitude:${offset[0]}`] = "M2";
+    }
+    return { d: { ...s.d, facts: refs }, facts: s.facts };
+  }
+
+  it("a drop: “wholesale” fell …, more than the whole drop; “retail” rose …", () => {
+    // −8,500 and +600 → −7,900; wholesale 107.6%.
+    const b = beyond(-7900, ["wholesale", -8500, 107.6], ["retail", 600]);
+    expect(decompositionClaims([b.d], b.facts)[0]).toMatchObject({
+      text: "By channel, “wholesale” fell {{M1}}, more than the whole drop; “retail” rose {{M2}}.",
+      facts: ["M1", "M2", "E1"],
+    });
+  });
+
+  it("a rise, with no offset named when none moved against it", () => {
+    const b = beyond(5000, ["online", 6000, 120]);
+    expect(decompositionClaims([b.d], b.facts)[0]?.text).toBe("By channel, “online” rose {{M1}}, more than the whole rise.");
+  });
+
+  it("without the comparison fact (or with it at 0), the share sentence stays", () => {
+    const b = beyond(-7900, ["wholesale", -8500, 107.6], ["retail", 600]);
+    b.facts.set("E1", { value: 0 } as unknown as Fact);
+    expect(decompositionClaims([b.d], b.facts)[0]?.text).toMatch(
+      /^By channel, “wholesale” accounted for \{\{X9swholesale\}\} of the change/,
+    );
+    const { "exceeds:wholesale": _gone, ...without } = b.d.facts;
+    expect(decompositionClaims([{ ...b.d, facts: without }], b.facts)[0]?.text).toMatch(/accounted for/);
   });
 });
