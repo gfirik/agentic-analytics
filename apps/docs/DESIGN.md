@@ -13,7 +13,7 @@ The product's promise is that every number can be traced, so the site shows numb
 
 - **It is:** an audited statement, a lab notebook, an engineer's reference. Quiet surfaces, ruled lines, exact figures.
 - **It is not:**
-  - an AI startup page (no gradients, glow, blobs, 3D, robots or brains);
+  - an AI startup page (no gradients, glow, blobs, 3D, robots or brains). The one exception is the engine machine (§6): an axonometric line drawing of the real pipeline, with hairline edges and two surface tones through unlit materials, no shadows and no glow. 3D as decoration stays banned;
   - a BI dashboard (no chart wall);
   - a warm "paper" site. Our sibling project pas-agent uses cream and amber; this site is neutral off-white and ink.
 - **Tone:** plain statements that can be checked. "Recomputed by the verifier", never "powered by AI". Caveats sit next to the number they qualify, in the margin when there is one.
@@ -30,7 +30,7 @@ The product's promise is that every number can be traced, so the site shows numb
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
 5. **One moment of motion.** The hero exhibit's verification replay and its guided walkthrough are the only motion that starts by itself. The pipeline stages move only after the reader presses Play. Everything else is still, apart from 150ms hover and focus changes (§7).
-6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji.
+6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji. One written exception: the engine machine (§6), a line drawing of the real pipeline in 3D; nothing else on the site is 3D.
 7. **Every number is real.**
    - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
    - Each figure carries its fact ID or its source file. Nothing is typed by hand (`scripts/test/landing-exhibit.test.ts`, `scripts/test/learn.test.ts`).
@@ -133,6 +133,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
   1. Status strip, header, then the hero, in hex.tech's structure rather than two columns:
      - a **centred statement block**: a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line;
+     - under the install line, **the engine machine's strip** (§6, `EngineMachine.astro`): a label, **Open the machine**, and a still image of the machine, 170px tall at 1440 (on phones the label and the button only);
      - below it, **the exhibit as its own framed section**, full container width, its top visible above the fold on 1440×900.
   2. `§1 HOW IT WORKS`: the pipeline stages (§6), full container width, inside the frame, one sentence above it.
   3. `§2 WHY IT'S DIFFERENT`: exactly three proof cells side by side (stacked on mobile): "The model never does arithmetic", "Definitions you confirm", "Every claim is cited". Each has a mono label, a title, one sentence and one real example in a framed box: the report's first sentence as the model wrote it (`{{N…}}` placeholders) and as the reader sees it (figures and chips); the metric's definition with the 2-line SQL it compiles to; a quoted citation. The cells share their rows (CSS subgrid), so the three example boxes line up and match in height.
@@ -253,6 +254,19 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - The wordmark, a mark, then the links. The mark is a ruled square with a check, `aria-hidden`, drawn in `currentColor`. It is the brand, not a verified state, so it is never green; the favicon is the same mark in ink.
   - Landing: How it works, Results, Docs, GitHub. Docs: search, Results, GitHub.
   - Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`; Escape closes it and returns focus).
+- **Engine machine** (`components/site/EngineMachine.astro`; the one 3D exception of §1, §2.6 and §9), in the hero under the install line:
+  - **What it is.** The pipeline drawn as a factory line in an axonometric 3D view: eleven numbered stations on a conveyor (the doors, then one station per group of the run's stages), the job's database file in front, the model room behind glass, dashed cables to the stations that call a model, and the verifier's gate with one green light per check (green: the checks passed).
+  - **Data.** The stations, their names and their order come from the same run as the pipeline stages (`docs/assets/readme/pipeline.json`'s `stages`, grouped by one mapping in `engine-machine.ts`, which also holds each station's wording and Learn pages). Every figure in it is the run's own, with its fact chip. "Follow −17.9%" follows the run's headline fact (the exhibit walkthrough's first step) through its real inputs, from `src/data/exhibit.json`; its label is the fact's stored value.
+  - **Closed: the strip.** A label, **Open the machine** and a still of the machine. The still is rendered at build time from the same scene by the docs `assets` script (`machine-strip`, WebP and PNG, explicit width and height, so the box never shifts) and covered by `site-assets.test.ts`. Under 40rem only the label and the button show; the strip's image is lazy and isn't fetched there. With the strip, the exhibit's top stays above the fold (about 800px at 1440×900, 715px at 390×844), but its report page now starts just under the replay's trigger line (the bottom sixth), so the verification replay runs on the reader's first scroll rather than on load.
+  - **Open: the machine.** The button expands it in place: the 3D view (520px tall from 60rem, 420px below) with its sheet beside it (below it under 60rem). Both heights are fixed in CSS, so opening moves the page once, on the click, before the canvas draws.
+    - **Look.** Light only: the clear colour, surfaces and edges are the CSS tokens, read at runtime with `getComputedStyle` and set as sRGB so three's colour management returns them unchanged (`site.spec.ts` samples the canvas against `--aa-surface`). Unlit `MeshBasicMaterial` only: the raised tone on top faces, the surface tone on the sides, 1px ink edges, glass as a dashed outline with no fill. No light, shadow, glow or translucency.
+    - **Everything readable is HTML**, never canvas text: the station labels (buttons with `aria-pressed`, placed over the canvas from projected coordinates, in station order for the keyboard; on a narrow, zoomed-out view they show their number, with the name in their text), the legend, the view buttons (zoom, Front, From above, Reset), the guided modes (Take the tour, Follow, Run the line) and the sheet. Every size is a type token, from `--aa-text-label` up.
+    - **The canvas** is `role="img"`, its label pointing to the station list.
+    - **The sheet** is short: the station's number, engine name and stages, what it does in two plain sentences, whether it calls a model, its figures in the run, and links to its Learn stage pages (`/learn/stages/…`, mapped in `engine-machine.ts`). Its content is the station list's own HTML, cloned; "Follow"'s steps are server-rendered templates.
+  - **The station list.** Every station and its sheet, as a plain HTML list in a `<details>` ("Every station, as a list") under the machine, with the closed machine's still (`machine-full`). Without JS its summary is the **Open the machine** button.
+  - **Loading.** Nothing loads with the page. three.js (a pinned dependency, D18, imported as ES modules so it tree-shakes) and the machine's code are one lazy chunk (about 140 KB gzip), fetched on the first hover, focus or pointerdown of the button and run on the click; never on scroll. No third-party request.
+  - **Fallback.** Without JS, on a weak device (no WebGL, `hardwareConcurrency` ≤ 2, `deviceMemory` ≤ 2 or Save-Data) or if the chunk fails, the button opens the station list over the still image, and three is never loaded.
+  - **Motion** (§7): none by itself. Frames are drawn only on the reader's input.
 - **Footer (every page):** project links, the licence, and "Built by fhsystems", linking to https://fhsystems.dev.
 
 ## 7. Motion
@@ -260,6 +274,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 - **Landing:** the hero verification replay and its walkthrough are the only motion that starts by itself (timed at every size, never scroll-linked). The pipeline stages move only after Play. Plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
 - **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
 - **The pipeline stages** never play by themselves: Play steps through the stops once while on screen and stops at Report, with a 150ms crossfade of the panel content only and no moving parts. Without JS every panel is in the HTML as a stacked list.
+- **The engine machine** (§6) moves only on the reader's input: a drag, the view buttons, and the tour, "Follow" and "Run the line" when pressed (Run the line runs until pressed again). The camera eases to a selected station. Under reduced motion every guided mode jumps to its end state (the tour and "Follow" open at their last stop, Back steps through them; Run the line shows one packet of each form, still) and the camera never animates.
 - **No other motion:** no entrance animations, no parallax, no looping decoration.
 - **Reduced motion** turns off the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
 
@@ -275,7 +290,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 ## 9. What we don't use
 
 - **Look:**
-  - gradients, glow, blobs, 3D, glassmorphism, shadows;
+  - gradients, glow, blobs, 3D (except the engine machine, §6), glassmorphism, shadows;
   - cream or amber, a dark theme;
   - rounded "bubbly" cards;
   - emoji, stock imagery, third-party logos.
@@ -292,6 +307,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 7. Is it light only (`scripts/test/site-light.test.ts`)?
 8. Do the type floors hold: nothing larger than h2 except the hero and a page's own h1, reading text in a figure at least `--aa-text-note`, nothing under `--aa-text-label`, and one code size (`site.spec.ts` checks every page in the sitemap)?
 9. Is there one source per rule: a new component gets its entry in §6 in the same PR?
+10. Are the engine machine's labels, legend, toolbar and sheet HTML (never canvas text), and does it load nothing until the reader asks?
 
 ## 11. Site v3 (October 2026): what the review found, and what it settled
 

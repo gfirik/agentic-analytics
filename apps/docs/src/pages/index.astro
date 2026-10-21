@@ -7,6 +7,7 @@
 import pipeline from "../../../../docs/assets/readme/pipeline.json";
 import { percent } from "../components/format.ts";
 import BaseLayout from "../components/site/BaseLayout.astro";
+import EngineMachine from "../components/site/EngineMachine.astro";
 import Exhibit from "../components/site/Exhibit.astro";
 import { firstSentence, type LinePart, placeholders } from "../components/site/exhibit.ts";
 import PipelineStages from "../components/site/PipelineStages.astro";
@@ -128,6 +129,7 @@ const doors = [
             <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
           </div>
         </div>
+        <EngineMachine />
       </div>
     </section>
 

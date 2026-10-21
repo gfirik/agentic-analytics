@@ -1,12 +1,20 @@
 // Renders the site's binary assets from committed sources, so they can be regenerated rather than hand-exported:
 //   public/og.png       the 1200×630 Open Graph card: on-system HTML with the site's self-hosted fonts, its
 //                       headline number read from the README pipeline run (docs/assets/readme/pipeline.json);
-//   public/favicon.ico  the favicon.svg mark rasterized at 16, 32 and 48 px, packed as PNG-in-ICO.
+//   public/favicon.ico  the favicon.svg mark rasterized at 16, 32 and 48 px, packed as PNG-in-ICO;
+//   public/machine-strip.{webp,png}, machine-full.{webp,png}
+//                       the engine machine's static images (the strip under the hero, and the closed machine for no JS
+//                       and weak devices): its own scene (src/components/site/machine-scene.ts) rendered in the browser
+//                       with WebGL, from the same stations and tokens as the 3D view, with no labels (they are HTML).
 // It records the hash of its inputs in scripts/site-assets.json (checked by scripts/test/site-assets.test.ts).
 // Run: `bun run --filter @agentic-analytics/docs assets` (needs Playwright's Chromium, or PW_CHANNEL=chrome).
 import { readFileSync, writeFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
+import type { PipelineData } from "../src/components/pipeline-scene.ts";
+import { STILLS, sceneInput } from "../src/components/site/engine-machine.ts";
+import { TONES } from "../src/components/site/machine-scene.ts";
 import { SITE_ASSETS_MANIFEST, siteAssetsManifest } from "./site-assets-inputs.ts";
 
 const DOCS = join(import.meta.dirname, "..");
@@ -81,7 +89,65 @@ function ico(pngs: { size: number; data: Buffer }[]): Buffer {
   return Buffer.concat([header, ...entries, ...pngs.map((p) => p.data)]);
 }
 
-const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
+/** The colour tokens, read from tokens.css (the page reads the same ones with getComputedStyle). */
+function tokens(): Record<keyof typeof TONES, string> {
+  const css = readFileSync(join(DOCS, "src", "styles", "tokens.css"), "utf8");
+  return Object.fromEntries(
+    Object.entries(TONES).map(([k, v]) => {
+      const m = new RegExp(`${v}:\\s*(#[0-9a-f]{6});`).exec(css);
+      if (!m) throw new Error(`site-assets: no ${v} in tokens.css`);
+      return [k, m[1] as string];
+    }),
+  ) as Record<keyof typeof TONES, string>;
+}
+
+/**
+ * The engine machine's stills: a page on a made-up origin, served from memory (nothing is fetched from the network):
+ * three's own ES modules and the scene module with its types stripped, joined by an import map.
+ */
+async function machineStills(browser: Awaited<ReturnType<typeof chromium.launch>>) {
+  const ORIGIN = "http://machine.invalid";
+  const three = join(DOCS, "node_modules", "three", "build");
+  const files: Record<string, string> = {
+    "/three.module.js": readFileSync(join(three, "three.module.js"), "utf8"),
+    "/three.core.js": readFileSync(join(three, "three.core.js"), "utf8"),
+    "/machine-scene.js": stripTypeScriptTypes(readFileSync(join(DOCS, "src", "components", "site", "machine-scene.ts"), "utf8"), {
+      mode: "strip",
+    }),
+    "/index.html": `<!doctype html><html><head><meta charset="utf-8"><script type="importmap">{"imports":{"three":"${ORIGIN}/three.module.js"}}</script></head><body></body></html>`,
+  };
+  const page = await browser.newPage({ viewport: { width: 800, height: 600 }, deviceScaleFactor: 1 });
+  await page.route(`${ORIGIN}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const body = files[path];
+    if (body === undefined) return route.abort();
+    return route.fulfill({ status: 200, contentType: path.endsWith(".html") ? "text/html" : "text/javascript", body });
+  });
+  await page.goto(`${ORIGIN}/index.html`);
+  const run = JSON.parse(readFileSync(join(ROOT, "docs/assets/readme/pipeline.json"), "utf8")) as PipelineData;
+  const out = await page.evaluate(
+    async ([url, input, toks, sizes]) => {
+      const m = (await import(url)) as typeof import("../src/components/site/machine-scene.ts");
+      return m.renderStills(input, toks, sizes);
+    },
+    [`${ORIGIN}/machine-scene.js`, sceneInput(run), tokens(), { strip: [...STILLS.strip], full: [...STILLS.full] }] as const,
+  );
+  const bytes = (dataUrl: string, type: string) => {
+    if (!dataUrl.startsWith(`data:${type};base64,`)) throw new Error(`site-assets: the browser didn't encode ${type}`);
+    return Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
+  };
+  for (const name of ["strip", "full"] as const) {
+    writeFileSync(join(PUBLIC, `machine-${name}.webp`), bytes(out[name].webp, "image/webp"));
+    writeFileSync(join(PUBLIC, `machine-${name}.png`), bytes(out[name].png, "image/png"));
+  }
+  await page.close();
+}
+
+// WebGL without a GPU (CI, headless): SwiftShader, Chromium's software renderer.
+const browser = await chromium.launch({
+  ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
+  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+});
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   await page.setContent(og, { waitUntil: "load" });
@@ -101,8 +167,9 @@ try {
     pngs.push({ size, data: await p.screenshot({ type: "png", omitBackground: true }) });
   }
   writeFileSync(join(PUBLIC, "favicon.ico"), ico(pngs));
+  await machineStills(browser);
   writeFileSync(SITE_ASSETS_MANIFEST, `${JSON.stringify(siteAssetsManifest(), null, 2)}\n`);
 } finally {
   await browser.close();
 }
-process.stdout.write("docs: wrote public/og.png and public/favicon.ico\n");
+process.stdout.write("docs: wrote public/og.png, public/favicon.ico and public/machine-{strip,full}.{webp,png}\n");

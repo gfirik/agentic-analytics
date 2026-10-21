@@ -1,7 +1,11 @@
 {
-  "inputs": "bc723f57252784ea22ef224ff3a5ac2b73c09463af42f687a94563fe0677115c",
+  "inputs": "328031652949d591c7910136d54676fddb631a449b76ff14e085df4c4461122d",
   "outputs": {
-    "public/og.png": "cfb39e3d8bfe78b8c8fd33ebd0f18a6be6c9ffe2b679829deb9630cb9538965a",
-    "public/favicon.ico": "a663abd59bdc881c4d384dffc4df42fb3b279508481d14474247fed6f938dff9"
+    "public/og.png": "5c2246ea274a0d8f9042a2f84a083f50f8ab60b34f50fba32275a2658d8b2598",
+    "public/favicon.ico": "eb62779051a2ebbbc4c7b6de3862578f626256fcff04a9df687c911642513439",
+    "public/machine-strip.webp": "7a6947729426d73d49ed79b84edb43abae80645e11c75dda7c267b4748838a6c",
+    "public/machine-strip.png": "40945fffb67d1c02b767d16cc189f897662423eb3cfe6d78efd20a72ba94ff37",
+    "public/machine-full.webp": "20b7fa48be661dcf135472405b0f93874c3d20fadc4849a549b52a40bb2c9f44",
+    "public/machine-full.png": "f5fe0bae30ec8a78b87833f7252e68592fc8d359d8b9d9e09c44b479e70b161b"
   }
 }
