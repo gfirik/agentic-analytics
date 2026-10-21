@@ -5,7 +5,7 @@ import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics"
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
-import { beyondKeys, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
+import { beyondKeys, cancelsOut, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { fillPeriods } from "./periods.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
@@ -268,16 +268,16 @@ export async function analyzeJob(
           }))
           .filter((c) => Number.isFinite(c.before.value) && Number.isFinite(c.after.value));
         if (changes.length < 2) continue;
-        // A level shift can be material while its two edge points are equal (spec §3): with no change between them
-        // there is nothing to split, and every member's share would be a division by 0.
-        if (changes.reduce((n, c) => n + (c.after.value - c.before.value), 0) === 0) continue;
         const total = series.get(def.id)?.series as Series;
-        decompositions.push({
-          insight,
-          method: "contribution.v1",
-          dimension,
-          contribution: topContributors(total, changes, total.unit, after, dimension),
-        });
+        // A level shift can be material while its two edge points are equal (spec §3): with no change between them
+        // there is nothing to split into shares. The other splits (new and lost members, mix, PVM) still run.
+        if (!cancelsOut(changes.map((c) => c.after.value - c.before.value)))
+          decompositions.push({
+            insight,
+            method: "contribution.v1",
+            dimension,
+            contribution: topContributors(total, changes, total.unit, after, dimension),
+          });
         if (insight.template === "trend_break.v1") {
           const nl = newLost(def.id, total, list, before, after, dimension);
           if (nl) found.push(nl);

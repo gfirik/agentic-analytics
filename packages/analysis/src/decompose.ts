@@ -38,6 +38,16 @@ function magnitude(of: Calc, name: string, label: string): Calc {
 }
 
 /**
+ * Whether member changes cancel out: their sum is 0 within float noise relative to their size (10.1 → 10.2 and
+ * 5.2 → 5.1 sum to −8.9e-16, not 0). Shares of such a total would be 0/0, or ±10¹⁶ % from the noise.
+ */
+export function cancelsOut(deltas: readonly number[]): boolean {
+  const sum = deltas.reduce((s, d) => s + d, 0);
+  const size = deltas.reduce((s, d) => s + Math.abs(d), 0);
+  return Math.abs(sum) <= 1e-9 * size;
+}
+
+/**
  * For T = Σ xᵢ: ΔT = Σ Δxᵢ and shareᵢ = Δxᵢ / ΔT (spec §4.1). Shares can exceed 100% when contributors
  * offset each other (wholesale −8,500 and retail +600 → total −7,900 → wholesale 108%). Positive and negative
  * contributors are reported separately. Shares are percent (×100).
@@ -70,7 +80,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
       share: {
         name: `share:${d.key}`,
         label: `${d.key} share of the change`,
-        value: total !== 0 ? (d.delta.value / total) * 100 : Number.NaN,
+        value: cancelsOut(deltas.map((x) => x.delta.value)) ? Number.NaN : (d.delta.value / total) * 100,
         unit: "percent" as const,
         fn: "contribution.v1",
         inputs: [calcRef(d.delta.name), calcRef(totalDelta.name)],
