@@ -63,6 +63,9 @@ describe("JobManager", () => {
     expect(a.facts.map((f) => f.id).sort()).toEqual([...(a.claims[0]?.facts ?? [])].sort());
     expect(a.dropped).toHaveLength(1);
     expect(a.dropped[0]?.reason).toMatch(/^V4: the claim names Orders/);
+    // A question with digits is never a finding's title, so it can't make the whole answer unverifiable (V1).
+    const digits = await manager.ask(id, "Why did revenue drop 10% in Q2?");
+    expect(digits.claims.map((c) => c.text)).toEqual(a.claims.map((c) => c.text));
     const none = await manager.ask(id, "What will revenue be next year?");
     expect(none.claims).toEqual([]);
     expect(none.notCovered).toBe("The report has no forecast.");
@@ -133,5 +136,29 @@ describe("JobManager", () => {
       spy.mockRestore();
       internal.write(id, { status: before.status });
     }
+  });
+});
+
+describe("JobManager.subscribe", () => {
+  // An event the job emits while the history is being read: it is dispatched to listeners but not in the snapshot.
+  class Racy extends JobManager {
+    override async events(jobId: string): Promise<JobEvent[]> {
+      const history = await super.events(jobId);
+      const last = history.at(-1) as JobEvent;
+      const next = { ...last, seq: last.seq + 1 } as JobEvent;
+      const listeners = (this as unknown as { listeners: Map<string, Set<(e: JobEvent) => void>> }).listeners;
+      for (const l of listeners.get(jobId) ?? []) l(next);
+      return history;
+    }
+  }
+
+  it("delivers an event emitted while the history is read, once and in order", async () => {
+    const racy = new Racy({ root, model, deps: () => ({ model: coffeePlanner(), embedder: hashEmbedder() }) });
+    const got: JobEvent[] = [];
+    const stop = await racy.subscribe(id, (e) => got.push(e));
+    stop();
+    const seqs = got.map((e) => e.seq);
+    expect(seqs).toEqual(seqs.map((_, i) => i));
+    expect(seqs.at(-1)).toBe((await manager.events(id)).length);
   });
 });

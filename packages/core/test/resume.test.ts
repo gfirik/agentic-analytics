@@ -108,6 +108,26 @@ describe("resume after the process is killed mid-job (M7 acceptance)", () => {
     expect(events.map((e) => e.seq)).toEqual(events.map((_, i) => i));
   }, 180_000);
 
+  it("a job that failed before PROFILE finished resumes with no options: its options, id and events are kept", async () => {
+    const dir = tempDir();
+    const failAtProfile = (e: JobEvent) => {
+      if (e.type === "stage_started" && e.stage === "PROFILE") throw new Error("disk full");
+    };
+    await expect(
+      runJob({ dir, files, options, jobId: "job-kept" }, { model: coffeePlanner(), embedder: hashEmbedder(), onEvent: failAtProfile }),
+    ).rejects.toThrow();
+    // The resume command the CLI prints passes no options; it used to fail with BAD_OPTIONS.
+    const again = await runJob({ dir }, { model: coffeePlanner(), embedder: hashEmbedder() });
+    expect(again.jobId).toBe("job-kept");
+    expect(again.report.findings.length).toBeGreaterThan(0);
+    const ws = await Workspace.open(join(dir, "job.duckdb"));
+    const events = await (await EventBus.open(ws, again.jobId)).history();
+    ws.close();
+    // One event log across the restart: no repeated sequence numbers.
+    expect(events.map((e) => e.seq)).toEqual(events.map((_, i) => i));
+    expect(events.filter((e) => e.type === "stage_started" && e.stage === "PROFILE")).toHaveLength(2);
+  }, 180_000);
+
   it("a stage that throws fails the job loudly, and the next run resumes at that stage", async () => {
     const dir = tempDir();
     const broken = coffeePlanner();

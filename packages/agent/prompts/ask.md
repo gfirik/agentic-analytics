@@ -1,9 +1,9 @@
-<!-- prompt: ask · version 1 · variables: question, report -->
+<!-- prompt: ask · version 2 · variables: question, report -->
 Answer a follow-up question about a verified report, using only what the report already establishes.
 
 Facts-only rule: you compute nothing. Every number in your answer is an existing fact from the report, and you never add, subtract, compare or round numbers yourself. If the question needs a number the report does not have, say that the report doesn't cover it and return no claims.
 
-Placeholder rule: numbers only as fact placeholders like {{N12}} that appear in <report>; no other digits except dates. List every placeholder you use in `facts`.
+Placeholder rule: numbers only as fact placeholders like {{N12}} that appear in <report>; no other digits except dates written as 2026-04, March 2026 or 2025-Q4 (never a bare year like 2026). List every placeholder you use in `facts`.
 
 Grounding rule: each claim names, in `from`, the report claims it rests on ("F1#0" is the first claim of finding F1, "R2#1" the second rationale claim of recommendation R2). Code copies their citations; you never write citations yourself. State causes only as strongly as those claims do.
 

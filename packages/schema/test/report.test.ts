@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { findFreeNumerals, placeholders, type Report, validateReport } from "../src/index.ts";
+import { findFreeNumerals, periodYears, placeholders, type Report, validateReport } from "../src/index.ts";
 
 const fixturePath = join(import.meta.dirname, "fixtures", "report.coffee-roaster.json");
 const fixture = (): Report => JSON.parse(readFileSync(fixturePath, "utf8")) as Report;
@@ -132,5 +132,62 @@ describe("text helpers", () => {
   it("allows dates and quoted source text, flags other numerals", () => {
     expect(findFreeNumerals("On 28 April 2026, after 2026-03-15, “prices rose 12%”, revenue was {{N2}}.")).toEqual([]);
     expect(findFreeNumerals("Revenue fell 7,900 in April")).toEqual(["7,900"]);
+  });
+
+  it("a bare year is a date only if it is one of the job's period years; dates need a month or a period form (M14a)", () => {
+    const years = periodYears(["revenue_2025-04", "revenue_2026-04", "2026"]);
+    expect([...years].sort()).toEqual(["2025", "2026"]);
+    // Model-made counts that used to pass as "dates" (code-quality review §2 row 3), including after date-like words.
+    for (const text of [
+      "We lost 2000 customers",
+      "Revenue was 1999 in April",
+      "The top 3 may churn",
+      "Sales fell ٣٠٪",
+      "in 2000 stores",
+      "of 2001 orders",
+      "year 1999 units",
+      "Revenue fell by 2000",
+      "Orders rose to 2024",
+      "FY 2000 stores",
+      "1999-13 units",
+    ])
+      expect(findFreeNumerals(text, years).length, text).toBeGreaterThan(0);
+    // Real dates pass, with or without the job's years.
+    for (const text of [
+      "since March 15, 2026",
+      "on 3 May",
+      "12th April",
+      "MAY 2026",
+      "dec 12",
+      "Q1 2026",
+      "2025-Q4",
+      "2025-W51",
+      "2026-04",
+      "Выручка упала в 2026 году",
+      "2026-yil",
+    ])
+      expect(findFreeNumerals(text), text).toEqual([]);
+    // A bare year is a date when the job covers it, in any phrasing.
+    for (const text of ["Revenue fell in 2026", "between 2025 and 2026", "2025 vs 2026", "Revenue 2025–2026", "for 2026"])
+      expect(findFreeNumerals(text, years), text).toEqual([]);
+    expect(findFreeNumerals("in 2026")).toEqual(["2026"]);
+    // Deliberate: a short second year is a count-looking number, not a period ("2026/27").
+    expect(findFreeNumerals("in 2026/27", years)).toEqual(["27"]);
+  });
+
+  it("periodYears reads only where a period sits in a label, never a member (bracketed or `|dim=value`) or an amount", () => {
+    expect([...periodYears(["revenue_2025", "revenue_2026"])].sort()).toEqual(["2025", "2026"]); // yearly grain
+    expect([...periodYears(["revenue[store=2000-01]_2026-04"])]).toEqual(["2026"]);
+    expect([...periodYears(["orders[sku=2000Q1]_2026"])]).toEqual(["2026"]);
+    expect([...periodYears(["contribution.v1 revenue 2026-04 by channel:delta:2000-01"])]).toEqual(["2026"]);
+    expect([...periodYears(["I3 period_change revenue|store=Promo 2000-01 2026-04:delta"])]).toEqual(["2026"]); // a `|dim=value` member
+    expect([...periodYears(["revenue_2025-Q4", "2026-W51"])].sort()).toEqual(["2025", "2026"]);
+    expect([...periodYears(["orders 2000"])]).toEqual([]);
+  });
+
+  it("stays linear on long text (no backtracking)", () => {
+    const t0 = performance.now();
+    findFreeNumerals(`x${" ".repeat(100_000)}2026 April${" ".repeat(100_000)}12`);
+    expect(performance.now() - t0).toBeLessThan(500);
   });
 });

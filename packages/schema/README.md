@@ -37,3 +37,4 @@ The golden fixture `test/fixtures/report.coffee-roaster.json` is generated from 
 `bun run --filter @agentic-analytics/eval-datasets build:golden-report`; never edit it by hand.
 
 - `screen(text)`, `screenText(text)`: the deterministic injection screen (security §3), shared by every layer. `_` is read as a space, so snake_case identifiers are screened as words.
+- `findFreeNumerals(text, years?)`, `periodYears(labels)`: the free-numeral guard behind V1 (a bare year is a date only if it is one of `years`, the job's period years read by `periodYears` from where a period sits in fact labels).

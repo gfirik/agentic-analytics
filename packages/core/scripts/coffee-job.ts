@@ -70,6 +70,6 @@ const lines = [
   `open questions: ${r.open_questions.length} · assumptions: ${r.assumptions.length} · facts: ${r.facts.length}`,
   `dropped: ${r.verification.claims_dropped.map((d) => `"${d.claim}" (${d.reason})`).join("; ")}`,
   `downgraded: ${r.verification.claims_downgraded.map((d) => `"${d.claim}" ${d.from}→${d.to}`).join("; ")}`,
-  `free numerals in model text: ${[r.summary.headline, ...r.findings.flatMap((f) => [f.title, ...f.claims.map((c) => c.text)])].flatMap(findFreeNumerals).length} · placeholders: ${placeholders(JSON.stringify(r)).length}`,
+  `free numerals in model text: ${[r.summary.headline, ...r.findings.flatMap((f) => [f.title, ...f.claims.map((c) => c.text)])].flatMap((t) => findFreeNumerals(t)).length} · placeholders: ${placeholders(JSON.stringify(r)).length}`,
 ];
 process.stdout.write(`${lines.join("\n")}\n`);

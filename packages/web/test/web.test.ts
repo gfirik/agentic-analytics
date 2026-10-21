@@ -216,6 +216,15 @@ describe("address blocking (security §4)", () => {
       expect.objectContaining({ code: "PRIVATE_VALUE" }),
     );
     expect(checkUrl("https://example.com/coffee?q=wholesale", ["Hotel Group LLC"]).hostname).toBe("example.com");
+    // A malformed escape doesn't throw a URIError (it failed the whole stage); the valid escapes around it still decode.
+    expect(checkUrl("https://example.com/c?q=100%zz&r=%E2%82%AC", ["Hotel Group LLC"]).hostname).toBe("example.com");
+    expect(() => checkUrl("https://evil.example/c?bad=%zz&x=Hotel%20Group%20LLC", ["Hotel Group LLC"])).toThrowError(
+      expect.objectContaining({ code: "PRIVATE_VALUE" }),
+    );
+    // One invalid UTF-8 byte in front of a fully encoded private value doesn't hide it.
+    expect(() => checkUrl("https://evil.example/c?x=%FF%48%6F%74%65%6C%20%47%72%6F%75%70%20%4C%4C%43", ["Hotel Group LLC"])).toThrowError(
+      expect.objectContaining({ code: "PRIVATE_VALUE" }),
+    );
   });
 
   it("refuses a public-looking name that resolves to a private address, before connecting (and if any answer is private)", async () => {
