@@ -1,9 +1,9 @@
 ---
-// The landing page (DESIGN.md §4–§6): the cover sheet of an audited working paper. One long frame, graph paper behind
-// the hero and the section heads, one live exhibit, and four sections. Every figure comes from generated data: the
-// recorded engine run on examples/coffee-roaster (src/data/exhibit.json, landing.json, and the pipeline scene's
-// docs/assets/readme/pipeline.json) and the committed eval results (src/data/evals.json, scored by the eval runner's
-// summarize()). Nothing is typed by hand.
+// The landing page (DESIGN.md §4–§6): the cover sheet of an audited working paper. One long 1440px frame of wide
+// rows (site v4), graph paper behind the hero and the section heads, one live exhibit, and four sections. Every
+// figure comes from generated data: the recorded engine run on examples/coffee-roaster (src/data/exhibit.json,
+// landing.json, and the pipeline scene's docs/assets/readme/pipeline.json) and the committed eval results
+// (src/data/evals.json, scored by the eval runner's summarize()). Nothing is typed by hand.
 import pipeline from "../../../../docs/assets/readme/pipeline.json";
 import { percent } from "../components/format.ts";
 import BaseLayout from "../components/site/BaseLayout.astro";
@@ -112,302 +112,313 @@ const doors = [
 
   <div class="aa-paper">
     <section class="aa-sheet aa-hero" aria-labelledby="aa-hero-title">
-      <div class="aa-cell aa-grid-field aa-statement">
-        <p class="aa-label">Open source · self-hosted · free local models</p>
-        <h1 id="aa-hero-title" class="aa-display">An AI analyst you can audit.</h1>
-        <p class="aa-lead">
-          Give it a business's spreadsheets, PDFs and emails. It reports what changed, why, and what to do next, and every number is recomputed
-          and every claim cited before you see it.
-        </p>
-        <div class="aa-actions">
-          <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart</a>
-          <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
-          <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
-        </div>
-        <div class="aa-hero-cmd-frame">
-          <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
-            <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+      <div class="aa-cell aa-split aa-hero-row">
+        <div class="aa-grid-field aa-statement">
+          <p class="aa-label">Open source · self-hosted · free local models</p>
+          <h1 id="aa-hero-title" class="aa-display">An AI analyst you can audit.</h1>
+          <p class="aa-lead">
+            Give it a business's spreadsheets, PDFs and emails. It reports what changed, why, and what to do next, and every number is recomputed
+            and every claim cited before you see it.
+          </p>
+          <div class="aa-actions">
+            <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart</a>
+            <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
+            <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
+          </div>
+          <div class="aa-hero-cmd-frame">
+            <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
+              <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+            </div>
           </div>
         </div>
+        <div class="aa-hero-exhibit">
+          <p class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
+          <Exhibit />
+        </div>
+      </div>
+    </section>
+
+    <section class="aa-sheet aa-machine-row" aria-label="The engine machine">
+      <div class="aa-cell">
         <EngineMachine />
       </div>
     </section>
 
-    <section class="aa-sheet aa-exhibit-sheet" aria-labelledby="aa-exhibit-label">
-      <div class="aa-cell">
-        <p id="aa-exhibit-label" class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
-        <Exhibit />
-      </div>
-    </section>
-
     <section id="how" class="aa-sheet" aria-labelledby="aa-how-title">
-      <div class="aa-cell aa-cell-head aa-grid-field">
-        <SectionLabel n={1} text="How it works" />
-        <h2 id="aa-how-title" class="aa-h2 aa-center">Files in, a verified and cited report out.</h2>
-        <p class="aa-lead aa-center">One real run, stage by stage, from the files to a verified report.</p>
-      </div>
-      <div class="aa-cell aa-how">
-        <PipelineStages />
+      <div class="aa-cell aa-split">
+        <div class="aa-cell-head aa-grid-field">
+          <SectionLabel n={1} text="How it works" />
+          <h2 id="aa-how-title" class="aa-h2 aa-center">Files in, a verified and cited report out.</h2>
+          <p class="aa-lead aa-center">One real run, stage by stage, from the files to a verified report.</p>
+        </div>
+        <div class="aa-how">
+          <PipelineStages />
+        </div>
       </div>
     </section>
 
     <section id="why" class="aa-sheet" aria-labelledby="aa-why-title">
-      <div class="aa-cell aa-cell-head aa-grid-field">
-        <SectionLabel n={2} text="Why it's different" />
-        <h2 id="aa-why-title" class="aa-h2 aa-center">Built so you don't have to take its word for it.</h2>
-        <p class="aa-lead aa-center">Three rules the engine can't break.</p>
-      </div>
-      <ul class="aa-proofs">
-        <li class="aa-cell">
-          <p class="aa-label">01 · Arithmetic</p>
-          <h3 class="aa-h3">The model never does arithmetic</h3>
-          <p>The model writes placeholders; every figure is a fact computed by SQL or a deterministic function, then recomputed.</p>
-          <div class="aa-proof-ex">
-            <p class="aa-label aa-proof-cap">The model writes</p>
-            <code class="aa-proof-raw">{placeholders(sentence)}</code>
-            <p class="aa-label aa-proof-cap">You read</p>
-            <p class="aa-proof-out">
+      <div class="aa-cell aa-split">
+        <div class="aa-cell-head aa-grid-field">
+          <SectionLabel n={2} text="Why it's different" />
+          <h2 id="aa-why-title" class="aa-h2 aa-center">Built so you don't have to take its word for it.</h2>
+          <p class="aa-lead aa-center">Three rules the engine can't break.</p>
+        </div>
+        <ul class="aa-proofs">
+          <li class="aa-proof">
+            <p class="aa-label">01 · Arithmetic</p>
+            <h3 class="aa-h3">The model never does arithmetic</h3>
+            <p>The model writes placeholders; every figure is a fact computed by SQL or a deterministic function, then recomputed.</p>
+            <div class="aa-proof-ex">
+              <p class="aa-label aa-proof-cap">The model writes</p>
+              <code class="aa-proof-raw">{placeholders(sentence)}</code>
+              <p class="aa-label aa-proof-cap">You read</p>
+              <p class="aa-proof-out">
+                {
+                  sentence.map((p) =>
+                    p.fact ? (
+                      <span class="aa-num"><span class="aa-fig">{notes[p.fact]?.value ?? p.fact}</span><a
+                          class="aa-chip"
+                          href={`#fact-${p.fact}`}
+                          aria-label={`${p.fact}, verified`}><Fragment set:html={check} />{p.fact}</a></span>
+                    ) : (
+                      p.text
+                    ),
+                  )
+                }
+              </p>
+            </div>
+            <a class="aa-more" href={withBase("how-it-works/pipeline/")}>The pipeline</a>
+          </li>
+          <li class="aa-proof">
+            <p class="aa-label">02 · Definitions</p>
+            <h3 class="aa-h3">Definitions you confirm</h3>
+            <p>Each metric is drafted in plain words and YAML before anything is measured. You accept, edit or drop it.</p>
+            <div class="aa-proof-ex">
+              <p class="aa-proof-def">
+                <code>{metric.id}</code>: {metric.formula}, per {metric.grain} · {metric.status} · compiles to
+              </p>
+              <pre class="aa-proof-code"><code>{compiled.lines.join("\n")}</code></pre>
+            </div>
+            <a class="aa-more" href={withBase("how-it-works/metrics/")}>The metric layer</a>
+          </li>
+          <li class="aa-proof">
+            <p class="aa-label">03 · Citations</p>
+            <h3 class="aa-h3">Every claim is cited</h3>
+            <p>Causes come from your documents, quoted exactly and checked against the source, and graded by how strong they are.</p>
+            <div class="aa-proof-ex">
               {
-                sentence.map((p) =>
-                  p.fact ? (
-                    <span class="aa-num"><span class="aa-fig">{notes[p.fact]?.value ?? p.fact}</span><a
-                        class="aa-chip"
-                        href={`#fact-${p.fact}`}
-                        aria-label={`${p.fact}, verified`}><Fragment set:html={check} />{p.fact}</a></span>
-                  ) : (
-                    p.text
-                  ),
-                )
+                cause ? (
+                  <p class="aa-proof-example">
+                    <q>{cause.quote}</q>{" "}
+                    <a class="aa-chip" href={`#source-${cause.id}`} aria-label={`${cause.id}, checked`}>
+                      <Fragment set:html={check} />
+                      {cause.id}
+                    </a>
+                    <span class="aa-proof-src">{cause.label}</span>
+                  </p>
+                ) : null
               }
-            </p>
-          </div>
-          <a class="aa-more" href={withBase("how-it-works/pipeline/")}>The pipeline</a>
-        </li>
-        <li class="aa-cell">
-          <p class="aa-label">02 · Definitions</p>
-          <h3 class="aa-h3">Definitions you confirm</h3>
-          <p>Each metric is drafted in plain words and YAML before anything is measured. You accept, edit or drop it.</p>
-          <div class="aa-proof-ex">
-            <p class="aa-proof-def">
-              <code>{metric.id}</code>: {metric.formula}, per {metric.grain} · {metric.status} · compiles to
-            </p>
-            <pre class="aa-proof-code"><code>{compiled.lines.join("\n")}</code></pre>
-          </div>
-          <a class="aa-more" href={withBase("how-it-works/metrics/")}>The metric layer</a>
-        </li>
-        <li class="aa-cell">
-          <p class="aa-label">03 · Citations</p>
-          <h3 class="aa-h3">Every claim is cited</h3>
-          <p>Causes come from your documents, quoted exactly and checked against the source, and graded by how strong they are.</p>
-          <div class="aa-proof-ex">
-            {
-              cause ? (
-                <p class="aa-proof-example">
-                  <q>{cause.quote}</q>{" "}
-                  <a class="aa-chip" href={`#source-${cause.id}`} aria-label={`${cause.id}, checked`}>
-                    <Fragment set:html={check} />
-                    {cause.id}
-                  </a>
-                  <span class="aa-proof-src">{cause.label}</span>
-                </p>
-              ) : null
-            }
-          </div>
-          <a class="aa-more" href={withBase("how-it-works/verifier/")}>The verifier</a>
-        </li>
-      </ul>
+            </div>
+            <a class="aa-more" href={withBase("how-it-works/verifier/")}>The verifier</a>
+          </li>
+        </ul>
+      </div>
     </section>
 
     <section id="results" class="aa-sheet" aria-labelledby="aa-results-title">
-      <div class="aa-cell aa-cell-head aa-grid-field">
-        <SectionLabel n={3} text="Results, as they are" />
-        <h2 id="aa-results-title" class="aa-h2 aa-center">Measured, with the caveats next to the numbers.</h2>
-        <p class="aa-lead aa-center">Real public data first; a run with jobs missing is labelled, not hidden.</p>
-      </div>
-      <div class="aa-cell">
-        <div class="aa-ledger-wrap" role="region" aria-label="Eval results" tabindex="0">
-          <table class="aa-ledger aa-results">
-            <thead>
-              <tr>
-                <th scope="col">Metric · bar</th>
-                <th scope="col" id="aa-run-real">
-                  <span class="aa-run">Real public data</span>
-                  <span class="aa-run-note">{evals.real.datasets.length} datasets, checked against SQL written separately</span>
-                  <span class="aa-run-meta">
-                    <span class="aa-run-count">
-                      {evals.real.datasets.filter((d) => d.completed).length}/{evals.real.datasets.length}
-                    </span>{" "}
-                    jobs · {evals.real.date}
-                  </span>
-                </th>
+      <div class="aa-cell aa-band">
+        <div class="aa-cell-head aa-grid-field">
+          <SectionLabel n={3} text="Results, as they are" />
+          <h2 id="aa-results-title" class="aa-h2 aa-center">Measured, with the caveats next to the numbers.</h2>
+          <p class="aa-lead aa-center">Real public data first; a run with jobs missing is labelled, not hidden.</p>
+        </div>
+        <div class="aa-results-body">
+          <div class="aa-ledger-wrap" role="region" aria-label="Eval results" tabindex="0">
+            <table class="aa-ledger aa-results">
+              <thead>
+                <tr>
+                  <th scope="col">Metric · bar</th>
+                  <th scope="col" id="aa-run-real">
+                    <span class="aa-run">Real public data</span>
+                    <span class="aa-run-note">{evals.real.datasets.length} datasets, checked against SQL written separately</span>
+                    <span class="aa-run-meta">
+                      <span class="aa-run-count">
+                        {evals.real.datasets.filter((d) => d.completed).length}/{evals.real.datasets.length}
+                      </span>{" "}
+                      jobs · {evals.real.date}
+                    </span>
+                  </th>
+                  {
+                    runs.map((c, k) => (
+                      <th scope="col" id={`aa-run-${k}`}>
+                        <span class="aa-run">{c.run}</span>
+                        <span class="aa-run-note">{c.note}</span>
+                        <span class="aa-run-meta">
+                          <span class="aa-run-count">
+                            {c.suite.completed}/{c.suite.datasets}
+                          </span>{" "}
+                          jobs · {c.suite.date}
+                        </span>
+                      </th>
+                    ))
+                  }
+                </tr>
+              </thead>
+              <tbody>
                 {
-                  runs.map((c, k) => (
-                    <th scope="col" id={`aa-run-${k}`}>
-                      <span class="aa-run">{c.run}</span>
-                      <span class="aa-run-note">{c.note}</span>
-                      <span class="aa-run-meta">
-                        <span class="aa-run-count">
-                          {c.suite.completed}/{c.suite.datasets}
-                        </span>{" "}
-                        jobs · {c.suite.date}
-                      </span>
-                    </th>
+                  METRICS.map((m, i) => (
+                    <tr>
+                      <th scope="row">
+                        <span class="aa-metric">{m}</span>
+                        <span class="aa-th-sub">bar {bar(synthetic, m)?.bar}</span>
+                      </th>
+                      {i === 0 ? (
+                        <td rowspan={METRICS.length} class="aa-span" headers="aa-run-real">
+                          <span class="aa-fig">
+                            {realPassed}/{realChecks.length}
+                          </span>{" "}
+                          checks against SQL written separately
+                          {realPassed === realChecks.length ? <Fragment set:html={` ${check}<span class="aa-sr">all pass</span>`} /> : null}
+                          <span class="aa-span-note">Scored by its own checks instead: real files have no planted events.</span>
+                        </td>
+                      ) : null}
+                      {runs.map((c, k) => {
+                        // A run with jobs missing gets one cell over all its metric rows, labelled from the generated
+                        // data (the runner's runStatus): partial after its last pass, in progress between passes.
+                        const { flag, status, completed, datasets } = c.suite;
+                        if (flag)
+                          return i === 0 ? (
+                            <td rowspan={METRICS.length} class="aa-span" headers={`aa-run-${k}`}>
+                              <span class={status === "resuming" ? "aa-in-progress" : "aa-partial"}>{flag}</span>
+                              <span class="aa-fig">
+                                {completed}/{datasets}
+                              </span>{" "}
+                              jobs finished
+                              <span class="aa-span-note">
+                                {status === "resuming"
+                                  ? "Rates are shown if every job finishes by its last pass."
+                                  : "Rates not shown: unfinished jobs would count as misses."}
+                              </span>
+                            </td>
+                          ) : null;
+                        const b = bar(c.suite, m);
+                        return (
+                          <td class="num">
+                            <span class="aa-fig">{show(b)}</span>
+                            {b?.pass === true ? (
+                              <span class="aa-verified">
+                                <Fragment set:html={check} />
+                                <span class="aa-sr">meets the bar</span>
+                              </span>
+                            ) : b?.pass === false ? (
+                              <span class="aa-below">below bar</span>
+                            ) : null}
+                          </td>
+                        );
+                      })}
+                    </tr>
                   ))
                 }
-              </tr>
-            </thead>
-            <tbody>
-              {
-                METRICS.map((m, i) => (
-                  <tr>
-                    <th scope="row">
-                      <span class="aa-metric">{m}</span>
-                      <span class="aa-th-sub">bar {bar(synthetic, m)?.bar}</span>
-                    </th>
-                    {i === 0 ? (
-                      <td rowspan={METRICS.length} class="aa-span" headers="aa-run-real">
-                        <span class="aa-fig">
-                          {realPassed}/{realChecks.length}
-                        </span>{" "}
-                        checks against SQL written separately
-                        {realPassed === realChecks.length ? <Fragment set:html={` ${check}<span class="aa-sr">all pass</span>`} /> : null}
-                        <span class="aa-span-note">Scored by its own checks instead: real files have no planted events.</span>
-                      </td>
-                    ) : null}
-                    {runs.map((c, k) => {
-                      // A run with jobs missing gets one cell over all its metric rows, labelled from the generated
-                      // data (the runner's runStatus): partial after its last pass, in progress between passes.
-                      const { flag, status, completed, datasets } = c.suite;
-                      if (flag)
-                        return i === 0 ? (
-                          <td rowspan={METRICS.length} class="aa-span" headers={`aa-run-${k}`}>
-                            <span class={status === "resuming" ? "aa-in-progress" : "aa-partial"}>{flag}</span>
-                            <span class="aa-fig">
-                              {completed}/{datasets}
-                            </span>{" "}
-                            jobs finished
-                            <span class="aa-span-note">
-                              {status === "resuming"
-                                ? "Rates are shown if every job finishes by its last pass."
-                                : "Rates not shown: unfinished jobs would count as misses."}
-                            </span>
-                          </td>
-                        ) : null;
-                      const b = bar(c.suite, m);
-                      return (
-                        <td class="num">
-                          <span class="aa-fig">{show(b)}</span>
-                          {b?.pass === true ? (
-                            <span class="aa-verified">
-                              <Fragment set:html={check} />
-                              <span class="aa-sr">meets the bar</span>
-                            </span>
-                          ) : b?.pass === false ? (
-                            <span class="aa-below">below bar</span>
-                          ) : null}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+          <p class="aa-small aa-under">
+            Real public data is checked against SQL written separately; a free-tier model then runs the smoke suite. The generated businesses
+            with planted events are the nightly regression check, run over up to two nights within the free tier's quota; the latest published
+            run is shown, labelled partial only if jobs are still unfinished after its second night. The offline baseline is a scripted
+            heuristic tuned on the same datasets, so its scores are optimistic: it tests the engine and the harness, not model quality. <a href={withBase("quality/results/")}>All results (RESULTS.md)</a> ·{" "}
+            <a href={withBase("quality/evals/")}>How quality is measured</a>
+          </p>
+          <details class="aa-sources">
+            <summary>Sources: {sources.length} result files</summary>
+            <ul>{sources.map((f) => <li><code>{f}</code></li>)}</ul>
+          </details>
         </div>
-        <p class="aa-small aa-under">
-          Real public data is checked against SQL written separately; a free-tier model then runs the smoke suite. The generated businesses
-          with planted events are the nightly regression check, run over up to two nights within the free tier's quota; the latest published
-          run is shown, labelled partial only if jobs are still unfinished after its second night. The offline baseline is a scripted
-          heuristic tuned on the same datasets, so its scores are optimistic: it tests the engine and the harness, not model quality. <a href={withBase("quality/results/")}>All results (RESULTS.md)</a> ·{" "}
-          <a href={withBase("quality/evals/")}>How quality is measured</a>
-        </p>
-        <details class="aa-sources">
-          <summary>Sources: {sources.length} result files</summary>
-          <ul>{sources.map((f) => <li><code>{f}</code></li>)}</ul>
-        </details>
       </div>
     </section>
 
     <section id="quickstart" class="aa-sheet" aria-labelledby="aa-quick-title">
-      <div class="aa-cell aa-cell-head aa-grid-field">
-        <SectionLabel n={4} text="Quickstart" />
-        <h2 id="aa-quick-title" class="aa-h2 aa-center">Run it on the example, then on your files.</h2>
-        <p class="aa-lead aa-center">Install, pick a free model, analyze the example.</p>
-      </div>
-      <ol class="aa-steps">
-        <li class="aa-cell">
-          <p class="aa-label">Step 1 · Install</p>
-          <div class="aa-code">
-            <pre tabindex="0" aria-label="Install"><code>git clone \
+      <div class="aa-cell aa-split aa-quick-row">
+        <div class="aa-cell-head aa-grid-field">
+          <SectionLabel n={4} text="Quickstart" />
+          <h2 id="aa-quick-title" class="aa-h2 aa-center">Run it on the example, then on your files.</h2>
+          <p class="aa-lead aa-center">Install, pick a free model, analyze the example.</p>
+        </div>
+        <ol class="aa-steps">
+          <li class="aa-step">
+            <p class="aa-label">Step 1 · Install</p>
+            <div class="aa-code">
+              <pre tabindex="0" aria-label="Install"><code>git clone \
   <span class="aa-url">https://github.com/<wbr /><span class="aa-nowrap">gfirik/agentic-analytics</span></span>
 cd agentic-analytics
 bun install
 bun run aa doctor</code></pre>
-          </div>
-          <p class="aa-small">Node 22 and Bun. <code>doctor</code> says what this machine has.</p>
-        </li>
-        <li class="aa-cell">
-          <p class="aa-label">Step 2 · Model</p>
-          <div class="aa-code">
-            <pre tabindex="0" aria-label="Choose a model"><code><span class="c"># Ollama, or a free endpoint in .env</span>
+            </div>
+            <p class="aa-small">Node 22 and Bun. <code>doctor</code> says what this machine has.</p>
+          </li>
+          <li class="aa-step">
+            <p class="aa-label">Step 2 · Model</p>
+            <div class="aa-code">
+              <pre tabindex="0" aria-label="Choose a model"><code><span class="c"># Ollama, or a free endpoint in .env</span>
 cp .env.example .env</code></pre>
-          </div>
-          <p class="aa-small">
-            Free and local only: Ollama or a free OpenAI-compatible endpoint. <a href={withBase("models/running-free/")}>Running free</a>
-          </p>
-        </li>
-        <li class="aa-cell">
-          <p class="aa-label">Step 3 · Analyze</p>
-          <div class="aa-code">
-            <pre tabindex="0" aria-label="Analyze the example"><code>bun run aa analyze \
+            </div>
+            <p class="aa-small">
+              Free and local only: Ollama or a free OpenAI-compatible endpoint. <a href={withBase("models/running-free/")}>Running free</a>
+            </p>
+          </li>
+          <li class="aa-step">
+            <p class="aa-label">Step 3 · Analyze</p>
+            <div class="aa-code">
+              <pre tabindex="0" aria-label="Analyze the example"><code>bun run aa analyze \
   examples/coffee-roaster --open
 <span class="c"># no model yet? replay it offline</span>
 AA_DEMO_MODEL=scripted \
   bun run aa analyze \
   examples/coffee-roaster \
   --yes --embedder hash</code></pre>
+            </div>
+            <p class="aa-small">The report opens with every number linked to its working.</p>
+          </li>
+        </ol>
+          <div class="aa-quick-bins">
+            <p class="aa-label">Standalone binaries · Docker</p>
+            <p class="aa-small">
+              No Node or Bun needed: attached to each tagged release, from v0.1.0 on, with a checksum file. <a href={RELEASES_URL}
+                >Releases</a
+              >
+            </p>
+            <ul class="aa-binaries">{binaries.map((b) => <li><code>{b}</code></li>)}</ul>
+            <p class="aa-small"><code>docker compose up</code> · API, viewer and MCP on <code>http://127.0.0.1:8080</code></p>
           </div>
-          <p class="aa-small">The report opens with every number linked to its working.</p>
-        </li>
-      </ol>
-      <div class="aa-cell aa-quick-more">
-        <div>
-          <p class="aa-label">Standalone binaries · Docker</p>
-          <p class="aa-small">
-            No Node or Bun needed: attached to each tagged release, from v0.1.0 on, with a checksum file. <a href={RELEASES_URL}
-              >Releases</a
-            >
-          </p>
-          <ul class="aa-binaries">{binaries.map((b) => <li><code>{b}</code></li>)}</ul>
-          <p class="aa-small"><code>docker compose up</code> · API, viewer and MCP on <code>http://127.0.0.1:8080</code></p>
-        </div>
-        <div>
-          <p class="aa-label">Four doors, one engine</p>
-          <ul class="aa-doors">
-            {
-              doors.map((d) => (
-                <li>
-                  <a class="aa-door-name" href={withBase(d.href)}>
-                    {d.name}
-                  </a>
-                  <span class="aa-door-does">{d.does}</span>
-                  <code class="aa-door-cmd">{d.cmd.split(" ").flatMap((w, i) => (i ? [" ", <span class="aa-nowrap">{w}</span>] : [<span class="aa-nowrap">{w}</span>]))}</code>
-                </li>
-              ))
-            }
-          </ul>
-        </div>
+          <div class="aa-quick-doors">
+            <p class="aa-label">Four doors, one engine</p>
+            <ul class="aa-doors">
+              {
+                doors.map((d) => (
+                  <li>
+                    <a class="aa-door-name" href={withBase(d.href)}>
+                      {d.name}
+                    </a>
+                    <span class="aa-door-does">{d.does}</span>
+                    <code class="aa-door-cmd">{d.cmd.split(" ").flatMap((w, i) => (i ? [" ", <span class="aa-nowrap">{w}</span>] : [<span class="aa-nowrap">{w}</span>]))}</code>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
       </div>
     </section>
   </div>
 </BaseLayout>
 
 <style>
-  /* The frame: one long vertical frame (1px rules left and right of the container), sections divided by full-width
-     hairlines that meet it, a small + where they cross. Under 45rem the side rules would sit on the screen edge, so
-     only the hairlines remain. */
-  /* The "+" ticks sit half outside the frame; where the frame meets the screen edge (up to 1180px) that would scroll
-     the page sideways, so the paper clips them (clip, not hidden: no scroll container, so sticky still works). */
+  /* The frame (site v4): one long vertical frame, 1px rules left and right of the 1440px container, sections divided by
+     full-bleed hairlines that meet it, a small + where they cross. Under 45rem the side rules would sit on the screen
+     edge, so only the hairlines remain. */
+  /* The "+" ticks sit half outside the frame; where the frame meets the screen edge (up to 1440px) that would scroll
+     the page sideways, so the paper clips them (clip, not hidden: no scroll container, so sticky still works). The
+     graph paper's full-bleed field is clipped the same way. */
   .aa-paper {
     overflow-x: clip;
   }
@@ -423,9 +434,6 @@ AA_DEMO_MODEL=scripted \
     margin: 0 auto;
     padding: var(--aa-space-8) var(--aa-gutter);
     border-inline: 1px solid var(--aa-rule);
-  }
-  .aa-cell + .aa-cell {
-    border-top: 1px solid var(--aa-rule);
   }
   .aa-sheet {
     position: relative;
@@ -451,15 +459,19 @@ AA_DEMO_MODEL=scripted \
     content: none;
   }
 
-  /* Graph paper behind the hero and the section heads only (decorative), fading to the plain page at the edges
-     through a CSS mask. It sits under the content and never behind long text. */
+  /* Graph paper behind the hero statement and the section heads only (decorative), full-bleed: it runs out to the
+     screen's edges and fades to the plain page through a CSS mask. It sits under the content, never behind the visuals
+     or long text. Stacked (under 1100px) a head is centred, so its field spans the screen's width over the head's
+     height; in a wide row the head is the left column, so its field runs from the screen's left edge to the middle of
+     the gap before the visual. */
   .aa-grid-field {
+    position: relative;
     isolation: isolate;
   }
   .aa-grid-field::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: calc(-1 * var(--aa-space-8)) calc(50% - 50vw) calc(-1 * var(--aa-space-5));
     z-index: -1;
     background-image:
       linear-gradient(to right, var(--aa-grid) 1px, transparent 1px),
@@ -471,14 +483,40 @@ AA_DEMO_MODEL=scripted \
     pointer-events: none;
   }
 
-  /* Hero: a centred statement block; the exhibit follows in its own framed section, full container width. */
+  /* Wide rows (site v4): from 1100px a section is one row of two columns, the text on the left (its 56ch measure) and
+     a large visual on the right; below that they stack, the head centred above its visual. */
+  .aa-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--aa-space-7);
+  }
+  .aa-split > * {
+    min-width: 0;
+  }
+  @media (min-width: 68.75rem) {
+    .aa-split {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      gap: var(--aa-space-8);
+      align-items: start;
+    }
+    .aa-split > .aa-grid-field::before {
+      /* From the screen's left edge (past the gutter and the margin outside the frame) to the middle of the gap. */
+      inset: calc(-1 * var(--aa-space-8)) calc(-1 * var(--aa-space-6))
+        calc(-1 * var(--aa-space-8)) calc(-1 * (var(--aa-gutter) + max(0px, (100vw - var(--aa-container)) / 2)));
+      -webkit-mask-image: radial-gradient(ellipse 70% 75% at 62% 45%, #000 30%, transparent 100%);
+      mask-image: radial-gradient(ellipse 70% 75% at 62% 45%, #000 30%, transparent 100%);
+    }
+  }
+
+  /* Hero: the statement on the left and the exhibit's report page on the right from 1100px, so the verification replay
+     plays on the first screen; stacked and centred below that. The right column is wide enough at 1440 (about 795px)
+     for the exhibit's notes to sit beside it (its container query, Exhibit.astro). */
   .aa-statement {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
+    align-content: start;
     gap: var(--aa-space-5);
-    padding-top: var(--aa-space-8);
-    padding-bottom: var(--aa-space-7);
     text-align: center;
   }
   .aa-statement .aa-lead {
@@ -517,50 +555,114 @@ AA_DEMO_MODEL=scripted \
     font: 400 var(--aa-text-code) / 1.5 var(--aa-font-mono);
     color: var(--aa-ink-2);
   }
-  .aa-exhibit-sheet > .aa-cell {
-    padding-top: var(--aa-space-6);
+  .aa-hero-row {
+    padding-bottom: var(--aa-space-7);
+  }
+  .aa-hero-exhibit {
+    min-width: 0;
   }
   .aa-exhibit-label {
     margin-bottom: var(--aa-space-4);
   }
-
-  /* Section heads: the bracketed label on a hairline, a centred serif heading and lead. */
+  @media (min-width: 68.75rem) {
+    .aa-hero-row {
+      gap: var(--aa-space-7);
+    }
+    .aa-statement {
+      justify-items: start;
+      padding-top: var(--aa-space-6);
+      text-align: left;
+    }
+    .aa-actions {
+      justify-content: flex-start;
+    }
+  }
+  /* The engine machine (PR 2 replaces it): its strip, unchanged, in its own row under the hero. */
+  .aa-machine-row > .aa-cell {
+    padding-top: var(--aa-space-6);
+    padding-bottom: var(--aa-space-6);
+  }
+  /* Section heads: the bracketed label on a hairline, a serif heading and lead; centred when stacked, on the left in a
+     wide row or band from 1100px, where the label's hairline runs only after it. */
   .aa-cell-head {
     display: grid;
     justify-items: center;
+    align-content: start;
     gap: var(--aa-space-4);
-    padding-bottom: var(--aa-space-7);
     text-align: center;
   }
   .aa-center {
     margin-inline: auto;
   }
+  @media (min-width: 68.75rem) {
+    .aa-cell-head {
+      justify-items: start;
+      text-align: left;
+    }
+    .aa-cell-head .aa-center {
+      margin-inline: 0;
+    }
+    .aa-cell-head :global(.aa-seclabel)::before {
+      content: none;
+    }
+  }
 
-  /* §2: three proof cells side by side, divided by hairlines. */
+  /* §2: three proofs. Stacked under 52rem; three cells side by side to 1100px, their five parts on rows shared across
+     the cells (subgrid), so the example boxes line up and match in height (site v3, finding 13); in the wide row, three
+     ruled rows, the words on the left and the example on the right. */
   .aa-proofs {
     list-style: none;
-    margin: 0 auto;
+    margin: 0;
     padding: 0;
-    max-width: var(--aa-container);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    border-inline: 1px solid var(--aa-rule);
+    grid-template-columns: minmax(0, 1fr);
     border-top: 1px solid var(--aa-rule);
   }
-  /* Each cell's five parts (label, title, sentence, example, link) sit on rows shared across the three cells
-     (subgrid), so the example boxes line up and match in height (site v3, finding 13). */
-  .aa-proofs > .aa-cell {
+  .aa-proof {
     display: grid;
-    grid-row: span 5;
-    grid-template-rows: subgrid;
     gap: var(--aa-space-3);
-    margin: 0;
-    padding: var(--aa-space-6) var(--aa-space-5);
-    border: 0;
+    padding: var(--aa-space-6) 0;
   }
-  .aa-proofs > .aa-cell + .aa-cell {
-    border-top: 0;
-    border-left: 1px solid var(--aa-rule);
+  .aa-proof + .aa-proof {
+    border-top: 1px solid var(--aa-rule);
+  }
+  @media (min-width: 52rem) and (max-width: 68.6875rem) {
+    .aa-proofs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .aa-proof {
+      grid-row: span 5;
+      grid-template-rows: subgrid;
+      padding: var(--aa-space-6) var(--aa-space-5);
+    }
+    .aa-proof:first-child {
+      padding-left: 0;
+    }
+    .aa-proof:last-child {
+      padding-right: 0;
+    }
+    .aa-proof + .aa-proof {
+      border-top: 0;
+      border-left: 1px solid var(--aa-rule);
+    }
+  }
+  @media (min-width: 68.75rem) {
+    .aa-proof {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+      grid-template-rows: auto auto auto 1fr;
+      column-gap: var(--aa-space-6);
+    }
+    .aa-proof > :not(.aa-proof-ex) {
+      grid-column: 1;
+    }
+    .aa-proof > .aa-proof-ex {
+      grid-column: 2;
+      grid-row: 1 / span 4;
+      align-self: start;
+    }
+    .aa-proof > .aa-more {
+      align-self: end;
+    }
   }
   .aa-proofs p:not(.aa-label) {
     color: var(--aa-ink-2);
@@ -624,15 +726,6 @@ AA_DEMO_MODEL=scripted \
   }
   .aa-more::after {
     content: " →";
-  }
-  @media (max-width: 52rem) {
-    .aa-proofs {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .aa-proofs > .aa-cell + .aa-cell {
-      border-left: 0;
-      border-top: 1px solid var(--aa-rule);
-    }
   }
 
   /* §3: metrics as rows, runs as columns; a run without rates gets one cell over all its rows. */
@@ -778,32 +871,79 @@ AA_DEMO_MODEL=scripted \
     max-width: 72ch;
   }
 
-  /* §4 */
+  /* §3: a full-width band, the head over the table. */
+  .aa-results-body {
+    margin-top: var(--aa-space-7);
+  }
+
+  /* §4: a wide row. The head and the binaries on the left; the three steps and the four doors on the right. Stacked:
+     head, steps, binaries, doors. */
+  .aa-quick-row {
+    grid-template-areas: "head" "steps" "bins" "doors";
+  }
+  .aa-quick-row > .aa-cell-head {
+    grid-area: head;
+  }
   .aa-steps {
+    grid-area: steps;
     list-style: none;
-    margin: 0 auto;
+    margin: 0;
     padding: 0;
-    max-width: var(--aa-container);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    border-inline: 1px solid var(--aa-rule);
+    grid-template-columns: minmax(0, 1fr);
     border-top: 1px solid var(--aa-rule);
   }
-  .aa-steps > .aa-cell {
+  .aa-step {
     display: grid;
     align-content: start;
     gap: var(--aa-space-3);
-    margin: 0;
-    padding: var(--aa-space-6) var(--aa-space-5);
-    border: 0;
+    padding: var(--aa-space-6) 0;
   }
-  .aa-steps > .aa-cell + .aa-cell {
-    border-top: 0;
-    border-left: 1px solid var(--aa-rule);
+  .aa-step + .aa-step {
+    border-top: 1px solid var(--aa-rule);
   }
-  /* Commands are broken at a flag or a "\\" and fit their cell. The clone URL is longer than a column (even at 1440): it
-     wraps only after "github.com/" (the <wbr>), and as an inline block its second line starts under its first, so it
-     reads as one argument, not a new command. */
+  @media (min-width: 56rem) and (max-width: 68.6875rem) {
+    .aa-steps {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .aa-step {
+      padding: var(--aa-space-6) var(--aa-space-5);
+    }
+    .aa-step:first-child {
+      padding-left: 0;
+    }
+    .aa-step:last-child {
+      padding-right: 0;
+    }
+    .aa-step + .aa-step {
+      border-top: 0;
+      border-left: 1px solid var(--aa-rule);
+    }
+  }
+  /* In the wide row each step is a ruled row: its label and note on the left, the commands on the right. */
+  @media (min-width: 68.75rem) {
+    .aa-quick-row {
+      /* The binaries sit under the head, beside the end of the steps; the doors follow the steps. */
+      grid-template-areas: "head steps" "bins steps" ". doors";
+      grid-template-rows: min-content 1fr auto;
+    }
+    .aa-step {
+      grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+      grid-template-rows: auto 1fr;
+      column-gap: var(--aa-space-5);
+    }
+    .aa-step > .aa-label,
+    .aa-step > .aa-small {
+      grid-column: 1;
+    }
+    .aa-step > .aa-code {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+    }
+  }
+  /* Commands are broken at a flag or a "\\" and fit their cell. The clone URL may be longer than a column: it wraps
+     only after "github.com/" (the <wbr>), and as an inline block its second line starts under its first, so it reads
+     as one argument, not a new command. */
   .aa-steps .aa-code pre {
     font-size: var(--aa-text-code);
     white-space: pre-wrap;
@@ -820,13 +960,14 @@ AA_DEMO_MODEL=scripted \
     max-width: calc(100% - 2ch);
     vertical-align: top;
   }
-  .aa-quick-more {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-    gap: var(--aa-space-7);
-    padding-top: var(--aa-space-6);
+  .aa-quick-bins {
+    grid-area: bins;
   }
-  .aa-quick-more > div {
+  .aa-quick-doors {
+    grid-area: doors;
+  }
+  .aa-quick-bins,
+  .aa-quick-doors {
     display: grid;
     align-content: start;
     gap: var(--aa-space-3);
@@ -871,35 +1012,23 @@ AA_DEMO_MODEL=scripted \
     overflow-wrap: normal;
   }
   @media (max-width: 56rem) {
-    .aa-steps {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .aa-steps > .aa-cell + .aa-cell {
-      border-left: 0;
-      border-top: 1px solid var(--aa-rule);
-    }
-    .aa-quick-more {
-      grid-template-columns: minmax(0, 1fr);
-      gap: var(--aa-space-6);
-    }
     .aa-doors li {
       grid-template-columns: minmax(0, 1fr);
     }
   }
 
   @media (max-width: 45rem) {
-    .aa-cell,
-    .aa-proofs,
-    .aa-steps {
+    .aa-cell {
       border-inline: 0;
+      padding-top: var(--aa-space-7);
+      padding-bottom: var(--aa-space-7);
     }
     .aa-sheet::before,
     .aa-sheet::after {
       content: none;
     }
-    .aa-cell {
-      padding-top: var(--aa-space-7);
-      padding-bottom: var(--aa-space-7);
+    .aa-grid-field::before {
+      top: calc(-1 * var(--aa-space-7));
     }
   }
 </style>
