@@ -1,5 +1,5 @@
 // The site's rendered assets (apps/docs/scripts/site-assets.ts) must not go stale: public/og.png and favicon.ico are
-// re-rendered whenever the run data, the mark, the renderer or the font versions change; so are the engine machine's
+// re-rendered whenever the run data, the lettermark, the renderer or the font versions change; so are the engine machine's
 // stills, whenever its scene, its station data or the colour tokens change.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
