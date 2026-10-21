@@ -98,11 +98,15 @@ export class Workspace {
         await this.connection.run(`INSERT INTO schema_migrations (version) VALUES (${m.version})`);
         await this.connection.run("COMMIT");
       } catch (err) {
-        // A failed ROLLBACK must not replace the migration error, which is the one that explains the failure.
-        await this.connection.run("ROLLBACK").catch(() => undefined);
+        // A failed ROLLBACK must not replace the migration error, which is the one that explains the failure; it is
+        // kept on the error as `rollback`.
+        const rollback = await this.connection.run("ROLLBACK").then(
+          () => undefined,
+          (e: unknown) => e,
+        );
         throw new StoreError(
           "MIGRATION",
-          `migration ${m.version} (${m.name}) failed: ${err instanceof Error ? err.message : String(err)}`,
+          `migration ${m.version} (${m.name}) failed: ${err instanceof Error ? err.message : String(err)}${rollback ? `; the rollback failed too: ${rollback instanceof Error ? rollback.message : String(rollback)}` : ""}`,
           { cause: err },
         );
       }

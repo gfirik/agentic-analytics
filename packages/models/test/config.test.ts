@@ -81,5 +81,8 @@ describe("config mistakes are named at startup (code-quality fix 11)", () => {
       { models: { reranker: { provider: "transformers", model: "onnx-community/bge-reranker-v2-m3-ONNX" } } },
     );
     expect(withReranker.models.reranker?.provider).toBe("transformers");
+    expect(() => resolveModelConfig({}, { models: { reranker: { provider: "ollama", model: "bge-reranker" } } })).toThrowError(
+      expect.objectContaining({ code: "CONFIG", message: expect.stringContaining("reranker must be transformers") }),
+    );
   });
 });

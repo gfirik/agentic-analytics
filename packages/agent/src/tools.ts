@@ -77,6 +77,12 @@ export interface ToolContext {
   };
 }
 
+/** A real calendar day as YYYY-MM-DD ("2026-13-45" is refused, not searched for and silently empty). */
+const isoDay = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD")
+  .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)) && new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), "a real date");
+
 type ToolResult = Record<string, unknown>;
 
 function tool<I>(
@@ -193,14 +199,8 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
       query: z.string().min(2).max(200),
       sources: z.array(z.string()).max(20).optional(),
       // ISO days only: "March 2026" or "2026-3-1" would compare wrong and silently match nothing.
-      from: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD")
-        .optional(),
-      to: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD")
-        .optional(),
+      from: isoDay.optional(),
+      to: isoDay.optional(),
     }),
     budget,
     async ({ query, sources, from, to }) => {

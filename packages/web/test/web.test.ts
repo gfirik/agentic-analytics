@@ -224,9 +224,15 @@ describe("address blocking (security §4)", () => {
     );
     // The same spellings the query sanitizer catches: hyphens, "+", diacritics, joined words.
     for (const u of ["https://e.example/c?q=hotel-group", "https://e.example/c?q=cafe+roma", "https://e.example/c?q=HotelGroupLLC"])
-      expect(() => checkUrl(u, ["Hotel Group LLC", "Café Roma"]), u).toThrowError(expect.objectContaining({ code: "PRIVATE_VALUE" }));
+      expect(() => checkUrl(u, [], undefined, undefined, ["Hotel Group LLC", "Café Roma"]), u).toThrowError(
+        expect.objectContaining({ code: "PRIVATE_VALUE" }),
+      );
     // A short value matches whole words only: "Ana" doesn't block "banana".
-    expect(checkUrl("https://e.example/c?q=banana+prices", ["Ana"]).hostname).toBe("e.example");
+    expect(checkUrl("https://e.example/c?q=banana+prices", [], undefined, undefined, ["Ana"]).hostname).toBe("e.example");
+    // A value (an id, a file name) is refused anywhere in the query, as the sanitizer removes it; a name rule
+    // like "leading two words" doesn't apply to it.
+    expect(() => checkUrl("https://e.example/c?id=A4821", ["4821"])).toThrowError(expect.objectContaining({ code: "PRIVATE_VALUE" }));
+    expect(checkUrl("https://e.example/c?q=price+list", ["price list march.xlsx"]).hostname).toBe("e.example");
     // One invalid UTF-8 byte in front of a fully encoded private value doesn't hide it.
     expect(() => checkUrl("https://evil.example/c?x=%FF%48%6F%74%65%6C%20%47%72%6F%75%70%20%4C%4C%43", ["Hotel Group LLC"])).toThrowError(
       expect.objectContaining({ code: "PRIVATE_VALUE" }),

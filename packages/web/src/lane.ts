@@ -41,8 +41,9 @@ export async function webSearch(query: string, deps: WebSearchDeps): Promise<Web
   if (s.query.split(" ").filter((w) => /\p{L}{2,}/u.test(w)).length < 2)
     return { query: s.query, removed: s.removed, pages: [], skipped: [] };
   const results = await deps.provider.search(s.query);
-  const privateValues = [...deps.terms.names, ...(deps.terms.values ?? [])];
-  const fetchPage = deps.fetchPage ?? ((url: string) => safeFetch(url, { ...deps.fetchOptions, privateValues }));
+  const privateValues = deps.terms.values ?? [];
+  const privateNames = deps.terms.names;
+  const fetchPage = deps.fetchPage ?? ((url: string) => safeFetch(url, { ...deps.fetchOptions, privateValues, privateNames }));
   const pages: WebPage[] = [];
   const skipped: WebSearchResult["skipped"] = [];
   for (const r of results) {

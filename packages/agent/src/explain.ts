@@ -11,7 +11,7 @@ import { contributionDrivers, decompositionClaims, findingType, observedClaim, q
 import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
-import type { Budget, ToolContext } from "./tools.ts";
+import type { Budget, OpenQuestionDraft, ToolContext } from "./tools.ts";
 import { withheld, withheldMember } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -150,6 +150,20 @@ export function smallModeQuery(
   // search_documents takes at most 200 characters: drop drivers from the end until the query fits.
   while (words.join(" ").length > 200 && words.length > 3) words.splice(words.length - 3, 1);
   return words.join(" ").slice(0, 200);
+}
+
+/**
+ * Questions keep pointing at their finding after renumbering (`kept` is the surviving findings' old ids, in their new
+ * order); a question whose finding was dropped loses its link and falls back to the top finding in the draft.
+ */
+export function relinkQuestions(questions: OpenQuestionDraft[], kept: readonly string[]): void {
+  const newId = new Map(kept.map((id, i) => [id, `F${i + 1}`]));
+  for (const [k, q] of questions.entries()) {
+    if (!q.finding) continue;
+    const { finding, ...rest } = q;
+    const to = newId.get(finding);
+    questions[k] = to ? { ...rest, finding: to } : rest;
+  }
 }
 
 export async function explainFindings(
@@ -309,14 +323,10 @@ export async function explainFindings(
   const clean = withoutQuarantined(findings, ctx.found.quarantined);
   // Keep ids gap-free (F1, F2, …) and the finding → insight map in step when a finding was dropped.
   const renumbered = clean.findings.map((f, i) => ({ ...f, id: `F${i + 1}` }));
-  // Questions keep pointing at their finding after renumbering; one whose finding was dropped loses the link.
-  const newId = new Map(clean.findings.map((f, i) => [f.id, `F${i + 1}`]));
-  for (const [k, q] of ctx.found.questions.entries()) {
-    if (!q.finding) continue;
-    const { finding, ...rest } = q;
-    const to = newId.get(finding);
-    ctx.found.questions[k] = to ? { ...rest, finding: to } : rest;
-  }
+  relinkQuestions(
+    ctx.found.questions,
+    clean.findings.map((f) => f.id),
+  );
   const kept: Record<string, string> = {};
   clean.findings.forEach((f, i) => {
     const insight = insightOf[f.id];

@@ -46,6 +46,7 @@ export {
   type ExplainResult,
   explainFindings,
   RATE_EVENT_WORDS,
+  relinkQuestions,
   SmallExplainOutput,
   smallModeQuery,
   withoutQuarantined,
