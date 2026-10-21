@@ -79,7 +79,7 @@ type AnswerCandidate = z.infer<typeof AnswerCandidate>;
 const firstIssue = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".")}: ${i.message}`)[0] ?? "invalid";
 const plainOk = (t: unknown): t is string => Plain.safeParse(t).success;
 /** A sentence that leans on the one before it ("Otherwise margins collapse."): it goes when that one goes. */
-const LEANS = /^(?:otherwise|so|then|this|that|it|which|but|and|also|thus|hence)\b/i;
+const LEANS = /^(?:otherwise|so|then|this|that|it|which|but|and|also|thus|hence|however|instead|else|if not|not)\b/i;
 /**
  * The sentences of a text that hold the plain-words rule. A sentence with a numeral or a placeholder is left out, and
  * so is a sentence that leans on a left-out one, so what is kept doesn't change its meaning.

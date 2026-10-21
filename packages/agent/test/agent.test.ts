@@ -492,6 +492,9 @@ describe("repairCandidate: one candidate held to the rules on its own (M14a)", a
     // "Then decide again." leans on the left-out sentence, so it goes with it.
     expect(r).toEqual({ candidate: { ...base, risk: "The discount lowers the margin.", horizon: "next quarter." } });
     expect(repairCandidate({ ...base, not_advised: null })).toEqual({ candidate: base });
+    expect(repairCandidate({ ...base, risk: "Margins shrink. Prices drop by 5%. However volumes hold." })).toEqual({
+      candidate: { ...base, risk: "Margins shrink." },
+    });
   });
 
   it("never repairs the action or the rationale: a free numeral there drops the candidate", () => {
