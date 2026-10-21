@@ -21,6 +21,7 @@ import { z } from "zod";
 import { type Extract, extractFromHits } from "./extractor.ts";
 import { type SheetFact, sheetFact } from "./factsheet.ts";
 import { searchAndStore, type WebLane } from "./web.ts";
+import { withheldKeys } from "./withhold.ts";
 
 export class Budget {
   private usedTotal = 0;
@@ -150,8 +151,8 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
         dimension: r.dimension,
         from: r.before,
         to: r.after,
-        facts: Object.fromEntries(
-          Object.entries(r.facts).flatMap(([k, id]) => (byId.has(id) ? [[k, sheetFact(byId.get(id) as Fact)]] : [])),
+        facts: withheldKeys(
+          Object.fromEntries(Object.entries(r.facts).flatMap(([k, id]) => (byId.has(id) ? [[k, sheetFact(byId.get(id) as Fact)]] : []))),
         ),
       };
     },

@@ -3,6 +3,7 @@
 // quality issues. Every number is a fact with its id, value, unit and label; raw tables never reach the model.
 import type { StoredDecomposition, StoredInsight } from "@agentic-analytics/analysis";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
+import { withheld, withheldKeys, withheldMember } from "./withhold.ts";
 
 export interface SheetFact {
   readonly id: string;
@@ -33,7 +34,8 @@ export interface FactSheet {
 const round = (v: number) => (Math.abs(v) >= 100 ? Math.round(v * 100) / 100 : Number(v.toPrecision(6)));
 
 export function sheetFact(f: Fact): SheetFact {
-  return { id: f.id, value: round(f.value), unit: f.currency && f.unit === "currency" ? f.currency : f.unit, label: f.label };
+  // The label can carry a table cell (a member value): screened on its way to the planner (withhold.ts).
+  return { id: f.id, value: round(f.value), unit: f.currency && f.unit === "currency" ? f.currency : f.unit, label: withheld(f.label) };
 }
 
 export function buildFactSheet(input: {
@@ -71,14 +73,14 @@ export function buildFactSheet(input: {
       template: i.template,
       metric: i.metric,
       period: i.period,
-      ...(i.member ? { member: i.member } : {}),
+      ...(i.member ? { member: withheldMember(i.member) } : {}),
       confidence: i.confidence,
       score: Number(i.score.toFixed(4)),
       facts: pick(i.facts),
     })),
     decompositions: input.decompositions
       .filter((d) => keep.has(d.insight))
-      .map((d) => ({ id: d.id, insight: d.insight, method: d.method, dimension: d.dimension, facts: pick(d.facts) })),
+      .map((d) => ({ id: d.id, insight: d.insight, method: d.method, dimension: d.dimension, facts: withheldKeys(pick(d.facts)) })),
     quality: input.quality.map((q) => ({ id: q.id, kind: q.kind, severity: q.severity })),
   };
 }

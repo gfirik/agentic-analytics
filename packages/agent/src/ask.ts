@@ -6,6 +6,7 @@ import type { ModelClient } from "@agentic-analytics/models";
 import { type Claim, findFreeNumerals, placeholders, type Report } from "@agentic-analytics/schema";
 import { z } from "zod";
 import { data, renderPrompt } from "./prompts.ts";
+import { withheld } from "./withhold.ts";
 
 type Grade = NonNullable<Claim["causal_grade"]>;
 const GRADES: readonly Grade[] = ["observed", "correlated", "document_supported", "intervention_supported"];
@@ -51,11 +52,12 @@ export async function answerQuestion(model: ModelClient, question: string, repor
     system: renderPrompt("ask", {
       question: data(question),
       report: data({
-        headline: report.summary.headline,
-        facts: report.facts.map((f) => ({ id: f.id, label: f.label, value: f.value, unit: f.unit })),
-        claims: [...claims].map(([ref, c]) => ({ ref, text: c.text, grade: c.causal_grade ?? "observed" })),
-        findings: report.findings.map((f) => ({ id: f.id, title: f.title })),
-        recommendations: report.recommendations.map((r) => ({ id: r.id, action: r.action })),
+        // The report's text quotes members from the data: screened on its way to the planner (withhold.ts).
+        headline: withheld(report.summary.headline),
+        facts: report.facts.map((f) => ({ id: f.id, label: withheld(f.label), value: f.value, unit: f.unit })),
+        claims: [...claims].map(([ref, c]) => ({ ref, text: withheld(c.text), grade: c.causal_grade ?? "observed" })),
+        findings: report.findings.map((f) => ({ id: f.id, title: withheld(f.title) })),
+        recommendations: report.recommendations.map((r) => ({ id: r.id, action: withheld(r.action) })),
       }),
     }),
     prompt: "Answer the question.",
