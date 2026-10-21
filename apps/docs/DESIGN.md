@@ -251,7 +251,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - no "everyone else" row and no figure the page subtracted: members in the decomposition's total that aren't drawn are named by their fact ids; the caption says the members drawn are all of them only when the total fact shows it (its value with its id).
 - **Recorded output** (`Transcript`, Learn): a `surface` block in mono with a label-style caption; long lines scroll inside it, and a note names what was replaced.
 - **Header:**
-  - The wordmark, a mark, then the links. The mark is a ruled square with a check, `aria-hidden`, drawn in `currentColor`. It is the brand, not a verified state, so it is never green; the favicon is the same mark in ink.
+  - The wordmark, then the links. The wordmark is the name alone, in the interface sans; there is no icon mark. The favicon is an "aa" lettermark: IBM Plex Mono Medium outlined to paths (so it needs no font), ink on paper (`--aa-ink` on `--aa-page`), with no check symbol. Green stays reserved for verified states.
   - Landing: How it works, Results, Docs, GitHub. Docs: search, Results, GitHub.
   - Under 720px the landing links fold into a menu button (`aria-expanded`, `aria-controls`; Escape closes it and returns focus).
 - **Engine machine** (`components/site/EngineMachine.astro`; the one 3D exception of §1, §2.6 and §9), in the hero under the install line:
