@@ -2,9 +2,10 @@
 // cells of tables. A hit quarantines the whole source; its text is then never sent to the extractor, and the
 // report lists it under data quality. Numbers from a flagged table still come from SQL as usual: the screen
 // guards what models read, not what code computes.
+
+import { screen } from "@agentic-analytics/schema";
 import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { quarantine } from "./extractor.ts";
-import { screen } from "./screen.ts";
 
 export interface ScreenSummary {
   readonly screened: number;
