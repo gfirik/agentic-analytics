@@ -142,6 +142,31 @@ describe("AI SDK model client (stubbed transport)", () => {
     expect(seen).toHaveLength(2);
   });
 
+  it("reports a tool that throws on its call (error), and the loop goes on", async () => {
+    const client = createModelClient(resolveModelConfig({}), {
+      env: {},
+      fetch: stubFetch([{ tool_calls: [{ id: "c1", name: "get_facts", arguments: '{"ids":["N9"]}' }] }, { content: "No such fact." }], []),
+    });
+    const res = await client.generateWithTools({
+      role: "planner",
+      system: "s",
+      messages: [{ role: "user", content: "explain" }],
+      tools: {
+        get_facts: {
+          description: "facts",
+          inputSchema: z.object({ ids: z.array(z.string()) }),
+          execute: async () => {
+            throw new Error("unknown fact N9");
+          },
+        },
+      },
+      maxSteps: 4,
+    });
+    expect(res.steps[0]?.toolCalls[0]).toMatchObject({ toolName: "get_facts", error: "unknown fact N9" });
+    expect(res.steps[0]?.toolCalls[0]).not.toHaveProperty("output");
+    expect(res.steps.at(-1)?.text).toBe("No such fact.");
+  });
+
   it("maps provider failures to typed errors", async () => {
     const client = createModelClient(resolveModelConfig({}), { env: {}, fetch: stubFetch([], []) });
     const err = await client.generateObject({ role: "planner", schema: z.object({}), system: "s", prompt: "p" }).catch((e: unknown) => e);

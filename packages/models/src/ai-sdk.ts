@@ -197,7 +197,18 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
           text: s.text,
           toolCalls: s.toolCalls.map((c): ToolCallRecord => {
             const result = s.toolResults.find((r) => r.toolCallId === c.toolCallId);
-            return { toolName: c.toolName, input: c.input, ...(result ? { output: result.output } : {}) };
+            // A tool that threw or got invalid input is a "tool-error" part, which `toolResults` leaves out: keep it,
+            // so the agent sees (and logs) the failed call the way FakeModel reports it.
+            const failed = s.content.find(
+              (p): p is Extract<(typeof s.content)[number], { type: "tool-error" }> =>
+                p.type === "tool-error" && p.toolCallId === c.toolCallId,
+            );
+            return {
+              toolName: c.toolName,
+              input: c.input,
+              ...(result ? { output: result.output } : {}),
+              ...(failed ? { error: failed.error instanceof Error ? failed.error.message : String(failed.error) } : {}),
+            };
           }),
           usage: usageOf(s.usage, 0),
         }));

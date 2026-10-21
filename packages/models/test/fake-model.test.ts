@@ -156,3 +156,22 @@ describe("function steps", () => {
     expect(r.steps[1]?.toolCalls[0]?.output).toEqual({ used: "E7" });
   });
 });
+
+describe("tool errors", () => {
+  it("a tool that throws is reported on its call, as the AI SDK does, and the call goes on", async () => {
+    const { z } = await import("zod");
+    const tools = {
+      boom: {
+        description: "",
+        inputSchema: z.object({}),
+        execute: async () => {
+          throw new Error("no such fact");
+        },
+      },
+    };
+    const m = new FakeModel([{ role: "planner", steps: [{ toolCalls: [{ toolName: "boom", input: {} }] }, { text: "done" }] }]);
+    const r = await m.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 5 });
+    expect(r.steps[0]?.toolCalls[0]).toEqual({ toolName: "boom", input: {}, error: "no such fact" });
+    expect(r.steps[1]?.text).toBe("done");
+  });
+});

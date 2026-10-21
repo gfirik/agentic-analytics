@@ -144,18 +144,19 @@ All passes run on the draft report. Results are written to the `verification` ta
 - **V4:**
   - each fact's metric exists with the same unit and currency;
   - a measured fact's SQL and parameters are re-compiled from its definition for its period and member filter, and must be identical (period and filters);
-  - the lexicon uses metric labels and ids: a claim that names metrics, none of which its facts are measured from, is a violation. Derived facts are followed back through their inputs to the measured facts.
+  - the lexicon uses metric labels and ids: a claim that names metrics, none of which its facts (all of them together) are measured from, is a violation. Derived facts are followed back through their inputs to the measured facts.
   - a word of decline (EN/RU/UZ: fell, dropped, упал, kamaydi…) followed by a negative fact placeholder is a violation: a decline is stated as a magnitude.
 - **V5:**
   - a fact's cited rows must be rows its metric actually reads for that period and member, found again with the metric's own row query (an engine bug otherwise, like V2);
   - every quote must occur in its source's stored text;
   - claims with quotes go to the judge (`prompts/judge.md`, yes/no) when a judge model is configured;
-  - otherwise the judge step is skipped and the check row says so.
+  - otherwise, or when the judge call fails (timeout, rate limit, bad answer), the judge step is skipped for that claim and the check row says so ("judge not configured" / "judge unavailable");
+  - a quoted span of the claim that the screen flags is sent to the judge as “withheld” (security §3).
 - **V6:**
   - a `document_supported` or stronger grade without a document or email citation is downgraded to `correlated`;
   - causal wording in a claim below that grade is rewritten (EN "because of" → "around the time of", "due to" → "alongside", "caused" → "coincided with"; RU "из-за" → "одновременно с"; UZ "sababli" → "bilan bir vaqtda").
   - the lexicon also covers bare "because", "driven by", "drove", "triggered", "stemmed from", RU "благодаря", "повлекло", "стало причиной", and UZ "sabab bo'ldi";
-  - titles, the headline, actions and `not_advised` get the same rewrite unless their finding has a document-supported claim.
+  - titles, the headline, actions and `not_advised` get the same rewrite unless their finding has a document-supported claim. The headline's finding is the one whose facts its placeholders use (or whose title it fell back to; with neither, the top finding).
   - Everything rewritten or downgraded is listed in `claims_downgraded`.
 - **V7** keeps a recommendation only when at least one of its findings survived, its impact facts exist, its check threshold is a fact, its check date is after the data, and (when it had any) at least one rationale claim survived. The cascade also prunes assumption `affects` and open-question `would_change` references to dropped items. The headline falls back to the first surviving finding's title when its placeholders no longer resolve.
 

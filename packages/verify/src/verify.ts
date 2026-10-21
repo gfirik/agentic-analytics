@@ -19,6 +19,7 @@ import {
   placeholders,
   type Recommendation,
   type Report,
+  screen,
 } from "@agentic-analytics/schema";
 import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
@@ -285,15 +286,17 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
         new RegExp(`(?<![\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/_/g, "[ _]")}(?![\\p{L}])`, "iu").test(c.text),
       ),
     );
+    // The metrics the claim may name are those of all its facts together (spec §7 V4), not of each fact alone: "revenue
+    // fell {{N1}} as {{N2}} fewer bags sold" names revenue, which N1 measures, though N2 measures units.
+    const from = new Set(c.facts.flatMap((id) => (all.has(id) ? [...metricsOf(id)] : [])));
+    const lexicon =
+      named.length > 0 &&
+      from.size > 0 &&
+      !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
     for (const id of c.facts) {
       const f = all.get(id);
       if (!f) continue;
       const def = f.metric_id ? ctx.defs.find((d) => d.id === f.metric_id) : undefined;
-      const from = metricsOf(id);
-      const lexicon =
-        named.length > 0 &&
-        from.size > 0 &&
-        !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
       const problem =
         f.metric_id && !def
           ? `fact ${id} measures unknown metric ${f.metric_id}`
@@ -303,7 +306,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
               ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
               : (definitionProblem(f) ??
                 (lexicon
-                  ? `the claim names ${named.map((n) => n.label).join(", ")} but fact ${id} measures ${[...from].map(labelOf).join(", ")}`
+                  ? `the claim names ${named.map((n) => n.label).join(", ")} but its facts measure ${[...from].map(labelOf).join(", ")}`
                   : undefined));
       if (problem) {
         definitionViolations++;
@@ -332,23 +335,36 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
         return drop("V5", `the quote is not in source ${x.source_id}`);
       }
     }
+    let judged = ctx.judge ? "" : ", judge not configured";
     if (quoted.length && ctx.judge) {
-      const { object } = await ctx.judge.generateObject({
-        role: "judge",
-        schema: Judgement,
-        system: renderPrompt("judge", { claim: data(c.text), sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))) }),
-        prompt: "Do these excerpts support the claim?",
-      });
-      if (!object.supported) {
-        citationsUnsupported++;
-        return drop("V5", "the judge found the cited sources don't support the claim");
+      // A quoted member name that reads as an instruction goes to the judge withheld, like at every planner door
+      // (security §3): the judge still sees the claim's shape and the source excerpts.
+      const claim = c.text.replace(/“[^”]*”|"[^"]*"/g, (q) => (screen(q) ? "“withheld”" : q));
+      try {
+        const { object } = await ctx.judge.generateObject({
+          role: "judge",
+          schema: Judgement,
+          system: renderPrompt("judge", {
+            claim: data(claim),
+            sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))),
+          }),
+          prompt: "Do these excerpts support the claim?",
+        });
+        if (!object.supported) {
+          citationsUnsupported++;
+          return drop("V5", "the judge found the cited sources don't support the claim");
+        }
+      } catch (err) {
+        // The provider timed out, hit a limit or answered badly: the judge step is skipped for this claim and the
+        // check row says so (spec §7 V5), as with no judge; the quotes were still found in their sources.
+        judged = `, judge unavailable (${err instanceof Error ? err.message.slice(0, 120) : "error"})`;
       }
     }
     checks.push({
       check: "V5",
       passed: true,
       claim: c.text,
-      detail: `${where}: ${quoted.length} quote(s)${quoted.length && !ctx.judge ? ", judge not configured" : ""}`,
+      detail: `${where}: ${quoted.length} quote(s)${quoted.length ? judged : ""}`,
     });
 
     // V6: causal wording needs a document; otherwise the claim is reworded to correlational.
@@ -489,7 +505,20 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const fallback = findings.find((f) => f.title !== NEUTRAL_TITLE)?.title ?? findings[0]?.title ?? "No verified findings for this period.";
   if (headlineBroken)
     dropped.push({ claim: draft.summary.headline, reason: `${headlineBroken[0]}: the headline: ${headlineBroken[1]}; replaced` });
-  const headlineText = plain(headlineBroken ? fallback : draft.summary.headline, documented.size > 0, "the headline");
+  // Causal words in the headline need a document behind the finding it speaks for: the findings whose facts its
+  // placeholders use, the finding whose title it fell back to, or (with neither) the top finding.
+  const headlineDraft = headlineBroken ? fallback : draft.summary.headline;
+  const usedIds = new Set(placeholders(headlineDraft));
+  const about = headlineBroken
+    ? findings.filter((f) => f.title === fallback)
+    : usedIds.size
+      ? findings.filter((f) => f.claims.some((c) => c.facts.some((id) => usedIds.has(id))))
+      : findings.slice(0, 1);
+  const headlineText = plain(
+    headlineDraft,
+    about.some((f) => documented.has(f.id)),
+    "the headline",
+  );
   checks.push({
     check: headlineBroken ? headlineBroken[0] : "V1",
     passed: !headlineBroken,

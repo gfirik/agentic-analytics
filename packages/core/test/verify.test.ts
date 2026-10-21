@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { type Catalog, loadCatalog } from "@agentic-analytics/metrics";
-import type { GenerateObjectArgs, ModelClient } from "@agentic-analytics/models";
+import type { ModelClient } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
-import { type Claim, checkReportIntegrity, type MetricDef, type Report } from "@agentic-analytics/schema";
+import { type Claim, checkReportIntegrity, type JobEvent, type MetricDef, type Report } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { NEUTRAL_TITLE, verifyReport } from "@agentic-analytics/verify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -80,7 +80,7 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     const text = `Orders went from {{${before}}} to {{${after}}}.`;
     f1(d).claims.push(claim(text, [before as string, after as string], { causal_grade: "observed" }));
     const r = await verify(d);
-    expect(reasonFor(r.report, text)).toMatch(/^V4: the claim names Orders but fact N\d+ measures Revenue/);
+    expect(reasonFor(r.report, text)).toMatch(/^V4: the claim names Orders but its facts measure Revenue/);
     expect(r.report.verification.definition_violations).toBe(1);
   });
 
@@ -149,7 +149,7 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     const text = `Orders changed by {{${pct}}}.`;
     f1(d).claims.push(claim(text, [pct], { causal_grade: "observed" }));
     const r = await verify(d);
-    expect(reasonFor(r.report, text)).toMatch(/^V4: the claim names Orders but fact N\d+ measures Revenue/);
+    expect(reasonFor(r.report, text)).toMatch(/^V4: the claim names Orders but its facts measure Revenue/);
   });
 
   it("a number the model put in quotation marks is dropped unless it is from a source or the data (V1)", async () => {
@@ -260,6 +260,47 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     expect(reasonFor(r.report, count.text)).toMatch(/^V1: /);
   });
 
+  it("V4 asks which metrics the claim names of all its facts together, not of each fact (code-quality fix 10)", async () => {
+    const d = clone(draft);
+    const rev = d.facts.find((f) => f.metric_id === "revenue" && f.computation.kind === "sql") as Report["facts"][number];
+    const other = d.facts.find((f) => f.metric_id && f.metric_id !== "revenue" && f.computation.kind === "sql") as Report["facts"][number];
+    expect(rev && other, "the coffee draft has revenue and another metric's points").toBeTruthy();
+    // Names revenue (N_rev measures it) and nothing else; the second fact measures another metric.
+    const text = `Revenue stood at {{${rev.id}}}, next to {{${other.id}}}.`;
+    f1(d).claims.push(claim(text, [rev.id, other.id]));
+    const r = await verify(d);
+    expect(reasonFor(r.report, text)).toBeUndefined();
+    expect(f1(r.report).claims.map((c) => c.text)).toContain(text);
+  });
+
+  it("a judge that fails skips the judge step for that claim instead of failing VERIFY (V5)", async () => {
+    const failing: ModelClient = {
+      generateObject: () => Promise.reject(new Error("rate limited")),
+      generateWithTools: (a) => judge.generateWithTools(a),
+      embed: (t) => judge.embed(t),
+    };
+    const quoted = draft.findings.flatMap((f) => f.claims).filter((c) => c.citations.some((x) => x.quote !== undefined));
+    expect(quoted.length, "the coffee draft quotes a document").toBeGreaterThan(0);
+    const r = await verifyReport(clone(draft), { ws, defs, catalog, grain: "month", periodEnd: "2026-06-30", judge: failing });
+    const v5 = r.checks.filter((c) => c.check === "V5" && /judge unavailable \(rate limited\)/.test(c.detail ?? ""));
+    expect(v5.length).toBeGreaterThan(0);
+  });
+
+  it("the headline keeps causal words only when the finding it speaks for has a document behind it (V6)", async () => {
+    const clean = (await verify(clone(draft))).report;
+    const rank = (g?: string) => ["observed", "correlated", "document_supported", "intervention_supported"].indexOf(g ?? "correlated");
+    const plain = clean.findings.find((f) => !f.claims.some((c) => rank(c.causal_grade) >= 2));
+    const backed = clean.findings.some((f) => f.claims.some((c) => rank(c.causal_grade) >= 2));
+    expect(plain && backed, "the coffee report has a document-backed finding and one without").toBeTruthy();
+    const d = clone(draft);
+    const fact = plain?.claims[0]?.facts[0] as string;
+    d.summary.headline = `It was caused by the new courier, at {{${fact}}}.`;
+    const r = await verify(d);
+    // Another finding's document no longer vouches for this headline.
+    expect(r.report.summary.headline).not.toMatch(/caused by/);
+    expect(r.report.verification.claims_downgraded.some((x) => x.claim === d.summary.headline)).toBe(true);
+  });
+
   it("a recommendation whose whole rationale is dropped is dropped (V7)", async () => {
     const d = clone(draft);
     const r1 = d.recommendations[0] as Report["recommendations"][number];
@@ -280,24 +321,19 @@ describe("a V2 mismatch fails the job with a diagnostic (M9 acceptance)", () => 
   it("VERIFY fails loudly, writes diagnostics.json and no report.json", async () => {
     const dir = tempDir();
     const planner = coffeePlanner();
-    // The judge is unavailable the first time, so the job stops at VERIFY with a draft on disk.
-    let down = true;
-    const flaky: ModelClient = {
-      generateObject<T>(a: GenerateObjectArgs<T>) {
-        if (down && a.role === "judge") return Promise.reject(new Error("judge unavailable"));
-        return planner.generateObject(a);
-      },
-      generateWithTools: (a) => planner.generateWithTools(a),
-      embed: (t) => planner.embed(t),
+    // The first run stops as VERIFY starts (a judge failure no longer stops it), so a draft is on disk.
+    const stopAtVerify = (e: JobEvent) => {
+      if (e.type === "stage_started" && e.stage === "VERIFY") throw new Error("stopped before VERIFY");
     };
-    await expect(runJob({ dir, files, options }, { model: flaky, embedder: hashEmbedder() })).rejects.toMatchObject({ stage: "VERIFY" });
+    const flaky = planner;
+    await expect(runJob({ dir, files, options }, { model: flaky, embedder: hashEmbedder(), onEvent: stopAtVerify })).rejects.toThrow();
+    expect(existsSync(join(dir, "report.draft.json"))).toBe(true);
     // Someone (or a bug) changes a number in the draft between DECIDE and VERIFY.
     const path = join(dir, "report.draft.json");
     const tampered = JSON.parse(readFileSync(path, "utf8")) as Report;
     const fact = tampered.facts.find((x) => x.computation.kind === "sql") as Report["facts"][number];
     fact.value = fact.value * 2 + 1;
     writeFileSync(path, JSON.stringify(tampered));
-    down = false;
     await expect(runJob({ dir }, { model: flaky, embedder: hashEmbedder() })).rejects.toMatchObject({
       code: "STAGE_FAILED",
       stage: "VERIFY",

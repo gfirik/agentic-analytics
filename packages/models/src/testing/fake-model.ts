@@ -125,7 +125,12 @@ export class FakeModel implements ModelClient {
           toolCalls.push({ toolName: call.toolName, input: call.input, error: `invalid input: ${parsed.error.message}` });
           continue;
         }
-        toolCalls.push({ toolName: call.toolName, input: parsed.data, output: await t.execute(parsed.data) });
+        // A throwing tool is reported on its call, as the AI SDK does (a "tool-error" part), not as a failed request.
+        try {
+          toolCalls.push({ toolName: call.toolName, input: parsed.data, output: await t.execute(parsed.data) });
+        } catch (err) {
+          toolCalls.push({ toolName: call.toolName, input: parsed.data, error: err instanceof Error ? err.message : String(err) });
+        }
       }
       steps.push({ text: s.text ?? "", toolCalls, usage: FAKE_USAGE });
     }
