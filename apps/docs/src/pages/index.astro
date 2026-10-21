@@ -127,7 +127,8 @@ const doors = [
           </div>
           <div class="aa-hero-cmd-frame">
             <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
-              <pre><code>git clone {GITHUB_URL} && cd agentic-analytics && bun install</code></pre>
+              <pre><code>git clone {GITHUB_URL}
+cd agentic-analytics && bun install</code></pre>
             </div>
           </div>
         </div>
@@ -463,7 +464,9 @@ AA_DEMO_MODEL=scripted \
      screen's edges and fades to the plain page through a CSS mask. It sits under the content, never behind the visuals
      or long text. Stacked (under 1100px) a head is centred, so its field spans the screen's width over the head's
      height; in a wide row the head is the left column, so its field runs from the screen's left edge to the middle of
-     the gap before the visual. */
+     the gap before the visual. Its width uses 50vw / 100vw, which include a classic (non-overlay) scrollbar's width,
+     so the field can reach a few pixels past the viewport: .aa-paper's overflow-x: clip hides that, and the
+     no-sideways-scroll browser tests hold with it. */
   .aa-grid-field {
     position: relative;
     isolation: isolate;
@@ -532,8 +535,9 @@ AA_DEMO_MODEL=scripted \
   .aa-text-link {
     font: 500 0.9375rem / 1 var(--aa-font-sans);
   }
-  /* One line in a hairline box that scrolls sideways on narrow screens: its height never depends on when the mono
-     face arrives (a wrapping line re-wrapped on the swap and moved the page, M13k). */
+  /* Two fixed lines (clone, then cd and install) in a hairline box that scrolls sideways on narrow screens: its height
+     never depends on when the mono face arrives (a wrapping line re-wrapped on the swap and moved the page, M13k),
+     and at 1440 the statement column shows both lines whole (one line was cut mid-word there). */
   /* The frame (hairline, raised) stays put while the line inside scrolls and fades at its edges. */
   .aa-hero-cmd-frame {
     max-width: 100%;
@@ -568,9 +572,9 @@ AA_DEMO_MODEL=scripted \
     .aa-hero-row {
       gap: var(--aa-space-7);
     }
+    /* The eyebrow's top lines up with the exhibit's label across the gap. */
     .aa-statement {
       justify-items: start;
-      padding-top: var(--aa-space-6);
       text-align: left;
     }
     .aa-actions {

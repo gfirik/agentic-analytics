@@ -6,7 +6,7 @@ This is the design system for the product site in `apps/docs`: the landing page,
 
 The site is an **audited working paper**:
 
-- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself as you scroll, and again when you touch it.
+- **The landing page is the cover sheet.** It is a calm, graph-paper surface with one live exhibit: a real report that proves itself on the first screen, and again when you touch it.
 - **The docs are the bound appendix.** They are long-form, quiet and built for reading, with evidence in the margin.
 
 The product's promise is that every number can be traced, so the site shows numbers the same way the report does. Each one sits next to the ID of the fact it came from, and a mark shows that it was recomputed.
@@ -127,14 +127,14 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - sections divided by full-bleed hairlines that meet the frame;
   - a small `+` tick in `rule-strong` where the lines cross.
 
-  This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain. The paper clips anything outside the screen (`overflow-x: clip`), so the ticks and the graph paper never scroll the page sideways.
+  This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain. The paper clips anything outside the screen (`overflow-x: clip`), so the ticks and the graph paper never scroll the page sideways (the graph paper is sized with `vw`, which includes a classic scrollbar's width; the clip hides that excess).
 - **Wide rows (site v4).** From 1100px a section is one row of two columns, about 2:3: the text on the left (label, `h2`, lead, at the 56ch measure) and a large visual on the right. A visual that needs the room (the results table) gets a full-width band instead, with the head above it. Below 1100px the columns stack, the head centred above its visual.
 - **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero statement and the section heads only. It is full-bleed: stacked, a head's field spans the screen's width over the head's height; in a wide row it runs from the screen's left edge to the middle of the gap before the visual. It fades to the plain page at its edges through a CSS mask (no image) and is never behind a visual or long text.
 - **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways instead of wrapping (a horizontal scroll box, §6: keyboard-focusable, no scrollbar, a fade at the edge with more), so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
 - **Section heads:** every landing section opens with the same three lines, `--aa-space-4` apart: the bracketed label, the `h2` (at most a 48ch measure) and a one-sentence lead. Stacked, they are centred on the graph paper with the label's hairline on both sides; in a wide row or band (from 1100px) they sit on the left, and the label's hairline runs only after it. Caveats go next to what they qualify (§3's under its table), not in the lead.
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
   1. Status strip, header, then **the hero**, two columns from 1100px:
-     - **left, the statement:** a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line (one line that scrolls sideways when the column is narrower than it);
+     - **left, the statement:** a mono eyebrow label, the serif headline, one or two lines on what it is and what it solves, the actions, and the install line (two fixed lines, the clone and then `cd … && bun install`, so the column never cuts it mid-word at 1440; a box that scrolls sideways on phones);
      - **right, the exhibit** (§6): its label and the report page with its walkthrough, so the verification replay plays on the first screen (the report page's top at about 260px at 1440×900). At 1440 the right column is about 795px, wide enough for the notes to sit beside the report page; between 1100 and about 1410px they sit below it;
      - **below 1100px** the statement is centred and the exhibit follows it.
   2. **The engine machine's strip** (§6, `EngineMachine.astro`), in its own row under the hero, full container width: a label, **Open the machine**, and a still image of the machine (on phones the label and the button only). Site v4's PR 2 replaces it with a live section.
