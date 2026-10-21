@@ -7,7 +7,7 @@ import type { StoredDecomposition, StoredInsight } from "@agentic-analytics/anal
 import type { ModelClient, ToolSet } from "@agentic-analytics/models";
 import { type Citation, type Claim, type Fact, type Finding, findFreeNumerals, placeholders } from "@agentic-analytics/schema";
 import { z } from "zod";
-import { contributionDrivers, decompositionClaims, findingType, observedClaim, q, severity } from "./claims.ts";
+import { contributionDrivers, decompositionClaims, findingType, observedClaim, q, severity, topDrivers } from "./claims.ts";
 import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
@@ -124,6 +124,30 @@ function checkClaim(
   };
 }
 
+/** Event words for a quality rate (refunds, returns, defects): what usually moves one is a supplier or quality change. */
+export const RATE_EVENT_WORDS = "supplier switch quality defect complaint";
+/** Event words for any other change: prices, orders paused or lost, launches. */
+export const CHANGE_EVENT_WORDS = "price increase paused order lost customer launch";
+const QUALITY_RATE = /refund|return|defect|complaint|churn/i;
+
+/**
+ * The one search small-model mode runs per finding (agent-and-verifier §8): the metric, the top member of each split,
+ * the period and the change type's event words. The extractor keeps only what it judges relevant to this query; with
+ * no event words it dropped "we switched our supplier" as unrelated to "Refund Rate 2026-06" (nightly run 2026-10-19:
+ * no detected refund-rate change cited its cause), and a query naming only the channel missed the customer's email.
+ */
+export function smallModeQuery(
+  def: { readonly id: string; readonly label?: string; readonly unit?: string },
+  drivers: readonly string[],
+  period: string,
+): string {
+  const rate = def.unit === "percent" && QUALITY_RATE.test(`${def.id} ${def.label ?? ""}`);
+  const words = [def.label ?? def.id, ...drivers.slice(0, 3), period, rate ? RATE_EVENT_WORDS : CHANGE_EVENT_WORDS];
+  // search_documents takes at most 200 characters: drop drivers from the end until the query fits.
+  while (words.join(" ").length > 200 && words.length > 3) words.splice(words.length - 3, 1);
+  return words.join(" ").slice(0, 200);
+}
+
 export async function explainFindings(
   ctx: ToolContext,
   tools: ToolSet,
@@ -184,8 +208,7 @@ export async function explainFindings(
         }
     } else {
       // Small models call tools unreliably (§8): code runs the one search that matters.
-      const top = contributionDrivers(ds, before)?.drivers[0]?.label;
-      const query = [def?.label ?? insight.metric, top, insight.period].filter(Boolean).join(" ");
+      const query = smallModeQuery(def ?? { id: insight.metric }, topDrivers(ds, before), insight.period);
       await (tools.search_documents as { execute(i: unknown): Promise<unknown> }).execute({ query });
     }
     const evidence = ctx.found.extracts.filter((e) => !known.has(e.id));

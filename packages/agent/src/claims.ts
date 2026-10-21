@@ -76,11 +76,7 @@ export function contributionDrivers(
 ): { decomposition: StoredDecomposition; drivers: Driver[] } | undefined {
   let best: { decomposition: StoredDecomposition; drivers: Driver[]; top: number } | undefined;
   for (const d of ds.filter((x) => x.method === "contribution.v1")) {
-    const drivers = Object.keys(d.facts)
-      .filter((k) => k.startsWith("share:"))
-      .map((k) => ({ label: k.slice("share:".length), fact: d.facts[`change:${k.slice(6)}`] ?? "", share_of_change: d.facts[k] ?? "" }))
-      .filter((x) => x.fact && x.share_of_change)
-      .sort((a, b) => Math.abs(facts.get(b.share_of_change)?.value ?? 0) - Math.abs(facts.get(a.share_of_change)?.value ?? 0));
+    const drivers = driversOf(d, facts);
     // The split that explains the change best is the one whose top member carries the most of the movement
     // (|Δ top| / Σ|Δ|): shares over 100% from members offsetting each other (a launch up, the product it replaced
     // down) don't make a dimension explanatory (M13a).
@@ -89,6 +85,33 @@ export function contributionDrivers(
     if (drivers.length && (!best || top > best.top)) best = { decomposition: d, drivers, top };
   }
   return best ? { decomposition: best.decomposition, drivers: best.drivers } : undefined;
+}
+
+/** A contribution split's members, largest share of the change first. */
+function driversOf(d: StoredDecomposition, facts: ReadonlyMap<string, Fact>): Driver[] {
+  return Object.keys(d.facts)
+    .filter((k) => k.startsWith("share:"))
+    .map((k) => ({ label: k.slice("share:".length), fact: d.facts[`change:${k.slice(6)}`] ?? "", share_of_change: d.facts[k] ?? "" }))
+    .filter((x) => x.fact && x.share_of_change)
+    .sort((a, b) => Math.abs(facts.get(b.share_of_change)?.value ?? 0) - Math.abs(facts.get(a.share_of_change)?.value ?? 0));
+}
+
+/**
+ * The top member of every contribution split (the best split's first, then the others', no repeats): a channel and a
+ * customer often both name the change, and the document that explains it may name either.
+ */
+export function topDrivers(ds: readonly StoredDecomposition[], facts: ReadonlyMap<string, Fact>): string[] {
+  const best = contributionDrivers(ds, facts)?.decomposition;
+  const splits = ds.filter((x) => x.method === "contribution.v1").sort((a, b) => Number(b === best) - Number(a === best));
+  return [
+    ...new Set(
+      splits.flatMap((d) =>
+        driversOf(d, facts)
+          .slice(0, 1)
+          .map((x) => x.label),
+      ),
+    ),
+  ];
 }
 
 export function decompositionClaims(ds: readonly StoredDecomposition[], facts: ReadonlyMap<string, Fact>): Claim[] {
