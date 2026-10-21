@@ -55,6 +55,8 @@ Limits that keep it honest:
 | M11 | `notify`: merges and continues; the default model is chosen once real-model results exist |
 | M12 | `yes`: **stops**. Making the repo public and launching is your call. |
 
+Since 2026-10-21 the maintainer's standing instruction (STATE.md, top) makes every later gate `notify`: the loop doesn't stop for milestones. It still skips, and notes under Blockers, anything that needs an explicit yes: a v* tag or release, public announcements, repo settings or visibility, money or private credentials.
+
 Blockers don't stop the loop. Missing models, services or keys become DEFERRED checks, unclear specs become recorded decisions, and unmet criteria become known gaps. The loop only hard-stops when it truly can't proceed: no GitHub auth, an uninstallable free dependency, or something that needs money.
 
 To pass a gate:
