@@ -260,12 +260,13 @@ export class JobManager {
     this.listeners.set(id, set);
     try {
       for (const e of await this.events(id)) deliver(e);
+      replayed = true;
+      for (const e of buffered) deliver(e);
     } catch (err) {
+      // A failed history read, or a listener that throws during the replay: no listener is left behind.
       set.delete(live);
       throw err;
     }
-    replayed = true;
-    for (const e of buffered) deliver(e);
     return () => set.delete(live);
   }
 
