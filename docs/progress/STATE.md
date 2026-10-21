@@ -346,6 +346,7 @@ These are checks that need something this machine doesn't have yet, such as a re
   - **The plan's "group families by definition" is not built.** The period rule demotes slices that restate the lead (`revenue_trade` next to `revenue_total`) without it, and on the replay no unrelated slice took a slot.
 
   Another event comes before a restatement even when it is smaller, because the eval suite's planted events and real data's separate stories are other events. A member or rate move in the lead's period is usually the lead seen again. The rate slot has no extra floor: candidates are already material (detection's thresholds), and a rate's score is pp/100. Zero-score families (counts and trends with no measured change) come after every material family — packages/analysis/src/rank.ts
+- [M14a] `aa usage` leads with the last 24 hours per route, plus Groq's own count from its latest rate-limit error (`windowUsage`). #44 compared each UTC day with the limit, which understated what was spent: on 2026-10-21 at 10:46 UTC the UTC day held 101,361 while Groq said 198,464 of 200,000. A plain 24-hour sum doesn't reproduce Groq's count either: 286,219 then, all let through. On 2026-10-17 Groq's count did match the 24-hour sum. Groq's figure is shown as it was said, with no remainder estimated. Days stay UTC dates for history — docs/specs/models.md §5
 
 ## Known gaps carried forward
 

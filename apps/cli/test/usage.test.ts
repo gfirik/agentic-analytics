@@ -8,7 +8,7 @@ const LOG = [
   // planner: 9,000 + 600 live, a cached call (0), a 429 with no count
   `{"at":"2026-10-19T22:00:00.000Z","role":"planner",${groq("qwen/qwen3.8-27b")},"status":200,"cached":false,"ms":300,"inputTokens":9000,"outputTokens":600}`,
   `{"at":"2026-10-19T22:01:00.000Z","role":"planner",${groq("qwen/qwen3.8-27b")},"status":200,"cached":true,"ms":0,"inputTokens":9000,"outputTokens":600}`,
-  `{"at":"2026-10-19T22:02:00.000Z","role":"planner",${groq("qwen/qwen3.8-27b")},"status":429,"cached":false,"ms":40}`,
+  `{"at":"2026-10-19T22:02:00.000Z","role":"planner",${groq("qwen/qwen3.8-27b")},"status":429,"cached":false,"ms":40,"error":"Rate limit reached on tokens per day (TPD): Limit 200000, Used 199100, Requested 900"}`,
   // extractor: 400 + 100
   `{"at":"2026-10-19T22:03:00.000Z","role":"extractor",${groq("openai/gpt-oss-120b")},"status":200,"cached":false,"ms":800,"inputTokens":400,"outputTokens":100}`,
   // the day before: judge 50 + 10
@@ -21,8 +21,14 @@ const limitOf = (r: Parameters<typeof dailyTokenLimit>[1]) => dailyTokenLimit(co
 
 describe("aa usage", () => {
   it("prints each UTC day newest first, per role and per route, with the known daily limit", () => {
-    expect(usageReport(LOG, { limitOf })).toBe(
+    expect(usageReport(LOG, { limitOf, now: new Date("2026-10-20T10:00:00Z") })).toBe(
       [
+        // The window 2026-10-19 10:00 → 2026-10-20 10:00 holds the 19th's calls, not the 18th's judge call.
+        "Logged in the last 24 hours (to 2026-10-20 10:00 UTC):",
+        "  openai-compatible:groq:openai/gpt-oss-120b  1 call   500 tokens    no known limit",
+        // The provider's own count (from the 429's text) is shown as it was said, not derived from the log.
+        "  openai-compatible:groq:qwen/qwen3.8-27b     3 calls  9,600 tokens  limit 200,000 a day; the provider said 199,100 of 200,000 used at 22:02 UTC",
+        "",
         "2026-10-19 (UTC): 4 calls (1 cached, 1 failed, 1 without a token count); 9,400 tokens in, 700 out",
         "  Per role:",
         "    extractor  1 call   400 in    100 out",
@@ -40,9 +46,19 @@ describe("aa usage", () => {
         "",
         "1 line of the log is not a call record and was skipped.",
         "",
-        "Cached calls count 0 tokens (they spend no quota). Days are UTC dates.",
+        "Cached calls count 0 tokens (they spend no quota). Days are UTC dates. A provider counts its daily limit its own way (Groq's count matched neither a UTC day nor a plain 24-hour sum), so its own figure, from a rate-limit error, is shown when the log has one.",
         "",
       ].join("\n"),
+    );
+  });
+
+  it("the last 24 hours cross UTC midnight (M14a)", () => {
+    // At 21:59 UTC on the 20th the 19th's 22:00 calls are still in the window; at 22:04 they have all left it.
+    expect(usageReport(LOG, { limitOf, now: new Date("2026-10-20T21:59:00Z") }).split("\n")[2]).toMatch(
+      /qwen3\.8-27b {5}3 calls {2}9,600 tokens/,
+    );
+    expect(usageReport(LOG, { limitOf, now: new Date("2026-10-20T22:04:00Z") }).split("\n")[0]).toBe(
+      "Logged in the last 24 hours (to 2026-10-20 22:04 UTC): no model calls.",
     );
   });
 

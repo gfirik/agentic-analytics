@@ -201,3 +201,66 @@ export function dailyUsage(
       };
     });
 }
+
+/** What the provider itself said it had counted, from a rate-limit error's text ("Limit 200000, Used 198464"). */
+export interface ReportedUse {
+  readonly at: string;
+  readonly limit: number;
+  readonly used: number;
+}
+
+const REPORTED = /Limit (\d+), Used (\d+)/;
+
+export interface WindowUsage {
+  /** The window's end (ISO time) and length. */
+  readonly until: string;
+  readonly hours: number;
+  readonly routes: (RouteUsage & { readonly reported?: ReportedUse })[];
+}
+
+/**
+ * Usage per route logged in the `hours` before `now`, with the provider's own latest count in that window when a
+ * rate-limit error reported one. Neither a UTC day nor a plain 24-hour sum is the provider's count: on 2026-10-21 at
+ * 10:46 UTC Groq reported 198,464 of 200,000 used, while that UTC day held 101,361 and the 24 hours before held 286,219
+ * (it had let them all through); on 2026-10-17 its count matched the 24-hour sum. So the reported figure is shown as
+ * it was said, and no remainder is estimated.
+ */
+export function windowUsage(
+  calls: readonly LoggedCall[],
+  o: {
+    readonly now: Date;
+    readonly hours?: number;
+    readonly limitOf?: (route: Pick<CallRecord, "provider" | "endpoint" | "model">) => number | undefined;
+  },
+): WindowUsage {
+  const hours = o.hours ?? 24;
+  const end = o.now.getTime();
+  const start = end - hours * 3_600_000;
+  const routes = new Map<string, { totals: UsageTotals; limit: number | undefined; reported?: ReportedUse }>();
+  for (const c of calls) {
+    const t = Date.parse(c.at);
+    if (t <= start || t > end) continue;
+    const key = routeOf(c);
+    const prev = routes.get(key);
+    const m = c.error ? REPORTED.exec(c.error) : null;
+    const said = m ? { at: c.at, limit: Number(m[1]), used: Number(m[2]) } : undefined;
+    const reported = said && (!prev?.reported || said.at >= prev.reported.at) ? said : prev?.reported;
+    routes.set(key, {
+      totals: addCall(prev?.totals ?? EMPTY_TOTALS, c),
+      limit: prev ? prev.limit : o.limitOf?.(c),
+      ...(reported ? { reported } : {}),
+    });
+  }
+  return {
+    until: o.now.toISOString(),
+    hours,
+    routes: [...routes.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([route, u]) => ({
+        route,
+        totals: u.totals,
+        ...(u.limit !== undefined ? { dailyLimit: u.limit } : {}),
+        ...(u.reported ? { reported: u.reported } : {}),
+      })),
+  };
+}
