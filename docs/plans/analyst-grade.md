@@ -385,7 +385,7 @@ The run data (exhibit, pipeline JSON, README GIF) is regenerated in the same PR.
 
 **6. Token usage tracking (added by the maintainer, 2026-10-21).** The quota is the nightly suite's real limit, so it is measured:
 - `data/logs/model-calls.jsonl` already records each call's input and output tokens (`apps/cli/src/main.ts`); new: a cached call records 0 (it spends no quota), and when reading older lines `cached: true` counts as 0;
-- `aa usage` prints tokens and calls per day, per role and per route, against each free tier's daily limit (a new `dailyTokenLimit` in the route config, e.g. Groq's 200k tokens a day for qwen3.8-27b); days are UTC dates, as Groq's quota and the result files use;
+- `aa usage` prints tokens and calls per day, per role and per route, against each free tier's daily limit (a per-model `daily_token_limits` map on each endpoint in the config, e.g. Groq's 200k tokens a day for qwen/qwen3.8-27b; see `docs/specs/models.md` §4); days are UTC dates, as Groq's quota and the result files use;
 - `evals/RESULTS.md` gives each run's totals (tokens in and out, calls, cached calls).
 
 Acceptance: unit tests with FakeModel usage (cached = 0; per-role and per-route sums; the limit shown when the route has one); `aa usage` on the kept 2026-10-19 log prints that night's uncached planner total (188,852 tokens for 22:00–23:00 UTC, the #37 analysis) against 200k.

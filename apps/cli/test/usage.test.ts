@@ -63,6 +63,7 @@ describe("aa usage", () => {
 
   it("an empty --day is refused, not read as every day", () => {
     expect(() => usageReport(LOG, { day: "" })).toThrow(/invalid day/);
+    expect(() => usageReport(LOG, { day: "2026-02-30" })).toThrow(/invalid day/);
   });
 
   it("a missing log is a typed error", () => {
