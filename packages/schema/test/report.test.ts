@@ -133,4 +133,29 @@ describe("text helpers", () => {
     expect(findFreeNumerals("On 28 April 2026, after 2026-03-15, “prices rose 12%”, revenue was {{N2}}.")).toEqual([]);
     expect(findFreeNumerals("Revenue fell 7,900 in April")).toEqual(["7,900"]);
   });
+
+  it("a year is a date only next to a date word; day-month needs a month; every script's digits count (M14a)", () => {
+    // Model-made numbers that used to pass as "dates" (code-quality review §2 row 3).
+    for (const [text, hit] of [
+      ["We lost 2000 customers", "2000"],
+      ["Revenue was 1999 in April", "1999"],
+      ["The top 3 may churn", "3"],
+      ["Sales fell ٣٠٪", "٣٠"],
+    ] as const)
+      expect(findFreeNumerals(text), text).toEqual([hit]);
+    // Real dates still pass.
+    for (const text of [
+      "Revenue fell in 2026",
+      "since 2025",
+      "March 2026",
+      "FY 2026",
+      "from 2025 to 2026",
+      "in 2025 and 2026",
+      "on 3 May",
+      "April 12",
+      "Выручка упала в 2026 году",
+      "2026-yil",
+    ])
+      expect(findFreeNumerals(text), text).toEqual([]);
+  });
 });

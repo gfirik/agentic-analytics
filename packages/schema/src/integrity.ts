@@ -16,24 +16,31 @@ export function placeholders(text: string): string[] {
   return [...text.matchAll(PLACEHOLDER)].map((m) => m[1] ?? "");
 }
 
-const MONTHS =
-  "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+/** Month words that make a number a day or a year. "may" counts only as "May": "the top 3 may churn" is not a date. */
+const cap = (w: string) => `[${w[0]?.toUpperCase()}${w[0]}]${w.slice(1)}`;
+const FULL = ["january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december"];
+const MONTH = `(?:${FULL.map(cap).join("|")}|May|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\\.?`;
+/** A year is a date only next to a date word, a month or another year (a bare "2000" may be a count). */
+const YEAR_BEFORE = `(?:${MONTH},?|[Ii]n|[Ss]ince|[Bb]y|[Ff]rom|[Tt]o|[Uu]ntil|[Tt]hrough|[Oo]f|[Dd]uring|[Bb]efore|[Aa]fter|FY|[Yy]ear|[Вв]|[Сс]|[Дд]о|[Пп]о|(?:19|20)\\d{2}\\s*(?:and|or|to|[–—-]))`;
 const DATE_PATTERNS = [
   /\b\d{4}-\d{2}(?:-\d{2})?\b/g, // 2026-04, 2026-04-12
-  new RegExp(`\\b\\d{1,2}\\s+(?:${MONTHS})\\b`, "gi"), // 12 April
-  new RegExp(`\\b(?:${MONTHS})\\s+\\d{1,2}\\b`, "gi"), // April 12
-  /\b(?:19|20)\d{2}\b/g, // 2026
+  new RegExp(`\\b\\d{1,2}\\s+${MONTH}(?![\\p{L}])`, "gu"), // 12 April, 12 Apr
+  new RegExp(`(?<![\\p{L}])${MONTH}\\s+\\d{1,2}\\b`, "gu"), // April 12
+  new RegExp(`(?<=${YEAR_BEFORE}\\s+)(?:19|20)\\d{2}\\b`, "gu"), // in 2026, March 2026, FY 2026, 2025 and 2026
+  /(?:19|20)\d{2}(?=[- ]?(?:год[уа]?|г\.|yil|йил))/gu, // 2026 году, 2026-yil
 ];
 const QUOTED = /“[^”]*”|"[^"]*"/g;
 
 /**
- * Numerals in model-written text that are not placeholders, dates or quoted source text.
- * Any hit is a "free numeral", which the verifier rejects (agent-and-verifier §7, V1).
+ * Numerals in model-written text that are not placeholders, dates or quoted source text: any decimal digit, in any
+ * script ("٣٠٪" counts). Any hit is a "free numeral", which the verifier rejects (agent-and-verifier §7, V1).
  */
 export function findFreeNumerals(text: string): string[] {
   let rest = text.replace(PLACEHOLDER, " ").replace(QUOTED, " ");
-  for (const p of DATE_PATTERNS) rest = rest.replace(p, " ");
-  return rest.match(/\d[\d,.]*/g) ?? [];
+  // Date spans are found on the text as written, then blanked together (a blanked year can't vouch for the next).
+  const spans = DATE_PATTERNS.flatMap((p) => [...rest.matchAll(p)].map((m) => [m.index ?? 0, (m.index ?? 0) + m[0].length] as const));
+  for (const [a, b] of spans) rest = `${rest.slice(0, a)}${" ".repeat(b - a)}${rest.slice(b)}`;
+  return rest.match(/\p{Nd}[\p{Nd},.]*/gu) ?? [];
 }
 
 export function checkReportIntegrity(report: Report): IntegrityIssue[] {
