@@ -63,3 +63,21 @@ export {
   type Usage,
   ZERO_USAGE,
 } from "./types.ts";
+export {
+  addCall,
+  type CallLog,
+  type DayUsage,
+  dailyTokenLimit,
+  dailyUsage,
+  dayOf,
+  EMPTY_TOTALS,
+  type LoggedCall,
+  parseCallLog,
+  type RoleUsage,
+  type RouteUsage,
+  routeOf,
+  type Spend,
+  spendOf,
+  sumCalls,
+  type UsageTotals,
+} from "./usage.ts";

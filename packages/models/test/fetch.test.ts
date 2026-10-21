@@ -1,7 +1,7 @@
 // The provider HTTP layer: reasoning is not sent back, and a 429 waits as long as the endpoint asks (Groq's free
 // tier: "Please try again in 24.735s"), within a cap. No network: a scripted fetch.
 import { describe, expect, it } from "vitest";
-import { type CallRecord, otpmRefusalLimit, outputLimit, providerFetch, type RouteLease, retryAfterMs } from "../src/index.ts";
+import { type CallRecord, memoryCache, otpmRefusalLimit, outputLimit, providerFetch, type RouteLease, retryAfterMs } from "../src/index.ts";
 
 const limited = (body: string, headers: Record<string, string> = {}) => new Response(body, { status: 429, headers });
 
@@ -125,6 +125,18 @@ describe("providerFetch", () => {
     expect(calls.map((c) => c.status)).toEqual([429, 200]);
     expect(calls[0]?.error).toContain("org_***");
     expect(calls[0]?.error).not.toContain("org_01jq3x5v8k2m4n6p7r9s0t1w2y");
+  });
+
+  it("records the provider's token usage on a live call and 0 on a cached one (it spends no quota)", async () => {
+    const calls: CallRecord[] = [];
+    const body = JSON.stringify({ choices: [{ finish_reason: "stop" }], usage: { prompt_tokens: 462, completion_tokens: 120 } });
+    const f = providerFetch((async () => new Response(body)) as typeof fetch, { cache: memoryCache(), onCall: (c) => calls.push(c) });
+    await f("https://x", post());
+    await f("https://x", post());
+    expect(calls.map((c) => [c.cached, c.inputTokens, c.outputTokens])).toEqual([
+      [false, 462, 120],
+      [true, 0, 0],
+    ]);
   });
 
   it("logs a 413 OTPM refusal as a failed call before the re-send", async () => {

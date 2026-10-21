@@ -9,10 +9,18 @@ export type Env = Readonly<Record<string, string | undefined>>;
 /**
  * Free OpenAI-compatible endpoints (free tiers, no credit card). A config file may add more or override these.
  * `${VAR}` in a base URL is filled from the environment (Cloudflare's account id). GitHub Models was removed:
- * the service was retired on 2026-07-30.
+ * the service was retired on 2026-07-30. `daily_token_limits` lists only the limits we have measured (models.md §4):
+ * Groq's 200k tokens a day for qwen/qwen3.8-27b ran out on the 2026-10-19 nightly run. `aa usage` shows "no known
+ * limit" for every other route; a config file may add them.
  */
-export const OPENAI_COMPATIBLE_PRESETS: Readonly<Record<string, { base_url: string; api_key_env: string }>> = {
-  groq: { base_url: "https://api.groq.com/openai/v1", api_key_env: "GROQ_API_KEY" },
+export const OPENAI_COMPATIBLE_PRESETS: Readonly<
+  Record<string, { base_url: string; api_key_env: string; daily_token_limits?: Readonly<Record<string, number>> }>
+> = {
+  groq: {
+    base_url: "https://api.groq.com/openai/v1",
+    api_key_env: "GROQ_API_KEY",
+    daily_token_limits: { "qwen/qwen3.8-27b": 200_000 },
+  },
   openrouter: { base_url: "https://openrouter.ai/api/v1", api_key_env: "OPENROUTER_API_KEY" },
   cerebras: { base_url: "https://api.cerebras.ai/v1", api_key_env: "CEREBRAS_API_KEY" },
   "nvidia-nim": { base_url: "https://integrate.api.nvidia.com/v1", api_key_env: "NVIDIA_API_KEY" },

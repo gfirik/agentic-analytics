@@ -23,6 +23,7 @@ Its rules were written knowing the generator's document templates: a sentence wi
 ## Public API
 
 - `runSuite({ suite, model, modelName, embedder, smallModel?, datasets?, keepReports? })` and `suiteDatasets(suite)`. With `keepReports` (`aa eval --keep-reports dir`), each report is kept as `<dir>/<dataset>.json` and each job's drafted metrics as `<dir>/<dataset>.metrics.drafted.json`, also when the job failed (`keepDraftedMetrics`; the job folder itself is temporary). The real-data tier does the same. The smoke suite is coffee_roaster-v1, saas-v2 and restaurant-v3; the full suite is all 30 datasets.
+- **Token usage (M14a).** `routeSummary(calls)` records each route's `inputTokens`/`outputTokens` from the call records (the providers' `usage`; a cached call counts 0), `mergeRoutes` sums them (unknown when a part has none), and `runUsage(routes)` gives the result's `usage`: tokens in and out, calls, cached calls. `usageLine(usage)` is its RESULTS.md line; a result written before M14a reads "Usage: n/a" (docs/EVALS.md §3).
 - `scoreReport(report, key, run)`, `subjectOf`, `matchesPlanted`, `matchesDistractor`, `sliceOf`, `summarize(scores)`: the bars.
 - `evalCommand(args, deps)` (typed `EvalRunError`), `resultsPage(dir)`, `resultsMarkdown(result)`. Full-suite results are committed in `evals/results/`; smoke runs stay local.
 - `EvalArgs.label` / `note` / `only` (`aa eval --label --note --only`):

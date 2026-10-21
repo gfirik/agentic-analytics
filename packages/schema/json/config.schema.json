@@ -302,6 +302,17 @@
               },
               "structured_outputs": {
                 "type": "boolean"
+              },
+              "daily_token_limits": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
               }
             },
             "required": [

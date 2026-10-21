@@ -37,15 +37,18 @@ export {
   type RouteUse,
   type RunOptions,
   type RunStatus,
+  type RunUsage,
   rescore,
   resultsMarkdown,
   resumeResult,
   routeSummary,
   runStatus,
   runSuite,
+  runUsage,
   type Suite,
   type SuiteResult,
   suiteDatasets,
+  usageLine,
 } from "./run.ts";
 export {
   type Bar,
