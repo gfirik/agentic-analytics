@@ -503,21 +503,16 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       };
       setStep(0);
       showPause();
-      // The verification runs on load when any part of the exhibit (its step bar and report page) is on the first
-      // screen: the engine machine's strip puts it at the bottom of the first screen at 1440×900 and 390×844, and the
-      // replay is timed, never scroll-linked (DESIGN.md §6–§7). Otherwise it runs once the report page's top is above
-      // the bottom sixth of the screen. A margin, not a visible ratio: a ratio can't be reached by a box taller than the
-      // screen (a landscape phone).
+      // The verification runs once the report page's top is above the bottom sixth of the screen (on the first screen
+      // at 1440×900). A margin, not a visible ratio: a ratio can't be reached by a box taller than the screen (a
+      // landscape phone).
       const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page");
-      const box = wrap.getBoundingClientRect();
-      if (box.top < window.innerHeight && box.bottom > 0) start();
-      else
-        new IntersectionObserver(
-          ([e]) => {
-            if (e?.isIntersecting && !started) start();
-          },
-          { rootMargin: "0px 0px -15% 0px" },
-        ).observe(page ?? wrap);
+      new IntersectionObserver(
+        ([e]) => {
+          if (e?.isIntersecting && !started) start();
+        },
+        { rootMargin: "0px 0px -15% 0px" },
+      ).observe(page ?? wrap);
       if (col)
         new IntersectionObserver(
           ([e]) => {

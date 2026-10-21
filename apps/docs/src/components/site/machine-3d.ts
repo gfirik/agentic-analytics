@@ -10,13 +10,13 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   buildMachine,
   FRONT_DIR,
-  HOME_DIR,
-  HOME_TARGET,
+  fitView,
+  HOME_DIRS,
   placeCamera,
   readTokens,
   type SceneInput,
   TOP_DIR,
-  viewWidth,
+  type View,
 } from "./machine-scene.ts";
 
 export interface MachineData {
@@ -68,17 +68,22 @@ export function mount(stage: HTMLElement, list: HTMLElement, data: MachineData):
   controls.minZoom = 0.6;
   controls.maxZoom = 5;
   controls.screenSpacePanning = true;
-  controls.target.copy(HOME_TARGET);
 
   let width = 1;
   let height = 1;
   let visible = true;
-  const goal = HOME_TARGET.clone();
+  const goal = new Vector3();
   let zoomGoal: number | null = null;
-  const setView = (dir: Vector3, zoom: number) => {
-    placeCamera(camera, dir, HOME_TARGET, width / height, viewWidth(built, width / height));
-    controls.target.copy(HOME_TARGET);
-    goal.copy(HOME_TARGET);
+  // The view is fitted to the machine's bounds for the canvas's own aspect (the home view also picks the direction
+  // that draws it largest), so a phone's square canvas isn't mostly empty.
+  let view: View | null = null;
+  // From 40rem the legend sits top left and the toolbar is one row; on a phone the toolbar wraps to two.
+  const margin = () => (width >= 640 ? { top: 0.3, bottom: 0.16 } : { top: 0.12, bottom: 0.24 });
+  const setView = (dirs: readonly Vector3[], zoom: number) => {
+    view = fitView(built, width / height, dirs, margin());
+    placeCamera(camera, view.dir, view.target, width / height, view.width);
+    controls.target.copy(view.target);
+    goal.copy(view.target);
     camera.zoom = zoom;
     camera.updateProjectionMatrix();
     zoomGoal = null;
@@ -88,12 +93,15 @@ export function mount(stage: HTMLElement, list: HTMLElement, data: MachineData):
     width = Math.max(1, viewport.clientWidth);
     height = Math.max(1, viewport.clientHeight);
     renderer.setSize(width, height, false);
-    const w = viewWidth(built, width / height);
-    camera.left = -w / 2;
-    camera.right = w / 2;
-    camera.top = w / (width / height) / 2;
-    camera.bottom = -camera.top;
-    camera.updateProjectionMatrix();
+    if (view) {
+      // Keep where the reader is looking; refit only the frustum to the new aspect.
+      const w = fitView(built, width / height, [view.dir], margin()).width;
+      camera.left = -w / 2;
+      camera.right = w / 2;
+      camera.top = w / (width / height) / 2;
+      camera.bottom = -camera.top;
+      camera.updateProjectionMatrix();
+    }
     kick();
   };
 
@@ -105,13 +113,41 @@ export function mount(stage: HTMLElement, list: HTMLElement, data: MachineData):
     if (!raf && visible) raf = requestAnimationFrame(frame);
   };
   const tmp = new Vector3();
-  const place = (el: HTMLElement, pos: Vector3) => {
+  const project = (pos: Vector3): [number, number] => {
     tmp.copy(pos).project(camera);
-    const x = (tmp.x * 0.5 + 0.5) * width;
-    const y = (-tmp.y * 0.5 + 0.5) * height;
-    const off = x < -40 || x > width + 40 || y < 0 || y > height + 30;
+    return [(tmp.x * 0.5 + 0.5) * width, (-tmp.y * 0.5 + 0.5) * height];
+  };
+  const put = (el: HTMLElement, x: number, y: number, shown: boolean) => {
     el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
-    el.style.visibility = off ? "hidden" : "visible";
+    el.style.visibility = shown ? "visible" : "hidden";
+  };
+  /**
+   * The labels, from their anchors' projected positions: kept inside the canvas, and moved up past a label they would
+   * cover (the pressed one first, then the stations in line order, then the side pieces).
+   */
+  const layout = () => {
+    const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+    const order = [...tags].sort(
+      (a, b) => Number(b.getAttribute("aria-pressed") === "true") - Number(a.getAttribute("aria-pressed") === "true"),
+    );
+    for (const t of order) {
+      const a = built.anchors.get(t.dataset.id ?? "");
+      if (!a) continue;
+      const w = t.offsetWidth;
+      const h = t.offsetHeight;
+      let [x, y] = project(a);
+      const off = x < -w / 2 || x > width + w / 2 || y < 0 || y > height + h;
+      x = Math.min(Math.max(x, w / 2 + 4), width - w / 2 - 4);
+      y = Math.min(Math.max(y, h + 4), height - 4);
+      for (let k = 0; k < placed.length; k++) {
+        const hit = placed.find((r) => x - w / 2 < r.x1 + 2 && x + w / 2 > r.x0 - 2 && y - h < r.y1 + 2 && y > r.y0 - 2);
+        if (!hit) break;
+        y = hit.y0 - 3;
+      }
+      y = Math.max(y, h + 4);
+      placed.push({ x0: x - w / 2, x1: x + w / 2, y0: y - h, y1: y });
+      put(t, x, y, !off);
+    }
   };
   let badgeAt: string | null = null;
   function frame(now: number) {
@@ -140,28 +176,22 @@ export function mount(stage: HTMLElement, list: HTMLElement, data: MachineData):
     }
     renderer.render(built.scene, camera);
     tagLayer.classList.toggle("is-compact", width < 600 || (camera.zoom < 1.6 && width < 1000));
-    for (const t of tags) {
-      const a = built.anchors.get(t.dataset.id ?? "");
-      if (a) place(t, a);
-    }
+    layout();
     const ba = badgeAt ? built.anchors.get(badgeAt) : undefined;
-    if (ba)
-      place(
-        badge,
-        tmp
-          .copy(ba)
-          .setY(ba.y + 0.7)
-          .clone(),
-      );
+    if (ba) {
+      const [x, y] = project(new Vector3(ba.x, ba.y + 0.7, ba.z));
+      const w = badge.offsetWidth;
+      put(badge, Math.min(Math.max(x, w / 2 + 4), width - w / 2 - 4), Math.max(y, badge.offsetHeight + 4), true);
+    }
     if (moving) kick();
     else last = 0;
   }
   controls.addEventListener("change", kick);
 
   const focusOn = (key: string | null, zoom: number) => {
-    const v = key ? built.focus.get(key) : HOME_TARGET;
+    const v = key ? built.focus.get(key) : view?.target;
     if (!v) return;
-    goal.set(v.x, HOME_TARGET.y, v.z);
+    goal.copy(v);
     zoomGoal = zoom;
     if (reduced) {
       const d = goal.clone().sub(controls.target);
@@ -315,9 +345,9 @@ export function mount(stage: HTMLElement, list: HTMLElement, data: MachineData):
   const views: Record<string, () => void> = {
     in: () => zoomBy(1.35),
     out: () => zoomBy(1 / 1.35),
-    front: () => setView(FRONT_DIR, 1.15),
-    top: () => setView(TOP_DIR, 0.9),
-    reset: () => setView(HOME_DIR, 1),
+    front: () => setView([FRONT_DIR], 1),
+    top: () => setView([TOP_DIR], 1),
+    reset: () => setView(HOME_DIRS, 1),
   };
   for (const b of stage.querySelectorAll<HTMLButtonElement>("[data-view]"))
     b.addEventListener("click", () => views[b.dataset.view ?? ""]?.());
@@ -348,7 +378,7 @@ export function mount(stage: HTMLElement, list: HTMLElement, data: MachineData):
       if (visible) kick();
     }).observe(viewport);
   resize();
-  setView(HOME_DIR, 1);
+  setView(HOME_DIRS, 1);
   overview();
 
   return {

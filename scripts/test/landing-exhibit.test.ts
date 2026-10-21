@@ -29,6 +29,7 @@ import {
   tourOrder,
 } from "../../apps/docs/src/components/site/engine-machine.ts";
 import { firstSentence, monthName, placeholders, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
+import { buildMachine, TONES, type Tokens } from "../../apps/docs/src/components/site/machine-scene.ts";
 import { shownFacts } from "../../apps/docs/src/components/site/pipeline-stages.ts";
 
 let run: ReturnType<typeof recordRun<Awaited<ReturnType<typeof exhibitRows>>>> | undefined;
@@ -358,7 +359,7 @@ describe("engine machine (the same run as the pipeline stages and the exhibit)",
     // The scene draws the same stations, in the same order, and one gate light per check the verifier ran.
     const scene = sceneInput(pipeline);
     expect(scene.stations.map((s) => s.key)).toEqual(stations.map((s) => s.key));
-    expect(scene.checks).toBe(pipeline.checks.length);
+    expect(scene.checks).toEqual(pipeline.checks.map((c) => ({ check: c.check, failed: c.failed })));
     // The tour visits every station and both side pieces once.
     const tour = tourOrder(stations);
     expect([...tour].sort()).toEqual([...stations.map((s) => s.key), "vault", "models"].sort());
@@ -433,4 +434,28 @@ describe("engine machine (the same run as the pipeline stages and the exhibit)",
           .replace(/row \d+/, ""),
       ).not.toMatch(/\d/);
   }, 120_000);
+
+  it("the verifier's gate has one light per check: green for a check that passed, ink for one that failed a claim", () => {
+    const css = readFileSync(join(ROOT, "apps/docs/src/styles/tokens.css"), "utf8");
+    const tokens = Object.fromEntries(
+      Object.entries(TONES).map(([k, v]) => [k, new RegExp(`${v}:\\s*(#[0-9a-f]{6});`).exec(css)?.[1] ?? ""]),
+    ) as unknown as Tokens;
+    const built = buildMachine(sceneInput(pipeline), tokens);
+    const lights: { check: string; pass: boolean; hex: string }[] = [];
+    built.scene.traverse((o) => {
+      if (typeof o.userData.check === "string") {
+        const m = (o as unknown as { material: { color: { getHexString(cs?: string): string } } }).material;
+        lights.push({ check: o.userData.check, pass: o.userData.pass === true, hex: `#${m.color.getHexString("srgb")}` });
+      }
+    });
+    expect(lights.map((l) => l.check)).toEqual(pipeline.checks.map((c) => c.check));
+    for (const c of pipeline.checks) {
+      const l = lights.find((x) => x.check === c.check);
+      expect(l?.pass, c.check).toBe(c.failed === 0);
+      expect(l?.hex, c.check).toBe(c.failed === 0 ? tokens.verified : tokens.ink);
+    }
+    // The run has both: checks that passed everything, and one that caught claims (V6).
+    expect(lights.some((l) => l.pass)).toBe(true);
+    expect(lights.some((l) => !l.pass)).toBe(true);
+  });
 });

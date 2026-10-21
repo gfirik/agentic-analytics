@@ -5,6 +5,7 @@
 // Used by the lazy client module (machine-3d.ts) and, at build time, by scripts/site-assets.ts for the static images.
 // It imports only from "three" (ES modules, tree-shaken) and has no DOM work but the renderer's canvas.
 import {
+  Box3,
   BoxGeometry,
   BufferGeometry,
   Color,
@@ -66,8 +67,8 @@ export interface SceneStation {
 export interface SceneInput {
   /** The stations on the line, in order. */
   readonly stations: readonly SceneStation[];
-  /** How many verifier checks the run ran (one gate light each). */
-  readonly checks: number;
+  /** Each verifier check the run ran, with how many claims it failed (one gate light each). */
+  readonly checks: readonly { readonly check: string; readonly failed: number }[];
 }
 
 /** Each kind's footprint along the line: stations are laid out edge to edge from these, then centred. */
@@ -242,9 +243,24 @@ export function buildMachine(input: SceneInput, tokens: Tokens): Built {
       box(0.35, 1.9, 1.8, body, 0.75, 0, 0, g);
       box(1.85, 0.4, 1.8, body, 0, 1.9, 0, g);
       glass(2.25, 2.55, 2.15, 0, 0, 0, g);
-      // One gate light per check the verifier ran, in the one green: the checks passed.
-      const n = Math.max(1, input.checks);
-      for (let k = 0; k < n; k++) box(0.13, 0.26, 0.08, M.verified, -0.6 + (k * 1.2) / Math.max(1, n - 1), 2.0, 0.92, g, false);
+      // One gate light per check the verifier ran: green only for a check that passed everything, ink for one that
+      // failed a claim (failure is never a colour, DESIGN.md §3).
+      const n = input.checks.length;
+      input.checks.forEach((c, k) => {
+        const light = box(
+          0.13,
+          0.26,
+          0.08,
+          c.failed === 0 ? M.verified : M.ink,
+          -0.6 + (k * 1.2) / Math.max(1, n - 1),
+          2.0,
+          0.92,
+          g,
+          false,
+        );
+        light.userData.check = c.check;
+        light.userData.pass = c.failed === 0;
+      });
       mark(s.key, x, 0, 2.6, 2.6);
       return;
     }
@@ -453,11 +469,69 @@ function makePackets(
   };
 }
 
-/** The default view: the axonometric direction the camera looks from, and its target. */
-export const HOME_DIR = new Vector3(0.1, 0.66, 1).normalize();
+/** The views: the axonometric directions the camera may look from (the home view picks the one that draws the machine largest for the canvas), straight on, and from above. */
+export const HOME_DIRS = [0.1, 0.4, 0.7, 1.0].map((x) => new Vector3(x, 0.7, 1).normalize());
+export const HOME_DIR = HOME_DIRS[0] as Vector3;
 export const HOME_TARGET = new Vector3(0, 0.4, -0.6);
 export const FRONT_DIR = new Vector3(0, 0.45, 1).normalize();
 export const TOP_DIR = new Vector3(0.001, 1, 0.12).normalize();
+
+export interface View {
+  readonly dir: Vector3;
+  readonly target: Vector3;
+  /** The scene width the view shows at zoom 1. */
+  readonly width: number;
+}
+
+/**
+ * The view that fits the machine (every piece and its label anchor) into a canvas of this aspect, as large as it can
+ * be drawn, from the given directions: the projected bounds, with room above for the HTML labels.
+ */
+export function fitView(
+  b: Built,
+  aspect: number,
+  dirs: readonly Vector3[] = HOME_DIRS,
+  margin: { readonly top: number; readonly bottom: number } = { top: 0.14, bottom: 0.22 },
+): View {
+  const points: Vector3[] = [];
+  const box = new Box3();
+  for (const g of b.groups.values()) {
+    box.setFromObject(g);
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) points.push(new Vector3(x, y, z));
+  }
+  for (const a of b.anchors.values()) points.push(a.clone());
+  const cam = new OrthographicCamera();
+  let best: View | null = null;
+  for (const dir of dirs) {
+    cam.position.copy(dir).multiplyScalar(60);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld();
+    const inv = cam.matrixWorldInverse;
+    let x0 = Number.POSITIVE_INFINITY;
+    let x1 = Number.NEGATIVE_INFINITY;
+    let y0 = Number.POSITIVE_INFINITY;
+    let y1 = Number.NEGATIVE_INFINITY;
+    const p = new Vector3();
+    for (const q of points) {
+      p.copy(q).applyMatrix4(inv);
+      x0 = Math.min(x0, p.x);
+      x1 = Math.max(x1, p.x);
+      y0 = Math.min(y0, p.y);
+      y1 = Math.max(y1, p.y);
+    }
+    // Room above for the labels over their anchors (and the legend), and below for the toolbar: shares of the height.
+    const w = (x1 - x0) * 1.06;
+    const h = (y1 - y0) / (1 - margin.top - margin.bottom);
+    const width = Math.max(w, h * aspect);
+    // The view's bottom edge sits margin.bottom of its height below the lowest point.
+    const cy = y0 - margin.bottom * (width / aspect) + width / aspect / 2;
+    // The centre, back in the world, at the origin's depth (an orthographic view: any depth on the line of sight).
+    const target = new Vector3((x0 + x1) / 2, cy, -60).applyMatrix4(cam.matrixWorld);
+    if (!best || width < best.width) best = { dir, target, width };
+  }
+  return best as View;
+}
 
 /** An orthographic camera looking from `dir` at `target`, sized so `width` scene units fill the view's width. */
 export function placeCamera(camera: OrthographicCamera, dir: Vector3, target: Vector3, aspect: number, width: number) {
@@ -473,8 +547,8 @@ export function placeCamera(camera: OrthographicCamera, dir: Vector3, target: Ve
   camera.updateProjectionMatrix();
 }
 
-/** The width of the scene a view shows: the whole line, with a margin. */
-export const viewWidth = (b: Built, aspect: number) => Math.max((b.line.end - b.line.start) * 1.04, 9 * aspect);
+/** The stills' WebP quality: a line drawing on a flat page keeps its hairlines at this setting. */
+const WEBP_QUALITY = 0.6;
 
 /**
  * The static images (build time, scripts/site-assets.ts): the strip under the hero and the closed machine, each as
@@ -495,14 +569,17 @@ export function renderStills(
     renderer.setSize(w, h, false);
     placeCamera(camera, dir, target, w / h, width);
     renderer.render(built.scene, camera);
-    return { webp: canvas.toDataURL("image/webp", 0.86), png: canvas.toDataURL("image/png") };
+    return { webp: canvas.toDataURL("image/webp", WEBP_QUALITY), png: canvas.toDataURL("image/png") };
   };
   const [sw, sh] = sizes.strip;
   const [fw, fh] = sizes.full;
   const lineWidth = built.line.end - built.line.start;
   const out = {
     strip: shot(sw, sh, new Vector3(0.1, 0.42, 1).normalize(), new Vector3(0, 0.9, -0.2), lineWidth * 1.02),
-    full: shot(fw, fh, HOME_DIR, HOME_TARGET, viewWidth(built, fw / fh) * 0.86),
+    full: (() => {
+      const v = fitView(built, fw / fh, HOME_DIRS, { top: 0.04, bottom: 0.04 });
+      return shot(fw, fh, v.dir, v.target, v.width);
+    })(),
   };
   renderer.dispose();
   return out;

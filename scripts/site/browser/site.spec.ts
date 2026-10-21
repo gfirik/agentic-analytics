@@ -152,6 +152,9 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING);
   const wrap = page.locator("[data-exhibit]");
+  // The engine machine's strip puts the report page's top just under the fold at 1440 × 900: it verifies (timed) on the
+  // reader's first scroll, as it comes into view (DESIGN.md §6).
+  await page.mouse.wheel(0, 200);
   const chips = page.locator(".aa-exhibit a.aa-chip");
   const n = await chips.count();
   expect(n).toBeGreaterThan(5);
@@ -293,6 +296,8 @@ test("hero: stepping through the walkthrough never moves the page below it (1440
     const page = await ctx.newPage();
     await page.goto(LANDING, { waitUntil: "networkidle" });
     await page.evaluate(() => document.fonts.ready);
+    // The report page in view, so the walkthrough has started (the machine's strip sits above it).
+    await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
     const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
     const below = () => page.locator("#how").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
     // Step by hand (the timer stops); the section after the exhibit stays where it is at every step and back.

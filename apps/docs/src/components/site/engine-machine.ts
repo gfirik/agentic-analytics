@@ -180,7 +180,7 @@ export const STATION_INFO: Readonly<Record<StationKey | SideKey, Info>> = {
     simple: "Check everything",
     plain: [
       "Nothing reaches you until it passes.",
-      "Eight checks recompute every number from its SQL, find every quote in its file and drop or reword any claim they can't prove. A small judge model only confirms that a quote supports its claim.",
+      "Its checks recompute every number from its SQL, find every quote in its file and drop or reword any claim they can't prove. A small judge model only confirms that a quote supports its claim.",
     ],
     kind: "verify",
     calls: ["judge"],
@@ -357,7 +357,7 @@ export function tourOrder(stations: readonly Station[]): (StationKey | SideKey)[
   return out;
 }
 
-/** What the 3D scene draws (machine-scene.ts SceneInput): each station's kind and model calls, and the verifier's checks. */
+/** What the 3D scene draws (machine-scene.ts SceneInput): each station's kind and model calls, and the verifier's checks with what each failed. */
 export function sceneInput(run: PipelineData) {
   return {
     stations: machineStations(run).map((s) => ({
@@ -366,12 +366,12 @@ export function sceneInput(run: PipelineData) {
       calls: [...s.info.calls],
       ...(s.info.spur ? { spur: true } : {}),
     })),
-    checks: run.checks.length,
+    checks: run.checks.map((c) => ({ check: c.check, failed: c.failed })),
   };
 }
 
 /** The static images' sizes in pixels (scripts/site-assets.ts renders them; the page gives the same width and height). */
-export const STILLS = { strip: [2260, 340], full: [1600, 800] } as const satisfies Record<string, readonly [number, number]>;
+export const STILLS = { strip: [1700, 256], full: [1280, 600] } as const satisfies Record<string, readonly [number, number]>;
 
 /** The Learn page of a stage, under the site's base. */
 export const learnPath = (slug: LearnStage) => `learn/stages/${slug}/`;

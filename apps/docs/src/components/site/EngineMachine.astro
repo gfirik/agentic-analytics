@@ -417,6 +417,8 @@ const stripAlt = `The engine drawn as a factory line: ${stations.length} station
         machine ??= m.mount(stage, list, JSON.parse(json) as MachineData);
         machine.show();
       } catch {
+        // Deliberately quiet: if the chunk can't load (offline, blocked) or WebGL fails to start, the reader gets the
+        // station list over the still image, the same fallback as a weak device, rather than an error.
         if (open) still();
       }
     };

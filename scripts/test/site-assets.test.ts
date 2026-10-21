@@ -46,8 +46,8 @@ describe("site assets", () => {
       expect([png.readUInt32BE(16), png.readUInt32BE(20)], name).toEqual([w, h]);
       const webp = readFileSync(join(DOCS_DIR, "public", `machine-${name}.webp`));
       expect(webpSize(webp), name).toEqual([w, h]);
-      // The WebP is what browsers fetch; it stays small (the PNG is the fallback for the rest).
-      expect(webp.length, name).toBeLessThan(120_000);
+      // The WebP is what browsers fetch; it stays near the plan's ~30 KB (the PNG is the fallback for the rest).
+      expect(webp.length, name).toBeLessThan(45_000);
     }
   });
 });
