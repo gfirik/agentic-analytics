@@ -1,10 +1,10 @@
 // The agent's side of the web lane (agent-and-verifier §4, security §4): what counts as private in this job,
 // and how fetched pages become external sources and quarantined extracts.
 import { chunkSpans, type SearchHit } from "@agentic-analytics/retrieval";
+import { screen } from "@agentic-analytics/schema";
 import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { type FetchedPage, type PrivateTerms, type SearchProvider, type WebSearchResult, webSearch } from "@agentic-analytics/web";
 import { quarantine } from "./extractor.ts";
-import { screen } from "./screen.ts";
 
 export interface WebLane {
   readonly provider: SearchProvider;

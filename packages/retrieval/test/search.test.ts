@@ -141,6 +141,28 @@ describe("query flow (spec §3)", () => {
     for (const h of june.hits) expect(h.prefix).toMatch(/· 2026-06-\d\d\]$/);
   });
 
+  it("never returns a quarantined source, even when asked for it by name (security §3)", async () => {
+    const memo = await ws.all<{ id: string }>(
+      sql`SELECT s.id FROM sources s JOIN files f ON f.id = s.file_id WHERE f.name = 'pricing-memo.docx'`,
+    );
+    expect(memo.length).toBeGreaterThan(0);
+    const before = await searchDocuments(ws, "price increase", { embedder });
+    expect(before.hits.some((h) => h.file === "pricing-memo.docx")).toBe(true);
+    // Both paths ran (BM25 didn't fall back), so both are shown to filter.
+    expect(before.degraded).not.toContain("bm25");
+    for (const m of memo) await ws.run(sql`INSERT INTO quarantine VALUES (${m.id}, 'test', 'screen')`);
+    try {
+      const after = await searchDocuments(ws, "price increase", { embedder });
+      expect(after.hits.some((h) => h.file === "pricing-memo.docx")).toBe(false);
+      // Its slots go to other evidence, not to nothing.
+      expect(after.hits.length).toBe(before.hits.length);
+      const asked = await searchDocuments(ws, "price increase", { embedder, sources: ["pricing-memo.docx"] });
+      expect(asked.hits).toEqual([]);
+    } finally {
+      await ws.run(sql`DELETE FROM quarantine WHERE reason = 'test'`);
+    }
+  });
+
   it("emails carry sender, recipient and date in the prefix", async () => {
     const r = await searchDocuments(ws, "catalogue print run moved to another printer", { embedder });
     const hit = r.hits.find((h) => h.file === "email-brightads.eml");
