@@ -11,4 +11,12 @@ describe("sectionsFromText", () => {
     for (const s of sections) expect(text.slice(s.char_start, s.char_end)).toBe(s.text);
     expect(sections[1]?.text).toContain("Orders fell.");
   });
+
+  it("splits a CRLF plain-text file into paragraphs at its blank lines", () => {
+    const text = "First paragraph.\r\nStill first.\r\n\r\nSecond paragraph.\r\n";
+    const sections = sectionsFromText(text, false);
+    expect(sections).toHaveLength(2);
+    for (const s of sections) expect(text.slice(s.char_start, s.char_end)).toBe(s.text);
+    expect(sections[1]?.text.trim()).toBe("Second paragraph.");
+  });
 });

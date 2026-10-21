@@ -80,16 +80,12 @@ export function checkUrl(
 
 /**
  * `decodeURIComponent` that never throws: a malformed escape ("%zz") in a search result or redirect must not fail
- * the stage. Each valid run of escapes is decoded on its own; anything else stays as written.
+ * the stage. Each run of escapes is decoded as UTF-8 with only an invalid byte becoming U+FFFD, so one bad byte in
+ * front of an encoded private value can't keep the value from being decoded and matched.
  */
+const utf8 = new TextDecoder("utf-8", { fatal: false });
 function decodeLenient(s: string): string {
-  return s.replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
-    try {
-      return decodeURIComponent(run);
-    } catch {
-      return run;
-    }
-  });
+  return s.replace(/(?:%[0-9a-f]{2})+/gi, (run) => utf8.decode(Uint8Array.from(run.slice(1).split("%"), (h) => Number.parseInt(h, 16))));
 }
 
 function request(
