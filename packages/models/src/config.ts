@@ -97,6 +97,24 @@ function parseRoute(spec: string): RoleModel {
   );
 }
 
+/**
+ * The presets with the config file's endpoints over them. A file entry replaces the preset entry of the same name,
+ * except its daily token limits: the preset's are kept under the file's own (the file wins per model), so
+ * overriding `groq` to change one setting doesn't lose the measured 200k limit (models §4).
+ */
+function withPresets(file: unknown): Record<string, unknown> {
+  const own = typeof file === "object" && file !== null ? (file as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = { ...OPENAI_COMPATIBLE_PRESETS, ...own };
+  for (const [name, preset] of Object.entries(OPENAI_COMPATIBLE_PRESETS)) {
+    const entry = own[name];
+    if (!preset.daily_token_limits || typeof entry !== "object" || entry === null) continue;
+    const e = entry as Record<string, unknown>;
+    const limits = typeof e.daily_token_limits === "object" && e.daily_token_limits !== null ? e.daily_token_limits : {};
+    out[name] = { ...e, daily_token_limits: { ...preset.daily_token_limits, ...limits } };
+  }
+  return out;
+}
+
 export function resolveModelConfig(env: Env, file?: unknown): Config {
   const fromFile = (file ?? {}) as Partial<ConfigInput>;
   const models: Record<string, unknown> = { ...DEFAULTS.models, ...(fromFile.models ?? {}) };
@@ -112,7 +130,7 @@ export function resolveModelConfig(env: Env, file?: unknown): Config {
     providers: {
       ...(fromFile.providers ?? {}),
       ...(ollamaUrl ? { ollama: { base_url: ollamaUrl } } : {}),
-      "openai-compatible": { ...OPENAI_COMPATIBLE_PRESETS, ...(fromFile.providers?.["openai-compatible"] ?? {}) },
+      "openai-compatible": withPresets(fromFile.providers?.["openai-compatible"]),
     },
     ...(timeout ? { timeouts: { model_ms: timeout } } : {}),
   });

@@ -14,6 +14,7 @@ import {
   dailyTokenLimit,
   fileCache,
   type ModelClient,
+  ModelError,
   profileFor,
   Router,
   resolveModelConfig,
@@ -32,7 +33,7 @@ import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
 import { embedderChoice, isStandalone, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
-import { usageCommand } from "./usage.ts";
+import { UsageError, usageCommand } from "./usage.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -547,13 +548,20 @@ const usage = defineCommand({
       process.stderr.write(`Model config not usable (${err instanceof Error ? err.message : String(err)}); using the built-in limits.\n`);
       config = resolveModelConfig({});
     }
-    process.stdout.write(
-      usageCommand(args.log ?? join("data", "logs", "model-calls.jsonl"), {
-        ...(args.day ? { day: args.day } : {}),
-        ...(args.json ? { json: true } : {}),
-        limitOf: (r) => dailyTokenLimit(config, r),
-      }),
-    );
+    try {
+      process.stdout.write(
+        usageCommand(args.log ?? join("data", "logs", "model-calls.jsonl"), {
+          ...(args.day !== undefined ? { day: args.day } : {}),
+          ...(args.json ? { json: true } : {}),
+          limitOf: (r) => dailyTokenLimit(config, r),
+        }),
+      );
+    } catch (err) {
+      // A missing log or a bad --day is a usage mistake: one line, no stack.
+      if (!(err instanceof UsageError || (err instanceof ModelError && err.code === "INVALID_ARGUMENT"))) throw err;
+      process.stderr.write(`aa usage: ${err.message}\n`);
+      process.exitCode = 1;
+    }
   },
 });
 

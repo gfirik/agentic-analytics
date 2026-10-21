@@ -85,6 +85,26 @@ describe("token usage", () => {
       },
     );
     expect(dailyTokenLimit(custom, { provider: "openai-compatible", endpoint: "local", model: "my-model" })).toBe(50_000);
+    // A file entry for groq keeps the preset's limits under its own (the file wins per model).
+    const groq = resolveModelConfig(
+      {},
+      {
+        providers: {
+          "openai-compatible": {
+            groq: {
+              base_url: "https://api.groq.com/openai/v1",
+              structured_outputs: true,
+              daily_token_limits: { "openai/gpt-oss-20b": 1_000 },
+            },
+          },
+        },
+      },
+    );
+    expect(groq.providers["openai-compatible"]?.groq?.structured_outputs).toBe(true);
+    expect(groq.providers["openai-compatible"]?.groq?.daily_token_limits).toEqual({
+      "qwen/qwen3.8-27b": 200_000,
+      "openai/gpt-oss-20b": 1_000,
+    });
   });
 
   it("sumCalls totals a run's calls the same way", () => {

@@ -50,12 +50,15 @@ export interface UsageTotals {
 
 export const EMPTY_TOTALS: UsageTotals = { calls: 0, cached: 0, failed: 0, inputTokens: 0, outputTokens: 0, unknownTokens: 0 };
 
+/** A failed call: HTTP status ≥ 400, or no response at all (status 0). One rule for `aa usage` and eval results. */
+export const failedCall = (c: Pick<CallRecord, "status">): boolean => c.status >= 400 || c.status === 0;
+
 export function addCall(t: UsageTotals, c: CallRecord): UsageTotals {
   const s = spendOf(c);
   return {
     calls: t.calls + 1,
     cached: t.cached + (c.cached ? 1 : 0),
-    failed: t.failed + (c.status >= 400 || c.status === 0 ? 1 : 0),
+    failed: t.failed + (failedCall(c) ? 1 : 0),
     inputTokens: t.inputTokens + (s?.input ?? 0),
     outputTokens: t.outputTokens + (s?.output ?? 0),
     unknownTokens: t.unknownTokens + (s ? 0 : 1),

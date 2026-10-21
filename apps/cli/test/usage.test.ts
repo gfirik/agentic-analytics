@@ -61,6 +61,10 @@ describe("aa usage", () => {
     expect(j.days[0]?.routes.map((r) => r.dailyLimit)).toEqual([undefined, 200_000]);
   });
 
+  it("an empty --day is refused, not read as every day", () => {
+    expect(() => usageReport(LOG, { day: "" })).toThrow(/invalid day/);
+  });
+
   it("a missing log is a typed error", () => {
     expect(() => usageCommand("/nonexistent/model-calls.jsonl")).toThrow(UsageError);
   });

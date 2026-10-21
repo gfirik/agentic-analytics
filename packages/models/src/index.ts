@@ -71,6 +71,7 @@ export {
   dailyUsage,
   dayOf,
   EMPTY_TOTALS,
+  failedCall,
   type LoggedCall,
   parseCallLog,
   type RoleUsage,

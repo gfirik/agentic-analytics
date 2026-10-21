@@ -16,15 +16,18 @@ const call = (c: Partial<CallRecord>): CallRecord => ({
 });
 
 describe("run usage", () => {
-  it("routeSummary sums each route's tokens: cached calls 0, a call with no count adds nothing", () => {
+  it("routeSummary sums each route's tokens: cached calls 0, a call with no count is counted as unknown", () => {
     const routes = routeSummary([
       call({ inputTokens: 9000, outputTokens: 600 }),
       // cached: the stored usage is ignored
       call({ cached: true, inputTokens: 9000, outputTokens: 600 }),
       call({ status: 429 }),
+      // no response at all: failed, as aa usage counts it
+      call({ role: "judge", status: 0 }),
       call({ role: "extractor", model: "openai/gpt-oss-120b", inputTokens: 400, outputTokens: 100 }),
     ]);
-    expect(routes).toEqual([
+    expect(routes.find((u) => u.role === "judge")).toMatchObject({ calls: 1, failed: 1, unknownTokens: 1 });
+    expect(routes.filter((u) => u.role !== "judge")).toEqual([
       {
         role: "extractor",
         route: "openai-compatible:groq:openai/gpt-oss-120b",
@@ -33,6 +36,7 @@ describe("run usage", () => {
         failed: 0,
         inputTokens: 400,
         outputTokens: 100,
+        unknownTokens: 0,
       },
       {
         role: "planner",
@@ -42,10 +46,17 @@ describe("run usage", () => {
         failed: 1,
         inputTokens: 9000,
         outputTokens: 600,
+        unknownTokens: 1,
       },
     ]);
-    // 9,000 + 400 in; 600 + 100 out; 4 calls, 1 cached
-    expect(runUsage(routes)).toEqual({ inputTokens: 9400, outputTokens: 700, calls: 4, cached: 1 });
+    // 9,000 + 400 in; 600 + 100 out; 4 calls, 1 cached, 1 (the 429) without a count
+    expect(runUsage(routes.filter((u) => u.role !== "judge"))).toEqual({
+      inputTokens: 9400,
+      outputTokens: 700,
+      calls: 4,
+      cached: 1,
+      unknownTokens: 1,
+    });
   });
 
   it("a route from before M14a has no token count: merged usage is unknown, not 0", () => {
@@ -54,12 +65,19 @@ describe("run usage", () => {
     expect(mergeRoutes([fresh, fresh])).toEqual([{ ...old, calls: 2, inputTokens: 20, outputTokens: 2 }]);
     expect(mergeRoutes([fresh, old])).toEqual([{ ...old, calls: 3 }]);
     expect(runUsage(mergeRoutes([fresh, old]))).toBeUndefined();
-    expect(runUsage([])).toEqual({ inputTokens: 0, outputTokens: 0, calls: 0, cached: 0 });
+    expect(runUsage([])).toEqual({ inputTokens: 0, outputTokens: 0, calls: 0, cached: 0, unknownTokens: 0 });
   });
 
   it("RESULTS.md shows the totals, or n/a for an old result", () => {
-    expect(usageLine({ inputTokens: 188852, outputTokens: 20673, calls: 131, cached: 47 })).toBe(
-      "Usage: 188,852 tokens in, 20,673 out · 131 calls (47 cached, 0 tokens)",
+    expect(usageLine({ inputTokens: 168179, outputTokens: 20673, calls: 131, cached: 47, unknownTokens: 31 })).toBe(
+      "Usage: 168,179 tokens in, 20,673 out · 131 calls (47 cached at 0 tokens, 31 without a token count)",
+    );
+    expect(usageLine({ inputTokens: 10, outputTokens: 1, calls: 2, cached: 0, unknownTokens: 0 })).toBe(
+      "Usage: 10 tokens in, 1 out · 2 calls (0 cached at 0 tokens)",
+    );
+    // The scripted baseline makes no provider calls.
+    expect(usageLine({ inputTokens: 0, outputTokens: 0, calls: 0, cached: 0, unknownTokens: 0 })).toBe(
+      "Usage: no provider calls (scripted model)",
     );
     expect(usageLine(undefined)).toBe("Usage: n/a (tokens per call not recorded for this run)");
   });
@@ -93,7 +111,7 @@ describe("run usage", () => {
       };
     };
     const merged = mergeResults([part("a", 5), part("b", 7)], { suite: "smoke", modelName: "m", order: ["a", "b"] });
-    expect(merged.usage).toEqual({ inputTokens: 12, outputTokens: 2, calls: 2, cached: 0 });
-    expect(resultsMarkdown(merged)).toContain("Usage: 12 tokens in, 2 out · 2 calls (0 cached, 0 tokens)");
+    expect(merged.usage).toEqual({ inputTokens: 12, outputTokens: 2, calls: 2, cached: 0, unknownTokens: 0 });
+    expect(resultsMarkdown(merged)).toContain("Usage: 12 tokens in, 2 out · 2 calls (0 cached at 0 tokens)");
   });
 });

@@ -6,11 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DRAFTED_METRICS, type JobOptions, runJob } from "@agentic-analytics/core";
 import { type Dataset, generatedDatasets } from "@agentic-analytics/eval-generator";
-import { type CallRecord, type ModelClient, routeOf, spendOf } from "@agentic-analytics/models";
+import { type CallRecord, failedCall, type ModelClient, routeOf, spendOf } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import type { Report } from "@agentic-analytics/schema";
 import { EvalRunError } from "./errors.ts";
-import { type Bar, type DatasetScore, scoreReport, summarize } from "./score.ts";
+import { type Bar, type DatasetScore, type RouteUse, scoreReport, summarize } from "./score.ts";
 
 export type Suite = "smoke" | "full";
 
@@ -21,36 +21,34 @@ export function suiteDatasets(suite: Suite, all: readonly Dataset[] = generatedD
   return all.filter((d) => pick.includes(d.id));
 }
 
-/**
- * Calls per route (role · provider · model as sent), with how many came from the cache, and the tokens they spent
- * (M14a): the provider's usage per call, 0 for a cached call, nothing for a call with no count. Results written
- * before M14a have no token fields.
- */
-export interface RouteUse {
-  readonly role: string;
-  readonly route: string;
-  readonly calls: number;
-  readonly cached: number;
-  readonly failed: number;
-  readonly inputTokens?: number;
-  readonly outputTokens?: number;
-}
+export type { RouteUse } from "./score.ts";
 
 export function routeSummary(calls: readonly CallRecord[]): RouteUse[] {
   const m = new Map<
     string,
-    { role: string; route: string; calls: number; cached: number; failed: number; inputTokens: number; outputTokens: number }
+    {
+      role: string;
+      route: string;
+      calls: number;
+      cached: number;
+      failed: number;
+      inputTokens: number;
+      outputTokens: number;
+      unknownTokens: number;
+    }
   >();
   for (const c of calls) {
     const route = routeOf(c);
     const k = `${c.role ?? "?"} ${route}`;
-    const u = m.get(k) ?? { role: c.role ?? "?", route, calls: 0, cached: 0, failed: 0, inputTokens: 0, outputTokens: 0 };
+    const u = m.get(k) ?? { role: c.role ?? "?", route, calls: 0, cached: 0, failed: 0, inputTokens: 0, outputTokens: 0, unknownTokens: 0 };
     u.calls++;
     if (c.cached) u.cached++;
-    if (c.status >= 400) u.failed++;
+    if (failedCall(c)) u.failed++;
     const spent = spendOf(c);
-    u.inputTokens += spent?.input ?? 0;
-    u.outputTokens += spent?.output ?? 0;
+    if (spent) {
+      u.inputTokens += spent.input;
+      u.outputTokens += spent.output;
+    } else u.unknownTokens++;
     m.set(k, u);
   }
   return [...m.values()].sort((a, b) => a.role.localeCompare(b.role) || a.route.localeCompare(b.route));
@@ -62,6 +60,8 @@ export interface RunUsage {
   readonly outputTokens: number;
   readonly calls: number;
   readonly cached: number;
+  /** Live calls with no token count: their spend is not in the token sums. */
+  readonly unknownTokens: number;
 }
 
 /** The run's usage from its routes, or undefined when a route has no token count (a result from before M14a). */
@@ -70,14 +70,16 @@ export function runUsage(routes: readonly RouteUse[]): RunUsage | undefined {
   let outputTokens = 0;
   let calls = 0;
   let cached = 0;
+  let unknownTokens = 0;
   for (const u of routes) {
     if (u.inputTokens === undefined || u.outputTokens === undefined) return undefined;
     inputTokens += u.inputTokens;
     outputTokens += u.outputTokens;
     calls += u.calls;
     cached += u.cached;
+    unknownTokens += u.unknownTokens ?? 0;
   }
-  return { inputTokens, outputTokens, calls, cached };
+  return { inputTokens, outputTokens, calls, cached, unknownTokens };
 }
 
 /** The result's routes with their usage beside them, when every route has a token count. */
@@ -410,9 +412,10 @@ export function mergeRoutes(uses: readonly RouteUse[]): RouteUse[] {
       m.set(k, u);
       continue;
     }
-    const { inputTokens: _i, outputTokens: _o, ...rest } = prev;
+    const { inputTokens: _i, outputTokens: _o, unknownTokens: _u, ...rest } = prev;
     const inputTokens = both(prev.inputTokens, u.inputTokens);
     const outputTokens = both(prev.outputTokens, u.outputTokens);
+    const unknownTokens = both(prev.unknownTokens, u.unknownTokens);
     m.set(k, {
       ...rest,
       calls: prev.calls + u.calls,
@@ -420,6 +423,7 @@ export function mergeRoutes(uses: readonly RouteUse[]): RouteUse[] {
       failed: prev.failed + u.failed,
       ...(inputTokens !== undefined ? { inputTokens } : {}),
       ...(outputTokens !== undefined ? { outputTokens } : {}),
+      ...(unknownTokens !== undefined ? { unknownTokens } : {}),
     });
   }
   return [...m.values()].sort((a, b) => a.role.localeCompare(b.role) || a.route.localeCompare(b.route));
@@ -454,9 +458,15 @@ const count = (v: number) => v.toLocaleString("en-US");
 
 /** The run's provider usage (M14a), or "n/a" for a result written before it was recorded. */
 export const usageLine = (u: RunUsage | undefined) =>
-  u
-    ? `Usage: ${count(u.inputTokens)} tokens in, ${count(u.outputTokens)} out · ${count(u.calls)} calls (${count(u.cached)} cached, 0 tokens)`
-    : "Usage: n/a (tokens per call not recorded for this run)";
+  !u
+    ? "Usage: n/a (tokens per call not recorded for this run)"
+    : u.calls === 0
+      ? // The scripted baseline answers in-process: usage counts provider calls only.
+        "Usage: no provider calls (scripted model)"
+      : `Usage: ${count(u.inputTokens)} tokens in, ${count(u.outputTokens)} out · ${count(u.calls)} calls (${[
+          `${count(u.cached)} cached at 0 tokens`,
+          ...(u.unknownTokens ? [`${count(u.unknownTokens)} without a token count`] : []),
+        ].join(", ")})`;
 
 /** One model's results as markdown: the bars, then one line per dataset. */
 export function resultsMarkdown(r: SuiteResult): string {

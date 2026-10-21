@@ -81,7 +81,7 @@ export function formatDay(d: DayUsage): string[] {
 /** The report for a call log's text. */
 export function usageReport(text: string, o: UsageOptions = {}): string {
   const log = parseCallLog(text);
-  const days = dailyUsage(log.calls, { ...(o.day ? { day: o.day } : {}), ...(o.limitOf ? { limitOf: o.limitOf } : {}) });
+  const days = dailyUsage(log.calls, { ...(o.day !== undefined ? { day: o.day } : {}), ...(o.limitOf ? { limitOf: o.limitOf } : {}) });
   if (o.json) return `${JSON.stringify({ days, skippedLines: log.skipped }, null, 2)}\n`;
   const lines = days.length
     ? days.flatMap((d, i) => [...(i ? [""] : []), ...formatDay(d)])
