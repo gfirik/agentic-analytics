@@ -80,14 +80,18 @@ const failWith = (onError?: (err: unknown) => void) => (err: unknown) => {
   return { ...text(known(err) ? `${err.code}: ${err.message}` : `INTERNAL: ${INTERNAL}`), isError: true };
 };
 
-const MAX_FILES = 500;
+/** The most files one call may name, in all (MCP's `analyze_files`; the CLI uses the same cap). */
+export const MAX_FILES = 500;
 const MAX_PATHS = 100;
 
-/** Files under the given paths: symlinks are skipped (no cycles, no escaping the folder), at most MAX_FILES in all. */
-function collect(p: string, out: string[]): string[] {
+/**
+ * Files under the given path, appended to `out`: symlinks are skipped (no cycles, no escaping the folder), at most
+ * MAX_FILES in all (a LimitError past that). Shared with the CLI (apps/cli/src/collect.ts).
+ */
+export function collectFiles(p: string, out: string[]): string[] {
   const st = lstatSync(p);
   if (st.isSymbolicLink()) return out;
-  if (st.isDirectory()) for (const n of readdirSync(p).sort()) collect(join(p, n), out);
+  if (st.isDirectory()) for (const n of readdirSync(p).sort()) collectFiles(join(p, n), out);
   else if (st.isFile()) out.push(p);
   if (out.length > MAX_FILES)
     throw new LimitError("TOO_MANY_FILES", `more than ${MAX_FILES} files under the given paths; point at a smaller folder`);
@@ -138,10 +142,10 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
     async (a) => {
       try {
         const roots = o.roots ?? "any";
-        // Each file is checked again at read time: collect skips symlinks, and the real path must stay inside a root.
+        // Each file is checked again at read time: collectFiles skips symlinks, and the real path must stay inside a root.
         // One file list and one byte budget for the whole call, checked before anything is read.
         const found: string[] = [];
-        for (const p of a.paths) collect(allowedPath(p, roots), found);
+        for (const p of a.paths) collectFiles(allowedPath(p, roots), found);
         const maxBytes = o.maxBytes ?? 200 * 1024 * 1024;
         let total = 0;
         for (const p of found) {

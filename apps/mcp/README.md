@@ -26,6 +26,7 @@ Resources: `report://{job_id}` (JSON) and `report-html://{job_id}`. Every tool d
 - `serveStdio(manager, options?)`: connects it to stdio.
 - `mcpHttpHandler(manager, options?)`: a stateless `(Request) => Promise<Response>` for streamable HTTP (`roots` defaults to none).
 - `allowedPath(path, roots)`, `PathNotAllowedError`, `LimitError`.
+- `collectFiles(path, out)`, `MAX_FILES`: the file walker `analyze_files` uses (symlinks skipped, at most 500 files in all, a `LimitError` past that); the CLI collects its paths with it too.
 
 ## Claude Desktop
 
