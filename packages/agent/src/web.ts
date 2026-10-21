@@ -20,8 +20,9 @@ const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu;
 
 /**
  * Everything in this job that must never leave the machine through a search query or a URL: matched entities and
- * their raw spellings, every value of columns that name people or organisations, file names, and email addresses
- * found in documents. Numbers are removed from queries by the sanitizer regardless.
+ * their raw spellings, every value of columns that name people or organisations, the names and addresses in email
+ * headers and their subjects, the actors the extractor found in the job's documents, file names, and email
+ * addresses found in documents. Numbers are removed from queries by the sanitizer regardless.
  */
 export async function privateTerms(ws: Workspace): Promise<PrivateTerms> {
   const names = new Set<string>();
@@ -37,8 +38,34 @@ export async function privateTerms(ws: Workspace): Promise<PrivateTerms> {
     );
     for (const r of rows) if (r.v?.trim()) names.add(r.v.trim());
   }
+  // People and organisations named outside the tables: an email's sender and recipients ("Name <address>", from its
+  // headers) and the actors the extractor found in documents. A name that appears only there is still private.
+  for (const r of await ws.all<{ v: string | null }>(
+    sql`SELECT meta->>'from' AS v FROM sources WHERE kind = 'email' UNION ALL SELECT meta->>'to' AS v FROM sources WHERE kind = 'email'`,
+  ))
+    for (const part of (r.v ?? "").split(",")) {
+      const name = part
+        .replace(/<[^>]*>/g, "")
+        .replace(/["']/g, "")
+        .trim();
+      if (name && !name.includes("@")) names.add(name); // a bare address is a value, below
+    }
+  // Actors from the job's own documents only: a web page's actors ("USDA") are public, and a hostile page could
+  // otherwise blank out later queries by naming a common phrase as an actor.
+  for (const r of await ws.all<{ v: string | null }>(
+    sql`SELECT x.payload->>'actor' AS v FROM extracts x JOIN sources s ON s.id = x.source_id WHERE NOT s.external`,
+  ))
+    if (r.v?.trim()) names.add(r.v.trim());
+  // An email subject can name a client ("Re: Hotel Group standing order"): removed as a phrase wherever it appears.
+  for (const r of await ws.all<{ v: string | null }>(sql`SELECT meta->>'subject' AS v FROM sources WHERE kind = 'email'`))
+    if (r.v?.trim()) names.add(r.v.replace(/^(?:(?:re|fwd?|aw|wg)\s*:\s*)+/i, "").trim());
   const values = new Set<string>();
   for (const r of await ws.all<{ name: string }>(sql`SELECT name FROM files`)) values.add(r.name);
+  // Addresses in email headers too, not only in the text.
+  for (const r of await ws.all<{ v: string | null }>(
+    sql`SELECT coalesce(meta->>'from', '') || ',' || coalesce(meta->>'to', '') AS v FROM sources WHERE kind = 'email'`,
+  ))
+    for (const m of (r.v ?? "").match(EMAIL) ?? []) values.add(m);
   for (const r of await ws.all<{ text: string }>(sql`SELECT text FROM sources WHERE text IS NOT NULL AND kind <> 'web'`))
     for (const m of r.text.match(EMAIL) ?? []) values.add(m);
   return { names: [...names], values: [...values] };
@@ -54,9 +81,16 @@ async function nextWebNumber(ws: Workspace): Promise<number> {
  * time. Returns the result plus excerpts of each page (the first few chunks) as hits for the quarantined extractor.
  */
 export async function searchAndStore(ws: Workspace, lane: WebLane, query: string): Promise<{ result: WebSearchResult; hits: SearchHit[] }> {
+  // Recomputed per search: the extractor adds actors during the stage, after the lane's terms were taken. The merge
+  // with the lane's own terms only matters for terms injected directly (tests); in a job both come from here.
+  const now = await privateTerms(ws);
+  const terms: PrivateTerms = {
+    names: [...new Set([...lane.terms.names, ...now.names])],
+    values: [...new Set([...(lane.terms.values ?? []), ...(now.values ?? [])])],
+  };
   const result = await webSearch(query, {
     provider: lane.provider,
-    terms: lane.terms,
+    terms,
     ...(lane.fetchPage ? { fetchPage: lane.fetchPage } : {}),
   });
   const hits: SearchHit[] = [];

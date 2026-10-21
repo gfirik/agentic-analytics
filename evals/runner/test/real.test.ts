@@ -84,8 +84,11 @@ describe("scoreCheck", () => {
   it("completes and verified", () => {
     expect(pass({ ...base, kind: "completes" })).toBe(true);
     expect(pass({ ...base, kind: "verified" })).toBe(true);
-    const bad = { ...REPORT, verification: { ...REPORT.verification, numbers_mismatched: 1 } } as Report;
-    expect(pass({ ...base, kind: "verified" }, bad)).toBe(false);
+    // A shipped report can't hold a mismatch; what fails is a report with nothing recomputed, or a definition broken.
+    const unchecked = { ...REPORT, verification: { ...REPORT.verification, numbers_checked: 0 } } as Report;
+    expect(pass({ ...base, kind: "verified" }, unchecked)).toBe(false);
+    const broken = { ...REPORT, verification: { ...REPORT.verification, definition_violations: 1 } } as Report;
+    expect(pass({ ...base, kind: "verified" }, broken)).toBe(false);
     expect(scoreCheck({ ...base, kind: "completes" }, undefined, "INGEST: boom")).toMatchObject({
       pass: false,
       detail: "no report: INGEST: boom",

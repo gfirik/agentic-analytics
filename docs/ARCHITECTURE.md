@@ -50,7 +50,7 @@ flowchart TB
 
 ## 2. Pipeline
 
-A job moves through fixed stages. Each stage reads from and writes to the job's DuckDB workspace, emits progress events, and checkpoints. A crashed job resumes from the last completed stage. The interrupted stage first has its facts deleted (from the fact number it started at) and its own rows reset. Before PROFILE completes there is nothing to keep, so the workspace starts fresh. MEASURE runs the analysis library once (measure, detect and decompose in one deterministic pass). DETECT and DECOMPOSE are the checkpoints that report what it stored.
+A job moves through fixed stages. Each stage reads from and writes to the job's DuckDB workspace, emits progress events, and checkpoints. A crashed job resumes from the last completed stage. The interrupted stage first has its facts deleted (from the fact number it started at) and its own rows reset. Before PROFILE completes there is nothing to keep, so the workspace starts fresh (its options, job id and event history are kept). MEASURE runs the analysis library once (measure, detect and decompose in one deterministic pass). DETECT and DECOMPOSE are the checkpoints that report what it stored.
 
 <!-- diagram:pipeline:start -->
 ```mermaid

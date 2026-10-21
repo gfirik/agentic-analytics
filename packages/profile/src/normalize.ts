@@ -170,7 +170,8 @@ export function inferColumn(label: string, cells: readonly (Cell | undefined)[])
   const distinct = new Set(filled.map((c) => String(c.v).trim().toLowerCase())).size;
   const avgLength = filled.reduce((s, c) => s + String(c.v).length, 0) / filled.length;
   // Short label-like values are categories; long or sentence-like values, or a notes-style header, are free text.
-  const maxWords = Math.max(...filled.map((c) => String(c.v).trim().split(/\s+/).length));
+  // A loop, not Math.max(...cells): spreading a large column overflows the call stack.
+  const maxWords = filled.reduce((m, c) => Math.max(m, String(c.v).trim().split(/\s+/).length), 0);
   if (!NOTE_HEADER.test(label) && avgLength <= 40 && maxWords <= 6 && (distinct <= 50 || distinct / filled.length <= 0.5)) {
     return { type: "category", decimal, issues: [] };
   }
