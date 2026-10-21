@@ -28,7 +28,7 @@ A read of the whole codebase after M14a, written so a new reader can learn the c
 | 5 | metrics / cli | The metric-draft screen has gaps: a withheld label still goes out as its snake_case name, sheet names are never screened, and `aa metrics` calls the model with no screen at all | `packages/metrics/src/digest.ts:64`, `apps/cli/src/metrics.ts:71` | rule risk |
 | 6 | retrieval | Quarantined documents are still indexed and returned. They take top-8 slots from real evidence | `packages/retrieval/src/retrieval.sql.ts:6-11` | correctness risk |
 | 7 | agent | `privateTerms` misses names that appear only in email headers or extract actors, so the planner could put them in a web query | `packages/agent/src/web.ts:26-45` | rule risk |
-| 8 | scripts | `notify.sh` puts the Telegram bot token on curl's command line, where `ps` shows it to other local users | `scripts/notify.sh:22` | rule risk |
+| 8 | scripts | `notify.sh` puts the Telegram bot token on curl's command line, where `ps` shows it to other local users | `scripts/notify.sh:22` | security risk (no AGENTS.md rule; rule 7 covers committed secrets) |
 | 9 | ingest / profile | **Crash on big files:** `Math.max(...rows)` overflows the stack above about 150k rows, so a large CSV reads as "unreadable" | `packages/ingest/src/regions.ts:78`, `packages/profile/src/normalize.ts:173` | correctness risk |
 | 10 | web | A malformed `%zz` escape in any search result or redirect throws a `URIError` that fails the whole EXPLAIN stage | `packages/web/src/fetch.ts:75` | correctness risk |
 | 11 | core | `aa run --resume` after an INGEST or PROFILE failure wipes the job database, stored options included, so the resume command the CLI prints fails with `BAD_OPTIONS` | `packages/core/src/job.ts:220-231` | correctness risk |
@@ -50,13 +50,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 2. **Quarantine, part 2:** the metric-draft screen gaps, `aa metrics`, and quarantined documents in retrieval (rows 5, 6).
 3. **Numerals:** a stricter `findFreeNumerals`, and V1's claim rules applied to the headline, titles, actions and `not_advised` (rows 3, 4).
 4. **Leaks:** `privateTerms` coverage and the Telegram token off the command line (rows 7, 8).
-5. **Crashes:** the ingest and profile spreads, `decodeURIComponent`, the "24:00" time and CRLF Markdown (rows 9, 10, 18).
+5. **Crashes and dates:** the ingest and profile spreads, `decodeURIComponent`, the "24:00" time, two-digit years and CRLF Markdown (rows 9, 10, 18).
 6. **Core:** resume, the follow-up title, and the subscribe race (rows 11, 16).
 7. **Server and doors:** server errors and validation, the SSE rejection and a CSP; the MCP caps and error messages; Telegram concurrency, albums and memory; the viewer's error states (rows 12, 20).
 8. **Analysis numbers:** explicit missing periods, the `pctChange` base, non-finite and missing facts as errors (rows 13, 14).
 9. **Evals:** scoring that measures what EVALS.md says, so bars can't pass by accident (row 15). This one is in the code-quality pass because M14's accuracy program builds on it.
 10. **Verify and models:** V4 per claim, the V6 headline, judge errors, and tool errors in the real client (rows 17, 19).
-11. **The rest, by package:** the remaining correctness rows (two-digit years, retrieval dates and tabs, `describeExpr` parentheses, `would_change`, web charset, the report's External badge and negative bars, config parsing, the eval logs).
+11. **The rest, by package:** the remaining correctness rows (retrieval dates and tabs, `describeExpr` parentheses, `would_change`, web charset, the report's External badge and negative bars, config parsing, the eval logs).
 12. **Cleanup:** dead code, duplication, names and docs drift, in a few PRs grouped by package.
 
 ## 4. Packages, in pipeline order
@@ -88,12 +88,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/schema` — the shared contracts (Zod schemas) for the report, metrics, config and events
 
-**What it does.** This package defines the shapes that every other package agrees on. It uses Zod, a library that both describes a shape and checks data against it at run time. The shapes are report v1, the metric YAML, the config file and the job events. It also holds `checkReportIntegrity`, which checks the cross-references Zod can't express: every `{{N12}}` placeholder names a real fact, every citation names a real source, and no model-written text holds a "free numeral" (a digit that isn't a placeholder). It renders each schema to JSON Schema so the committed `json/` files can be checked for drift. It reads no files and runs no SQL, and it never computes a number.
+**What it does.** This package defines the shapes every other package agrees on: report v1, the metric YAML, the config file and the job events. It uses Zod, a library that both describes a shape and checks data against it at run time. It also holds `checkReportIntegrity`, which checks the cross-references Zod can't express: every `{{N12}}` placeholder names a real fact, every citation names a real source, and no model-written text holds a "free numeral" (a digit that isn't a placeholder). It renders each schema to JSON Schema so the committed `json/` files can be checked for drift.
 
 **Data in → out.**
 - In: unknown JSON (a draft or final report) from `packages/core/src/job.ts` and `packages/verify/src/verify.ts`. YAML parsed by callers for `MetricFile` and `Config`. Model text strings handed to `findFreeNumerals` / `placeholders` by `packages/agent/src/{draft,explain,decide,summary,ask}.ts` and `packages/verify/src/verify.ts:218`.
 - Out: typed values or a list of `{ path, message }` issues (`packages/schema/src/validate.ts:4`). JSON Schema file bodies for `scripts/schema-drift.ts`.
 - Side effects: none in `src/`. `scripts/validate.ts` reads the report files named on the command line.
+- Does not: read files, run SQL or compute any number.
 
 **Main entry points.**
 - `validateReport` (`packages/schema/src/validate.ts:7`): Zod shape check first, then the integrity rules.
@@ -106,7 +107,7 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 | # | Kind | Where | What's wrong | Suggested fix |
 |---|---|---|---|---|
-| 1 | rule risk | `packages/schema/src/integrity.ts:25` (also `:23`, `:27`, `:36`) | The "dates" exemption is too wide, so model-made numbers get past the free-numeral guard (rule 2.1). I ran it. `"We lost 2000 customers"`, `"Revenue was 1999 in April"`, `"The top 3 may churn"` and `"Sales fell ٣٠٪"` all return `[]`. Line 25 treats any 1900–2099 number as a year. Line 23 reads "3 may" as a date. Line 36 uses `\d` without the `u` flag, so non-ASCII digits (Arabic-Indic and similar) are never seen. Line 27 also exempts anything in quotes. For claims, `packages/verify/src/verify.ts:223` checks quoted digits against the sources, but nothing does that for the other text fields this function guards (risk, action, questions, data-quality descriptions). The only test is two happy-path cases (`packages/schema/test/report.test.ts:132-135`). | Accept a bare year only when it sits inside the report's period or next to a month or "in/FY", and accept "N month" only with an unambiguous month word ("May" in title case, or a full month name followed by a year). Match `\p{Nd}` with the `u` flag. Add a table of adversarial cases to the test. |
+| 1 | rule risk | `packages/schema/src/integrity.ts:25` (also `:23`, `:27`, `:36`) | The "dates" exemption is too wide, so model-made numbers get past the free-numeral guard (rule 2.1). I ran it. `"We lost 2000 customers"`, `"Revenue was 1999 in April"`, `"The top 3 may churn"` and `"Sales fell ٣٠٪"` all return `[]`. Line 25 treats any 1900–2099 number as a year. Line 23 reads "3 may" as a date. Line 36 uses `\d`, which in JavaScript matches only ASCII digits (even with the `u` flag), so non-ASCII digits (Arabic-Indic and similar) are never seen. Line 27 also exempts anything in quotes. For claims, `packages/verify/src/verify.ts:223` checks quoted digits against the sources, but nothing does that for the other text fields this function guards (risk, action, questions, data-quality descriptions). The only test is two happy-path cases (`packages/schema/test/report.test.ts:132-135`). | Accept a bare year only when it sits inside the report's period or next to a month or "in/FY", and accept "N month" only with an unambiguous month word ("May" in title case, or a full month name followed by a year). Match `\p{Nd}` with the `u` flag. Add a table of adversarial cases to the test. |
 | 2 | correctness risk | `packages/schema/src/report.ts:35` (and `:24`) | `Source.locator` is a plain union that isn't tied to `kind`. A `kind: "web"` source with a `TableLocator`, or a `kind: "table"` source with a `DocLocator`, passes both Zod and integrity. A `DocLocator` with `char_end < char_start` also passes. The renderer and the verifier then trust a provenance pointer that can't point at anything. | Add a refine (or a discriminated union keyed by `kind`) that pairs table↔TableLocator, document/email↔DocLocator, web↔WebLocator, and checks `char_end >= char_start`. |
 | 3 | duplication | `packages/schema/src/report.ts:47`, `:159`, `:169` | The same enums are written out more than once. `FactUnit` repeats `MetricUnit` (`metric.ts:7`). The report's `period.grain` repeats `Grain` (`metric.ts:8`). `ModelRole` repeats the inline role enum in `events.ts:32`, and `packages/models/src/types.ts:5` keeps its own `Role` subset. Adding a unit or a grain in one place silently misses the others. | Reuse the one exported enum everywhere (`FactUnit = MetricUnit`, `grain: Grain`, `role: ModelRole`). Derive the models `Role` from `ModelRole.extract([...])`. |
 | 4 | complexity | `packages/schema/src/integrity.ts:89-94` | `f.drivers` is walked twice: once with `forEach` for the fact refs (line 89) and once with `entries()` for the label text (line 94). The two loops use different styles, and they're easy to update out of step. | Merge them into one loop over `f.drivers ?? []` that checks both facts and the label. |
@@ -116,12 +117,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/store` — the per-job DuckDB workspace: open, migrate, parameterized SQL, bulk load
 
-**What it does.** Each job gets one DuckDB database file. DuckDB is an embedded SQL database, much like SQLite but built for analytics. `Workspace.open` creates or opens that file and applies any schema migrations it hasn't run yet. Migrations are append-only, numbered table-creation steps. The `sql` tagged template turns every `${value}` into a numbered `$n` parameter, so data never becomes SQL text. Table and column names go through `ident()`, which accepts only lower snake_case. `loadJob` writes the ingested files, sources, one typed `t_<id>` table per detected table, and the quality issues. It deliberately knows nothing about metrics, facts or analysis. Those packages write their own rows through the same `Workspace`.
+**What it does.** Each job gets one DuckDB database file (DuckDB is an embedded SQL database, much like SQLite but built for analytics). `Workspace.open` creates or opens that file and applies any migrations (append-only, numbered table-creation steps) it hasn't run yet. The `sql` tagged template turns every `${value}` into a numbered `$n` parameter, so data never becomes SQL text, and `ident()` accepts only lower snake_case table and column names. `loadJob` writes the ingested files, sources, one typed `t_<id>` table per detected table, and the quality issues.
 
 **Data in → out.**
 - In: `LoadInput` (`packages/store/src/types.ts:91`) built by `packages/profile/src/job.ts`. `Sql` objects from every package that queries the workspace (analysis, metrics, core, retrieval, verify).
 - Out: rows as plain objects (`Workspace.all`, `packages/store/src/workspace.ts:36`), with BIGINT turned into a number when it is safe and dates into ISO strings. Writes go to the DuckDB file.
 - Side effects: creates and writes the DuckDB file (or an in-memory database). `duckdbVersion` opens a throwaway in-memory instance.
+- Does not: know about metrics, facts or analysis. Those packages write their own rows through the same `Workspace`.
 
 **Main entry points.**
 - `Workspace.open` (`packages/store/src/workspace.ts:19`): opens the file and runs pending migrations.
@@ -144,12 +146,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/models` (including `src/testing`) — the one door to language models: `ModelClient`, routing, retries, usage, and `FakeModel`
 
-**What it does.** This package hides every language model behind one small `ModelClient` interface with three methods: `generateObject` (a JSON answer checked against a Zod schema), `generateWithTools` (a loop where the model may call fixed tools) and `embed`. The real client (`ai-sdk.ts`) is the only file that imports the Vercel AI SDK. Both free providers (Ollama and OpenAI-compatible endpoints) go through the same OpenAI-style HTTP layer (`fetch.ts`). That layer retries rate limits, strips `reasoning_content`, caches answers, logs every call and masks secrets. A `Router` spreads one model across several providers and never switches to a different model. `FakeModel` gives scripted answers so tests never touch the network. The package does no embeddings itself (they are injected from `retrieval`) and has no paid providers.
+**What it does.** This package hides every language model behind one small `ModelClient` interface with three methods: `generateObject` (a JSON answer checked against a Zod schema), `generateWithTools` (a loop where the model may call fixed tools) and `embed`. The real client (`ai-sdk.ts`) is the only file that imports the Vercel AI SDK, and both free providers (Ollama and OpenAI-compatible endpoints) go through the same OpenAI-style HTTP layer (`fetch.ts`). That layer retries rate limits, strips `reasoning_content`, caches answers, logs every call and masks secrets. A `Router` spreads one model across several providers and never switches to a different model. `FakeModel` gives scripted answers so tests never touch the network.
 
 **Data in → out.**
 - In: a `Config` from `resolveModelConfig(env, file)` (`packages/models/src/config.ts:119`), called by `apps/cli/src/main.ts`. `GenerateObjectArgs` / `GenerateWithToolsArgs` (`packages/models/src/types.ts:43`, `:57`) from `packages/agent`, `metrics`, `verify` and `web`. A JSONL call log text for `parseCallLog` (`packages/models/src/usage.ts:103`) from `apps/cli/src/usage.ts`.
 - Out: validated objects, tool steps and `Usage`. `CallRecord`s through `ProviderDeps.onCall` (the CLI appends them to `data/logs/model-calls.jsonl`). Usage summaries for `aa usage`.
 - Side effects: HTTP to the configured endpoints (real client only). `fileCache` reads and writes `dir/<2 hex>/<key>.json`. `FakeModel` has none.
+- Does not: compute embeddings itself (they are injected from `retrieval`) or offer paid providers.
 
 **Main entry points.**
 - `createModelClient` (`packages/models/src/ai-sdk.ts:95`): the real `ModelClient` over the AI SDK.
@@ -174,12 +177,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/ingest` — files in, raw tables and document sections out, with provenance
 
-**What it does.** It is the INGEST stage. It takes the files a user uploads and turns them into two things: "tables" (rectangles of cells found inside spreadsheets and CSVs) and "sections" (pieces of text from PDFs, Word files, emails, Markdown and plain text). First it does intake for each file: it works out the real file type from its first bytes ("magic bytes"), takes a sha256 fingerprint to skip duplicates, and enforces size limits. Then it parses each file. Spreadsheet cells keep their type, formula text and sheet row, so every number can be traced back to a cell. Nothing is fatal: a bad file becomes an "issue" and the job goes on. It deliberately does NOT clean or type values ("1 234,56" stays text for `profile`), never evaluates formulas, never touches DuckDB, and only talks to the network through the optional Docling client.
+**What it does.** It is the INGEST stage: it turns uploaded files into "tables" (rectangles of cells found inside spreadsheets and CSVs) and "sections" (pieces of text from PDFs, Word files, emails, Markdown and plain text). For each file it first does intake: it works out the real file type from its first bytes ("magic bytes"), takes a sha256 fingerprint to skip duplicates, and enforces size limits. Then it parses the file, and spreadsheet cells keep their type, formula text and sheet row so every number can be traced back to a cell. Nothing is fatal: a bad file becomes an "issue" and the job goes on.
 
 **Data in → out.**
 - In: `InputFile[]` (`{ name, bytes }`, `src/types.ts:5`) plus `IngestOptions` (limits, optional `DoclingClient`, `src/ingest.ts:34`), from `core`'s job runner and the CLI.
 - Out: `IngestResult` (`src/types.ts:109`): `files`, `tables` (`TableRegion`, with sheet, A1 range and `_row` per row), `documents` (sections with page, heading path and character offsets), `documents_meta` (the full text the offsets point into, plus email headers) and `issues`. `profile.profileJob` consumes it.
 - Side effects: none, except an HTTP POST to docling-serve when a `DoclingClient` is passed (`src/docs/docling.ts:23`).
+- Does not: clean or type values ("1 234,56" stays text for `profile`), evaluate formulas, or touch DuckDB. Its only network use is the optional Docling client.
 
 **Main entry points.**
 - `ingest` (`src/ingest.ts:44`): intake loop, limits, dedupe, per-type dispatch, email attachments re-queued.
@@ -207,12 +211,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/profile` — the PROFILE stage: type, normalize, load, profile, flag, link entities
 
-**What it does.** It takes ingest's raw tables and decides each column's type: date, datetime, integer, decimal, currency, percent, boolean, category, id or text. It does this by majority vote over the column's values, including locale number formats and the day/month order of dates. It then normalizes every cell to that type and adds a `_period` key at the job's time grain. It loads everything into the job's DuckDB workspace (`t_<id>` tables, `sources`, `quality_issues`). Then it profiles each column and table in SQL (nulls, distinct values, median and MAD, duplicates, date coverage), runs "implausibility rules" (likely ×10/×100/×1000 typos, negative quantities, rates above 100%, future dates, missing ids or values, letter-prefixed ids), and links different spellings of the same customer, supplier or product. It deliberately does NOT draft metrics or compute any business number. Cells that don't fit their column's type are left empty and reported, never guessed.
+**What it does.** It takes ingest's raw tables and decides each column's type (date, datetime, integer, decimal, currency, percent, boolean, category, id or text) by majority vote over the column's values, including locale number formats and the day/month order of dates. It then normalizes every cell to that type, adds a `_period` key at the job's time grain, and loads everything into the job's DuckDB workspace (`t_<id>` tables, `sources`, `quality_issues`). Next it profiles each column and table in SQL (nulls, distinct values, median and MAD, duplicates, date coverage) and runs "implausibility rules" (likely ×10/×100/×1000 typos, negative quantities, rates above 100%, future dates, missing ids or values, letter-prefixed ids). Finally it links different spellings of the same customer, supplier or product.
 
 **Data in → out.**
 - In: `IngestResult` from `ingest` plus `{ today, grain? }` (`src/job.ts:26`), called by `core`'s job runner and the `profile` demo script.
 - Out: `ProfileSummary` (`src/job.ts:17`): table and column profiles, issues, entities, assumptions. `metrics.draftMetrics`/`buildDigest`, `core` (period range, partial last month) and `analysis` read it.
 - Side effects: DuckDB writes through `store.loadJob` (`src/job.ts:71`), plus `profile_columns`, `profile_tables`, `quality_issues`, `entities` and `entity_links` inserts (`src/stats.ts`, `src/rules.ts` via `job.ts:105`, `src/entities.ts:192-199`).
+- Does not: draft metrics or compute any business number. Cells that don't fit their column's type are left empty and reported, never guessed.
 
 **Main entry points.**
 - `profileJob` (`src/job.ts:26`): the whole stage.
@@ -238,12 +243,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/metrics` — draft, validate, confirm and compile metric definitions to SQL
 
-**What it does.** It is the metric layer between profiling and analysis. A model is asked to propose metric definitions (YAML-shaped JSON) from a "digest", a small summary of the tables, with sample cell values masked or withheld. If there is no model, or nothing valid comes back, it falls back to deterministic drafts built from column names (`revenue`, `orders`, `refund_rate`, channel revenue). Code then validates every proposal: tables, columns, types, units, ratio terms and derived references. The user can accept, edit or drop each one. Finally `compileMetric` turns a definition into one parameterized SQL statement (`period, groups…, value`). This is the "every number comes from SQL" boundary: model text only passes through a tiny parsed expression/filter language, never into SQL as raw text. It deliberately does NOT run analysis, decide which metrics matter, or let the model write SQL.
+**What it does.** It is the metric layer between profiling and analysis. A model proposes metric definitions (YAML-shaped JSON) from a "digest", a small summary of the tables with sample cell values masked or withheld; with no model or no valid answer, it falls back to deterministic drafts built from column names (`revenue`, `orders`, `refund_rate`, channel revenue). Code validates every proposal (tables, columns, types, units, ratio terms and derived references), and the user can accept, edit or drop each one. Finally `compileMetric` turns a definition into one parameterized SQL statement (`period, groups…, value`). This is the "every number comes from SQL" boundary: model text only passes through a tiny parsed expression/filter language, never into SQL as raw text.
 
 **Data in → out.**
 - In: `ProfileSummary` (from `profile`), a `Catalog` from `loadCatalog(ws)` (`src/catalog.ts`), optional `ModelClient` and `suspicious` screen (`src/draft.ts:56`). Callers: `packages/core/src/job.ts:297` and `apps/cli/src/metrics.ts:71`.
 - Out: `DraftResult`/`Validation` (accepted `MetricDef[]`, rejections with reasons, assumptions), `ReviewResult`, SQL `{ text, params }` from `compileMetric`/`compileMetricRows`. `analysis`, `verify` and `core` consume them.
 - Side effects: one model call (`src/draft.ts:70`); DuckDB reads (`loadCatalog`, `runMetric`) and writes to `metric_defs` (`src/persist.ts`). There is no file I/O (`file.ts` is text in, text out).
+- Does not: run analysis, decide which metrics matter, or let the model write SQL.
 
 **Main entry points.**
 - `draftMetrics` (`src/draft.ts:56`): digest, then model proposal, then validation, with deterministic `fallbackMetrics` (`:198`) if that fails.
@@ -268,12 +274,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/analysis` — the deterministic numbers core: measure, detect, decompose, rank, and turn every number into a fact
 
-**What it does.** This package turns confirmed metric definitions into findings. It measures each metric per period (and per dimension member, like each channel or product) through the metric compiler, which runs SQL in DuckDB. It then runs fixed "templates": small pure functions that each look for one kind of change, such as a period-over-period change, a trend, a level shift ("trend break") or an unusual spike ("anomaly"). It splits material changes into drivers ("decomposers": additive contribution, price–volume–mix, rate vs mix) and ranks the findings for the explain step. Every number becomes a `Fact`: measured numbers carry their SQL, parameters and cited source rows, and derived numbers carry the function name and the ids of their input facts. It does not call a model, write prose or decide what is causal. That happens in `packages/agent`.
+**What it does.** This package turns confirmed metric definitions into findings. It measures each metric per period (and per dimension member, like each channel or product) by running the metric compiler's SQL in DuckDB. Fixed "templates", small pure functions, each look for one kind of change: a period-over-period change, a trend, a level shift ("trend break") or an unusual spike ("anomaly"). "Decomposers" split material changes into drivers (additive contribution, price–volume–mix, rate vs mix), and the findings are ranked for the explain step. Every number becomes a `Fact`: measured numbers carry their SQL, parameters and cited source rows, and derived numbers carry the function name and the ids of their input facts.
 
 **Data in → out.**
 - In: `analyzeJob(ws, defs, catalog, { from, to, grain })` (`packages/analysis/src/runner.ts:91`), called by `packages/core/src/job.ts`. `MetricDef`s come from `@agentic-analytics/schema` and the `Catalog` from `@agentic-analytics/metrics`. Values are read through `runMetric` (`runner.ts:114`). The data-quality guard also reads the `quality_issues` table (`quality-guard.ts:292`). On demand, the agent's tools call `drillDown` (`slice.ts:96`), `scenarioFacts` (`slice.ts:210`) and `benchmarkFacts` (`slice.ts:364`) from `packages/agent/src/tools.ts` and `decide.ts`.
 - Out: an `AnalysisResult` (`runner.ts:65`) with facts, stored insights (`I1…`), stored decompositions (`X1…`), the top ids for EXPLAIN and open questions. `packages/agent` consumes it (claims, factsheet, explain, tools).
 - Side effects: DuckDB only. It writes to the `facts`, `insights` and `decompositions` tables (`runner.ts:557-579`, `slice.ts:182`, `slice.ts:280`, `slice.ts:391`) and reads them back (`slice.ts:20-73`). It does no network or file I/O.
+- Does not: call a model, write prose or decide what is causal. That happens in `packages/agent`.
 
 **Main entry points.**
 - `analyzeJob` (`src/runner.ts:91`): the whole pipeline, MEASURE → DETECT → DECOMPOSE → seasonal and data-quality filters → RANK → FACTS → persist.
@@ -303,12 +310,13 @@ Each PR fixes one theme, adds a test that fails before the fix, and goes through
 
 ### `packages/agent` — the planner side: EXPLAIN, DECIDE, the fixed tools, the injection screen and the quarantined extractor
 
-**What it does.** This package runs the two model-driven stages, EXPLAIN and DECIDE. The planner model never sees raw tables or raw documents. It gets a "fact sheet" (a JSON list of computed facts, each with an id, value, unit and label) and can only act through eight fixed tools. Each tool checks its input with Zod and runs deterministic engine code. Document and web text is read only by the "quarantined extractor": a second model call with no tools that returns structured extracts with exact quotes. A regex "screen" runs first and quarantines any source that seems to address a model. Code writes every sentence about a measured change (`observedClaim`, `decompositionClaims`). The model writes numbers only as `{{N…}}` placeholders, and DECIDE impact ranges are computed by code. The package does not verify claims (that is `packages/verify`), render HTML, or run any code the model writes.
+**What it does.** This package runs the two model-driven stages, EXPLAIN and DECIDE. The planner model never sees raw tables or documents: it gets a "fact sheet" (a JSON list of computed facts, each with an id, value, unit and label) and can act only through eight fixed tools, each of which checks its input with Zod and runs deterministic engine code. Document and web text is read only by the "quarantined extractor", a second model call with no tools that returns structured extracts with exact quotes, after a regex "screen" quarantines any source that seems to address a model. Code writes every sentence about a measured change (`observedClaim`, `decompositionClaims`) and computes DECIDE impact ranges. The model writes numbers only as `{{N…}}` placeholders.
 
 **Data in → out.**
 - In: a `ToolContext` (`packages/agent/src/tools.ts:54`) built by `packages/core/src/job.ts:440`. It holds the job's DuckDB `Workspace`, metric defs, stored insights and decompositions, a `ModelClient`, an `Embedder`, and an optional `WebLane`. The fact sheet comes from `buildFactSheet` (`src/factsheet.ts:39`). The DECIDE input is `DecideInput` (`src/decide.ts:151`). The ask flow takes a finished `Report` (`src/ask.ts:244`).
 - Out: `ExplainResult` (findings, dropped and downgraded claims, `src/explain.ts:144`). DECIDE returns recommendations plus dropped items (`src/decide.ts:207`). `buildDraft` returns the unverified report v1 draft (`src/draft.ts:261`), and `buildEvidence` returns evidence excerpts (`src/evidence.ts:396`).
 - Side effects: DuckDB writes to `extracts`, `quarantine`, `sources` (web pages `W…`), `web_results` and `facts` (quality-count facts in `draft.ts:201`, plus scenario and drill-down facts through `analysis`). Model calls go through `ModelClient`. Network access happens only through `packages/web`, via `search_web`.
+- Does not: verify claims (that is `packages/verify`), render HTML, or run any code the model writes.
 
 **Main entry points.**
 - `buildTools` (`src/tools.ts:127`): the eight fixed tools and the shared call `Budget` (`src/tools.ts:25`).
@@ -338,12 +346,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `packages/retrieval` — the RAG lane: chunk, embed, BM25 plus vector search, fuse, rerank, exact quotes
 
-**What it does.** It turns the job's document and email sections into chunks and stores them in DuckDB with embeddings and a BM25 full-text index. It answers queries with "hybrid search": BM25 top 50 plus exact cosine top 50, fused with Reciprocal Rank Fusion (RRF, a simple rank-merging formula), then optionally reordered by a cross-encoder reranker, keeping the top 8. Every chunk is an exact slice of the source text, so citation offsets stay true. `findQuote` checks that a quote is a real substring. The default embedder and reranker run in-process via ONNX, and `hashEmbedder` is a no-download fallback. It never touches tables, never calls a chat model, and never sends hit text to the planner (hits are marked `untrusted: true`).
+**What it does.** It splits the job's document and email sections into chunks and stores them in DuckDB with embeddings and a BM25 full-text index. It answers queries with "hybrid search": BM25 top 50 plus exact cosine top 50, fused with Reciprocal Rank Fusion (RRF, a simple rank-merging formula), optionally reordered by a cross-encoder reranker, keeping the top 8. Every chunk is an exact slice of the source text, so citation offsets stay true, and `findQuote` checks that a quote is a real substring. The default embedder and reranker run in-process via ONNX, and `hashEmbedder` is a no-download fallback.
 
 **Data in → out.**
 - In: rows of the `sources` table (`kind IN ('document','email')`) via `readSections` (`src/index-job.ts:49`, SQL in `src/retrieval.sql.ts:6`). Queries and filters come from the `search_documents` tool (`packages/agent/src/tools.ts:193`). An `Embedder` and optional `Reranker` are injected (`src/types.ts:44-54`).
 - Out: `IndexSummary` (`src/index-job.ts:16`) to core's INDEX_DOCS stage. `SearchResult` (hits, degraded parts and reasons, `src/types.ts:79`) to the agent's extractor. `Quote` objects (`src/cite.ts:8`).
 - Side effects: DuckDB (`chunks`, `retrieval_meta`, the FTS index, `INSTALL fts`), and model downloads to the cache directory on first use of `transformersEmbedder`/`transformersReranker`.
+- Does not: touch tables, call a chat model, or send hit text to the planner (hits are marked `untrusted: true`).
 
 **Main entry points.**
 - `indexDocuments` (`src/index-job.ts:83`): chunk, embed, store, build BM25.
@@ -367,12 +376,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `packages/web` — the web lane: query sanitizer, SearXNG provider, SSRF-safe fetcher, readable-text extraction
 
-**What it does.** When a job runs with `--web`, this package turns a planner query into a safe outbound search. The sanitizer strips private names, values, emails, phones, URLs and every number except years, matching on a folded, normalized form. The safe fetcher then fetches only result URLs. It allows only http(s) on ports 80 and 443 and blocks private or reserved addresses inside the socket's own DNS lookup, so there is no DNS-rebinding gap. It also re-checks every redirect and enforces a 10 s total deadline, a 3 MB cap and text content types. `htmlToText` keeps what a reader sees and separates out hidden text and comments, so the injection screen can read both. The package never calls a model, never stores anything, and never builds URLs from data.
+**What it does.** When a job runs with `--web`, this package turns a planner query into a safe outbound search. The sanitizer strips private names, values, emails, phones, URLs and every number except years, matching on a folded, normalized form. The safe fetcher fetches only result URLs, over http(s) on ports 80 and 443, and blocks private or reserved addresses inside the socket's own DNS lookup, so there is no DNS-rebinding gap. It also re-checks every redirect and enforces a 10 s total deadline, a 3 MB cap and text content types. `htmlToText` keeps what a reader sees and separates out hidden text and comments, so the injection screen can read both.
 
 **Data in → out.**
 - In: a raw query and `PrivateTerms` from the agent (`packages/agent/src/web.ts:57`, calling `webSearch` at `src/lane.ts:38`), plus a `SearchProvider` (`src/types.ts:31`). Core builds that from config.
 - Out: `WebSearchResult` (`src/lane.ts:18`): the query as sent, what was removed, pages (`url`, `title`, `text`, `hidden`), and skipped URLs with their error codes. The agent stores these pages as `W…` sources.
 - Side effects: network only. That means SearXNG (`src/searxng.ts:29`) and result URLs through `node:http`/`node:https` (`src/fetch.ts:101`). There is no disk and no DuckDB.
+- Does not: call a model, store anything, or build URLs from data.
 
 **Main entry points.**
 - `webSearch` (`src/lane.ts:38`): sanitize, search, fetch at most 3 pages, readable text.
@@ -396,12 +406,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `packages/verify` — the verifier: checks the draft report with passes V1–V8 and decides what ships
 
-**What it does.** VERIFY is the last gate before a report is written. It takes the draft that EXPLAIN and DECIDE wrote and checks it in two ways. First, it recomputes every number (V2) and re-derives the headline totals by a second route (V3); if any number disagrees, that is an engine bug and the whole job fails with a `diagnostics.json`. Second, it checks each claim (a sentence with `{{N…}}` placeholders): no stray numbers (V1), the right metric and definition (V4), the citations hold (V5), web numbers cite the web (V8), and causal words need a document (V6). A failing claim is dropped or reworded, and findings and recommendations that lose their support are dropped too (V7, the "cascade"). It never writes new numbers and never asks a model to compute anything. The only model call is the yes/no "judge" in V5.
+**What it does.** VERIFY is the last gate before a report is written: it checks the draft that EXPLAIN and DECIDE wrote in two ways. First, it recomputes every number (V2) and re-derives the headline totals by a second route (V3); any disagreement is an engine bug, and the whole job fails with a `diagnostics.json`. Second, it checks each claim (a sentence with `{{N…}}` placeholders): no stray numbers (V1), the right metric and definition (V4), the citations hold (V5), web numbers cite the web (V8), and causal words need a document (V6). A failing claim is dropped or reworded, and findings and recommendations that lose their support are dropped too (V7, the "cascade").
 
 **Data in → out.**
 - In: a draft `Report` and a `VerifyContext` (`packages/verify/src/verify.ts:26`): the job's DuckDB `Workspace`, metric definitions, catalog, grain, `periodEnd` and an optional judge `ModelClient`. Called by the VERIFY stage (`packages/core/src/job.ts:567`) and by follow-up questions (`packages/core/src/followup.ts:87`).
 - Out: `{ report, checks }` (`verify.ts:47`): the verified report with `verification` counts, dropped and downgraded claims, plus one `CheckRow` per check. On an engine bug it throws `VerifyError` (`packages/verify/src/recompute.ts:152`) with a diagnostic.
 - Side effects: reads `facts`, `sources` and the data tables in DuckDB, and re-runs SQL. `persistChecks` (`verify.ts:573`) rewrites the `verification` table. The judge is a model call (a network call unless it is the FakeModel).
+- Does not: write new numbers or ask a model to compute anything. The only model call is the yes/no "judge" in V5.
 
 **Main entry points.**
 - `verifyReport` (`packages/verify/src/verify.ts:108`): runs V2, the row check, V3, then the claim passes, the cascade, and a final integrity check.
@@ -439,12 +450,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `packages/report` — turns a verified `report.json` into one self-contained `report.html`, plus plain-text summaries for chat
 
-**What it does.** RENDER calls `renderReportHtml`, which uses React server-side rendering to build one static HTML file. The CSS and a small script are inlined, and the page makes no network requests. Each `{{N…}}` placeholder becomes a button. Clicking it opens a panel with the exact value, the SQL or function, the inputs and the citations. Each citation is a chip that shows the cited rows or quote in an Evidence panel. `reportSummaryText` gives the same content as plain text for the CLI, MCP and Telegram. The package only formats numbers for reading: it never computes a new number (the impact bar's width is presentation only).
+**What it does.** RENDER calls `renderReportHtml`, which uses React server-side rendering to build one static HTML file with its CSS and a small script inlined, so the page makes no network requests. Each `{{N…}}` placeholder becomes a button that opens a panel with the exact value, the SQL or function, the inputs and the citations. Each citation is a chip that shows the cited rows or quote in an Evidence panel. `reportSummaryText` gives the same content as plain text for the CLI, MCP and Telegram.
 
 **Data in → out.**
 - In: a validated `Report` (`packages/report/src/render.tsx:582`, `packages/report/src/text.ts:24`). Callers: RENDER (`packages/core/src/job.ts:609`), the CLI, MCP and Telegram (`apps/cli/src/analyze.ts:124`, `apps/mcp/src/server.ts:80`, `apps/telegram/src/bot.ts:82`).
 - Out: an HTML string, or plain text.
 - Side effects: none. The `render:fixture` script (`packages/report/scripts/render-fixture.ts`) writes `out/report.coffee-roaster.html`.
+- Does not: compute a new number. It only formats numbers for reading (the impact bar's width is presentation only).
 
 **Main entry points.**
 - `renderReportHtml` (`packages/report/src/render.tsx:582`): the full HTML document.
@@ -469,12 +481,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `packages/core` — the job runner: stage pipeline with checkpoints and resume, the event bus, logging, the job manager every door uses, and follow-up questions
 
-**What it does.** `runJob` runs one job inside a folder: inputs are copied to `input/`, and everything else goes in one DuckDB file. The stages run in a fixed order (INGEST → … → VERIFY → RENDER). `runPipeline` records each stage in `job_stages`. When a job runs again, completed stages are skipped, and a stage that failed or was interrupted is reset (its facts are deleted by id range, then its own `reset` runs) and run again. `JobManager` queues jobs one at a time and keeps `status.json` up to date. It streams events and backs the API, CLI, MCP and Telegram. `askJob` and `explainFact` answer questions about a finished job. Core never does analysis itself: every number comes from the packages it calls.
+**What it does.** `runJob` runs one job inside a folder: inputs are copied to `input/`, everything else goes in one DuckDB file, and the stages run in a fixed order (INGEST → … → VERIFY → RENDER). `runPipeline` records each stage in `job_stages`, so a rerun skips completed stages and resets and reruns a stage that failed or was interrupted (its facts are deleted by id range, then its own `reset` runs). `JobManager` queues jobs one at a time, keeps `status.json` up to date, streams events, and backs the API, CLI, MCP and Telegram. `askJob` and `explainFact` answer questions about a finished job.
 
 **Data in → out.**
 - In: input files and `JobOptions`, with deps (model, embedder, web) (`packages/core/src/job.ts:96`, `:83`). Called by the CLI (`apps/cli/src/run.ts:37`), by `JobManager.execute` (`packages/core/src/manager.ts:160`) and by docs scripts.
 - Out: a `JobOutcome` (`job.ts:106`). The files `report.draft.json`, `report.json`, `report.html`, `metrics.drafted.json` and `diagnostics.json` on an engine bug. `JobEvent`s are pushed to listeners.
 - Side effects: writes the job folder and its DuckDB tables (`job_stages`, `job_meta`, `events`, …), and deletes a workspace that never finished PROFILE. Model and web calls happen through deps.
+- Does not: do analysis itself. Every number comes from the packages it calls.
 
 **Main entry points.**
 - `runJob` (`packages/core/src/job.ts:216`): defines the 13 stages and runs them.
@@ -499,12 +512,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `apps/cli` — the `aa` command line: analyze, run, metrics, serve, mcp, jobs, eval, doctor, usage
 
-**What it does.** This is the `aa` command (built with the `citty` library). Every other door starts from it: `aa serve` starts the HTTP API and `aa mcp` starts the MCP server. It reads `.env` and the config file, builds the model client, the embedder (the model that turns text into vectors for search) and a `JobManager`, then runs a job and prints each stage. `aa analyze` adds a review in the terminal where you accept, edit or drop each drafted metric. `aa doctor` checks the machine and `aa usage` adds up token counts from the call log. It does no analysis of its own: numbers are printed from the report's facts and never computed again.
+**What it does.** This is the `aa` command (built with the `citty` library), and every other door starts from it: `aa serve` starts the HTTP API and `aa mcp` starts the MCP server. It reads `.env` and the config file, builds the model client, the embedder (the model that turns text into vectors for search) and a `JobManager`, then runs a job and prints each stage. `aa analyze` adds a review in the terminal where you accept, edit or drop each drafted metric. `aa doctor` checks the machine and `aa usage` adds up token counts from the call log.
 
 **Data in → out.**
 - In: file and folder paths and flags from the shell (`apps/cli/src/main.ts:203`, `:499`, `:594`), environment variables and `agentic-analytics.config.yaml` (`main.ts:39-41`), and review answers from stdin (`apps/cli/src/prompt.ts:27`).
 - Out: text on stdout and stderr. A report copied to `<out>/agentic-analytics/report.{json,html}` (`apps/cli/src/analyze.ts:118-122`). A metrics YAML file with `--save` (`main.ts:531`). An exit code.
 - Side effects: job folders under `AA_JOBS_DIR` (DuckDB files inside them), `data/logs/model-calls.jsonl` (`main.ts:80-89`), network calls to model providers, SearXNG and Docling (`apps/cli/src/doctor.ts:207`), a staged DuckDB library in the user's cache folder (`apps/cli/src/native-lib.ts:46`), and opening the HTML report with `--open` (`main.ts:225`).
+- Does not: do analysis of its own. Numbers are printed from the report's facts and never computed again.
 
 **Main entry points.**
 - `main` (`apps/cli/src/main.ts:669`): the citty command tree. `runtime()` (`:102`) wires models, the embedder, the web lane and the manager for most commands.
@@ -530,12 +544,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `apps/server` — the HTTP API (Hono + zod-openapi), plus the viewer and `/mcp` mount
 
-**What it does.** It exposes the job manager over HTTP: upload files, follow events over SSE (Server-Sent Events, a one-way stream of events over HTTP), review metrics, then get the report, ask follow-up questions and explain a number. Requests are checked against Zod schemas, and the same schemas generate `/openapi.json`. It guards against DNS rebinding with a Host/Origin allowlist (DNS rebinding is when a web page tricks the browser into sending requests to 127.0.0.1). It adds an optional bearer token compared in constant time, refuses to listen on a network address without a token, and hides internal error messages behind a generic 500. Each route is a thin call into the manager: no engine logic lives here. Upload file names are sanitized in core (`packages/core/src/manager.ts:126-134`), not here.
+**What it does.** It exposes the job manager over HTTP: upload files, follow events over SSE (Server-Sent Events, a one-way stream of events over HTTP), review metrics, then get the report, ask follow-up questions and explain a number. Requests are checked against Zod schemas, and the same schemas generate `/openapi.json`. A Host/Origin allowlist guards against DNS rebinding (a web page tricking the browser into sending requests to 127.0.0.1). It adds an optional bearer token compared in constant time, refuses to listen on a network address without a token, and hides internal error messages behind a generic 500.
 
 **Data in → out.**
 - In: HTTP requests. A multipart upload with `files[]` and an `options` JSON (`apps/server/src/app.ts:163-185`), a YAML body for metric confirmation (`:279`), and JSON `{question}` (`:312`).
 - Out: JSON status, report and answers, `report.html`, an SSE stream (`:225-247`), and static viewer files (`:418-441`).
 - Side effects: through the manager it creates, resumes and deletes job folders. It reads `apps/viewer/dist`. A health check can call the planner model (`apps/cli/src/main.ts:265-281`, cached for one minute).
+- Does not: hold engine logic; each route is a thin call into the manager. Upload file names are sanitized in core (`packages/core/src/manager.ts:126-134`), not here.
 
 **Main entry points.**
 - `createApp(manager, options)` (`apps/server/src/app.ts:87`): the Hono app with every route and middleware.
@@ -560,12 +575,13 @@ Related, already reported elsewhere (not repeated): the `noNumerals` checks in `
 
 ### `apps/mcp` — the MCP server (stdio for local clients, streamable HTTP at `/mcp`)
 
-**What it does.** It gives MCP clients such as Claude Desktop five tools: `analyze_files`, `get_report`, `confirm_metrics`, `ask_report` and `explain_number`. It also offers two resources, the report as JSON and as HTML. (MCP, the Model Context Protocol, is a standard way for an AI app to call tools.) Every tool description tells the calling model to quote numbers and never recalculate them. Over stdio, the caller is the user's own client, so `analyze_files` may read any local path. Over HTTP, local paths are off unless `AA_MCP_ROOTS` names folders. In that case paths are resolved through symlinks and must stay inside a root. Like the other doors, it only calls the job manager.
+**What it does.** It gives MCP clients such as Claude Desktop five tools (`analyze_files`, `get_report`, `confirm_metrics`, `ask_report`, `explain_number`) and two resources, the report as JSON and as HTML. (MCP, the Model Context Protocol, is a standard way for an AI app to call tools.) Every tool description tells the calling model to quote numbers and never recalculate them. Over stdio the caller is the user's own client, so `analyze_files` may read any local path. Over HTTP, local paths are off unless `AA_MCP_ROOTS` names folders, and then paths are resolved through symlinks and must stay inside a root.
 
 **Data in → out.**
 - In: JSON-RPC tool calls with Zod-checked arguments (`apps/mcp/src/server.ts:94-102`, `:131`, `:151`, `:167`, `:190`), and local file paths (`:108-110`).
 - Out: MCP text content (summaries, JSON reports, answers, explanations) and tool errors (`:56-61`). Over HTTP, a `Response` per request (`apps/mcp/src/http.ts:7-14`).
 - Side effects: reads local files inside the allowed roots. Creates jobs through the manager.
+- Does not: do engine work. Like the other doors, it only calls the job manager.
 
 **Main entry points.**
 - `createMcpServer(manager, options)` (`apps/mcp/src/server.ts:75`): registers the tools and resources.
@@ -590,12 +606,13 @@ The options-validation drift (no objective cap, `currency` not checked as letter
 
 ### `apps/telegram` — the Telegram demo bot (grammY, long polling) that talks to the HTTP API
 
-**What it does.** A user sends files, then a question or `/analyze` (or puts the question in a file's caption). The bot uploads the files to the engine's HTTP API with `auto_confirm=true`. It edits one status message as stages pass, then replies with a short summary and `report.html` as a document. It talks to the engine only through the public API (`ApiClient`), as a remote user would. Access is limited to `TELEGRAM_ALLOWED_CHATS`, and the bot refuses to start without that list unless `TELEGRAM_PUBLIC=1`. It never does analysis, and it never shows raw error messages in the chat.
+**What it does.** A user sends files, then a question or `/analyze` (or puts the question in a file's caption). The bot uploads the files to the engine's HTTP API with `auto_confirm=true`, edits one status message as stages pass, then replies with a short summary and `report.html` as a document. It talks to the engine only through the public API (`ApiClient`), as a remote user would. Access is limited to `TELEGRAM_ALLOWED_CHATS`, and the bot refuses to start without that list unless `TELEGRAM_PUBLIC=1`.
 
 **Data in → out.**
 - In: Telegram updates (documents, text, captions, commands) via long polling (`apps/telegram/src/bot.ts:104-129`). File bytes are downloaded from the Bot API (`bot.ts:44-50`).
 - Out: Telegram messages and a `report.html` document (`bot.ts:80-84`). HTTP calls to the engine API (`apps/telegram/src/client.ts:46-92`).
 - Side effects: network (Telegram and the engine API). Files are held in memory per chat until a job starts (`bot.ts:43`).
+- Does not: do analysis, or show raw error messages in the chat.
 
 **Main entry points.**
 - `createBot(token, api, options)` (`apps/telegram/src/bot.ts:41`): handlers, the allowlist middleware and the error catcher.
@@ -622,12 +639,13 @@ The SSE parser and request helper copied between `client.ts:35-82` and the viewe
 
 ### `apps/viewer` — the web viewer (Vite + React): upload, live stages, metric confirmation, embedded report
 
-**What it does.** A small single-page app served by `aa serve` at `/`. You choose files and an objective, then watch the pipeline stages light up as SSE events arrive. If you asked to review metrics, you edit the drafted YAML and confirm. When the job is done, the report is shown inside a sandboxed iframe. The live state is a pure reducer from job events, so it is tested without a browser. It reads SSE with `fetch` (not `EventSource`) so it can send the bearer token. It does no analysis and holds no data beyond the page.
+**What it does.** A small single-page app served by `aa serve` at `/`. You choose files and an objective, then watch the pipeline stages light up as SSE events arrive. If you asked to review metrics, you edit the drafted YAML and confirm, and when the job is done the report is shown inside a sandboxed iframe. The live state is a pure reducer from job events, so it is tested without a browser. It reads SSE with `fetch` (not `EventSource`) so it can send the bearer token.
 
 **Data in → out.**
 - In: user files and form fields (`apps/viewer/src/App.tsx:57-115`), the API's JSON and SSE (`apps/viewer/src/api.ts:14-72`), and the token from `localStorage["aa-token"]` (`App.tsx:34-40`).
 - Out: API calls (create job, confirm metrics) and the rendered page. The report HTML goes into `<iframe srcDoc sandbox="allow-scripts">` (`App.tsx:156`).
 - Side effects: network calls to the same-origin API only.
+- Does not: do analysis, or hold data beyond the page.
 
 **Main entry points.**
 - `App` (`apps/viewer/src/App.tsx:42`): hash routing between the upload page and a job page.
@@ -649,12 +667,13 @@ The SSE parser and request helper copied between `client.ts:35-82` and the viewe
 
 ### `evals/runner` — runs the eval suites, scores each report against its answer key, and publishes RESULTS.md
 
-**What it does.** This is the eval harness behind `aa eval`. For each dataset it runs a full engine job in a temporary folder and scores the finished `report.json` against the dataset's answer key. It then rolls the scores up into the "bars" of docs/EVALS.md §2 and writes a results JSON plus `evals/RESULTS.md`. A finding is matched to a planted event by its *subject*: the metric, member and periods read from the fact labels of its first claim, which code wrote. It never matches on wording, so a model can't score by saying the right words. It also runs the real-data tier (`real.ts`), carries a nightly run over two passes (`planResume`), and merges chunked runs. It does not judge citations itself: it copies the engine verifier's own counts.
+**What it does.** This is the eval harness behind `aa eval`. For each dataset it runs a full engine job in a temporary folder, scores the finished `report.json` against the dataset's answer key, and rolls the scores up into the "bars" of docs/EVALS.md §2, written to a results JSON plus `evals/RESULTS.md`. A finding is matched to a planted event by its *subject*: the metric, member and periods read from the fact labels of its first claim, which code wrote. It never matches on wording, so a model can't score by saying the right words.
 
 **Data in → out.**
 - In: `AnswerKey` and `Dataset` from `@agentic-analytics/eval-generator` (`suiteDatasets`, evals/runner/src/run.ts:18); a model factory plus an embedder from the CLI (`EvalDeps`, evals/runner/src/cli.ts:94; wired in apps/cli/src/main.ts:467); real-tier answer files via `parseRealAnswers` (evals/runner/src/real.ts:196).
 - Out: `SuiteResult` / `RealSuiteResult` JSON in `evals/results/<date>-<model>-<suite>.json` and the `evals/RESULTS.md` page (cli.ts:280–283, cli.ts:344–345). It also returns the bars, which apps/cli/src/main.ts:485 turns into the exit code.
 - Side effects: temporary job folders (DuckDB inside) created and removed per dataset (run.ts:281, run.ts:312); results files written, renamed to `.bad`, or deleted (cli.ts:208, 224, 282); optional kept reports and drafts (`--keep-reports`). Network only through the injected model client.
+- Also: it runs the real-data tier (`real.ts`), carries a nightly run over two passes (`planResume`), and merges chunked runs. It does not judge citations itself: it copies the engine verifier's own counts.
 
 **Main entry points.**
 - `evalCommand` (evals/runner/src/cli.ts:187): the `aa eval --suite smoke|full` command. Plans the pass, runs the suite, writes the files.
@@ -709,12 +728,15 @@ The SSE parser and request helper copied between `client.ts:35-82` and the viewe
 
 ### `evals/datasets` — the hand-built datasets (coffee-roaster-v1, printing-shop-v1), the injection fixtures, and small file writers
 
-**What it does.** It holds the hand-built golden dataset coffee-roaster-v1: a monthly ground-truth table in integer cents, orders generated to add up to it *exactly*, a price-list PDF, an email and ops notes. It also holds `buildGoldenReport`, the reference report fixture. printing-shop-v1 is a 47-file document corpus used by the retrieval eval. `injectionFixtures` builds the 20+ poisoned inputs of the security suite. It ships tiny deterministic writers for PDF, ZIP/DOCX and EML so fixtures never drift. The eval runner does not score these datasets; they feed unit tests, the docs and the retrieval/injection suites.
+*`evals/injection` (the injection fixtures' build script and README) is covered here: the fixtures it builds are `injectionFixtures`.*
+
+**What it does.** It holds the hand-built golden dataset coffee-roaster-v1 (a monthly ground-truth table in integer cents, orders generated to add up to it *exactly*, a price-list PDF, an email and ops notes), plus `buildGoldenReport`, the reference report fixture. printing-shop-v1 is a 47-file document corpus used by the retrieval eval. `injectionFixtures` builds the 20+ poisoned inputs of the security suite. It ships tiny deterministic writers for PDF, ZIP/DOCX and EML so fixtures never drift.
 
 **Data in → out.**
 - In: nothing at runtime. The ground truth is constants (evals/datasets/src/coffee-roaster.ts:25).
 - Out: file bytes by name (`coffeeRoasterFiles`, evals/datasets/src/index.ts:14; `printingShopFiles`, printing-shop.ts:337; `injectionFixtures`, injection.ts:57) and the golden `Report` (golden-report.ts:38). Consumers include packages/core tests, apps/docs/scripts, scripts/test and the generator (which imports `docx`, `eml`, `textPdf`, `allocate`, `rng`).
 - Side effects: none in `src/`. The build scripts write `coffee-roaster-v1/files`, `printing-shop-v1/files` and `evals/injection/fixtures`.
+- Used by: unit tests, the docs and the retrieval/injection suites. The eval runner does not score these datasets.
 
 **Main entry points.**
 - `coffeeRoasterFiles()` / `goldenReportJson()` (evals/datasets/src/index.ts:14, :29).
@@ -735,7 +757,7 @@ The SSE parser and request helper copied between `client.ts:35-82` and the viewe
 
 ### `evals/real` — downloads and checksums the public datasets, derives the files the engine reads, and defines the answer-file schema
 
-**What it does.** For each public dataset (UCI Online Retail II, Stats NZ card spend), it downloads the archive and verifies the SHA-256 of the download, of the archive entry, and of a deterministically derived file. It writes them to the gitignored `evals/real/data/`. It also defines the Zod schema for the answer files (`answers/*.yaml`), whose expected numbers come from SQL written in the file. Running and scoring live in evals/runner (`real.ts`). It never commits data, and every side effect of `fetchDataset` is injected, so the tests use no network.
+**What it does.** For each public dataset (UCI Online Retail II, Stats NZ card spend), it downloads the archive, verifies the SHA-256 of the download, of the archive entry, and of a deterministically derived file, and writes them to the gitignored `evals/real/data/`. It also defines the Zod schema for the answer files (`answers/*.yaml`), whose expected numbers come from SQL written in the file. Running and scoring live in evals/runner (`real.ts`). It never commits data, and every side effect of `fetchDataset` is injected, so the tests use no network.
 
 **Data in → out.**
 - In: `RealDataset` entries (evals/real/src/manifest.ts:34) and injected `fetch`/`read`/`write`/`print` (fetch.ts:28–33); answer YAML text for `parseRealAnswers` (answers.ts:89).
@@ -765,12 +787,13 @@ The real tier's scoring gaps (the `verified` check reading always-zero fields, a
 
 ### `scripts/` (build and ops) — the gate, the machine-wide heavy-job lock, the nightly eval pass, notifications, and generated-file checks
 
-**What it does.** These are the repo's own tools, not product code. `gate.sh` is the pre-push quality gate. `heavy.sh` serializes heavy jobs across worktrees with `flock` and waits for free RAM (AGENTS.md §9). `eval-daily.sh` runs one real-model eval pass a night and sends a summary through `notify.sh` (Telegram, optional). `schema-drift.ts` and `prompts-gen.ts` check that generated JSON Schema and inlined prompts match their sources. `readme-assets/*` generates the README tables, status line, hero SVGs and GIF checks from committed results. The other scripts (`autopilot.sh`, `check-bun-runtime.sh`, `hooks/*`, `build-binary.ts`) were read for context only.
+**What it does.** These are the repo's own tools, not product code. `gate.sh` is the pre-push quality gate, and `heavy.sh` serializes heavy jobs across worktrees with `flock` and waits for free RAM (AGENTS.md §9). `eval-daily.sh` runs one real-model eval pass a night and sends a summary through `notify.sh` (Telegram, optional). `schema-drift.ts` and `prompts-gen.ts` check that generated JSON Schema and inlined prompts match their sources, and `readme-assets/*` generates the README tables, status line, hero SVGs and GIF checks from committed results.
 
 **Data in → out.**
 - In: the repo tree; `evals/results/*.json` (assets.ts:62–198); `packages/agent/prompts/*.md` (prompts-gen.ts:9); Zod schemas (schema-drift.ts:5); `AA_TG_TOKEN`/`AA_TG_CHAT` from the environment or `~/.config/agentic-analytics/telegram.env` (notify.sh:7–20).
 - Out: exit codes for `bun run check`; generated README.md, docs/ARCHITECTURE.md, evals/RESULTS.md and hero SVGs (assets.ts:316); per-day logs in `data/logs/` (eval-daily.sh:33); one Telegram message.
 - Side effects: a lock file in `/tmp` (heavy.sh:27), network (notify.sh:22), file writes, `ffmpeg`/Playwright child processes (readme-assets).
+- Not reviewed: the other scripts (`autopilot.sh`, `check-bun-runtime.sh`, `hooks/*`, `build-binary.ts`) were read for context only.
 
 **Main entry points.**
 - `scripts/gate.sh` (whole file): install, then `bun run check`, under the heavy lock.
@@ -798,12 +821,13 @@ The real tier's scoring gaps (the `verified` check reading always-zero fields, a
 
 ### `apps/docs/scripts` (data scripts only) — generate the docs site's data from real offline engine runs
 
-**What it does.** These scripts make sure nothing on the docs site is typed by hand. `generate.ts` runs the real engine on the coffee-roaster example with the scripted planner and writes the islands' JSON. It also writes the HTTP API page from the server's own OpenAPI spec, the report-schema page from the JSON Schema, and the eval numbers via the runner's own `summarize()`. `pipeline-data.ts`, `landing-data.ts` and `learn-data.ts` record one web-enabled run (plus CLI, MCP and router sessions) into checked-in JSON. `site-assets.ts` renders og.png and favicon.ico with a recorded input hash. The site's components were not reviewed (the site is design-frozen).
+**What it does.** These scripts make sure nothing on the docs site is typed by hand. `generate.ts` runs the real engine on the coffee-roaster example with the scripted planner and writes the islands' JSON, the HTTP API page from the server's own OpenAPI spec, the report-schema page from the JSON Schema, and the eval numbers via the runner's own `summarize()`. `pipeline-data.ts`, `landing-data.ts` and `learn-data.ts` record one web-enabled run (plus CLI, MCP and router sessions) into checked-in JSON. `site-assets.ts` renders og.png and favicon.ico with a recorded input hash.
 
 **Data in → out.**
 - In: `coffeeRoasterFiles()` and `coffeePlanner()`/`coffeeWeb()` (offline), `evals/results/*.json`, `CHANGELOG.md`, `packages/schema/json/report.schema.json`.
 - Out: `apps/docs/src/data/*.json` and generated content pages (gitignored, generate.ts:36–42); checked-in `docs/assets/readme/pipeline.json` (pipeline-data.ts:233) and `docs/assets/learn/learn.json` (learn-data.ts:1173); `public/og.png`, `public/favicon.ico` and `scripts/site-assets.json`.
 - Side effects: temporary job folders and DuckDB files (removed in `finally`), spawned `aa` processes (learn-data.ts:510), Playwright Chromium (site-assets.ts:84).
+- Not reviewed: the site's components (the site is design-frozen).
 
 **Main entry points.**
 - `apps/docs/scripts/generate.ts` (whole file): runs before every docs build.
