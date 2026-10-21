@@ -2062,8 +2062,8 @@
         "model": "gpt-oss-120b",
         "status": 200,
         "cached": true,
-        "inputTokens": 412,
-        "outputTokens": 18,
+        "inputTokens": 0,
+        "outputTokens": 0,
         "error": null
       },
       {
@@ -2073,8 +2073,8 @@
         "model": "gpt-oss-120b",
         "status": 200,
         "cached": true,
-        "inputTokens": 412,
-        "outputTokens": 18,
+        "inputTokens": 0,
+        "outputTokens": 0,
         "error": null
       }
     ],

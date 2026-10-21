@@ -164,14 +164,26 @@ export interface DatasetScore {
   readonly actionRelevant?: boolean;
   readonly seconds: number;
   readonly tokens: { readonly input: number; readonly output: number };
-  /** Which provider and model served each call of this dataset (M13a). */
-  readonly routes?: {
-    readonly role: string;
-    readonly route: string;
-    readonly calls: number;
-    readonly cached: number;
-    readonly failed: number;
-  }[];
+  /** Which provider and model served each call of this dataset (M13a), with the tokens they spent (M14a). */
+  readonly routes?: RouteUse[];
+}
+
+/**
+ * Calls per route (role · provider · model as sent), with how many came from the cache, and the tokens they spent
+ * (M14a): the provider's usage per call, 0 for a cached call, nothing for a call with no count (`unknownTokens`
+ * counts those). Results written before M14a have no token fields.
+ */
+export interface RouteUse {
+  readonly role: string;
+  readonly route: string;
+  readonly calls: number;
+  readonly cached: number;
+  /** HTTP status ≥ 400 or no response (status 0), as `aa usage` counts it. */
+  readonly failed: number;
+  readonly inputTokens?: number;
+  readonly outputTokens?: number;
+  /** Live calls with no token count in the provider's response. */
+  readonly unknownTokens?: number;
 }
 
 /**

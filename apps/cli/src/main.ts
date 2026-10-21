@@ -11,8 +11,10 @@ import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
   type CallRecord,
   createModelClient,
+  dailyTokenLimit,
   fileCache,
   type ModelClient,
+  ModelError,
   profileFor,
   Router,
   resolveModelConfig,
@@ -31,6 +33,7 @@ import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
 import { embedderChoice, isStandalone, onlyIds, onlyProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
+import { UsageError, usageCommand } from "./usage.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -532,6 +535,42 @@ const metrics = defineCommand({
   },
 });
 
+const usage = defineCommand({
+  meta: {
+    name: "usage",
+    description: "Tokens and calls per day, per role and per route, against each route's free-tier daily limit",
+  },
+  args: {
+    day: { type: "string", description: "One UTC day, YYYY-MM-DD (default: every day in the log, newest first)" },
+    log: { type: "string", description: "The call log to read (default data/logs/model-calls.jsonl); never written" },
+    json: { type: "boolean", description: "Print JSON instead of text" },
+  },
+  run({ args }) {
+    // The limits come from the route config (models §4): the built-in presets plus the config file's endpoints.
+    let config: ReturnType<typeof resolveModelConfig>;
+    try {
+      config = resolveModelConfig(process.env, configFile());
+    } catch (err) {
+      process.stderr.write(`Model config not usable (${err instanceof Error ? err.message : String(err)}); using the built-in limits.\n`);
+      config = resolveModelConfig({});
+    }
+    try {
+      process.stdout.write(
+        usageCommand(args.log ?? join("data", "logs", "model-calls.jsonl"), {
+          ...(args.day !== undefined ? { day: args.day } : {}),
+          ...(args.json ? { json: true } : {}),
+          limitOf: (r) => dailyTokenLimit(config, r),
+        }),
+      );
+    } catch (err) {
+      // A missing log or a bad --day is a usage mistake: one line, no stack.
+      if (!(err instanceof UsageError || (err instanceof ModelError && err.code === "INVALID_ARGUMENT"))) throw err;
+      process.stderr.write(`aa usage: ${err.message}\n`);
+      process.exitCode = 1;
+    }
+  },
+});
+
 const run = defineCommand({
   meta: { name: "run", description: "Run a full job on files (or --resume a job folder) and write the draft report" },
   args: {
@@ -627,7 +666,7 @@ const run = defineCommand({
 
 export const main = defineCommand({
   meta: { name: "aa", description: "agentic-analytics: files in, verified report out" },
-  subCommands: { analyze, ask, explain, serve: serveCmd, mcp, jobs, eval: evalCmd, doctor, metrics, run },
+  subCommands: { analyze, ask, explain, serve: serveCmd, mcp, jobs, eval: evalCmd, doctor, metrics, run, usage },
 });
 
 await runMain(main);
