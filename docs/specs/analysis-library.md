@@ -156,7 +156,7 @@ Then the lead order (M14a). Small-model mode explains only 3 findings. With a re
 1. **The lead.** This is the objective's own family first when it carries at least half the best family first's score, else the best family first. Gross margin often scores a little higher on the same event, but the report is about the objective.
 2. **The rate story.** This is the percent-unit family first with the largest relative change.
 3. **The member story.**
-4. **The other family firsts.**
+4. **The other family firsts.** Those with no measured change (score 0: counts, trends) come after every material one.
 5. Everything else, by score.
 
 In 2, 3 and 4, a change in another period than the lead's comes before one in the lead's period. A change in the lead's period, in any metric and either direction, is usually the lead event seen through another measure, while a change in another period is another event.

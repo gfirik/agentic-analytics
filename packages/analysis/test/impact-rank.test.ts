@@ -204,6 +204,41 @@ describe("ranking (spec §6)", () => {
       "total_revenue",
       "total_revenue|product=Old",
     ]);
+    // The objective leads when it carries at least half the best family's score: gross margin restates the same drop
+    // a little higher. Below half, the best family leads.
+    const margin = [
+      mk({ metric: "gross_margin", score: 0.12, unit: "currency" }),
+      mk({ metric: "revenue", score: 0.07, unit: "currency" }),
+    ];
+    expect(topForExplain(margin, 1, { objective: "revenue" })[0]?.insight.metric).toBe("revenue");
+    expect(topForExplain(margin, 1)[0]?.insight.metric).toBe("gross_margin");
+    expect(
+      topForExplain(
+        [mk({ metric: "gross_margin", score: 0.12, unit: "currency" }), mk({ metric: "revenue", score: 0.05, unit: "currency" })],
+        1,
+        { objective: "revenue" },
+      )[0]?.insight.metric,
+    ).toBe("gross_margin");
+    // Another event comes before a restatement of the lead's period: a rate break three months earlier takes the rate
+    // slot from a larger rate move in the lead's own period, and the same holds for members. A family with no measured
+    // change (score 0) comes after every material one, whatever its period.
+    const periods = [
+      mk({ metric: "revenue", score: 0.12, unit: "currency" }),
+      mk({ metric: "margin_rate", score: 0.04, unit: "percent", pct: -40 }),
+      mk({ metric: "refund_rate", score: 0.02, unit: "percent", pct: 150, period: "2026-03" }),
+      mk({ metric: "revenue", score: 0.05, unit: "currency", member: "Same", pct: -90 }),
+      mk({ metric: "revenue", score: 0.03, unit: "currency", member: "Old", pct: -60, period: "2026-01" }),
+      mk({ metric: "orders_count", score: 0, unit: "count", period: "2026-02" }),
+      mk({ metric: "net_profit", score: 0.08, unit: "currency" }),
+    ];
+    expect(topForExplain(periods, 6, { objective: "revenue" }).map((r) => r.insight.series)).toEqual([
+      "revenue",
+      "refund_rate",
+      "revenue|product=Old",
+      "net_profit",
+      "margin_rate",
+      "orders_count",
+    ]);
     // Without the objective named, the slice speaks (its id isn't `<prefix>_total_revenue`).
     expect(topForExplain(sliced, 2).map((r) => r.insight.series)).toEqual(["total_revenue", "revenue_by_channel_walkin|product=Old"]);
   });

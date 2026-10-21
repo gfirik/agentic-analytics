@@ -187,7 +187,7 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   // A member change on a slice (a channel's revenue) speaks through the objective's or its parent metric's change for
   // the same member and period, as a family's slot does: "Flyers A5 revenue fell", not "walk-in revenue for Flyers A5
   // fell". Drafted slice names often don't share the parent's id (`revenue_by_channel_walkin` next to `total_revenue`),
-  // so the objective counts as a parent too (replayed 2026-10-19 drafts).
+  // so the objective counts as a parent too (the 2026-10-20 nightly drafts, replayed).
   const parentOf = (r: Ranked) =>
     reps.find(
       (x) =>
@@ -205,7 +205,11 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   const rate = rest
     .filter((r) => insightChange(r.insight)?.unit === "percent")
     .sort((a, b) => otherEventsFirst(a, b) || Math.abs(relativeChange(b)) - Math.abs(relativeChange(a)) || b.score - a.score)[0];
-  const others = [...rest].sort(otherEventsFirst).filter((r) => r !== rate);
+  // A family first with no measured change (a count, a trend) scores 0: material families come before it, whatever
+  // the period, so normal mode's slots 4–7 aren't spent on them.
+  const others = [...rest]
+    .sort((a, b) => Number(a.score === 0) - Number(b.score === 0) || otherEventsFirst(a, b))
+    .filter((r) => r !== rate);
   const lead = [...(primary ? [primary] : []), ...(rate ? [rate] : []), ...(member ? [member] : []), ...others];
   return [...lead, ...reps.filter((r) => !lead.includes(r))].slice(0, max);
 }
