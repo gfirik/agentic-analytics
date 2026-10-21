@@ -6,6 +6,7 @@ import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import { runMetric } from "@agentic-analytics/metrics";
 import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
+import { beyondKeys } from "./decompose.ts";
 import { AnalysisError, FactBook, type SeriesInfo } from "./factbook.ts";
 import { impactRange, type Scenario } from "./impact.ts";
 import { otherFilter, persistFacts, type StoredDecomposition, type StoredInsight } from "./runner.ts";
@@ -177,6 +178,7 @@ export async function drillDown(ws: Workspace, defs: readonly MetricDef[], catal
     facts[`change:${c.key}`] = scope.get(c.delta.name) ?? "";
     facts[`share:${c.key}`] = scope.get(c.share.name) ?? "";
   }
+  for (const [key, name] of insight.contribution ? beyondKeys(insight.contribution) : []) facts[key] = scope.get(name) ?? "";
   await persistFacts(ws, book.facts);
   return { metric: def.id, dimension: q.dimension, before, after: q.period, facts, newFacts: book.facts };
 }

@@ -9,8 +9,10 @@ export {
   noiseBand,
 } from "./baselines.ts";
 export {
+  beyondKeys,
   type Contribution,
   contribution,
+  contributionCalcs,
   type DiffCombination,
   diff,
   type EventGroup,

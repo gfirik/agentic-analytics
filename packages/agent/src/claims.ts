@@ -116,6 +116,37 @@ export function topDrivers(ds: readonly StoredDecomposition[], facts: ReadonlyMa
   ];
 }
 
+/**
+ * A top member that moved by more than the whole change (a share over 100%, members offsetting each other) reads
+ * as an error when stated as a share ("wholesale accounted for 108% of the change"), so it is stated in magnitudes:
+ * "wholesale fell 8,500, more than the whole drop; retail rose 600" (the drop itself is the sentence before). Only when
+ * the decomposition recorded
+ * the comparison as a fact (`exceeds:<member>` = 1, analysis-library §4.1); the claim cites it, and the verifier
+ * recomputes it and refuses "more than the whole" without it.
+ */
+function beyondClaim(
+  d: StoredDecomposition,
+  member: string,
+  facts: ReadonlyMap<string, Fact>,
+): { text: string; facts: string[] } | undefined {
+  const f = d.facts;
+  const exceeds = f[`exceeds:${member}`];
+  const size = f[`magnitude:${member}`];
+  const total = facts.get(f.total ?? "")?.value;
+  if (!exceeds || !size || facts.get(exceeds)?.value !== 1 || total === undefined || total === 0) return undefined;
+  const down = total < 0;
+  const offsetKey = Object.keys(f)
+    .filter((k) => k.startsWith("magnitude:") && k !== `magnitude:${member}`)
+    .map((k) => k.slice("magnitude:".length))[0];
+  const offset = offsetKey === undefined ? undefined : f[`magnitude:${offsetKey}`];
+  return {
+    text: `By ${label(d.dimension)}, ${q(member)} ${down ? "fell" : "rose"} ${ph(size)}, more than the whole ${down ? "drop" : "rise"}${
+      offset && offsetKey !== undefined ? `; ${q(offsetKey)} ${down ? "rose" : "fell"} ${ph(offset)}` : ""
+    }.`,
+    facts: [size, ...(offset ? [offset] : []), exceeds],
+  };
+}
+
 export function decompositionClaims(ds: readonly StoredDecomposition[], facts: ReadonlyMap<string, Fact>): Claim[] {
   const out: Claim[] = [];
   const claim = (text: string, ids: (string | undefined)[]): Claim => ({
@@ -127,12 +158,15 @@ export function decompositionClaims(ds: readonly StoredDecomposition[], facts: R
   });
   const c = contributionDrivers(ds, facts);
   const top = c?.drivers[0];
+  const beyond = c && top ? beyondClaim(c.decomposition, top.label, facts) : undefined;
   if (c && top)
     out.push(
-      claim(
-        `By ${label(c.decomposition.dimension)}, ${q(top.label)} accounted for ${ph(top.share_of_change)} of the change (${ph(top.fact)}).`,
-        [top.share_of_change, top.fact],
-      ),
+      beyond
+        ? claim(beyond.text, beyond.facts)
+        : claim(
+            `By ${label(c.decomposition.dimension)}, ${q(top.label)} accounted for ${ph(top.share_of_change)} of the change (${ph(top.fact)}).`,
+            [top.share_of_change, top.fact],
+          ),
     );
   for (const d of ds) {
     const f = d.facts;

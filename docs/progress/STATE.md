@@ -347,6 +347,7 @@ These are checks that need something this machine doesn't have yet, such as a re
   - **The plan's "group families by definition" is not built.** The period rule demotes slices that restate the lead (`revenue_trade` next to `revenue_total`) without it, and on the replay no unrelated slice took a slot.
 
   Another event comes before a restatement even when it is smaller, because the eval suite's planted events and real data's separate stories are other events. A member or rate move in the lead's period is usually the lead seen again. The rate slot has no extra floor: candidates are already material (detection's thresholds), and a rate's score is pp/100. Zero-score families (counts and trends with no measured change) come after every material family — packages/analysis/src/rank.ts
+- [M14a] A share over 100% ("wholesale accounted for 108% of the change") is stated in magnitudes: "wholesale fell $8,500, more than the whole drop; retail rose $600". The whole drop's size is not repeated, because it is the sentence before, and the hero exhibit stays at 10 figures. The comparison is an `abs_exceeds` fact, and V1 refuses the phrase without it. The hero ledger also lists the signed change behind each magnitude and the top action's rationale facts, so the pipeline scene's chips stay in it. The animation's alt text still says "108% of the drop", true but unchanged, because the site is frozen — analysis-library §4.1
 
 ## Known gaps carried forward
 

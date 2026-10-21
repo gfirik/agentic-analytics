@@ -84,9 +84,10 @@ describe("hero exhibit (from the recorded run)", () => {
     const period = /(\d{4}-\d{2})/.exec(facts.get(input?.id ?? "")?.label ?? "")?.[1] ?? "";
     expect(period).toBe([...inputPeriods].sort().at(-1));
     expect(input?.title).toBe(`${monthName(period)} revenue,`);
-    // 3. The driver's contribution, with its share of the change.
-    expect(facts.get(driver?.id ?? "")?.computation.fn).toBe("delta");
-    expect(driver?.figures.map((f) => facts.get(f.id)?.computation.fn)).toEqual(["delta", "contribution.v1"]);
+    // 3. The driver, which moved more than the whole drop (wholesale −8,500 of −7,900): its magnitude, an `abs` fact
+    // the verifier recomputes (M14a, analysis-library §4.1).
+    expect(facts.get(driver?.id ?? "")?.computation.fn).toBe("abs");
+    expect(driver?.figures.map((f) => facts.get(f.id)?.computation.fn)).toEqual(["abs"]);
     expect(driver?.how).toMatch(/^the change split by \w+$/);
     // 4. The quoted document.
     expect(exhibit.notes[cause?.id ?? ""]?.kind).toBe("source");

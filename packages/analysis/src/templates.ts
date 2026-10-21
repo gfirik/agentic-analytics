@@ -2,7 +2,7 @@
 // `Insight`: every number as a `Calc` (or a reference to a measured point), a materiality verdict, a
 // confidence, and notes for tests skipped for lack of data (each becomes an open question).
 import { type Baseline, chooseBaseline, type Grain, MIN_PERIODS, materiality, noiseBand } from "./baselines.ts";
-import { type Contribution, contribution, type MemberChange } from "./decompose.ts";
+import { type Contribution, contribution, contributionCalcs, type MemberChange } from "./decompose.ts";
 import { hhi, MAD_SCALE, mad, mannKendall, mean, median, sse, theilSen, twoProportionZ } from "./stats.ts";
 import { type Calc, type Confidence, calcRef, isOther, type Point, point, type Ref, type Series } from "./types.ts";
 
@@ -315,7 +315,7 @@ export function topContributors(
     direction: dir(c.totalDelta.value),
     material: true,
     confidence: "high",
-    calcs: [c.totalDelta, ...c.contributors.flatMap((x) => [x.delta, x.share])],
+    calcs: contributionCalcs(c),
     roles: {
       change: calcRef(c.totalDelta.name),
       ...(top ? { top_change: calcRef(top.delta.name), top_share: calcRef(top.share.name) } : {}),

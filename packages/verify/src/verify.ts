@@ -239,6 +239,13 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       const v = all.get(m[1] ?? "")?.value ?? 0;
       if (v < 0) return drop("V4", `a word of decline is followed by the signed value {{${m[1]}}} (state the magnitude)`);
     }
+    // "More than the whole drop" is a comparison, so it is held to a fact like any number: the claim must cite an
+    // `abs_exceeds` fact equal to 1 (recomputed by V2 from its inputs; analysis-library §4.1).
+    if (
+      /more than the whole/i.test(c.text) &&
+      !c.facts.some((id) => all.get(id)?.computation.fn === "abs_exceeds" && all.get(id)?.value === 1)
+    )
+      return drop("V1", "“more than the whole” is not backed by a comparison fact");
     checks.push({ check: "V1", passed: true, claim: c.text, where, detail: where });
 
     // V4: each fact measures a defined metric with its unit/currency, period and filters; and the claim names no

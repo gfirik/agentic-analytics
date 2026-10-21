@@ -34,6 +34,38 @@ describe("contribution.v1 (spec §4.1)", () => {
       { kind: "calc", name: "delta:wholesale" },
       { kind: "calc", name: "delta:total" },
     ]);
+    // Wholesale moved more than the whole change (|−8,500| > |−7,900|): magnitudes and the comparison as facts (M14a).
+    expect(c.beyond?.key).toBe("wholesale");
+    expect(c.beyond?.magnitude).toMatchObject({
+      value: 8500,
+      unit: "currency",
+      fn: "abs",
+      inputs: [{ kind: "calc", name: "delta:wholesale" }],
+    });
+    expect(c.beyond?.exceeds).toMatchObject({
+      value: 1,
+      unit: "other",
+      fn: "abs_exceeds",
+      inputs: [
+        { kind: "calc", name: "delta:wholesale" },
+        { kind: "calc", name: "delta:total" },
+      ],
+    });
+    // retail is the largest member against the total: +600 → 600.
+    expect(c.beyond?.offset).toMatchObject({ key: "retail", magnitude: { value: 600, fn: "abs" } });
+  });
+
+  it("no 'beyond' facts when the top member stays within the change", () => {
+    // −5,000 and −2,900 → total −7,900; |−5,000| ≤ 7,900.
+    const c = contribution(
+      [
+        { key: "a", series: "s|k=a", before: { period: "p0", value: 10000 }, after: { period: "p1", value: 5000 } },
+        { key: "b", series: "s|k=b", before: { period: "p0", value: 4000 }, after: { period: "p1", value: 1100 } },
+      ],
+      "currency",
+    );
+    expect(c.totalDelta.value).toBe(-7900);
+    expect(c.beyond).toBeUndefined();
   });
 });
 

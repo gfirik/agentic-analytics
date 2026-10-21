@@ -44,6 +44,10 @@ const groups = (xs: readonly number[], n: number) =>
 const RULES: Record<string, Rule> = {
   delta: (_f, x) => ({ value: (x[0] ?? Number.NaN) - (x[1] ?? Number.NaN), how: "a − b" }),
   sum: (_f, x) => ({ value: x.reduce((a, b) => a + b, 0), how: "Σ inputs" }),
+  abs: (_f, x) => ({ value: Math.abs(x[0] ?? Number.NaN), how: "|a|" }),
+  // 1 when the first input moved by more than the second (a member beyond the whole change); a comparison is recorded
+  // as a fact so "more than the whole drop" is recomputed like any number (analysis-library §4.1).
+  abs_exceeds: (_f, x) => ({ value: Math.abs(x[0] ?? Number.NaN) > Math.abs(x[1] ?? Number.NaN) ? 1 : 0, how: "|a| > |b| ? 1 : 0" }),
   mean: (_f, x) => ({ value: mean(x), how: "mean of inputs" }),
   trailing_mean_3: (_f, x) => ({ value: mean(x), how: "mean of the three periods" }),
   pct_change: (_f, x) => ({ value: (x[1] ?? 0) !== 0 ? ((x[0] ?? 0) / (x[1] as number) - 1) * 100 : Number.NaN, how: "(a ÷ b − 1) × 100" }),

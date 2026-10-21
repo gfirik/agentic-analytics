@@ -76,6 +76,11 @@ For T = Σ xᵢ:
 - ΔT = Σ Δxᵢ, and shareᵢ = Δxᵢ / ΔT.
 - Positive and negative contributors are reported separately.
 - Shares can exceed 100% when contributors offset each other. Example: wholesale −8,500 and retail +600 make a total of −7,900, so wholesale's share is 108%.
+- When the top member moved by more than the whole change (|Δx₁| > |ΔT|), a share over 100% reads like an error, so the decomposition also records what a sentence needs to say it in magnitudes (M14a):
+  - `magnitude:<member>` = |Δx₁| and `magnitude:<offset>` = |Δx| of the largest member that moved against the total (function `abs`, input: the signed change);
+  - `exceeds:<member>` = 1 (function `abs_exceeds`, inputs: Δx₁ and ΔT; 1 when |Δx₁| > |ΔT|), so "more than the whole drop" is a recomputed fact like any number.
+
+  Hand-computed (coffee-roaster April): |−8,500| = 8,500; |+600| = 600; |−8,500| > |−7,900|, so 1. The claim reads "By channel, “wholesale” fell {{8,500}}, more than the whole drop; “retail” rose {{600}}." The drop itself is the sentence before it.
 
 ### 4.2 Price–volume–mix (`pvm.v1`)
 

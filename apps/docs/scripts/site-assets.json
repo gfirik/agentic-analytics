@@ -1,7 +1,7 @@
 {
-  "inputs": "03e445a65549e02fa3f7f9d1650012d00ab9fb402015a230678230531316f97e",
+  "inputs": "bc723f57252784ea22ef224ff3a5ac2b73c09463af42f687a94563fe0677115c",
   "outputs": {
-    "public/og.png": "166926a079e0317b0956e6060c95019a0e2365ad8173e64d0d516203e6b6a36f",
+    "public/og.png": "cfb39e3d8bfe78b8c8fd33ebd0f18a6be6c9ffe2b679829deb9630cb9538965a",
     "public/favicon.ico": "a663abd59bdc881c4d384dffc4df42fb3b279508481d14474247fed6f938dff9"
   }
 }
