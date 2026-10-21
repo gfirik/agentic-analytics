@@ -2495,7 +2495,7 @@
         "[1/1] coffee-roaster: 6/6 checks pass · … s",
         "",
         "coffee-roaster C1 pass: The job completes on the workbook — report with 5 findings, 2 data-quality items",
-        "coffee-roaster C2 pass: Every number re-computes — 100 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations",
+        "coffee-roaster C2 pass: Every number re-computes — 100 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition",
         "coffee-roaster C3 pass: Revenue fell in April (G1: 44,100 → 36,200) — F1: A change in revenue",
         "coffee-roaster C4 pass: March's rise (G1: 42,900 → 44,100, +2.8%) is too small to report — no finding at 2026-03",
         "coffee-roaster C5 pass: The ×1000 packaging cost in the Monthly sheet (G2) — Q2 unit_error cites rows 3…",
