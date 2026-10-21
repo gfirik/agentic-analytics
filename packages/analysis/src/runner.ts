@@ -189,8 +189,9 @@ export async function analyzeJob(
   for (const s of totals) {
     const def = series.get(s.id)?.def;
     // Spec §2: the same-period-last-year baseline needs 13+ months; say so rather than skip it silently.
-    if (grain === "month" && s.points.length < MIN_PERIODS.yoy_months)
-      openQuestions.push(`Year-over-year for ${s.metric} needs ${MIN_PERIODS.yoy_months}+ months; only ${s.points.length} available.`);
+    const known = s.points.filter((p) => Number.isFinite(p.value)).length;
+    if (grain === "month" && known < MIN_PERIODS.yoy_months)
+      openQuestions.push(`Year-over-year for ${s.metric} needs ${MIN_PERIODS.yoy_months}+ months; only ${known} available.`);
     const change = def?.type === "ratio" ? ratioShift(s, undefined, grain) : periodChange(s, grain);
     if (change) found.push(change);
     for (const r of [trend(s), trendBreak(s)]) {
@@ -267,6 +268,9 @@ export async function analyzeJob(
           }))
           .filter((c) => Number.isFinite(c.before.value) && Number.isFinite(c.after.value));
         if (changes.length < 2) continue;
+        // A level shift can be material while its two edge points are equal (spec §3): with no change between them
+        // there is nothing to split, and every member's share would be a division by 0.
+        if (changes.reduce((n, c) => n + (c.after.value - c.before.value), 0) === 0) continue;
         const total = series.get(def.id)?.series as Series;
         decompositions.push({
           insight,

@@ -370,6 +370,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 ## Known gaps carried forward
 
+- [code-quality fix 8] `drill_down` (slice.ts) still compares with the previous observed row, so after a gap it can compare March with January; it should use the same period fill. A month with no data in any file stays a positional gap (the job's periods are the observed ones).
 - [code-quality fix 1] The judge (V5, `role: judge`) still gets claim text that can quote a member; it isn't a planner prompt, but it is untrusted text going to a model. To be screened in the verify fix PR. The tool outputs the planner gets back are covered by unit-level helpers, not by the end-to-end test, which reads only system and prompt text.
 - [Site 3D] Cosmetic, from QA (2026-10-21):
   - in the Follow view at 1440 the legend covers part of the label "09 Check everything" (`layout()` keeps labels clear of each other and the canvas edges, not the legend or toolbar boxes);
