@@ -294,7 +294,7 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     const garbled = withJudge(() => Promise.reject(new ModelError("INVALID_OUTPUT", "no valid object")));
     const g = await verifyReport(clone(draft), { ws, defs, catalog, grain: "month", periodEnd: "2026-06-30", judge: garbled });
     expect(
-      g.report.verification.claims_dropped.some((d) => d.reason === "V5: the judge found the cited sources don't support the claim"),
+      g.report.verification.claims_dropped.some((d) => d.reason === "V5: the judge's answer did not validate; treated as not supported"),
     ).toBe(true);
     const buggy = withJudge(() => Promise.reject(new TypeError("cannot read properties of undefined")));
     await expect(verifyReport(clone(draft), { ws, defs, catalog, grain: "month", periodEnd: "2026-06-30", judge: buggy })).rejects.toThrow(

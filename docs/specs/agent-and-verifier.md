@@ -150,7 +150,7 @@ All passes run on the draft report. Results are written to the `verification` ta
   - a fact's cited rows must be rows its metric actually reads for that period and member, found again with the metric's own row query (an engine bug otherwise, like V2);
   - every quote must occur in its source's stored text;
   - claims with quotes go to the judge (`prompts/judge.md`, yes/no) when a judge model is configured;
-  - otherwise, or when the judge provider fails (timeout, rate limit, unreachable), the judge step is skipped for that claim and the check row says so ("judge not configured" / "judge unavailable"; after a rate limit the judge isn't asked again in that report). A judge answer that never validates counts as "not supported"; any other error stops VERIFY;
+  - otherwise, or when the judge provider fails (timeout, rate limit, unreachable), the judge step is skipped for that claim and the check row says so ("judge not configured" / "judge unavailable"; after a rate limit the judge isn't asked again in that report). A judge answer that never validates counts as not supported (its own drop reason); any other error stops VERIFY;
   - a quoted span of the claim that the screen flags is sent to the judge as “withheld” (security §3).
 - **V6:**
   - a `document_supported` or stronger grade without a document or email citation is downgraded to `correlated`;

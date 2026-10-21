@@ -361,8 +361,11 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
         // validated (the excerpts are untrusted text that could cause it) counts as "not supported". Anything else is
         // an engine bug and stops VERIFY.
         if (!(err instanceof ModelError)) throw err;
-        if (err.code === "INVALID_OUTPUT") supported = false;
-        else if (["TIMEOUT", "RATE_LIMITED", "PROVIDER", "NOT_AVAILABLE"].includes(err.code)) {
+        if (err.code === "INVALID_OUTPUT") {
+          citationsUnsupported++;
+          return drop("V5", "the judge's answer did not validate; treated as not supported");
+        }
+        if (["TIMEOUT", "RATE_LIMITED", "PROVIDER"].includes(err.code)) {
           judgeSkipped++;
           judged = `, judge unavailable (${err.code})`;
           if (err.code === "RATE_LIMITED") judgeDown = err.code;
