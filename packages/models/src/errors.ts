@@ -6,6 +6,7 @@ export type ModelErrorCode =
   | "TIMEOUT"
   | "INPUT_TOO_LARGE" // the estimated input is over the call's maxInputTokens; refused before sending
   | "RATE_LIMITED" // every route of the model is rate-limited past the wait cap; never switches models
+  | "INVALID_ARGUMENT" // a bad argument to a model-layer function, e.g. a day that is not YYYY-MM-DD (usage.ts)
   | "NOT_AVAILABLE" // capability lands in a later milestone
   | "FAKE_NO_SCRIPT"; // FakeModel had no scripted response for a call
 
