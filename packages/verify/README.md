@@ -13,6 +13,7 @@ The verifier runs passes V1–V8 over the draft report, then applies the failure
 ## Public API
 
 - `verifyReport(draft, { ws, defs, catalog, grain, periodEnd, judge? })` returns `{ report, checks }`. It throws `VerifyError` (`RECOMPUTE_MISMATCH`, `REDERIVE_MISMATCH`, `CITATION_MISMATCH`, `UNVERIFIABLE`) with a diagnostic.
+- V1 drops a claim saying "more than the whole" unless it cites an `abs_exceeds` fact equal to 1 whose first input is the change of the member quoted just before the phrase (agent-and-verifier §7, M14a).
 - `recomputeFacts(ws, facts, all)` is V2. SQL facts are re-run with their stored parameters. Function facts are recomputed from their inputs by a registry (`delta`, `sum`, `abs`, `abs_exceeds`, `mean`, `pct_change`, `share`, `contribution.v1`, `hhi`, `theil_sen`, `mann_kendall`, `robust_z`, `share_shift`, `pvm.v1`, `ratemix.v1`, `impact.v1:*`, `scenario_param` bounds, `external_quote` re-parsing, `benchmark_gap.v1`). The relative tolerance is `TOLERANCE` = 1e-9.
 - `isCausal(text)` and `rewriteCorrelational(text)` are V6's EN/RU/UZ lexicon and its rewrites.
 - `checkFactRows(ws, facts)` is the part of V5 that checks a fact's cited rows exist in its table.
@@ -27,4 +28,3 @@ const { report, checks } = await verifyReport(draft, { ws, defs, catalog, grain:
 ```
 
 In a job, the VERIFY stage reads `report.draft.json` and writes `report.json`. On an engine bug it writes `diagnostics.json` instead.
-- V1 also drops a claim saying "more than the whole" unless it cites an `abs_exceeds` fact equal to 1 whose first input is the change of a member the claim names in quotes (agent-and-verifier §7, M14a).

@@ -139,5 +139,7 @@ describe("a member beyond the whole change is stated in magnitudes (M14a, analys
     expect(decompositionClaims([b.d], b.facts)[0]?.text).toMatch(
       /^By channel, “wholesale” accounted for \{\{X9swholesale\}\} of the change/,
     );
+    const { "exceeds:wholesale": _gone, ...without } = b.d.facts;
+    expect(decompositionClaims([{ ...b.d, facts: without }], b.facts)[0]?.text).toMatch(/accounted for/);
   });
 });

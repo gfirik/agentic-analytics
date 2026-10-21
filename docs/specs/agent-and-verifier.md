@@ -139,7 +139,7 @@ All passes run on the draft report. Results are written to the `verification` ta
   - `abs` is |a|, and `abs_exceeds` is 1 when |a| > |b|, else 0 (analysis-library §4.1).
   A function without a rule counts as a mismatch. Cited input rows must exist in their table.
 - **V3** re-derives the headline measures, i.e. total facts of sum/count metrics referenced by finding claims or the headline. The alternate path is the metric grouped by its first dimension, summed in code. Ratios with metric numerator and denominator are re-derived the same way. Member-level facts are checked by V2 only.
-- **V1** drops a claim that says "more than the whole" unless it cites an `abs_exceeds` fact equal to 1 whose first input is the change of a member the claim names in quotes. V1 also refuses digits inside quotation marks unless the quoted text comes from a cited source (its text, the quote, or the source's file name) or is a whole name in the data (a member value in a fact label, `metric[dim=value]_…` or `… by dim:kind:value`).
+- **V1** drops a claim that says "more than the whole" unless it cites an `abs_exceeds` fact equal to 1 whose first input is the change of the member quoted just before the phrase. V1 also refuses digits inside quotation marks unless the quoted text comes from a cited source (its text, the quote, or the source's file name) or is a whole name in the data (a member value in a fact label, `metric[dim=value]_…` or `… by dim:kind:value`).
 - **V4:**
   - each fact's metric exists with the same unit and currency;
   - a measured fact's SQL and parameters are re-compiled from its definition for its period and member filter, and must be identical (period and filters);

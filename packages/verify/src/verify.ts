@@ -241,9 +241,11 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     }
     // "More than the whole drop" is a comparison, so it is held to a fact like any number: the claim must cite an
     // `abs_exceeds` fact equal to 1 (recomputed by V2 from its inputs; analysis-library §4.1) whose first input is the
-    // change of a member the claim names in quotes, so one member's comparison can't speak for another.
-    if (/more than the whole/i.test(c.text)) {
-      const named = [...c.text.matchAll(/“([^”]+)”/g)].map((m) => m[1]);
+    // change of the member quoted just before the phrase, so one member's comparison can't speak for another. The
+    // label ends in `:delta:<member>` because the decomposer names each member's change `delta:<member>` (decompose.ts).
+    const phrase = c.text.search(/more than the whole/i);
+    if (phrase >= 0) {
+      const named = [...c.text.slice(0, phrase).matchAll(/“([^”]+)”/g)].map((m) => m[1]).slice(-1);
       const backed = c.facts.some((id) => {
         const f = all.get(id);
         const first = all.get(f?.computation.inputs?.[0] ?? "");

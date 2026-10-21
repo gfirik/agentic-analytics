@@ -218,10 +218,12 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     );
     // Wholesale's comparison cited for another member: dropped too.
     const borrowed = claim("By channel, “retail” fell more than the whole drop.", [exceeds]);
+    // …even when the right member is quoted elsewhere in the claim.
+    const swapped = claim("By channel, “retail” fell more than the whole drop; “wholesale” rose.", [exceeds]);
     const d = clone(draft);
-    f1(d).claims.push(stripped, borrowed);
+    f1(d).claims.push(stripped, borrowed, swapped);
     const r = await verify(d);
-    for (const t of [stripped.text, borrowed.text])
+    for (const t of [stripped.text, borrowed.text, swapped.text])
       expect(reasonFor(r.report, t)).toBe("V1: “more than the whole” is not backed by a comparison fact for the member it names");
   });
 
