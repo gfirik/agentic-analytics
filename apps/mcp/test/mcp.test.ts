@@ -1,6 +1,6 @@
 // M10: the MCP door. An in-memory client lists the tools and resources, runs a job on files, and reads the report,
 // an answer and an explanation; tool descriptions tell the calling model not to recalculate numbers.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobManager } from "@agentic-analytics/core";
@@ -69,5 +69,67 @@ describe("MCP server", () => {
     const r = await client.callTool({ name: "get_report", arguments: { job_id: "missing" } });
     expect(r.isError).toBe(true);
     expect(textOf(r)).toMatch(/^NOT_FOUND/);
+  });
+});
+
+describe("MCP limits and errors", () => {
+  const connect = async (opts: Parameters<typeof createMcpServer>[1], m: JobManager = manager) => {
+    const c = new Client({ name: "limits", version: "0" });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await createMcpServer(m, { today: () => "2026-07-01", ...opts }).connect(a);
+    await c.connect(b);
+    return c;
+  };
+  const analyze = (c: Client, paths: string[]) => c.callTool({ name: "analyze_files", arguments: { paths } });
+
+  it("caps files across all paths of one call, and bytes before reading", async () => {
+    const many = join(tmp, "many");
+    for (const d of ["a", "b"]) {
+      mkdirSync(join(many, d), { recursive: true });
+      for (let i = 0; i < 300; i++) writeFileSync(join(many, d, `f${i}.csv`), "x\n1\n");
+    }
+    const c = await connect({});
+    // 300 + 300 files: each path alone is under the cap, the call is not.
+    const r = await analyze(c, [join(many, "a"), join(many, "b")]);
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toMatch(/^TOO_MANY_FILES/);
+    const tiny = await connect({ maxBytes: 100 });
+    const t = await analyze(tiny, [input]);
+    expect(t.isError).toBe(true);
+    expect(textOf(t)).toMatch(/^TOO_LARGE/);
+  });
+
+  it("skips a symlink inside an allowed folder", async () => {
+    const root = join(tmp, "linked");
+    mkdirSync(root);
+    for (const [name, bytes] of Object.entries(coffeeRoasterFiles())) writeFileSync(join(root, name), bytes);
+    const first = readdirSync(root)[0] as string;
+    symlinkSync(join(root, first), join(root, "link.csv"));
+    const c = await connect({ roots: [root] });
+    const r = await analyze(c, [root]);
+    const id = textOf(r).match(/^job-[\w-]+/)?.[0] as string;
+    expect(id).toBeDefined();
+    expect((await manager.wait(id)).status).toBe("done");
+    expect(readdirSync(join(tmp, "jobs", id, "input")).sort()).toEqual(Object.keys(coffeeRoasterFiles()).sort());
+  }, 180_000);
+
+  it("an unexpected error reaches the log hook; the caller gets no paths or SQL", async () => {
+    const logged: unknown[] = [];
+    const broken = Object.assign(Object.create(manager) as JobManager, {
+      // A finished job whose report can't be read (a DuckDB error naming a path and SQL).
+      status: async () => ({ job_id: "x", status: "done" }) as Awaited<ReturnType<JobManager["status"]>>,
+      report: async () => {
+        throw new Error("Binder Error at /home/owner/jobs/x/job.duckdb: SELECT secret");
+      },
+    });
+    const c = await connect({ onError: (e) => logged.push(e) }, broken);
+    const r = await c.callTool({ name: "get_report", arguments: { job_id: "x" } });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toBe("INTERNAL: internal error (details are in the server log)");
+    expect(logged).toHaveLength(1);
+    // Resource reads follow the same rule.
+    await expect(c.readResource({ uri: "report://x" })).rejects.toThrow(/internal error \(details are in the server log\)/);
+    await expect(c.readResource({ uri: "report://x" })).rejects.not.toThrow(/Binder|secret/);
+    expect(logged).toHaveLength(3);
   });
 });

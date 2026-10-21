@@ -17,7 +17,9 @@ export const Stage = z.enum([
   "RENDER",
 ]);
 
-const base = { job_id: z.string(), seq: z.number().int().nonnegative(), at: z.iso.datetime({ offset: true }) };
+// seq −1 marks the one event that isn't from the job's log: the server's `failed` when a stream's job vanished
+// mid-request (interfaces §1).
+const base = { job_id: z.string(), seq: z.number().int().min(-1), at: z.iso.datetime({ offset: true }) };
 
 export const JobEvent = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("stage_started"), stage: Stage }),
