@@ -95,7 +95,8 @@ function tool<I>(
         // Typed engine errors about the request (unknown fact, bad slice, parameter out of range) go back to the
         // planner as data so it can correct itself; anything untyped is an engine failure and stops the stage.
         if (!(err instanceof Error && "code" in err && typeof err.code === "string")) throw err;
-        return { error: `${err.code}: ${err.message}` };
+        // Screened like any other text the planner reads: a future message could quote a column or member name.
+        return { error: withheld(`${err.code}: ${err.message}`) };
       }
     },
   };
