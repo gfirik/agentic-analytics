@@ -15,6 +15,8 @@ export default defineConfig({
     headless: true,
     baseURL: `http://127.0.0.1:${PORT}`,
     ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
+    // WebGL without a GPU (CI, headless) for the engine machine: SwiftShader, Chromium's software renderer.
+    launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] },
   },
   webServer: {
     command: `bun run --filter @agentic-analytics/docs preview --port ${PORT} --host 127.0.0.1`,
