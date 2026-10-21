@@ -69,7 +69,7 @@ Legend for **Today**:
 
 | Capability | Today | Gap | Design |
 |---|---|---|---|
-| Column roles | **Partial.** Profile types columns; `fallbackMetrics` guesses a money column and qty × price (`packages/metrics/src/draft.ts:198-267`); runner regexes `QTY`/`ITEM` for PVM (`packages/analysis/src/runner.ts:88-89`). | No notion of cost, unit cost, discount, tax, due date, paid date, stock on hand, customer id vs order id, SKU, location. | `packages/profile` gains a **role detector**: deterministic scores from names (multilingual synonyms list), types, value patterns (dates after an invoice date → due date), and cross-column identities (`qty × unit_price ≈ amount` on ≥ 95% of rows, checked in SQL). Roles are proposed with evidence and confirmed like metrics (AWAIT_CONFIRM; `--yes` keeps them as assumptions). The model may only break ties between candidates the code produced. |
+| Column roles | **Partial.** Profile types columns; `fallbackMetrics` guesses a money column and qty × price (`packages/metrics/src/draft.ts:198-267`); runner regexes `QTY`/`ITEM` for PVM (`packages/analysis/src/runner.ts:88-89`). | No notion of cost, unit cost, discount, tax, due date, paid date, stock on hand, customer id vs order id, SKU, location. | `packages/profile` gains a **role detector**: deterministic scores from names (multilingual synonyms list), types, value patterns (dates after an invoice date → due date), and cross-column identities (`qty × unit_price ≈ amount` on ≥ 95% of rows, checked in SQL). Roles are proposed with evidence and confirmed on the same combined confirm screen as metrics (§6.2; AWAIT_CONFIRM; `--yes` keeps them as assumptions). The model may only break ties between candidates the code produced. |
 | Table kinds | **No.** | Can't tell sales lines from an invoice register, AP bills, stock snapshots, a bank export or a GL. | A **table-kind classifier** from roles: sales lines (date, amount, ±qty, product/customer), invoices (invoice id, issue date, due date, ±paid date/amount), bills (same, payable side), inventory snapshots (date, SKU, on-hand), bank/cash (date, signed amount, balance), budget/plan (period, metric, target). Each kind unlocks an **analysis pack** (§3). |
 | Business model | **No.** | Retail vs wholesale vs subscription vs services changes which KPIs matter. | Inferred from table kinds and roles (recurring customer-month revenue → subscription signals), shown as an assumption, editable in the confirm step. Only changes which packs run and their order; never a number. |
 
@@ -104,7 +104,7 @@ Legend for **Today**:
 
 | Capability | Today | Gap | Design |
 |---|---|---|---|
-| Forecasts with intervals | **No**, and ruled out: "The engine never gives point forecasts" (`docs/specs/analysis-library.md` §5; `packages/analysis/src/impact.ts:1`). | Analysts are asked "where will we land this quarter". | **Needs a maintainer decision (spec change).** Proposal: intervals only, never a point. Methods: seasonal naive and ETS (Holt–Winters additive) in pure TS, chosen by rolling-origin backtest; 80% and 95% intervals from empirical backtest residual quantiles (no distributional assumption). A forecast is shown only when its backtest beats seasonal naive on MASE; otherwise "not forecastable from this history". Every forecast stores method, parameters, backtest window and MASE as facts; V2 re-fits deterministically (fixed optimizer, fixed seed) and must match within 1e-9. Labelled "forecast, 80% interval" in the report. |
+| Forecasts with intervals | **No**, and ruled out: "The engine never gives point forecasts" (`docs/specs/analysis-library.md` §5; `packages/analysis/src/impact.ts:1`). | Analysts are asked "where will we land this quarter". | **Approved 2026-10-21 (§6.1); built in M19.** Intervals only, never a point; the `docs/specs/analysis-library.md` §5 change lands in the M19 PR. Methods: seasonal naive and ETS (Holt–Winters additive) in pure TS, chosen by rolling-origin backtest; 80% and 95% intervals from empirical backtest residual quantiles (no distributional assumption). A forecast is shown only when its backtest beats seasonal naive on MASE; otherwise "not forecastable from this history". Every forecast stores method, parameters, backtest window and MASE as facts; V2 re-fits deterministically (fixed optimizer, fixed seed) and must match within 1e-9. Labelled "forecast, 80% interval" in the report. |
 | Run-rate | **No.** | "At this pace, the year ends at…" | `run_rate.v1`: YTD ÷ elapsed share of the year, and seasonally adjusted run-rate (YTD ÷ last year's YTD share) when ≥ 1 prior year exists; both always shown together with their formula. V2 rule. |
 
 ### 2.5 Prescriptive
@@ -133,7 +133,7 @@ Legend for **Today**:
 
 ## 3. Architecture changes
 
-1. **Roles and table kinds** (2.1) are stored in the workspace next to the profile, shown in the confirm step with their evidence, and recorded in `report.json` (schema addition, generated JSON Schema).
+1. **Roles and table kinds** (2.1) are stored in the workspace next to the profile, shown on the combined confirm screen with the metrics (§6.2), with their evidence, and recorded in `report.json` (schema addition, generated JSON Schema).
 2. **Analysis packs.** A pack is a fixed list of templates that a set of roles or table kinds unlocks. The packs are sales, margin, customers, receivables, payables, inventory, cash, forecast and market. The runner (`packages/analysis/src/runner.ts`) runs every unlocked pack. Ranking (`rank.ts`) stays the single place that decides what reaches EXPLAIN. Each pack has its own spec section in `docs/specs/analysis-library.md` before code is written.
 3. **Report sections.** These are added to `report.json` and the HTML:
    - a KPI scorecard;
@@ -205,14 +205,14 @@ Other benchmarks considered:
 
 ### 4.2 Golden set (hand-reviewed)
 
-- **Per dataset, 20–30 analyst questions** spread over the capability map. Examples:
+- **About 40 reviewed questions in all** (§6.3: the maintainer's cap), about 10 per dataset over the M14 datasets, spread over the capability map. Examples:
   - "Which month had the highest revenue in 2011?"
   - "What share of revenue came from the top 10 customers?"
   - "How much was 60+ days overdue at the end?"
   - "Did the January fall exceed the usual January fall?"
 - **Expected answers:**
   - each question's expected answer and tolerance comes from SQL in `evals/golden/<dataset>/answers.sql`, written by a different person or session than the template code;
-  - each answer is **reviewed by a human** (the maintainer, or an outside analyst) and signed off in the file (`reviewed_by`, `date`);
+  - each answer is **reviewed by the maintainer** (§6.3) and signed off in the file (`reviewed_by`, `date`);
   - unreviewed items don't count toward the bars.
 - **Trap items, about 20%:** questions the data cannot answer (no cost column → "margin can't be computed"), seasonal non-events, and partial periods. The right answer is a refusal or a caveat.
 - **Scoring:**
@@ -220,7 +220,7 @@ Other benchmarks considered:
   - categorical answers (which month, which driver) must match exactly;
   - trap items pass only on refusal or caveat.
 - **Question access:** the engine answers through `aa ask` against the job, or through the report directly when the question maps to a standard section. A question never reaches the engine before the report is built, so the report can't be tuned to the questions.
-- **Held-out split:** 30% of golden items are never looked at while building (kept in a separate file and scored only in release runs).
+- **Held-out split:** 12 of the about 40 items (30%) are never looked at while building (kept in a separate file and scored only in release runs).
 
 ### 4.3 Repeated-run consistency
 
@@ -236,13 +236,15 @@ Other benchmarks considered:
 
 ### 4.4 Several free models
 
-Every release run covers at least three model families. The proposal:
+Every release run covers at least three model families. The release-run models:
 1. Qwen3.8-27B: on Groq's free tier, and self-hosted through vLLM on Kaggle (the notebook from #27).
 2. gpt-oss-120b on Groq or OpenRouter free.
 3. A Llama, Mistral or Gemma family model from a free tier.
 4. One local model through Ollama that fits a 16 GB laptop, as the floor (qwen3.5:9b today).
 
 Results are published per model, with hardware and cost, as `evals/RESULTS.md` does today.
+
+**Quota.** The release run (three families × 5 repeats × all suites) is far beyond Groq's daily free quota. The Kaggle vLLM notebook (#27) and the OpenRouter and Cerebras free tiers carry most of it, spread over days; real-model runs are not CI-bound. The nightly suite runs over two nights (#37).
 
 ### 4.5 Ablation: the same model with and without the engine
 
@@ -269,7 +271,7 @@ The goal is to prove that the engine adds accuracy rather than assert it. All ar
 - The claim "the engine adds accuracy" is made only when the interval excludes 0.
 
 **Fairness:**
-- Arms A and B get a strong, published system prompt and the same retry budget.
+- Arms A and B get a strong system prompt and the same retry budget; the arm A/B prompts and the harness are published in `evals/ablation/` (§6.4), so anyone can rerun them.
 - A model that can't call tools is run in arm A only.
 
 ### 4.6 The synthetic suite's place
@@ -286,7 +288,7 @@ The 30 generated businesses stay as the nightly regression check (`scripts/eval-
 
 ### 4.7 Launch bars ("ready to launch")
 
-All of these must hold on the release run. Each is reported for the best free hosted model and for the local floor model separately; the bars apply to the best free hosted model unless stated.
+These hold on the launch release run, which comes after M14a, M14 and M15 (§6.6) and is scoped to what those build. Each is reported for the best free hosted model and for the local floor model separately; the bars apply to the best free hosted model unless stated. Packs that ship later (M16–M20) add their coverage bars as each ships.
 
 | Measure | Bar |
 |---|---|
@@ -299,8 +301,8 @@ All of these must hold on the release run. Each is reported for the best free ho
 | Consistency over 5 runs: numbers / top findings / driver / cause grade / top action | 100% / ≥ 95% / ≥ 95% / ≥ 90% / ≥ 90% of jobs |
 | Ablation, engine vs model alone and vs model + SQL, same model | Numeric accuracy higher by ≥ 20 pp vs each, unsupported-number rate ≤ ⅕ of each, both with 95% intervals excluding 0, on ≥ 2 model families |
 | Citation precision / definition adherence / recommendation grounding | ≥ 95% / 100% / 100% (today's bars, docs/EVALS.md) |
-| Capability coverage | Every pack in §3 exercised by ≥ 1 real dataset and ≥ 3 golden items |
-| Human review | 20 reports across ≥ 4 datasets graded by a reviewer on correctness, usefulness and actionability (1–5): mean ≥ 4, no report below 3 on correctness |
+| Capability coverage | Every pack built by M15 (sales, margin, Pareto and concentration, the KPI scorecard) exercised by ≥ 1 real dataset and ≥ 3 golden items |
+| Human review (optional, not a launch gate; §6.3) | Later, an outside analyst may grade 20 reports across ≥ 4 datasets on correctness, usefulness and actionability (1–5): target mean ≥ 4, no report below 3 on correctness |
 
 ## 5. Milestones (ordered by impact)
 
@@ -340,12 +342,13 @@ The other 9 jobs were rate-limited; the nightly fix handles them. The cap has tw
 
 Then decide whether small mode can afford 4 findings within Groq's per-minute token limit.
 
-**Before/after on the nightly suite:** the before is the 2026-10-20 nightly run (two nights, pre-fix); the after is the first two-night run on the merged fix. Until the after run finishes, the fix is shown on the same suite offline: the 30 businesses' real drafted metrics from the 2026-10-19 run (kept in `data/eval-reports/`), ranked before and after, with the planted events' positions in the explained set.
+**Before/after on the nightly suite:** the evidence above is the 2026-10-19 pass (21 of 30 jobs); the measured before is the 2026-10-20 nightly run (two nights, pre-fix, the same code), published after its second night; the after is the first two-night run on the merged fix. Until the after run finishes, the fix is shown on the same suite offline: the 30 businesses' real drafted metrics from the 2026-10-19 run (kept in `data/eval-reports/`), ranked before and after, with the planted events' positions in the explained set.
 
 **Acceptance:**
 - **Unit test:** `rank.test.ts` with rows mirroring coffee_roaster-v3 and clinic-v2. `topForExplain(…, 3)` = [P1 metric, the P3 member, the P2 rate].
 - **Engine test:** a FakeModel engine test, in small mode, replaying the real run's drafted metrics (`data/eval-reports/*metrics.drafted.json`), finds P2 and P3 in `report.findings`.
-- **Recall:** the next nightly run's planted recall over completed jobs is ≥ 80%.
+- **Before/after table** in the PR: the planted events' positions in the explained set for all 30 businesses, before and after, from the 2026-10-19 drafted metrics (offline, deterministic); later the 2026-10-20 run vs the first run on the merged fix.
+- **Recall:** the first nightly run on the merged fix has planted recall over completed jobs ≥ 80%.
 
 **2. Cause grade 71% (17/24).**
 - All 3 detected P2s cite nothing. Small-mode EXPLAIN runs one search built in code, `"<metric> <top driver> <period>"` (explain.ts:186–188). For a rate there are no event words in it, so the operations note isn't retrieved.
@@ -372,13 +375,6 @@ Acceptance: ≥ 70% on completed jobs.
 
 Every completed job found all of its planted quality issues (28/28). The 12 misses are the 9 rate-limited jobs. This is fixed by the nightly change (a run can't be cut short by the quota, and "partial" only when jobs are truly missing), not by the engine.
 
-**6. Token usage tracking (added by the maintainer, 2026-10-21).** The quota is the nightly suite's real limit, so it is measured:
-- every model call's input and output tokens are recorded in `data/logs/model-calls.jsonl`, from the provider's `usage` field; a cached call records 0 (it spends no quota);
-- `aa usage` prints tokens and calls per day, per role and per route, against each free tier's daily limit (from the route config, e.g. Groq's 200k tokens a day for qwen3.8-27b);
-- `evals/RESULTS.md` gives each run's totals (tokens in and out, calls, cached calls).
-
-Acceptance: unit tests with FakeModel usage (cached = 0; per-role and per-route sums; the limit shown when the route has one); `aa usage` on the kept 2026-10-19 log prints that night's planner total against 200k.
-
 **5. Shares over 100% (from site v3, finding 9).**
 
 "Wholesale accounted for 108% of the change" is correct but reads like an error. In the deterministic claim template (`packages/agent/src/claims.ts:108`), when the top driver's share is above 100%, write "wholesale fell $8,500, more than the whole drop; retail grew $600". That needs two engine pieces:
@@ -386,6 +382,13 @@ Acceptance: unit tests with FakeModel usage (cached = 0; per-role and per-route 
 - **a comparison the verifier can check:** |driver delta| > |total change|, recorded with its inputs and recomputed, so "more than the whole drop" is verified like any number.
 
 The run data (exhibit, pipeline JSON, README GIF) is regenerated in the same PR.
+
+**6. Token usage tracking (added by the maintainer, 2026-10-21).** The quota is the nightly suite's real limit, so it is measured:
+- `data/logs/model-calls.jsonl` already records each call's input and output tokens (`apps/cli/src/main.ts`); new: a cached call records 0 (it spends no quota), and when reading older lines `cached: true` counts as 0;
+- `aa usage` prints tokens and calls per day, per role and per route, against each free tier's daily limit (a new `dailyTokenLimit` in the route config, e.g. Groq's 200k tokens a day for qwen3.8-27b); days are UTC dates, as Groq's quota and the result files use;
+- `evals/RESULTS.md` gives each run's totals (tokens in and out, calls, cached calls).
+
+Acceptance: unit tests with FakeModel usage (cached = 0; per-role and per-route sums; the limit shown when the route has one); `aa usage` on the kept 2026-10-19 log prints that night's uncached planner total (188,852 tokens for 22:00–23:00 UTC, the #37 analysis) against 200k.
 
 ### M14 Measurement foundation
 **Scope:**
@@ -461,7 +464,7 @@ The run data (exhibit, pipeline JSON, README GIF) is regenerated in the same PR.
 - consistency on the top driver reaches ≥ 95%.
 
 ### M19 Predictive and prescriptive
-Starts only after the maintainer approves the spec change in 2.4.
+The spec change is approved (§6.1); the M19 PR updates `docs/specs/analysis-library.md` §5 and `packages/analysis/src/impact.ts:1` before any forecast code.
 
 **Scope:**
 - run-rate;
@@ -490,9 +493,11 @@ Starts only after the maintainer approves the spec change in 2.4.
 - an offline fixture run is shown in CI.
 
 ### M21 Release accuracy run
-**Scope:** the full program in §4 on at least three free model families and the local floor model; DABstep through `aa ask` (§4.1b); published results; docs-site pages for each pack.
+**When:** right after M15, for the launch (§6.6); it runs again, wider, as later packs ship.
 
-**Acceptance:** the bars in §4.7. Bars that are not met are published as they are, with the gap and the plan to close it. Launch waits on the maintainer's decision.
+**Scope:** the program in §4 for what M14a–M15 build, on at least three free model families and the local floor model; DABstep through `aa ask` (§4.1b); published results; docs-site pages for each pack built.
+
+**Acceptance:** the bars in §4.7. Bars that are not met are published as they are, with the gap and the plan to close it.
 
 ## 6. Decisions (the maintainer, 2026-10-21)
 
