@@ -169,6 +169,7 @@ describe("scoring", () => {
     expect(matchesPlanted({ metric: "revenue", before: "2026-03", period: "2026-04", direction: "up" }, drop)).toBe(false);
     const refunds = { type: "regression" as const, metric: "refund_rate", period: "2026-05" };
     expect(plantedDirection(refunds)).toBe("up");
+    expect(plantedDirection({ type: "regression", metric: "returning_customers" })).toBe("down");
     expect(matchesPlanted({ metric: "refund_rate", before: "2026-04", period: "2026-05", direction: "down" }, refunds)).toBe(false);
   });
 

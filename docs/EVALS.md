@@ -72,7 +72,7 @@ How a finding is matched to a planted event (by the subject its code-written fir
 | Driver accuracy | Correct top driver for detected planted events | ≥ 90% |
 | Cause grade accuracy | Assigned causal grade ≥ expected | ≥ 80% |
 | Distractor FP rate | Distractors reported as findings (a one-member blip also counts when reported on the whole metric at that period) | ≤ 10% |
-| Quality-issue recall | Planted data-quality issues reported with the right kind, file and sheet (and column, when both name a cell) | ≥ 90% |
+| Quality-issue recall | Planted data-quality issues reported with the right kind, file and sheet (and column when the citation names cells; the engine's items cite rows) | ≥ 90% |
 | Citation precision | Quotes the verifier's judge found supporting, of those it checked (V5). Measured in the pipeline by the judge under test, before drops; claims it rejected don't ship. No quote checked is a fail, not a pass. A separate post-ship judge is planned for the golden set (M14) | ≥ 95% |
 | Definition adherence | Completed jobs with no claim dropped for breaking a confirmed definition (V6). Measured in the pipeline, like citation precision; no completed job is a fail | 100% |
 | Recommendation grounding | Recs with ≥ 1 verified finding | 100% |

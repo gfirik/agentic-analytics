@@ -125,8 +125,11 @@ export function canonicalMetrics(report: Report): Map<string, string> {
 /** A metric id as the deterministic metric drafts name a channel's slice ("self-serve" → `self_serve_revenue`). */
 export const sliceOf = (channel: string, metric: string) => `${channel.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_${metric}`;
 
-/** Metrics where a rise is bad news, so a regression moves them up. */
-const UP_IS_WORSE = /refund|return|cost|expense|churn|complaint|late|defect/;
+/**
+ * Metrics where a rise is bad news, so a regression moves them up: a whole word of the id (`refund_rate`, `costs`),
+ * never a fragment ("returning_customers", "plate_sales").
+ */
+const UP_IS_WORSE = /(?:^|_)(?:refunds?|returns?|costs?|expenses?|churn|complaints?|late|defects?)(?:_|$)/;
 
 /** The direction a planted event moves its metric: a regression lowers revenue but raises a refund rate. */
 export const plantedDirection = (p: Pick<Planted, "type" | "metric">): "up" | "down" =>

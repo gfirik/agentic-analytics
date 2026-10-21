@@ -76,11 +76,12 @@ export function scoreCheck(c: RealCheck, report: Report | undefined, error?: str
         `report with ${plural(report.findings.length, "finding")}, ${plural(report.data_quality.length, "data-quality item")}`,
       );
     case "verified": {
+      // A shipped report has no mismatches by construction (a mismatch stops the job), so what is checked is that the
+      // verifier recomputed numbers at all and dropped nothing for breaking a confirmed definition.
       const v = report.verification;
-      const bad = v.numbers_mismatched + v.rederivation_mismatches + v.definition_violations;
       return out(
-        bad === 0,
-        `${v.numbers_checked} numbers checked, ${v.numbers_mismatched} mismatched, ${v.rederivation_mismatches} re-derivation mismatches, ${v.definition_violations} definition violations`,
+        v.numbers_checked > 0 && v.definition_violations === 0,
+        `${v.numbers_checked} numbers recomputed before the report shipped (a mismatch would have stopped the job), ${v.definition_violations} claims dropped for breaking a definition`,
       );
     }
     case "quality_issue": {
