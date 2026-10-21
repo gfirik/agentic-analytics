@@ -15,7 +15,8 @@ import type { Budget, ToolContext } from "./tools.ts";
 import { withheld, withheldMember } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
-const NUMERALS = "write numbers only as {{N…}} fact placeholders; no other digits except dates and quoted source text";
+const NUMERALS =
+  "write numbers only as {{N…}} fact placeholders; no other digits except dates (2026-04, March 2026, 2025-Q4; never a bare year) and quoted source text";
 const Text = z.string().min(3).max(600).refine(noNumerals, NUMERALS);
 const NO_PLACEHOLDERS = "no numbers or {{N…}} placeholders here; numbers belong in the explanations";
 /** Titles, alternatives and reasons: plain words only. Numbers live in claims, where they are checked. */

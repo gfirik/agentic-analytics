@@ -62,16 +62,26 @@ const DATE_PATTERNS = [
 const QUOTED = /“[^”]*”|"[^"]*"/g;
 
 /**
- * The years of a job's own periods, read only from period-shaped strings (`2026-04`, `2025-Q4`, `2026`), so an amount
- * like "2000" in a label can't vouch for itself. A bare year in report text is a date only if it is one of these.
+ * The years of a job's own periods, read only from where a period sits in a fact label, so neither an amount nor a
+ * member value can vouch for itself: the part before the first ":" (after it come calc keys such as
+ * `delta:<member>`), with bracketed members (`[store=2000-01]`) removed. There, a period-shaped token (`2026-04`,
+ * `2025-Q4`, `2026-W51`) counts, and so does a bare year that ends the label after "_" (a yearly period,
+ * `revenue_2025`) or that is the whole string (`report.period.from`).
  */
 export function periodYears(texts: readonly string[]): Set<string> {
   const out = new Set<string>();
-  const re = new RegExp(`(?<![\\d])(${YEAR})(?=-(?:0[1-9]|1[0-2])\\b|-?(?:Q[1-4]|H[12]|W\\d))`, "g");
+  const shaped = new RegExp(`^(${YEAR})(?:-(?:0[1-9]|1[0-2])(?:-\\d{2})?|-?(?:Q[1-4]|H[12]|W\\d{1,2}))$`);
+  const whole = new RegExp(`^${YEAR}$`);
+  const suffix = new RegExp(`_(${YEAR})$`);
   for (const t of texts) {
-    // A string that is only a year (a yearly period) counts as one; a year inside a label needs its period shape.
-    if (new RegExp(`^${YEAR}$`).test(t)) out.add(t);
-    for (const m of t.matchAll(re)) out.add(m[1] as string);
+    const head = (t.split(":")[0] ?? "").replace(/\[[^\]]*\]/g, " ");
+    if (whole.test(head.trim())) out.add(head.trim());
+    const y = suffix.exec(head.trim())?.[1];
+    if (y) out.add(y);
+    for (const token of head.split(/[\s_,;()]+/)) {
+      const m = shaped.exec(token);
+      if (m?.[1]) out.add(m[1]);
+    }
   }
   return out;
 }

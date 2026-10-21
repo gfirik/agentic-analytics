@@ -171,6 +171,17 @@ describe("text helpers", () => {
     for (const text of ["Revenue fell in 2026", "between 2025 and 2026", "2025 vs 2026", "Revenue 2025–2026", "for 2026"])
       expect(findFreeNumerals(text, years), text).toEqual([]);
     expect(findFreeNumerals("in 2026")).toEqual(["2026"]);
+    // Deliberate: a short second year is a count-looking number, not a period ("2026/27").
+    expect(findFreeNumerals("in 2026/27", years)).toEqual(["27"]);
+  });
+
+  it("periodYears reads only where a period sits in a label, never a member or an amount", () => {
+    expect([...periodYears(["revenue_2025", "revenue_2026"])].sort()).toEqual(["2025", "2026"]); // yearly grain
+    expect([...periodYears(["revenue[store=2000-01]_2026-04"])]).toEqual(["2026"]);
+    expect([...periodYears(["orders[sku=2000Q1]_2026"])]).toEqual(["2026"]);
+    expect([...periodYears(["contribution.v1 revenue 2026-04 by channel:delta:2000-01"])]).toEqual(["2026"]);
+    expect([...periodYears(["revenue_2025-Q4", "2026-W51"])].sort()).toEqual(["2025", "2026"]);
+    expect([...periodYears(["orders 2000"])]).toEqual([]);
   });
 
   it("stays linear on long text (no backtracking)", () => {
