@@ -39,7 +39,7 @@ const run = JSON.parse(readFileSync(join(ROOT, "docs/assets/readme/pipeline.json
   readonly verification: { readonly numbers_checked: number; readonly numbers_mismatched: number };
 };
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const mark = readFileSync(join(PUBLIC, "favicon.svg"), "utf8");
+const favicon = readFileSync(join(PUBLIC, "favicon.svg"), "utf8");
 
 const og = `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:"OgSerif";src:url(${font("@fontsource-variable/source-serif-4", "source-serif-4-latin-opsz-normal.woff2")});font-weight:200 900}
@@ -48,7 +48,7 @@ const og = `<!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:"OgMono";src:url(${font("@fontsource/ibm-plex-mono", "ibm-plex-mono-latin-500-normal.woff2")});font-weight:500}
 *{box-sizing:border-box;margin:0}
 body{width:1200px;height:630px;background:#f8f8f6;color:#121417;font-family:"OgSans";padding:72px 88px;display:flex;flex-direction:column;justify-content:space-between}
-.top{display:flex;align-items:center;gap:16px;font-weight:600;font-size:28px;letter-spacing:-.01em}
+.top{display:flex;align-items:center;font-weight:600;font-size:28px;letter-spacing:-.01em}
 h1{font-family:"OgSerif";font-weight:450;font-size:84px;line-height:1.02;letter-spacing:-.02em;max-width:900px}
 .ledger span{white-space:nowrap}
 .ledger{border-top:2px solid #8b8f94;border-bottom:1px solid #dcdcd6;display:flex;align-items:center;gap:28px;padding:20px 0;font-size:26px;color:#4a4f57}
@@ -161,7 +161,7 @@ try {
     const p = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 });
     await p.emulateMedia({ colorScheme: "light" });
     await p.setContent(
-      `<!doctype html><style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${mark}`,
+      `<!doctype html><style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${favicon}`,
     );
     pngs.push({ size, data: await p.screenshot({ type: "png", omitBackground: true }) });
   }
