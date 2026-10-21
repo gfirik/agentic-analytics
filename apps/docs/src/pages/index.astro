@@ -6,9 +6,11 @@
 // (src/data/evals.json, scored by the eval runner's summarize()). Nothing is typed by hand.
 import pipeline from "../../../../docs/assets/readme/pipeline.json";
 import { percent } from "../components/format.ts";
+import type { PipelineData } from "../components/pipeline-scene.ts";
 import BaseLayout from "../components/site/BaseLayout.astro";
 import EngineMachine from "../components/site/EngineMachine.astro";
 import Exhibit from "../components/site/Exhibit.astro";
+import { machineStations } from "../components/site/engine-machine.ts";
 import { firstSentence, type LinePart, placeholders } from "../components/site/exhibit.ts";
 import PipelineStages from "../components/site/PipelineStages.astro";
 import SectionLabel from "../components/site/SectionLabel.astro";
@@ -139,8 +141,16 @@ cd agentic-analytics && bun install</code></pre>
       </div>
     </section>
 
-    <section class="aa-sheet aa-machine-row" aria-label="The engine machine">
+    <section id="engine" class="aa-sheet aa-engine-band" aria-labelledby="aa-engine-title">
       <div class="aa-cell">
+        <div class="aa-cell-head aa-grid-field aa-engine-head">
+          <SectionLabel text="The engine, opened up" />
+          <h2 id="aa-engine-title" class="aa-h2 aa-center">A small factory for business questions.</h2>
+          <p class="aa-lead aa-center">
+            {machineStations(pipeline as unknown as PipelineData).length} stations, from your files to a checked report. The models work behind glass;
+            every number is made by the database.
+          </p>
+        </div>
         <EngineMachine />
       </div>
     </section>
@@ -581,10 +591,12 @@ AA_DEMO_MODEL=scripted \
       justify-content: flex-start;
     }
   }
-  /* The engine machine (PR 2 replaces it): its strip, unchanged, in its own row under the hero. */
-  .aa-machine-row > .aa-cell {
-    padding-top: var(--aa-space-6);
-    padding-bottom: var(--aa-space-6);
+  /* The engine machine's band (DESIGN.md §6): the head above, then the full-width stage (its own component). */
+  .aa-engine-head {
+    margin-bottom: var(--aa-space-7);
+  }
+  .aa-engine-head .aa-lead {
+    max-width: var(--aa-measure);
   }
   /* Section heads: the bracketed label on a hairline, a serif heading and lead; centred when stacked, on the left in a
      wide row or band from 1100px, where the label's hairline runs only after it. */

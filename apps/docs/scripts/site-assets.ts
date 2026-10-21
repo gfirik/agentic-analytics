@@ -2,10 +2,11 @@
 //   public/og.png       the 1200×630 Open Graph card: on-system HTML with the site's self-hosted fonts, its
 //                       headline number read from the README pipeline run (docs/assets/readme/pipeline.json);
 //   public/favicon.ico  the favicon.svg "aa" lettermark rasterized at 16, 32 and 48 px, packed as PNG-in-ICO;
-//   public/machine-strip.{webp,png}, machine-full.{webp,png}
-//                       the engine machine's static images (the strip under the hero, and the closed machine for no JS
-//                       and weak devices): its own scene (src/components/site/machine-scene.ts) rendered in the browser
-//                       with WebGL, from the same stations and tokens as the 3D view, with no labels (they are HTML).
+//   public/machine-wide.{webp,png}, machine-tall.{webp,png}
+//                       the engine machine's still frames (shown at once, under the live view, and alone without JS,
+//                       under reduced motion and on weak devices): its own scene (src/components/site/machine-scene.ts)
+//                       rendered in the browser with WebGL, from the same stations, tokens, lights and home view as the
+//                       live section, with no labels (they are HTML). Wide for desktop, tall for phones (the lighter scene).
 // It records the hash of its inputs in scripts/site-assets.json (checked by scripts/test/site-assets.test.ts).
 // Run: `bun run --filter @agentic-analytics/docs assets` (needs Playwright's Chromium, or PW_CHANNEL=chrome).
 import { readFileSync, writeFileSync } from "node:fs";
@@ -129,13 +130,13 @@ async function machineStills(browser: Awaited<ReturnType<typeof chromium.launch>
       const m = (await import(url)) as typeof import("../src/components/site/machine-scene.ts");
       return m.renderStills(input, toks, sizes);
     },
-    [`${ORIGIN}/machine-scene.js`, sceneInput(run), tokens(), { strip: [...STILLS.strip], full: [...STILLS.full] }] as const,
+    [`${ORIGIN}/machine-scene.js`, sceneInput(run), tokens(), { wide: [...STILLS.wide], tall: [...STILLS.tall] }] as const,
   );
   const bytes = (dataUrl: string, type: string) => {
     if (!dataUrl.startsWith(`data:${type};base64,`)) throw new Error(`site-assets: the browser didn't encode ${type}`);
     return Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
   };
-  for (const name of ["strip", "full"] as const) {
+  for (const name of ["wide", "tall"] as const) {
     writeFileSync(join(PUBLIC, `machine-${name}.webp`), bytes(out[name].webp, "image/webp"));
     writeFileSync(join(PUBLIC, `machine-${name}.png`), bytes(out[name].png, "image/png"));
   }
@@ -171,4 +172,4 @@ try {
 } finally {
   await browser.close();
 }
-process.stdout.write("docs: wrote public/og.png, public/favicon.ico and public/machine-{strip,full}.{webp,png}\n");
+process.stdout.write("docs: wrote public/og.png, public/favicon.ico and public/machine-{wide,tall}.{webp,png}\n");
