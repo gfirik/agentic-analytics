@@ -363,6 +363,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [Site 3D] The stills are WebP (quality 0.6) and PNG at about 1.5× their display size (strip 1700×256, 31 KB; closed machine 1280×600, 37 KB), not 2×: at 2× the WebP was 61 and 73 KB against the plan's ~30 KB, and the hairlines hold at 1.5×. No AVIF: the stills are encoded by Chromium's canvas (`toDataURL`), which can't write AVIF, and adding an image encoder for two files isn't worth a dependency — docs/plans/site-3d.md §3
 - [Site 3D] The open view fits its camera to the machine's projected bounds for the canvas's aspect, choosing the axonometric direction that draws it largest (a steeper diagonal on a phone's square canvas), and keeps the HTML labels inside the canvas, moving a label up past one it would cover — apps/docs/DESIGN.md §6
 - [Site 3D] The lazy chunk is fetched with a plain dynamic `import()` on intent; a dynamic import takes no `fetchpriority`, so the plan's `fetchpriority="low"` isn't applied. Glass is drawn as a dashed outline with no fill (no translucency) — docs/plans/site-3d.md §3
+- [code-quality fix 2] Quarantined sources are excluded at search time (`filterSql` in retrieval.sql.ts), not at indexing. This also covers a source the extractor flags mid-job, and the index stays reusable if a quarantine is lifted later. Review row 6 — docs/specs/security.md §3
 
 ## Known gaps carried forward
 

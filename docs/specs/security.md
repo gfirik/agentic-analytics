@@ -31,7 +31,7 @@
   - Every column label and every distinct text cell of every table is screened right after PROFILE, before METRICS_DRAFT shows cell samples to a model. Flagged samples and labels are withheld from the digest.
   - Every document and email is screened at INDEX_DOCS.
   - Web pages are screened on their readable text and their hidden text (hidden elements, comments). Scripts, styles and link URLs are not prose and are not screened. A hit goes into the `quarantine` table and the source is never sent to the extractor. The extractor's own flag adds to the same table.
-- **Per source.** Quarantine applies to the whole source: one flagged chunk excludes every extract of that document, including extracts found earlier in the job.
+- **Per source.** Quarantine applies to the whole source: one flagged chunk excludes every extract of that document, including extracts found earlier in the job. Search never returns a quarantined source either (the retrieval filter excludes the `quarantine` table at query time), so a flagged document can't take a top-k slot from real evidence.
 - **Flagging.** If the extractor (or the deterministic screen of §3: patterns like "ignore previous", "system prompt", "you are now", an AI addressed with a request, a URL next to a send verb, a link whose query carries a data placeholder next to a visit or confirm verb, or a spreadsheet formula calling a URL) flags suspicious instructions, the source becomes a `QualityIssue` (kind `suspicious_instruction`) and its extracts are excluded by default.
 
 ## 4. Web isolation

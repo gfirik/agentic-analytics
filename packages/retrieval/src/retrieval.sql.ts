@@ -51,10 +51,16 @@ export interface Filters {
   readonly to?: string;
 }
 
+/**
+ * The caller's filters, plus quarantine (security §3): a source the screen or the extractor flagged is never returned,
+ * whenever it was flagged. Excluding it here, not at INDEX_DOCS, also covers a source the extractor flags mid-job, and
+ * a flagged chunk no longer takes a top-k slot from real evidence before the extractor drops it.
+ */
 function filterSql(f: Filters): Sql {
   const src = f.sources?.length ? JSON.stringify(f.sources) : null;
   return sql`
-    (${src}::VARCHAR[] IS NULL OR list_contains(${src}::VARCHAR[], c.source_id) OR list_contains(${src}::VARCHAR[], f.name))
+    c.source_id NOT IN (SELECT source_id FROM quarantine)
+    AND (${src}::VARCHAR[] IS NULL OR list_contains(${src}::VARCHAR[], c.source_id) OR list_contains(${src}::VARCHAR[], f.name))
     AND (${f.from ?? null}::VARCHAR IS NULL OR left(s.meta->>'date', 10) >= ${f.from ?? null})
     AND (${f.to ?? null}::VARCHAR IS NULL OR left(s.meta->>'date', 10) <= ${f.to ?? null})`;
 }
