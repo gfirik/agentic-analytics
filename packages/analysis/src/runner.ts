@@ -271,7 +271,7 @@ export async function analyzeJob(
         const total = series.get(def.id)?.series as Series;
         // A level shift can be material while its two edge points are equal (spec §3): with no change between them
         // there is nothing to split into shares. The other splits (new and lost members, mix, PVM) still run.
-        if (!cancelsOut(changes.map((c) => c.after.value - c.before.value)))
+        if (!cancelsOut(changes))
           decompositions.push({
             insight,
             method: "contribution.v1",

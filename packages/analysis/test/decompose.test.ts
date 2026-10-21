@@ -235,10 +235,15 @@ describe("diff.v1 (spec §4.4)", () => {
 describe("cancelling member changes", () => {
   it("float noise around a zero total counts as zero: no ±10¹⁶ % shares", () => {
     // A 10.1 → 10.2 (+0.1), B 5.2 → 5.1 (−0.1): in floats the sum is −8.9e-16, not 0.
-    const deltas = [10.2 - 10.1, 5.1 - 5.2];
-    expect(deltas[0]! + deltas[1]!).not.toBe(0);
-    expect(cancelsOut(deltas)).toBe(true);
-    expect(cancelsOut([0.1, -0.05])).toBe(false);
+    const m = (b: number, a: number) => ({ before: { period: "2026-05", value: b }, after: { period: "2026-06", value: a } });
+    expect(10.2 - 10.1 + (5.1 - 5.2)).not.toBe(0);
+    expect(cancelsOut([m(10.1, 10.2), m(5.2, 5.1)])).toBe(true);
+    // Large values: Δ = 0.09999999962747097 and −0.10000000009313226, Σ = −4.66e-10 (> 1e-9 · Σ|Δ| = 2e-10), yet
+    // the totals 14,691,357.02 before and after are equal: still a cancelled total.
+    expect(cancelsOut([m(12345678.91, 12345679.01), m(2345678.11, 2345678.01)])).toBe(true);
+    // A genuine one-cent net change on ~29 million is not noise (tolerance 1e-12 × 5.9e7 ≈ 5.9e-5).
+    expect(cancelsOut([m(12345678.91, 12345679.02), m(2345678.11, 2345678.01)])).toBe(false);
+    expect(cancelsOut([m(1, 1.1), m(2, 1.95)])).toBe(false);
     const c = contribution(
       [
         { key: "A", series: "m|k=A", before: { period: "2026-05", value: 10.1 }, after: { period: "2026-06", value: 10.2 } },

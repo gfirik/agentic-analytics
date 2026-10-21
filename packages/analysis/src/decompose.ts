@@ -38,13 +38,14 @@ function magnitude(of: Calc, name: string, label: string): Calc {
 }
 
 /**
- * Whether member changes cancel out: their sum is 0 within float noise relative to their size (10.1 → 10.2 and
- * 5.2 → 5.1 sum to −8.9e-16, not 0). Shares of such a total would be 0/0, or ±10¹⁶ % from the noise.
+ * Whether member changes cancel out: their sum is 0 within float noise. The noise in each Δ = after − before scales
+ * with the values, not with Δ (12,345,678.91 → 12,345,679.01 is a Δ of 0.09999999962747097), so the tolerance is
+ * relative to Σ(|before| + |after|). Shares of such a total would be 0/0, or ±10¹⁰ % from the noise.
  */
-export function cancelsOut(deltas: readonly number[]): boolean {
-  const sum = deltas.reduce((s, d) => s + d, 0);
-  const size = deltas.reduce((s, d) => s + Math.abs(d), 0);
-  return Math.abs(sum) <= 1e-9 * size;
+export function cancelsOut(members: readonly Pick<MemberChange, "before" | "after">[]): boolean {
+  const sum = members.reduce((s, m) => s + (m.after.value - m.before.value), 0);
+  const size = members.reduce((s, m) => s + Math.abs(m.before.value) + Math.abs(m.after.value), 0);
+  return Math.abs(sum) <= 1e-12 * size;
 }
 
 /**
@@ -65,6 +66,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
     } satisfies Calc,
   }));
   const total = deltas.reduce((s, d) => s + d.delta.value, 0);
+  const flat = cancelsOut(members);
   const totalDelta: Calc = {
     name: "delta:total",
     label: "total change",
@@ -80,7 +82,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
       share: {
         name: `share:${d.key}`,
         label: `${d.key} share of the change`,
-        value: cancelsOut(deltas.map((x) => x.delta.value)) ? Number.NaN : (d.delta.value / total) * 100,
+        value: flat ? Number.NaN : (d.delta.value / total) * 100,
         unit: "percent" as const,
         fn: "contribution.v1",
         inputs: [calcRef(d.delta.name), calcRef(totalDelta.name)],
@@ -91,7 +93,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
   const top = contributors[0];
   const offset = negative[0];
   const beyond =
-    top && total !== 0 && Math.abs(top.delta.value) > Math.abs(total)
+    top && !flat && Math.abs(top.delta.value) > Math.abs(total)
       ? {
           key: top.key,
           magnitude: magnitude(top.delta, `magnitude:${top.key}`, `size of the change in ${top.key}`),
