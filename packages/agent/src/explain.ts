@@ -128,7 +128,9 @@ function checkClaim(
 export const RATE_EVENT_WORDS = "supplier switch quality defect complaint";
 /** Event words for any other change: prices, orders paused or lost, launches. */
 export const CHANGE_EVENT_WORDS = "price increase paused order lost customer launch";
-const QUALITY_RATE = /refund|return|defect|complaint|churn/i;
+// A whole word (ids use "_"): "Returning Customer Rate" is not a returns rate. Churn moves with prices and lost
+// customers, not suppliers, so it takes the change words.
+const QUALITY_RATE = /(?:^|[^a-z])(?:refund|return|defect|complaint)s?(?![a-z])/i;
 
 /**
  * The one search small-model mode runs per finding (agent-and-verifier §8): the metric, the top member of each split,

@@ -57,6 +57,9 @@ describe("topDrivers and the small-model search (M14a)", () => {
     // Channel explains more (0.934 > 0.759, as above), so wholesale comes first; Key Co still names the customer.
     expect(topDrivers([customer.d, channel.d], facts)).toEqual(["wholesale", "Key Co"]);
     expect(topDrivers([], facts)).toEqual([]);
+    // The remainder bucket is never a driver to search for: the next member names the split.
+    const rest = split("X3", "product", { "(other)": [-5000, 63.3], Espresso: [-2900, 36.7] });
+    expect(topDrivers([rest.d], rest.facts)).toEqual(["Espresso"]);
   });
 
   it("adds the change type's event words: a quality rate's are a supplier's, any other change's are prices and orders", () => {
@@ -71,6 +74,14 @@ describe("topDrivers and the small-model search (M14a)", () => {
     expect(smallModeQuery({ id: "revenue", label: "Total Revenue", unit: "currency" }, ["catering", "Key Co"], "2026-04")).toBe(
       `Total Revenue catering Key Co 2026-04 ${CHANGE_EVENT_WORDS}`,
     );
+  });
+
+  it("a quality rate is a whole word: returns and refunds, not returning customers; churn takes the change words", () => {
+    const pct = (id: string, label: string) => smallModeQuery({ id, label, unit: "percent" }, [], "2026-05");
+    expect(pct("return_rate", "Return Rate")).toBe(`Return Rate 2026-05 ${RATE_EVENT_WORDS}`);
+    expect(pct("refunds_rate", "Refunds Rate")).toBe(`Refunds Rate 2026-05 ${RATE_EVENT_WORDS}`);
+    expect(pct("returning_customer_rate", "Returning Customer Rate")).toBe(`Returning Customer Rate 2026-05 ${CHANGE_EVENT_WORDS}`);
+    expect(pct("churn_rate", "Churn Rate")).toBe(`Churn Rate 2026-05 ${CHANGE_EVENT_WORDS}`);
   });
 
   it("fits search_documents' 200 characters by dropping drivers from the end", () => {

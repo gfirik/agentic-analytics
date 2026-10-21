@@ -103,10 +103,12 @@ function driversOf(d: StoredDecomposition, facts: ReadonlyMap<string, Fact>): Dr
 export function topDrivers(ds: readonly StoredDecomposition[], facts: ReadonlyMap<string, Fact>): string[] {
   const best = contributionDrivers(ds, facts)?.decomposition;
   const splits = ds.filter((x) => x.method === "contribution.v1").sort((a, b) => Number(b === best) - Number(a === best));
+  // "(other)" is the remainder of a split, not a name a document would use.
   return [
     ...new Set(
       splits.flatMap((d) =>
         driversOf(d, facts)
+          .filter((x) => x.label !== "(other)")
           .slice(0, 1)
           .map((x) => x.label),
       ),

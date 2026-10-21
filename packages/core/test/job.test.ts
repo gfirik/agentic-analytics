@@ -3,7 +3,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DecideOutput } from "@agentic-analytics/agent";
+import { CHANGE_EVENT_WORDS, DecideOutput } from "@agentic-analytics/agent";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { estimateObjectRequest } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
@@ -137,6 +137,9 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(r.report.findings.length).toBeLessThanOrEqual(3);
     expect(r.report.recommendations.length).toBeLessThanOrEqual(2);
     expect(m.calls.some((c) => c.kind === "tools")).toBe(false);
+    // Code's one search per finding carries the change type's event words to the extractor (M14a, smallModeQuery).
+    const searches = m.calls.map((c) => /relevant to: ([^\n]*)/.exec(c.system ?? "")?.[1]).filter((q): q is string => q !== undefined);
+    expect(searches.some((q) => /revenue/i.test(q) && q.includes(CHANGE_EVENT_WORDS))).toBe(true);
     // Each finding's title fits its own metric (the hotel story only on revenue findings).
     for (const f of r.report.findings) if (/retail/i.test(f.claims[0]?.text ?? "")) expect(f.title).not.toMatch(/hotel/i);
     expect(checkReportIntegrity(r.report)).toEqual([]);

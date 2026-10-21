@@ -24,7 +24,7 @@ EXPLAIN and DECIDE.
   - Code states the observed change and its decomposition (`observedClaim`, `decompositionClaims`).
   - The planner investigates, then writes explanations with causal grades and rejected alternatives.
   - Unknown fact or extract ids are dropped, and causal grades without a document are downgraded.
-  - In small-model mode, a code-run search and a fill-in form replace this.
+  - In small-model mode, a code-run search and a fill-in form replace this. The search (`smallModeQuery`) names the metric, the top member of each contribution split (`topDrivers`, never "(other)"), the period and the change type's event words (`RATE_EVENT_WORDS` for a refund, return, defect or complaint rate; `CHANGE_EVENT_WORDS` otherwise).
 - **`decide(...)`**:
   - The planner proposes candidate actions and code computes each impact range (`scenarioFacts`).
   - Candidates are ranked by impact × confidence ÷ effort, and the top 2–5 are kept.
