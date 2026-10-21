@@ -1,7 +1,7 @@
 // Renders the site's binary assets from committed sources, so they can be regenerated rather than hand-exported:
 //   public/og.png       the 1200×630 Open Graph card: on-system HTML with the site's self-hosted fonts, its
 //                       headline number read from the README pipeline run (docs/assets/readme/pipeline.json);
-//   public/favicon.ico  the favicon.svg mark rasterized at 16, 32 and 48 px, packed as PNG-in-ICO;
+//   public/favicon.ico  the favicon.svg "aa" lettermark rasterized at 16, 32 and 48 px, packed as PNG-in-ICO;
 //   public/machine-strip.{webp,png}, machine-full.{webp,png}
 //                       the engine machine's static images (the strip under the hero, and the closed machine for no JS
 //                       and weak devices): its own scene (src/components/site/machine-scene.ts) rendered in the browser
@@ -49,7 +49,6 @@ const og = `<!doctype html><html><head><meta charset="utf-8"><style>
 *{box-sizing:border-box;margin:0}
 body{width:1200px;height:630px;background:#f8f8f6;color:#121417;font-family:"OgSans";padding:72px 88px;display:flex;flex-direction:column;justify-content:space-between}
 .top{display:flex;align-items:center;gap:16px;font-weight:600;font-size:28px;letter-spacing:-.01em}
-.top svg{width:44px;height:44px}
 h1{font-family:"OgSerif";font-weight:450;font-size:84px;line-height:1.02;letter-spacing:-.02em;max-width:900px}
 .ledger span{white-space:nowrap}
 .ledger{border-top:2px solid #8b8f94;border-bottom:1px solid #dcdcd6;display:flex;align-items:center;gap:28px;padding:20px 0;font-size:26px;color:#4a4f57}
@@ -58,7 +57,7 @@ h1{font-family:"OgSerif";font-weight:450;font-size:84px;line-height:1.02;letter-
 .chip svg{width:20px;height:20px}
 .foot{display:flex;justify-content:space-between;font-family:"OgMono";font-weight:500;font-size:20px;letter-spacing:.08em;text-transform:uppercase;color:#5f646c}
 </style></head><body>
-<div class="top">${mark}<span>agentic-analytics</span></div>
+<div class="top"><span>agentic-analytics</span></div>
 <h1>An AI analyst you can audit.</h1>
 <div>
 <div class="ledger"><span>${esc(run.change.metric)} ${esc(run.change.fromPeriod)} → ${esc(run.change.period)}</span><span class="fig">${esc(run.change.pct.text)}</span><span class="chip"><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="#0b6b3a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>${esc(run.change.pct.id)}</span><span>${run.verification.numbers_checked} recomputed · ${run.verification.numbers_mismatched} mismatched</span></div>
