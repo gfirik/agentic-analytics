@@ -106,5 +106,9 @@ describe("the injection screen reads identifiers as words (M14a)", async () => {
     // Ordinary identifiers stay clean.
     expect(screen("operating_system_cost")).toBe(false);
     expect(screen("wholesale_revenue")).toBe(false);
+    // Known cost, documented in security §3: a header worded like an override ("override_prior_price") or naming a
+    // system prompt reads as an instruction and its column is left out of the draft.
+    expect(screen("override_prior_price")).toBe(true);
+    expect(screen("price_override")).toBe(false);
   });
 });

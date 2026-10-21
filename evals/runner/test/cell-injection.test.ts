@@ -42,7 +42,8 @@ function variantCsv(where: "header" | "channel", text: string): Uint8Array {
     const month = `2025-${String(m).padStart(2, "0")}`;
     for (let d = 1; d <= 4; d++) {
       const day = `${month}-${String(d * 7).padStart(2, "0")}`;
-      const extra = where === "header" ? ",north" : "";
+      // Two values, so the header's column is a grouping candidate (one value never becomes a dimension).
+      const extra = where === "header" ? (d % 2 ? ",north" : ",south") : "";
       rows.push(`${day},Cafe One,retail,${1200 + d * 10}${extra}`);
       if (m <= 8) rows.push(`${day},Hotel Co,${where === "channel" ? text : "wholesale"},${4000 + d * 20}${extra}`);
     }
@@ -68,6 +69,8 @@ describe("an injection in a column header or a channel name never reaches the pl
         { model, embedder: hashEmbedder() },
       );
       expect(r.report.findings.length).toBeGreaterThan(0);
+      // The flagged header can't cost the job its revenue metric (its column is left out, not the metric refused).
+      expect(r.report.metrics.some((m) => /revenue/.test(m.id))).toBe(true);
       const texts = plannerText(model.calls);
       expect(texts.length).toBeGreaterThan(0);
       for (const t of texts) expect(t).not.toContain(probe);

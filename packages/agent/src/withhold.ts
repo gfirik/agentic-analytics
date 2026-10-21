@@ -14,9 +14,9 @@ export function withheld(text: string): string {
   return screen(text) ? WITHHELD : text;
 }
 
-/** A member value (null stays null). */
+/** A member: its dimension (a column name) and its value (null stays null). */
 export function withheldMember<T extends { readonly dimension: string; readonly value: string | null }>(m: T): T {
-  return m.value === null ? m : { ...m, value: withheld(m.value) };
+  return { ...m, dimension: withheld(m.dimension), ...(m.value === null ? {} : { value: withheld(m.value) }) };
 }
 
 /**

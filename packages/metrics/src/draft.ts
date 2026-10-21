@@ -144,6 +144,9 @@ export function groupingColumns(table: ProfiledTable, statusCol?: ProfiledTable[
   return (
     table.columns
       .filter((c) => c.type === "category" && c !== status && c.distinct_count >= 2 && c.distinct_count <= MAX_GROUPING_VALUES)
+      // A column whose header addresses a model is never a grouping: its name would reach the planner as a dimension,
+      // and a definition naming it is refused, which would cost the metric itself (security §3).
+      .filter((c) => !screen(c.label) && !screen(c.name))
       // An id-like column (an invoice number, an email: nearly one value per row) explains nothing and multiplies the
       // member series; a grouping repeats its values across rows.
       .filter((c) => c.distinct_count <= 50 || table.detail_rows < ID_LIKE_MIN_ROWS || c.distinct_count < ID_LIKE_SHARE * table.detail_rows)

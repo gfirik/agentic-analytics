@@ -35,6 +35,8 @@
     - the METRICS_DRAFT digest leaves out a column whose label or name is flagged, and screens by default for every caller;
     - the heuristic drafter never turns a flagged channel value into a metric;
     - the validator refuses a definition whose id, label or dimension is flagged.
+  - Grouping columns (the dimensions every drafted metric gets) never include a column whose header is flagged, so one crafted header can't refuse the revenue metric.
+  - The cost, accepted: a header worded like an instruction ("override_prior_price", "system_prompt_version") is left out of the draft, and a claim quoting a flagged member is withheld from the planner as a whole sentence.
   - Third-party file names (email attachments) are screened on their way to the planner, and `get_facts` matches on the screened label, so a query can't probe withheld text.
   - Every document and email is screened at INDEX_DOCS.
   - Web pages are screened on their readable text and their hidden text (hidden elements, comments). Scripts, styles and link URLs are not prose and are not screened. A hit goes into the `quarantine` table and the source is never sent to the extractor. The extractor's own flag adds to the same table.
