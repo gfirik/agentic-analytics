@@ -9,5 +9,5 @@ const toStderr = (err: unknown) =>
   process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`);
 
 export async function serveStdio(manager: JobManager, o: McpOptions = {}): Promise<void> {
-  await createMcpServer(manager, { onError: toStderr, ...o }).connect(new StdioServerTransport());
+  await createMcpServer(manager, { ...o, onError: o.onError ?? toStderr }).connect(new StdioServerTransport());
 }

@@ -8,7 +8,7 @@ import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { mcpHttpHandler } from "@agentic-analytics/mcp";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
-import type { Report } from "@agentic-analytics/schema";
+import { JobEvent, type Report } from "@agentic-analytics/schema";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp, isLoopback, ServeError, startServer } from "../src/index.ts";
 
@@ -127,6 +127,9 @@ describe("HTTP API", () => {
     const res = await createApp(vanished).request(`/v1/jobs/${id}/events`);
     const text = await res.text();
     expect(text).toContain("event: failed");
+    // A valid job event under the shared schema (and its published JSON Schema).
+    const data = /data: (.*)/.exec(text)?.[1] ?? "{}";
+    expect(JobEvent.parse(JSON.parse(data))).toMatchObject({ type: "failed", seq: -1, error: { code: "NOT_FOUND" } });
     expect(text).toContain('"code":"NOT_FOUND"');
   });
 
