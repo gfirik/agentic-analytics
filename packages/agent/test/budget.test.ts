@@ -6,8 +6,8 @@ import { FakeModel } from "@agentic-analytics/models/testing";
 import { placeholders } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
 import {
+  DecideAnswer,
   type DecideFinding,
-  DecideOutput,
   decide,
   decideRequest,
   type FactSheet,
@@ -36,7 +36,7 @@ describe("DECIDE input budget, printing_shop-v1 (small-model mode)", () => {
     const full = decideRequest(input);
     expect(full.steps).toEqual([]);
     // As sent to Groq: system prompt + schema instruction, then the user prompt, one chat message each.
-    const sent = estimateTokens(`${full.system}${schemaInstruction(DecideOutput)}`) + estimateTokens(full.prompt) + 16;
+    const sent = estimateTokens(`${full.system}${schemaInstruction(DecideAnswer)}`) + estimateTokens(full.prompt) + 16;
     expect(sent).toBeGreaterThanOrEqual(fx.provider_input_tokens);
     expect(full.untrimmed).toBeGreaterThan(SMALL_MODEL_INPUT_BUDGET);
   });

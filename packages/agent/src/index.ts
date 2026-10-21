@@ -23,7 +23,16 @@ export {
   severity,
   topDrivers,
 } from "./claims.ts";
-export { type DecideInput, DecideOutput, type DecideRequest, decide, decideRequest } from "./decide.ts";
+export {
+  bindIds,
+  DecideAnswer,
+  type DecideInput,
+  DecideOutput,
+  type DecideRequest,
+  decide,
+  decideRequest,
+  repairCandidate,
+} from "./decide.ts";
 export { buildDraft, type DraftInput, reportQuestion } from "./draft.ts";
 export { buildEvidence, MAX_EVIDENCE_ROWS } from "./evidence.ts";
 export {

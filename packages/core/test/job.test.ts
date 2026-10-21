@@ -3,7 +3,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CHANGE_EVENT_WORDS, DecideOutput } from "@agentic-analytics/agent";
+import { CHANGE_EVENT_WORDS, DecideAnswer } from "@agentic-analytics/agent";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { estimateObjectRequest } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
@@ -145,6 +145,24 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(checkReportIntegrity(r.report)).toEqual([]);
   }, 180_000);
 
+  it("DECIDE keeps the candidates that hold the rules when another breaks them (M14a)", async () => {
+    const m = coffeePlanner({ sloppyDecide: true });
+    const r = await runJob({ dir: tempDir(), files, options }, { model: m, embedder: hashEmbedder() });
+    // One answer, no validation retries: the broken candidate costs itself, not the set.
+    expect(m.calls.filter((c) => c.prompt === "Propose the candidate actions.").length).toBe(1);
+    const discount = r.report.recommendations.find((x) => /volume-tier discount/.test(x.action));
+    // Its risk keeps the sentence without a numeral; the empty not_advised is left out.
+    expect(discount?.risk).toBe("The discount lowers the margin on every recovered order.");
+    expect(discount && "not_advised" in discount ? discount.not_advised : undefined).toBeUndefined();
+    expect(r.report.recommendations.some((x) => /Raise wholesale prices again/.test(x.action))).toBe(false);
+    expect(r.report.verification.claims_dropped).toContainEqual({
+      // Its action is plain words, so the drop names it.
+      claim: "Raise wholesale prices again",
+      reason: expect.stringMatching(/^breaks the output rules: rationale\.text: write numbers only as/),
+    });
+    expect(checkReportIntegrity(r.report)).toEqual([]);
+  }, 180_000);
+
   it("small-model mode: a DECIDE request over the input budget is trimmed to fit, and its recommendations still verify (§8.1)", async () => {
     // The coffee fixture's small-model DECIDE request is about 5,700 estimated tokens; 3,500 takes most trimming steps.
     const budget = 3500;
@@ -155,7 +173,7 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
         { model: m, embedder: hashEmbedder() },
       );
       const call = m.calls.find((c) => c.kind === "object" && c.prompt === "Propose the candidate actions.");
-      return { r, size: estimateObjectRequest({ system: call?.system ?? "", prompt: call?.prompt ?? "", schema: DecideOutput }) };
+      return { r, size: estimateObjectRequest({ system: call?.system ?? "", prompt: call?.prompt ?? "", schema: DecideAnswer }) };
     };
     const full = await run();
     const trimmed = await run(budget);
