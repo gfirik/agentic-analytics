@@ -59,7 +59,10 @@ const RULES: Record<string, Rule> = {
   share: (f, x, byId) => {
     const total = x.reduce((a, b) => a + b, 0);
     const named = x.filter((_, i) => !(byId.get(f.computation.inputs?.[i] ?? "")?.label ?? "").includes("=(other)]"));
-    return { value: total && named.length ? (Math.max(...named) / total) * 100 : Number.NaN, how: "largest named member ÷ Σ × 100" };
+    return {
+      value: total && named.length ? (named.reduce((m, v) => Math.max(m, v), -Infinity) / total) * 100 : Number.NaN,
+      how: "largest named member ÷ Σ × 100",
+    };
   },
   hhi: (_f, x) => {
     const total = x.reduce((a, b) => a + b, 0);

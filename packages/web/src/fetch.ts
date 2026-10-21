@@ -72,10 +72,24 @@ export function checkUrl(
     throw new WebError("BLOCKED_ADDRESS", `${host} is a private or reserved address`);
   if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|metadata\.google\.internal)$/i.test(host))
     throw new WebError("BLOCKED_ADDRESS", `${host} is a local name`);
-  const query = decodeURIComponent(url.search.replace(/\+/g, " ")).toLowerCase();
+  const query = decodeLenient(url.search.replace(/\+/g, " ")).toLowerCase();
   const leak = privateValues.find((v) => v.trim().length >= 3 && query.includes(v.trim().toLowerCase()));
   if (leak !== undefined) throw new WebError("PRIVATE_VALUE", "the URL's query string contains private data; not fetched");
   return url;
+}
+
+/**
+ * `decodeURIComponent` that never throws: a malformed escape ("%zz") in a search result or redirect must not fail
+ * the stage. Each valid run of escapes is decoded on its own; anything else stays as written.
+ */
+function decodeLenient(s: string): string {
+  return s.replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
 }
 
 function request(

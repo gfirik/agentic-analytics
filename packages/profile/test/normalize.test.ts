@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ingest, type TableRegion } from "@agentic-analytics/ingest";
 import { describe, expect, it } from "vitest";
-import { normalizeTable, periodOf } from "../src/index.ts";
+import { inferColumn, normalizeTable, periodOf } from "../src/index.ts";
 
 const root = join(import.meta.dirname, "..", "..", "..");
 const tablesOf = async (...paths: string[]) =>
@@ -122,5 +122,12 @@ describe("periodOf (job grain)", () => {
     ["2027-01-01", "week", "2026-W53"], // Friday 2027-01-01 belongs to the last ISO week of 2026 (2026 has 53)
   ] as const)("%s at %s → %s", (iso, grain, expected) => {
     expect(periodOf(iso, grain)).toBe(expected);
+  });
+});
+
+describe("inferColumn on a large column", () => {
+  it("types a 200k-row text column (spreading it into Math.max overflowed the call stack)", () => {
+    const cells = Array.from({ length: 200_000 }, (_, i) => ({ v: `store ${i % 20}`, t: "s" as const }));
+    expect(inferColumn("Store", cells).type).toBe("category");
   });
 });
