@@ -21,18 +21,22 @@ export {
   periodOf,
   q,
   severity,
+  topDrivers,
 } from "./claims.ts";
 export { type DecideInput, DecideOutput, type DecideRequest, decide, decideRequest } from "./decide.ts";
 export { buildDraft, type DraftInput, reportQuestion } from "./draft.ts";
 export { buildEvidence, MAX_EVIDENCE_ROWS } from "./evidence.ts";
 export {
+  CHANGE_EVENT_WORDS,
   type Downgraded,
   type Dropped,
   type ExplainOptions,
   ExplainOutput,
   type ExplainResult,
   explainFindings,
+  RATE_EVENT_WORDS,
   SmallExplainOutput,
+  smallModeQuery,
   withoutQuarantined,
 } from "./explain.ts";
 export {

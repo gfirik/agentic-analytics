@@ -3,7 +3,7 @@
 import type { StoredDecomposition } from "@agentic-analytics/analysis";
 import type { Fact } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { contributionDrivers } from "../src/index.ts";
+import { CHANGE_EVENT_WORDS, contributionDrivers, RATE_EVENT_WORDS, smallModeQuery, topDrivers } from "../src/index.ts";
 
 /** A contribution decomposition over `dimension` with members' Δ and share-of-change, plus the facts they cite. */
 function split(id: string, dimension: string, members: Record<string, [change: number, share: number]>) {
@@ -45,5 +45,50 @@ describe("contributionDrivers", () => {
   it("ignores non-contribution decompositions and returns undefined without any", () => {
     const pvm = { ...channel.d, id: "X3", method: "pvm.v1" as const };
     expect(contributionDrivers([pvm], channel.facts)).toBeUndefined();
+  });
+});
+
+describe("topDrivers and the small-model search (M14a)", () => {
+  const channel = split("X1", "channel", { wholesale: [-8500, 107.6], retail: [600, -7.6] });
+  const customer = split("X2", "customer", { "Key Co": [-6000, 75.9], "Bean Bar": [-1400, 17.7], "(other)": [-500, 6.3] });
+  const facts = new Map([...channel.facts, ...customer.facts]);
+
+  it("names the top member of every split, the best split's first", () => {
+    // Channel explains more (0.934 > 0.759, as above), so wholesale comes first; Key Co still names the customer.
+    expect(topDrivers([customer.d, channel.d], facts)).toEqual(["wholesale", "Key Co"]);
+    expect(topDrivers([], facts)).toEqual([]);
+    // The remainder bucket is never a driver to search for: the next member names the split.
+    const rest = split("X3", "product", { "(other)": [-5000, 63.3], Espresso: [-2900, 36.7] });
+    expect(topDrivers([rest.d], rest.facts)).toEqual(["Espresso"]);
+  });
+
+  it("adds the change type's event words: a quality rate's are a supplier's, any other change's are prices and orders", () => {
+    // restaurant-v2, 2026-10-20 run: "Refund Rate <customer> 2026-06" made the extractor drop the supplier switch.
+    expect(smallModeQuery({ id: "refund_rate", label: "Refund Rate", unit: "percent" }, ["Cafe One"], "2026-06")).toBe(
+      `Refund Rate Cafe One 2026-06 ${RATE_EVENT_WORDS}`,
+    );
+    // A share is a percent but not a quality rate; revenue names both drivers so the customer's email can match.
+    expect(smallModeQuery({ id: "channel_share_private", label: "Private Share", unit: "percent" }, [], "2026-04")).toBe(
+      `Private Share 2026-04 ${CHANGE_EVENT_WORDS}`,
+    );
+    expect(smallModeQuery({ id: "revenue", label: "Total Revenue", unit: "currency" }, ["catering", "Key Co"], "2026-04")).toBe(
+      `Total Revenue catering Key Co 2026-04 ${CHANGE_EVENT_WORDS}`,
+    );
+  });
+
+  it("a quality rate is a whole word: returns and refunds, not returning customers; churn takes the change words", () => {
+    const pct = (id: string, label: string) => smallModeQuery({ id, label, unit: "percent" }, [], "2026-05");
+    expect(pct("return_rate", "Return Rate")).toBe(`Return Rate 2026-05 ${RATE_EVENT_WORDS}`);
+    expect(pct("refunds_rate", "Refunds Rate")).toBe(`Refunds Rate 2026-05 ${RATE_EVENT_WORDS}`);
+    expect(pct("returning_customer_rate", "Returning Customer Rate")).toBe(`Returning Customer Rate 2026-05 ${CHANGE_EVENT_WORDS}`);
+    expect(pct("churn_rate", "Churn Rate")).toBe(`Churn Rate 2026-05 ${CHANGE_EVENT_WORDS}`);
+  });
+
+  it("fits search_documents' 200 characters by dropping drivers from the end", () => {
+    const long = ["a".repeat(60), "b".repeat(60), "c".repeat(60)];
+    const query = smallModeQuery({ id: "revenue", label: "Revenue", unit: "currency" }, long, "2026-04");
+    expect(query.length).toBeLessThanOrEqual(200);
+    // With all three: 7 + 3×60 + 7 + 48 + 5 spaces = 247 > 200; without the third: 7 + 120 + 7 + 48 + 4 = 186.
+    expect(query).toBe(`Revenue ${"a".repeat(60)} ${"b".repeat(60)} 2026-04 ${CHANGE_EVENT_WORDS}`);
   });
 });
