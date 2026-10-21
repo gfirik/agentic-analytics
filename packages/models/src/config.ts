@@ -124,7 +124,11 @@ export function resolveModelConfig(env: Env, file?: unknown): Config {
     if (spec) models[role] = parseModelSpec(spec);
   }
   const ollamaUrl = env.OLLAMA_BASE_URL ?? fromFile.providers?.ollama?.base_url ?? DEFAULTS.providers?.ollama?.base_url;
-  const timeout = env.MODEL_TIMEOUT_MS ? Number(env.MODEL_TIMEOUT_MS) : fromFile.timeouts?.model_ms;
+  // A mistyped MODEL_TIMEOUT_MS ("2m", "abc", "0") is an error that names the variable, not a silent default.
+  const rawTimeout = env.MODEL_TIMEOUT_MS?.trim();
+  if (rawTimeout && !(/^\d+$/.test(rawTimeout) && Number(rawTimeout) > 0))
+    throw new ModelError("CONFIG", `MODEL_TIMEOUT_MS must be a whole number of milliseconds above 0, not "${rawTimeout}"`);
+  const timeout = rawTimeout ? Number(rawTimeout) : fromFile.timeouts?.model_ms;
   const parsed = Config.safeParse({
     ...fromFile,
     models,
@@ -144,6 +148,12 @@ export function resolveModelConfig(env: Env, file?: unknown): Config {
   for (const [role, m] of Object.entries(parsed.data.models)) {
     if (!m) continue;
     for (const r of [m, ...(m.fallbacks ?? [])]) {
+      // In-process transformers serve embeddings only, and embeddings come from transformers or Ollama: caught here,
+      // not at the first model call deep inside a job.
+      if (role !== "embedder" && r.provider === "transformers")
+        throw new ModelError("CONFIG", `${role} can't use transformers (it serves embeddings only); use ollama or openai-compatible`);
+      if (role === "embedder" && r.provider !== "transformers" && r.provider !== "ollama")
+        throw new ModelError("CONFIG", `embedder must be transformers or ollama, not ${r.provider}`);
       if (r.provider === "openai-compatible" && !parsed.data.providers["openai-compatible"]?.[r.endpoint ?? ""]) {
         throw new ModelError("CONFIG", `${role} uses unknown openai-compatible endpoint "${r.endpoint}"`);
       }

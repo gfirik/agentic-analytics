@@ -19,7 +19,13 @@ export class Workspace {
   static async open(path = ":memory:"): Promise<Workspace> {
     const instance = await DuckDBInstance.create(path);
     const ws = new Workspace(instance, await instance.connect(), path);
-    await ws.migrate();
+    try {
+      await ws.migrate();
+    } catch (err) {
+      // A bad or newer workspace file: release the database before failing, or the process keeps its lock.
+      ws.close();
+      throw err;
+    }
     return ws;
   }
 

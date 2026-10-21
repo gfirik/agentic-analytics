@@ -61,8 +61,8 @@ function filterSql(f: Filters): Sql {
   return sql`
     c.source_id NOT IN (SELECT source_id FROM quarantine)
     AND (${src}::VARCHAR[] IS NULL OR list_contains(${src}::VARCHAR[], c.source_id) OR list_contains(${src}::VARCHAR[], f.name))
-    AND (${f.from ?? null}::VARCHAR IS NULL OR left(s.meta->>'date', 10) >= ${f.from ?? null})
-    AND (${f.to ?? null}::VARCHAR IS NULL OR left(s.meta->>'date', 10) <= ${f.to ?? null})`;
+    AND (${f.from ?? null}::VARCHAR IS NULL OR try_cast(left(s.meta->>'date', 10) AS DATE) >= ${f.from ?? null}::DATE)
+    AND (${f.to ?? null}::VARCHAR IS NULL OR try_cast(left(s.meta->>'date', 10) AS DATE) <= ${f.to ?? null}::DATE)`;
 }
 
 export function bm25Top(query: string, f: Filters, limit: number): Sql {

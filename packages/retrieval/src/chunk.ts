@@ -28,7 +28,8 @@ interface Unit {
   readonly table?: boolean;
 }
 
-const TABLE_LINE = /^\s*\|.*\|\s*$|\t/;
+/** A pipe-table row, or a row of tab-separated cells (a tab between two non-blank cells, not an indent). */
+const TABLE_LINE = /^\s*\|.*\|\s*$|\S\t+\S/;
 
 /** Paragraph-level units; consecutive table lines form one unit that is never split. */
 function blocks(text: string): Unit[] {
@@ -38,6 +39,9 @@ function blocks(text: string): Unit[] {
     lines.push({ start: pos, end: pos + line.length, table: TABLE_LINE.test(line), blank: line.trim() === "" });
     pos += line.length + 1;
   }
+  // A table is at least two such rows in a row: one tabbed line in prose stays prose.
+  const cand = lines.map((l) => l.table);
+  for (const [i, l] of lines.entries()) l.table = (cand[i] ?? false) && (cand[i - 1] === true || cand[i + 1] === true);
   // Text with blank lines separates paragraphs by them; text without (DOCX, PDF lines) uses one line per unit.
   const byBlank = lines.some((l) => l.blank);
   const out: Unit[] = [];

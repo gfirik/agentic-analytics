@@ -192,6 +192,7 @@ export async function explainFindings(
     });
     // By id, not by position: a source quarantined during this finding removes earlier extracts from the list.
     const known = new Set(ctx.found.extracts.map((e) => e.id));
+    const askedBefore = ctx.found.questions.length;
 
     if (!options.small) {
       const run = await model.generateWithTools({
@@ -215,6 +216,11 @@ export async function explainFindings(
       // Small models call tools unreliably (§8): code runs the one search that matters.
       const query = smallModeQuery(def ?? { id: insight.metric }, topDrivers(ds, before), insight.period);
       await (tools.search_documents as { execute(i: unknown): Promise<unknown> }).execute({ query });
+    }
+    // Questions asked while investigating this finding are about it.
+    for (let k = askedBefore; k < ctx.found.questions.length; k++) {
+      const q = ctx.found.questions[k];
+      if (q && !q.finding) ctx.found.questions[k] = { ...q, finding: id };
     }
     const evidence = ctx.found.extracts.filter((e) => !known.has(e.id));
     const extracts = new Map(evidence.map((e) => [e.id, e]));

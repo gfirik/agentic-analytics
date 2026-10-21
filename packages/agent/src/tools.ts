@@ -50,6 +50,8 @@ export class Budget {
 export interface OpenQuestionDraft {
   readonly question: string;
   readonly why_it_matters: string;
+  /** The finding being investigated when the planner asked it (set by EXPLAIN), so the report links the right one. */
+  readonly finding?: string;
 }
 
 export interface ToolContext {
@@ -190,8 +192,15 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
     z.object({
       query: z.string().min(2).max(200),
       sources: z.array(z.string()).max(20).optional(),
-      from: z.string().optional(),
-      to: z.string().optional(),
+      // ISO days only: "March 2026" or "2026-3-1" would compare wrong and silently match nothing.
+      from: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD")
+        .optional(),
+      to: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD")
+        .optional(),
     }),
     budget,
     async ({ query, sources, from, to }) => {

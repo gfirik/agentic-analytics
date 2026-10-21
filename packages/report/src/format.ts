@@ -56,6 +56,6 @@ export function formatPeriod(from: string, to: string): string {
 export function formatCell(v: string | number | null, header: string): string {
   if (v === null) return "";
   if (typeof v === "string") return v;
-  if (/rate|%/i.test(header) && Math.abs(v) < 1) return `${grouped(v * 100, 1)}%`;
+  if (/rate|%/i.test(header) && Math.abs(v) < 1) return `${sign(v)}${grouped(v * 100, 1)}%`;
   return `${sign(v)}${grouped(v, Number.isInteger(v) ? 0 : 2)}`;
 }

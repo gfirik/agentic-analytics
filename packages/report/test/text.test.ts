@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Fact, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { fillPlaceholders, formatFact, reportSummaryText } from "../src/index.ts";
+import { fillPlaceholders, formatCell, formatFact, reportSummaryText } from "../src/index.ts";
 
 const report = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "..", "schema", "test", "fixtures", "report.coffee-roaster.json"), "utf8"),
@@ -38,5 +38,12 @@ describe("percentage points", () => {
     expect(formatFact(fact("benchmark_gap.v1", 1.4))).toBe("1.4 pp");
     expect(formatFact(fact("share_shift", -10))).toBe("−10.0 pp");
     expect(formatFact(fact("pct_change", -17.913832199546484))).toBe("−17.9%");
+  });
+});
+
+describe("formatCell keeps the sign of a rate", () => {
+  it("a negative rate cell shows its minus sign", () => {
+    expect(formatCell(-0.123, "Refund rate")).toBe("−12.3%");
+    expect(formatCell(0.123, "Refund rate")).toBe("12.3%");
   });
 });

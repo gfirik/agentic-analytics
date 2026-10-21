@@ -148,6 +148,8 @@ describe("V2 rules", () => {
     // parameters within bounds (recover_share 30–90%; cost ≤ 50%)
     expect((await check(all.get(rs[2] as string) as Fact))?.ok).toBe(true);
     expect((await check(calc("scenario impact.v1:recover_share:param_low", 95, "scenario_param", [])))?.ok).toBe(false);
+    // An unknown scenario type fails closed as a mismatch, not a TypeError.
+    expect((await check(calc("scenario impact.v1:teleport_stock:param_low", 50, "scenario_param", [])))?.ok).toBe(false);
     // external_quote re-parses its stored text
     const low = calc("external benchmark (low)", 1, "external_quote", [], {
       computation: { kind: "function", fn: "external_quote", params: { text: "1–2%", side: "low" } },

@@ -12,6 +12,7 @@ import { lookup as dnsLookup } from "node:dns";
 import http from "node:http";
 import https from "node:https";
 import { isBlockedAddress, parseIPv4, parseIPv6 } from "./ip.ts";
+import { normalizeText } from "./sanitize.ts";
 import { WebError } from "./types.ts";
 
 export interface FetchedPage {
@@ -73,7 +74,19 @@ export function checkUrl(
   if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|metadata\.google\.internal)$/i.test(host))
     throw new WebError("BLOCKED_ADDRESS", `${host} is a local name`);
   const query = decodeLenient(url.search.replace(/\+/g, " ")).toLowerCase();
-  const leak = privateValues.find((v) => v.trim().length >= 3 && query.includes(v.trim().toLowerCase()));
+  // Matched the way the query sanitizer matches (security §4): diacritics folded, separators as spaces, and a joined
+  // spelling ("hotelgroup", "cafe+roma" for "Café Roma") caught too.
+  const nq = ` ${normalizeText(query)} `;
+  const joined = nq.replace(/ /g, "");
+  const leak = privateValues.find((v) => {
+    const nv = normalizeText(v);
+    if (nv.length < 3) return false;
+    return (
+      query.includes(v.trim().toLowerCase()) ||
+      nq.includes(nv) ||
+      (nv.replace(/ /g, "").length >= 6 && joined.includes(nv.replace(/ /g, "")))
+    );
+  });
   if (leak !== undefined) throw new WebError("PRIVATE_VALUE", "the URL's query string contains private data; not fetched");
   return url;
 }
@@ -86,6 +99,22 @@ export function checkUrl(
 const utf8 = new TextDecoder("utf-8", { fatal: false });
 function decodeLenient(s: string): string {
   return s.replace(/(?:%[0-9a-f]{2})+/gi, (run) => utf8.decode(Uint8Array.from(run.slice(1).split("%"), (h) => Number.parseInt(h, 16))));
+}
+
+/**
+ * The page's text in its own charset: the Content-Type header's, else a `<meta charset>` in the first 2 KB, else UTF-8
+ * (also for a label TextDecoder doesn't know). Russian and Uzbek sites still serve windows-1251, which read as UTF-8
+ * would be mojibake that no quote or screen could match.
+ */
+export function decodeBody(bytes: Uint8Array, contentType: string): string {
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 2048));
+  const label =
+    /charset\s*=\s*"?([\w.:-]+)/i.exec(contentType)?.[1] ?? /<meta[^>]+charset\s*=\s*["']?([\w.:-]+)/i.exec(head)?.[1] ?? "utf-8";
+  try {
+    return new TextDecoder(label).decode(bytes);
+  } catch {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
 }
 
 function request(
@@ -156,7 +185,7 @@ function request(
           }
           chunks.push(c);
         });
-        res.on("end", () => resolve({ status, contentType, body: Buffer.concat(chunks).toString("utf8") }));
+        res.on("end", () => resolve({ status, contentType, body: decodeBody(Buffer.concat(chunks), contentType) }));
         res.on("error", fail);
       },
     );
