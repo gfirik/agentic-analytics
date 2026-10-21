@@ -14,7 +14,8 @@ beforeAll(async () => {
   await ws.run(sql`INSERT INTO files (id, name, sha256, status) VALUES ('F1', 'board-note.eml', 'x', 'ok')`);
   const meta = JSON.stringify({
     from: "Dilnoza Karimova <dilnoza@example.org>",
-    to: '"Rustam Aliev" <rustam@example.org>, ops@example.org',
+    to: '"Rustam Aliev" <rustam@example.org>, ops@example.org, "Usmonov, Bekzod (Sales)" <b@example.org>',
+    subject: "Re: Hotel Group standing order",
   });
   await ws.run(
     sql`INSERT INTO sources (id, file_id, kind, text, meta) VALUES ('D1', 'F1', 'email', 'The body names nobody.', ${meta}::JSON)`,
@@ -34,6 +35,8 @@ describe("privateTerms", () => {
     expect(t.values).toEqual(expect.arrayContaining(["board-note.eml", "dilnoza@example.org", "rustam@example.org", "ops@example.org"]));
     // A bare address is a value, not a name.
     expect(t.names).not.toContain("ops@example.org");
+    // A quoted display name with a comma splits into its parts, each private (fail-safe); the subject is a phrase.
+    expect(t.names).toEqual(expect.arrayContaining(["Usmonov", "Bekzod (Sales)", "Hotel Group standing order"]));
   });
 
   it("is recomputed at each search, so an actor extracted after the lane was set up is still stripped", async () => {
@@ -53,5 +56,12 @@ describe("privateTerms", () => {
     await searchAndStore(ws, lane, "Bukhara Roasters coffee price trend");
     expect(sent.length).toBe(1);
     expect(sent[0]).not.toMatch(/Bukhara/i);
+  });
+
+  it("ignores actors found on web pages: they are public, and a page must not blank out later queries", async () => {
+    await ws.run(sql`INSERT INTO sources (id, file_id, kind, external, text) VALUES ('W1', 'WEB', 'web', true, 'page')`);
+    const payload = JSON.stringify({ id: "E3", kind: "event", text: "prices rose", actor: "coffee prices" });
+    await ws.run(sql`INSERT INTO extracts VALUES ('E3', 'W1', NULL, ${payload}::JSON, false)`);
+    expect((await privateTerms(ws)).names).not.toContain("coffee prices");
   });
 });
