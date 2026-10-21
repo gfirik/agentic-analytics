@@ -71,6 +71,8 @@ History, not a headline: the first scheduled nightly pass (cron, 2026-10-19 22:0
 
 30 datasets · 2012 s · 801284 tokens
 
+Usage: n/a (tokens per call not recorded for this run)
+
 Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 335 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (92 calls, 79 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (131 calls, 47 cached, 31 failed)
 
 | Metric | Result | v0.1 bar | Pass |
