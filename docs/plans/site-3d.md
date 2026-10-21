@@ -31,16 +31,16 @@ Screenshots (`docs/plans/site-3d/`, taken from a local build of main with the mo
 | A | ![A 1440](site-3d/A-1440-fold.png) | ![A 390](site-3d/A-390-fold.png) |
 | C | ![C 1440](site-3d/C-1440-fold.png) | ![C 390](site-3d/C-390-fold.png) |
 
-B leaves the first screen as it is; `site-3d/B-1440-top.png` shows it below the exhibit.
+B leaves the first screen as it is; `site-3d/B-1440-top.png` and `site-3d/B-390-top.png` show it below the exhibit. The open state is shot in the build PR (§4).
 
 ## 2. How it fits DESIGN.md (what changes there)
 
-The design system currently rules this out in two places, so the build PR amends DESIGN.md in the same PR:
+The design system currently rules this out in three places (§1, §2.6 and §9) and limits motion in two (§2.5 and §7), so the build PR amends DESIGN.md in the same PR:
 
 | DESIGN.md today | The amendment |
 |---|---|
-| §2.6 and §9: "No gradients, glow, blobs, **3D** …" | One exception: the engine machine, an axonometric line drawing of the real pipeline (hairline edges, two surface tones, no shading beyond flat Lambert, no shadows, no glow). 3D as decoration stays banned. |
-| §2.5 and §7: the exhibit's replay is the only motion that starts by itself | Unchanged. The machine never moves by itself: it opens on a click, turns only by drag or the view buttons, and the tour, the trace and "Run the line" run only when pressed. |
+| §1: not "an AI startup page (no gradients, glow, blobs, **3D**, robots or brains)"; §2.6 and §9: "No gradients, glow, blobs, **3D** …" | One exception: the engine machine, an axonometric line drawing of the real pipeline. It uses hairline edges and two surface tones from the tokens, through unlit materials (`MeshBasicMaterial`, so no light-dependent shading). It has no shadows and no glow. 3D as decoration stays banned. |
+| §2.5: the exhibit's replay is the only motion that starts by itself; §7: the landing's motion is the replay, the walkthrough, the pipeline stages after Play and 150ms transitions, "No other motion" | §2.5 is kept: the machine never moves by itself. §7 gains one entry: the machine moves only on the reader's input (drag, the view buttons, and the tour, trace and "Run the line" when pressed), and under reduced motion every guided mode jumps to its end state. |
 | §5, the landing sections | The hero gets a fourth part: the machine strip under the install line (option C). |
 | §6, the components | A new entry, `EngineMachine.astro`: the strip, the open state, the labels, the sheet, the fallback and the loading rules below. |
 | §10, the checklist | A line: the machine's labels and sheet are HTML. |
@@ -68,14 +68,14 @@ The rest of the design system holds as it is:
   | the machine's own code (the prototype's script, as a guide) | 49 KB | ~17 KB |
   
   The total is about **160 KB gzip**, in one lazy chunk. Tree-shaking saves less than hoped, because `WebGLRenderer` pulls in most of three.
-- **When it loads:**
-  - the page loads none of it;
-  - an IntersectionObserver prefetches the chunk (`<link rel="modulepreload">`, idle priority) when the strip scrolls into view;
-  - the module runs only on **Open the machine**.
-  
-  Lighthouse's mobile run, which doesn't scroll or click, sees only the strip image.
-- **Static fallback image:** the strip and the closed state are a real image of the machine (AVIF/WebP plus PNG, about 30 KB, with explicit `width`/`height`). It is rendered at build time from the same scene by the docs `assets` script, like `og.png`, and covered by `site-assets.test.ts`'s input hash. The fallback is the whole experience for:
-  - **no JS:** the image plus the station list as HTML;
+- **When it loads.** Option C puts the strip on the first screen at both sizes (the exhibit's top is at 820 and 717), so "when it scrolls into view" would mean "on every page load". A prefetch on view would therefore fetch about 160 KB, and parse it (`modulepreload` compiles too), on every visit, including Lighthouse's mobile run. The plan differs from the literal ask on purpose:
+  - nothing loads with the page;
+  - the chunk is fetched on the first hover, focus or pointerdown on **Open the machine** (intent), with `fetchpriority="low"`, and run on the click. On phones, which have no hover, it is fetched on the tap itself;
+  - Lighthouse's mobile run, which neither hovers nor taps, loads none of it. The browser test asserts that no machine chunk is requested before interaction.
+
+  The literal option (load and show the still machine when it scrolls into view) is offered in §5. It would cost the 160 KB on every first screen under option C.
+- **Static fallback image:** the strip (at 1440 and other wide screens) and the closed state are a real image of the machine (AVIF/WebP plus PNG, about 30 KB, with explicit `width`/`height`). It is rendered at build time from the same scene by the docs `assets` script, like `og.png`, and covered by `site-assets.test.ts`'s input hash. The fallback is the whole experience for:
+  - **no JS:** the image plus the station list as HTML. On phones, where option C shows only the label and the button, the button is a link to the station list (a `<details>`), so no-JS and weak-device phones get the list and the image inside it;
   - **`prefers-reduced-motion`:** the machine still opens, but every guided mode jumps to its end state and the camera doesn't animate;
   - **weak devices:** no WebGL, `navigator.hardwareConcurrency ≤ 2`, `deviceMemory ≤ 2` or Save-Data. The button then opens the station list and the sheet over the static image, without loading three.
 - **No layout shift:** the strip's box is fixed by the image's dimensions. Opening reserves its height (aspect-ratio) before the canvas mounts.
@@ -98,13 +98,18 @@ One PR, on its own branch from main:
 3. The build-time fallback render, plus tests: site assets, landing data, and a browser test (open, keyboard, no third-party requests, reduced motion, 360 px).
 4. Screenshots at 1440 and 390 (closed and open), a Lighthouse run on `/`, then the reviewer and QA as usual, and a Telegram after merge.
 
+**Risks in the port** (the prototype is three r128; the site would pin 0.186):
+- **Colour management** has been on by default since r152, with sRGB output. Token colours read through `getComputedStyle` must be set as sRGB (`Color.setStyle` with `ColorManagement` handled), or every surface renders shifted from the page's own tokens. A browser test samples a canvas pixel against `--aa-surface`.
+- **OrbitControls** moves from `examples/js` (a global) to the `jsm` module, and its API changed slightly (for example `listenToKeyEvents`). The keyboard handling is rewritten against it.
+- **Renamed or removed APIs** between r128 and 0.186 (geometry and material options, `outputEncoding` → `outputColorSpace`) are found by typechecking the port, not by eye.
+
 The two-agent and heavy-job rules apply. The site stays frozen apart from this change.
 
 ## 5. Decisions for the maintainer
 
 1. **Placement:** C (recommended), A (your first wish, which breaks the fold rule), or B.
 2. **The DESIGN.md exception** for one 3D explainer, as worded in §2.
-3. **The cost:** about 160 KB gzip, lazy, loaded only on Open, with a prefetch once the strip is on screen. Or no prefetch at all, so nothing loads until the click.
+3. **Loading:** about 160 KB gzip, fetched on intent (hover, focus or tap on Open; recommended), or literally when the section scrolls into view (on every first screen under C), or only on the click.
 4. **The spec sheet:**
    - the full sheet from the prototype (calls, tables, SQL, model pill);
    - or a shorter sheet that links into Learn's stage pages, which already explain each stage. That keeps one source per stage.
