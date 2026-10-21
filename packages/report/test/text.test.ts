@@ -45,5 +45,9 @@ describe("formatCell keeps the sign of a rate", () => {
   it("a negative rate cell shows its minus sign", () => {
     expect(formatCell(-0.123, "Refund rate")).toBe("−12.3%");
     expect(formatCell(0.123, "Refund rate")).toBe("12.3%");
+    expect(formatCell(0.123, "refund_rate")).toBe("12.3%");
+    // "rate" inside another word is not a rate column.
+    expect(formatCell(0.5, "Corporate client")).toBe("0.50");
+    expect(formatCell(0.5, "Separate fee")).toBe("0.50");
   });
 });

@@ -3,15 +3,15 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DuckDBInstance } from "@duckdb/node-api";
-import { afterAll, describe, expect, it } from "vitest";
+import { DuckDBConnection, DuckDBInstance } from "@duckdb/node-api";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { Workspace } from "../src/index.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "aa-store-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("Workspace.open", () => {
-  it("releases the database when a migration fails, so the next open gets the same clear error", async () => {
+  it("closes the database it opened when a migration fails, keeping the migration error", async () => {
     const path = join(dir, "job.duckdb");
     // A file whose `files` table already exists with no migration recorded: migration 1 fails on it.
     const raw = await DuckDBInstance.create(path);
@@ -19,12 +19,14 @@ describe("Workspace.open", () => {
     await c.run("CREATE TABLE files (id INTEGER)");
     c.closeSync();
     raw.closeSync();
+    // The instance and connection the failed open made are closed (DuckDB lets the same process open the file again
+    // either way, so the close itself is what is checked).
+    const closedInstance = vi.spyOn(DuckDBInstance.prototype, "closeSync");
+    const closedConnection = vi.spyOn(DuckDBConnection.prototype, "closeSync");
     await expect(Workspace.open(path)).rejects.toMatchObject({ code: "MIGRATION" });
-    // Opening the file again (the database the failed open created must have been closed).
-    const again = await DuckDBInstance.create(path).then(
-      (i) => (i.closeSync(), "opened"),
-      (err: unknown) => String(err),
-    );
-    expect(again).toBe("opened");
+    expect(closedInstance).toHaveBeenCalledTimes(1);
+    expect(closedConnection).toHaveBeenCalledTimes(1);
+    closedInstance.mockRestore();
+    closedConnection.mockRestore();
   });
 });

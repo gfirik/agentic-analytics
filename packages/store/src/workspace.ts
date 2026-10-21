@@ -98,7 +98,8 @@ export class Workspace {
         await this.connection.run(`INSERT INTO schema_migrations (version) VALUES (${m.version})`);
         await this.connection.run("COMMIT");
       } catch (err) {
-        await this.connection.run("ROLLBACK");
+        // A failed ROLLBACK must not replace the migration error, which is the one that explains the failure.
+        await this.connection.run("ROLLBACK").catch(() => undefined);
         throw new StoreError(
           "MIGRATION",
           `migration ${m.version} (${m.name}) failed: ${err instanceof Error ? err.message : String(err)}`,

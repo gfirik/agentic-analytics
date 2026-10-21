@@ -150,10 +150,15 @@ export function resolveModelConfig(env: Env, file?: unknown): Config {
     for (const r of [m, ...(m.fallbacks ?? [])]) {
       // In-process transformers serve embeddings only, and embeddings come from transformers or Ollama: caught here,
       // not at the first model call deep inside a job.
-      if (role !== "embedder" && r.provider === "transformers")
-        throw new ModelError("CONFIG", `${role} can't use transformers (it serves embeddings only); use ollama or openai-compatible`);
+      if (["planner", "extractor", "judge"].includes(role) && r.provider === "transformers")
+        throw new ModelError(
+          "CONFIG",
+          `${role} can't use transformers (it serves embeddings and reranking only); use ollama or openai-compatible`,
+        );
       if (role === "embedder" && r.provider !== "transformers" && r.provider !== "ollama")
         throw new ModelError("CONFIG", `embedder must be transformers or ollama, not ${r.provider}`);
+      if (role === "reranker" && r.provider !== "transformers")
+        throw new ModelError("CONFIG", `reranker must be transformers (an in-process ONNX model), not ${r.provider}`);
       if (r.provider === "openai-compatible" && !parsed.data.providers["openai-compatible"]?.[r.endpoint ?? ""]) {
         throw new ModelError("CONFIG", `${role} uses unknown openai-compatible endpoint "${r.endpoint}"`);
       }

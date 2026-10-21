@@ -56,6 +56,7 @@ export function formatPeriod(from: string, to: string): string {
 export function formatCell(v: string | number | null, header: string): string {
   if (v === null) return "";
   if (typeof v === "string") return v;
-  if (/rate|%/i.test(header) && Math.abs(v) < 1) return `${sign(v)}${grouped(v * 100, 1)}%`;
+  // "rate" as its own word (Refund rate, refund_rate), never inside one ("Corporate client", "Separate fee").
+  if (/(?:^|[^a-z])rates?(?:$|[^a-z])|%/i.test(header) && Math.abs(v) < 1) return `${sign(v)}${grouped(v * 100, 1)}%`;
   return `${sign(v)}${grouped(v, Number.isInteger(v) ? 0 : 2)}`;
 }

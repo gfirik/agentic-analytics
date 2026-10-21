@@ -75,5 +75,11 @@ describe("config mistakes are named at startup (code-quality fix 11)", () => {
       expect.objectContaining({ code: "CONFIG", message: expect.stringContaining("embedder must be transformers or ollama") }),
     );
     expect(resolveModelConfig({ EMBEDDING_MODEL: "ollama:bge-m3" }).models.embedder?.provider).toBe("ollama");
+    // A transformers reranker is the documented default (models.md, retrieval.md).
+    const withReranker = resolveModelConfig(
+      {},
+      { models: { reranker: { provider: "transformers", model: "onnx-community/bge-reranker-v2-m3-ONNX" } } },
+    );
+    expect(withReranker.models.reranker?.provider).toBe("transformers");
   });
 });

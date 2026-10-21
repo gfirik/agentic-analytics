@@ -309,6 +309,14 @@ export async function explainFindings(
   const clean = withoutQuarantined(findings, ctx.found.quarantined);
   // Keep ids gap-free (F1, F2, …) and the finding → insight map in step when a finding was dropped.
   const renumbered = clean.findings.map((f, i) => ({ ...f, id: `F${i + 1}` }));
+  // Questions keep pointing at their finding after renumbering; one whose finding was dropped loses the link.
+  const newId = new Map(clean.findings.map((f, i) => [f.id, `F${i + 1}`]));
+  for (const [k, q] of ctx.found.questions.entries()) {
+    if (!q.finding) continue;
+    const { finding, ...rest } = q;
+    const to = newId.get(finding);
+    ctx.found.questions[k] = to ? { ...rest, finding: to } : rest;
+  }
   const kept: Record<string, string> = {};
   clean.findings.forEach((f, i) => {
     const insight = insightOf[f.id];

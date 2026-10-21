@@ -196,7 +196,11 @@ export async function recomputeFacts(ws: Workspace, facts: readonly Fact[], all:
       // A parameter is a choice, not a computation: it must lie within the scenario's bounds.
       const type = /impact\.v1:(\w+)/.exec(f.label)?.[1] as keyof typeof SCENARIO_BOUNDS | undefined;
       // An unknown scenario type has no bounds: the fact fails as a mismatch with its `how`, never a TypeError.
-      const [lo, hi] = /param_cost$/.test(f.label) ? COST_BOUNDS : ((type && SCENARIO_BOUNDS[type]) ?? [Number.NaN, Number.NaN]);
+      const [lo, hi] = /param_cost$/.test(f.label)
+        ? COST_BOUNDS
+        : type && Object.hasOwn(SCENARIO_BOUNDS, type)
+          ? SCENARIO_BOUNDS[type]
+          : [Number.NaN, Number.NaN];
       const ok = f.value / 100 >= lo - TOLERANCE && f.value / 100 <= hi + TOLERANCE;
       out.push({ fact: f.id, stored: f.value, computed: [lo * 100, hi * 100], ok, how: "scenario parameter within bounds" });
       continue;

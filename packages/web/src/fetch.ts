@@ -12,7 +12,7 @@ import { lookup as dnsLookup } from "node:dns";
 import http from "node:http";
 import https from "node:https";
 import { isBlockedAddress, parseIPv4, parseIPv6 } from "./ip.ts";
-import { normalizeText } from "./sanitize.ts";
+import { normalizeText, phrases, wordRe } from "./sanitize.ts";
 import { WebError } from "./types.ts";
 
 export interface FetchedPage {
@@ -74,19 +74,18 @@ export function checkUrl(
   if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|metadata\.google\.internal)$/i.test(host))
     throw new WebError("BLOCKED_ADDRESS", `${host} is a local name`);
   const query = decodeLenient(url.search.replace(/\+/g, " ")).toLowerCase();
-  // Matched the way the query sanitizer matches (security §4): diacritics folded, separators as spaces, and a joined
-  // spelling ("hotelgroup", "cafe+roma" for "Café Roma") caught too.
+  // Matched the way the query sanitizer matches (security §4): every spelling `phrases` gives (full, without legal
+  // forms, joined, leading two words), on the normalised query with word boundaries.
+  // A joined spelling ("HotelGroupLLC") is looked for in the query with its spaces removed as well.
   const nq = ` ${normalizeText(query)} `;
-  const joined = nq.replace(/ /g, "");
-  const leak = privateValues.find((v) => {
-    const nv = normalizeText(v);
-    if (nv.length < 3) return false;
-    return (
-      query.includes(v.trim().toLowerCase()) ||
-      nq.includes(nv) ||
-      (nv.replace(/ /g, "").length >= 6 && joined.includes(nv.replace(/ /g, "")))
-    );
-  });
+  const squeezed = nq.replace(/ /g, "");
+  const leak = privateValues.find(
+    (v) =>
+      v.trim().length >= 3 &&
+      phrases({ names: [v] }).some(
+        (p) => p.length >= 3 && (wordRe(p).test(nq) || (!p.includes(" ") && p.length >= 6 && squeezed.includes(p))),
+      ),
+  );
   if (leak !== undefined) throw new WebError("PRIVATE_VALUE", "the URL's query string contains private data; not fetched");
   return url;
 }
