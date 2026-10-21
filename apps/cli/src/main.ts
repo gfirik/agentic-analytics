@@ -328,7 +328,8 @@ const mcp = defineCommand({
   meta: { name: "mcp", description: "Start the MCP server on stdio (for Claude Desktop and other MCP clients)" },
   args: { embedder: { type: "string", description: "'hash' for the offline embedder" } },
   async run({ args }) {
-    await serveStdio(runtime(args.embedder).manager(), { version: ENGINE_VERSION });
+    // stderr is safe on stdio (stdout carries the protocol): unexpected errors are logged, the client gets a short message.
+    await serveStdio(runtime(args.embedder).manager(), { version: ENGINE_VERSION, onError: logInternal });
   },
 });
 

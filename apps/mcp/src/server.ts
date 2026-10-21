@@ -70,11 +70,14 @@ export function allowedPath(p: string, roots: "any" | readonly string[]): string
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }] });
 const json = (v: unknown) => text(JSON.stringify(v, null, 2));
+const known = (err: unknown): err is ManagerError | PathNotAllowedError | LimitError =>
+  err instanceof ManagerError || err instanceof PathNotAllowedError || err instanceof LimitError;
+const INTERNAL = "internal error (details are in the server log)";
+
 /** Only our own typed errors carry their message out; anything else (DuckDB, the filesystem) goes to the log hook. */
 const failWith = (onError?: (err: unknown) => void) => (err: unknown) => {
-  const known = err instanceof ManagerError || err instanceof PathNotAllowedError || err instanceof LimitError;
-  if (!known) onError?.(err);
-  return { ...text(known ? `${err.code}: ${err.message}` : "INTERNAL: internal error (details are in the server log)"), isError: true };
+  if (!known(err)) onError?.(err);
+  return { ...text(known(err) ? `${err.code}: ${err.message}` : `INTERNAL: ${INTERNAL}`), isError: true };
 };
 
 const MAX_FILES = 500;
@@ -95,6 +98,16 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
   const server = new McpServer({ name: "agentic-analytics", version: o.version ?? "0.0.0" });
   const today = o.today ?? (() => new Date().toISOString().slice(0, 10));
   const fail = failWith(o.onError);
+  /** Resource reads throw (the SDK turns that into an error reply): with the same rule as tools for what goes out. */
+  const guard = async <T>(f: () => Promise<T>): Promise<T> => {
+    try {
+      return await f();
+    } catch (err) {
+      if (known(err)) throw err;
+      o.onError?.(err);
+      throw new Error(INTERNAL);
+    }
+  };
 
   const describeStatus = async (s: JobStatus) => {
     if (s.status === "done") return `${s.job_id}: done\n\n${reportSummaryText(await manager.report(s.job_id))}`;
@@ -102,7 +115,8 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
       const m = await manager.metrics(s.job_id);
       return `${s.job_id}: waiting for metric confirmation. Review these definitions with the user, then call confirm_metrics with the (edited) YAML:\n\n${m.metrics.map((x) => `- ${x.text}`).join("\n")}\n\n${m.yaml}`;
     }
-    if (s.status === "failed") return `${s.job_id}: failed at ${s.error?.stage ?? "?"}: ${s.error?.code}: ${s.error?.message}`;
+    // The code only: a failure message can name files, paths or SQL meant for the owner's log (as in the Telegram door).
+    if (s.status === "failed") return `${s.job_id}: failed at ${s.error?.stage ?? "?"}: ${s.error?.code} (details are in the server log)`;
     return `${s.job_id}: ${s.status}${s.stage ? ` (${s.stage})` : ""}`;
   };
 
@@ -234,15 +248,17 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
     "report",
     new ResourceTemplate("report://{job_id}", { list }),
     { title: "Verified report (JSON)", mimeType: "application/json", description: VERIFIED },
-    async (uri, v) => ({
-      contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await manager.report(String(v.job_id)), null, 2) }],
-    }),
+    async (uri, v) =>
+      guard(async () => ({
+        contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await manager.report(String(v.job_id)), null, 2) }],
+      })),
   );
   server.registerResource(
     "report-html",
     new ResourceTemplate("report-html://{job_id}", { list: undefined }),
     { title: "Report (HTML)", mimeType: "text/html" },
-    async (uri, v) => ({ contents: [{ uri: uri.href, mimeType: "text/html", text: await manager.reportHtml(String(v.job_id)) }] }),
+    async (uri, v) =>
+      guard(async () => ({ contents: [{ uri: uri.href, mimeType: "text/html", text: await manager.reportHtml(String(v.job_id)) }] })),
   );
   return server;
 }

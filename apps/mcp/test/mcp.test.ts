@@ -125,5 +125,9 @@ describe("MCP limits and errors", () => {
     expect(r.isError).toBe(true);
     expect(textOf(r)).toBe("INTERNAL: internal error (details are in the server log)");
     expect(logged).toHaveLength(1);
+    // Resource reads follow the same rule.
+    await expect(c.readResource({ uri: "report://x" })).rejects.toThrow(/internal error \(details are in the server log\)/);
+    await expect(c.readResource({ uri: "report://x" })).rejects.not.toThrow(/Binder|secret/);
+    expect(logged).toHaveLength(3);
   });
 });

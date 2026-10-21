@@ -253,7 +253,15 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
             .catch((err: unknown) => {
               const code = err instanceof ManagerError ? err.code : "INTERNAL";
               if (!(err instanceof ManagerError)) o.onError?.(err instanceof Error ? err : new Error(String(err)));
-              writes = writes.then(() => stream.writeSSE({ event: "error", data: JSON.stringify({ error: { code } }) }));
+              // A `failed` job event (no seq of its own: -1), so every client that follows the stream shows it.
+              const failed = {
+                job_id: id,
+                seq: -1,
+                at: new Date().toISOString(),
+                type: "failed",
+                error: { code, message: "the job's events could not be read" },
+              };
+              writes = writes.then(() => stream.writeSSE({ event: "failed", data: JSON.stringify(failed) }));
               void writes.then(resolve, resolve);
             });
         });

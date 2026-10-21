@@ -118,7 +118,7 @@ describe("HTTP API", () => {
     expect(logged).toEqual([]);
   });
 
-  it("an event stream whose job vanishes ends with one error event, not an unhandled rejection", async () => {
+  it("an event stream whose job vanishes ends with one failed event, not an unhandled rejection", async () => {
     const vanished = Object.assign(Object.create(manager) as JobManager, {
       subscribe: async () => {
         throw new ManagerError("NOT_FOUND", "job x not found");
@@ -126,7 +126,7 @@ describe("HTTP API", () => {
     });
     const res = await createApp(vanished).request(`/v1/jobs/${id}/events`);
     const text = await res.text();
-    expect(text).toContain("event: error");
+    expect(text).toContain("event: failed");
     expect(text).toContain('"code":"NOT_FOUND"');
   });
 
