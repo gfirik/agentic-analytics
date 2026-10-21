@@ -64,7 +64,7 @@ const QUOTED = /“[^”]*”|"[^"]*"/g;
 /**
  * The years of a job's own periods, read only from where a period sits in a fact label, so neither an amount nor a
  * member value can vouch for itself: the part before the first ":" (after it come calc keys such as
- * `delta:<member>`), with bracketed members (`[store=2000-01]`) removed. There, a period-shaped token (`2026-04`,
+ * `delta:<member>`), with bracketed members (`[store=2000-01]`) removed. There, the last period-shaped token (`2026-04`,
  * `2025-Q4`, `2026-W51`) counts, and so does a bare year that ends the label after "_" (a yearly period,
  * `revenue_2025`) or that is the whole string (`report.period.from`).
  */
@@ -78,10 +78,14 @@ export function periodYears(texts: readonly string[]): Set<string> {
     if (whole.test(head.trim())) out.add(head.trim());
     const y = suffix.exec(head.trim())?.[1];
     if (y) out.add(y);
-    for (const token of head.split(/[\s_,;()]+/)) {
-      const m = shaped.exec(token);
-      if (m?.[1]) out.add(m[1]);
-    }
+    // Only the last period-shaped token: a series id written `metric|dim=value` puts its member (which may hold
+    // spaces and a period-like "2000-01") before the period, never after it.
+    const last = head
+      .split(/[\s_,;()]+/)
+      .map((token) => shaped.exec(token)?.[1])
+      .filter((y): y is string => Boolean(y))
+      .at(-1);
+    if (last) out.add(last);
   }
   return out;
 }

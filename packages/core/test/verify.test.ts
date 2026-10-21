@@ -249,6 +249,17 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     expect(checkReportIntegrity(r.report)).toEqual([]);
   });
 
+  it("a bare year is a date only when it is one of the job's period years (V1, M14a)", async () => {
+    const d = clone(draft);
+    const change = f1(d).claims[0]?.facts[2] as string;
+    const ours = claim(`Revenue moved {{${change}}} in 2026.`, [change]);
+    const count = claim(`Revenue moved {{${change}}} after 2000 customers left.`, [change]);
+    f1(d).claims.push(ours, count);
+    const r = await verify(d);
+    expect(f1(r.report).claims.map((c) => c.text)).toContain(ours.text);
+    expect(reasonFor(r.report, count.text)).toMatch(/^V1: /);
+  });
+
   it("a recommendation whose whole rationale is dropped is dropped (V7)", async () => {
     const d = clone(draft);
     const r1 = d.recommendations[0] as Report["recommendations"][number];
