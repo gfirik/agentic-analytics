@@ -43,5 +43,5 @@ describe("replayed drafts in small-model mode", () => {
         `${id} ${planted}`,
       ).toMatchObject({ detected: true });
     }
-  }, 300_000);
+  }, 120_000); // about 20 s locally
 });
