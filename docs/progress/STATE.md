@@ -60,6 +60,7 @@ _None._
 
 These are checks that need something this machine doesn't have yet, such as a real LLM. Run them later.
 
+- [M14a DECIDE repair] Recommendation relevance ≥ 70% on completed jobs (plan M14a item 3) on the first full nightly run with the fix: `bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports` (cron); compare "Recommendation relevance" and the count of reports with no recommendation against the 2026-10-20 run (17 of 29 completed reports had none; 7 of those from schema validation). Offline evidence: re-validating the 69 cached real DECIDE responses per candidate keeps at least one candidate in 64 (whole-answer validation passed 31).
 - [M14a cause search] Cause grade ≥ 90% on completed jobs (plan M14a item 2) on the first full nightly run with the fix: `bash scripts/eval-daily.sh full --small-model --keep-reports data/eval-reports` (cron), then compare the "Cause grade accuracy" line with the 2026-10-20 run. A targeted real run on 8 jobs gave 8 of 10 detected events with their cause (6 jobs finished; the same jobs had 3 of 9 on the 2026-10-20 run).
 - [M14a #45] The real-model before/after for the recall fix, and the acceptance "first nightly run on the merged fix has planted recall over completed jobs ≥ 80%".
   - **Before:** the 2026-10-20 two-night run (pre-fix code), finished by its second night on 2026-10-22 03:00 (+05). The main checkout stays on 50033cc until then.
@@ -347,6 +348,7 @@ These are checks that need something this machine doesn't have yet, such as a re
   - **The plan's "group families by definition" is not built.** The period rule demotes slices that restate the lead (`revenue_trade` next to `revenue_total`) without it, and on the replay no unrelated slice took a slot.
 
   Another event comes before a restatement even when it is smaller, because the eval suite's planted events and real data's separate stories are other events. A member or rate move in the lead's period is usually the lead seen again. The rate slot has no extra floor: candidates are already material (detection's thresholds), and a rate's score is pp/100. Zero-score families (counts and trends with no measured change) come after every material family — packages/analysis/src/rank.ts
+- [M14a] DECIDE reads the model's answer per candidate. Prose is unchecked at the transport and enforced per candidate; the answer is retried only when no candidate survives. The only repairs are ones that add nothing: drop a broken optional `not_advised`, keep the clean sentences of `risk`/`horizon`. Ids are bound only when exactly one reading exists: the check's metric from its threshold fact; a file name to that file's single extract. The plan's "prose fact reference → id" repair isn't built: in the real reports, prose where an id belongs was a file name (handled) or an insight id in a scenario (ambiguous, still dropped) — docs/specs/agent-and-verifier.md §6
 
 ## Known gaps carried forward
 

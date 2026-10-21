@@ -460,3 +460,78 @@ describe("DECIDE degrades when the model can't produce valid actions (models §5
     );
   });
 });
+
+describe("repairCandidate: one candidate held to the rules on its own (M14a)", async () => {
+  const { repairCandidate } = await import("../src/index.ts");
+  const base = {
+    action: "Offer wholesale accounts a volume-tier discount",
+    because: ["F1"],
+    scenario: { type: "recover_share" as const, lost: "N1", low: 0.5, high: 0.9 },
+    justified_by: [],
+    rationale: { text: "Wholesale accounts for {{N2}} of the drop.", facts: ["N2"], extract_ids: [] },
+    effort: "medium" as const,
+    risk: "The discount lowers the margin.",
+    confidence: "medium" as const,
+    horizon: "next quarter",
+    check: { metric_id: "revenue", comparator: ">=" as const, threshold: "N3", by: "2026-09-30" },
+  };
+
+  it("keeps a valid candidate as it is", () => {
+    expect(repairCandidate({ ...base, not_advised: "Do not cut retail prices." })).toEqual({
+      candidate: { ...base, not_advised: "Do not cut retail prices." },
+    });
+  });
+
+  it("leaves out a broken optional not_advised and keeps risk and horizon sentences without numerals", () => {
+    const r = repairCandidate({
+      ...base,
+      risk: "The discount lowers the margin. Expect 5% fewer orders.",
+      horizon: "next quarter; review after 30 days",
+      not_advised: "",
+    });
+    expect(r).toEqual({ candidate: { ...base, risk: "The discount lowers the margin.", horizon: "next quarter;" } });
+    expect(repairCandidate({ ...base, not_advised: null })).toEqual({ candidate: base });
+  });
+
+  it("never repairs the action or the rationale: a free numeral there drops the candidate", () => {
+    expect(repairCandidate({ ...base, rationale: { ...base.rationale, text: "Buyers accept a 3% rise." } })).toEqual({
+      reason: expect.stringMatching(/^rationale\.text: write numbers only as/),
+    });
+    expect(repairCandidate({ ...base, action: "Give a 5% discount" })).toEqual({ reason: expect.stringMatching(/^action: /) });
+    // A risk with no sentence left is dropped too, not filled in.
+    expect(repairCandidate({ ...base, risk: "Expect 5% fewer orders." })).toEqual({ reason: expect.stringMatching(/^risk: /) });
+  });
+});
+
+describe("bindIds: ids by what they are, only when one reading exists (M14a)", async () => {
+  const { bindIds } = await import("../src/index.ts");
+  const c = {
+    action: "Win back corporate accounts",
+    because: ["F1"],
+    scenario: { type: "recover_share" as const, lost: "N1", low: 0.5, high: 0.9 },
+    justified_by: [],
+    rationale: { text: "Corporate accounts drove {{N2}} of the drop.", facts: ["N2"], extract_ids: ["price-notice.pdf", "E9"] },
+    effort: "medium" as const,
+    risk: "Margins shrink.",
+    confidence: "medium" as const,
+    horizon: "next quarter",
+    check: { metric_id: "corporate_revenue", comparator: ">=" as const, threshold: "N27", by: "2026-09-30" },
+  };
+  const facts = new Map([["N27", { id: "N27", metric_id: "revenue" }]]) as unknown as Parameters<typeof bindIds>[1];
+  const extract = (id: string, file: string) => [id, { id, file }] as const;
+  const defs = [{ id: "revenue" }, { id: "corporate_revenue" }] as unknown as Parameters<typeof bindIds>[3];
+
+  it("checks the metric the threshold measures, and names a file's only extract by its id", () => {
+    const extracts = new Map([extract("E1", "price-notice.pdf"), extract("E9", "email.eml")]) as unknown as Parameters<typeof bindIds>[2];
+    const b = bindIds(c, facts, extracts, defs);
+    expect(b.check.metric_id).toBe("revenue");
+    expect(b.rationale.extract_ids).toEqual(["E1", "E9"]);
+  });
+
+  it("leaves an ambiguous file or an unknown threshold metric as written", () => {
+    const two = new Map([extract("E1", "price-notice.pdf"), extract("E2", "price-notice.pdf")]) as unknown as Parameters<typeof bindIds>[2];
+    expect(bindIds(c, facts, two, defs).rationale.extract_ids).toEqual(["price-notice.pdf", "E9"]);
+    const onlyCorporate = [{ id: "corporate_revenue" }] as unknown as Parameters<typeof bindIds>[3];
+    expect(bindIds(c, facts, two, onlyCorporate).check.metric_id).toBe("corporate_revenue");
+  });
+});

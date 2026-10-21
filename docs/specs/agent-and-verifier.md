@@ -94,10 +94,21 @@ Drops and downgrades go to `verification.claims_dropped/claims_downgraded` alrea
    - the `check` (metric, threshold, date);
    - `not_advised` when there is a tempting wrong move, e.g. "Don't cut retail prices; retail is growing".
 
+**Each candidate is held to the output rules on its own** (M14a). The model's answer is read with the same shape and unchecked prose (`DecideAnswer`), and is retried with feedback only when no candidate survives. Each candidate is then repaired and validated against the full rules (`repairCandidate`). Only repairs that add nothing are made:
+- an optional `not_advised` that breaks a rule (empty, a numeral, a placeholder) is left out;
+- `risk` and `horizon` keep only their sentences without numerals or placeholders.
+
+The action, rationale, scenario and check are never repaired. A candidate that still breaks a rule is dropped with its reason. In the nightly runs, one candidate's stray numeral ("a 5% tier") failed the whole answer three times over in 38 of 69 DECIDE responses; read per candidate, 64 of the 69 keep at least one candidate.
+
+**Ids are bound by what they are, only where exactly one reading exists** (`bindIds`):
+- the check measures the metric its threshold fact measures, when that is a known definition;
+- an extract named by its file is that file's extract, when the file has exactly one.
+
 Any recommendation without at least one verified finding is invalid. In the draft, code also drops a candidate when:
+- it breaks the output rules after the repairs above;
 - its `because` names no finding;
 - its scenario is rejected (unknown fact, parameter out of range);
-- its check threshold is an unknown fact or measures a different metric;
+- its check threshold is an unknown fact, or measures a metric with no definition other than the one the check names;
 - its check date is not after the data, or its rationale names unknown ids.
 
 Candidates are ranked by |impact midpoint| × confidence (1 / 0.6 / 0.3) ÷ effort (1 / 1.5 / 2).
