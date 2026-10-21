@@ -7,7 +7,7 @@
 import { data, renderPrompt } from "@agentic-analytics/agent";
 import { externalFacts, readFacts } from "@agentic-analytics/analysis";
 import { type Catalog, compileMetric, compileMetricRows, type Grain, runMetric } from "@agentic-analytics/metrics";
-import type { ModelClient } from "@agentic-analytics/models";
+import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import {
   type Claim,
   checkReportIntegrity,
@@ -15,9 +15,11 @@ import {
   type Finding,
   findFreeNumerals,
   type MetricDef,
+  periodYears,
   placeholders,
   type Recommendation,
   type Report,
+  screen,
 } from "@agentic-analytics/schema";
 import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
@@ -104,6 +106,9 @@ const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supp
 const UNIT: Record<string, string> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
 
 const Judgement = z.object({ supported: z.boolean() });
+
+/** What a finding is called when its title breaks the claim rules (V1): plain words, no figure. */
+export const NEUTRAL_TITLE = "A change worth a look";
 
 export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<VerifyResult> {
   const checks: CheckRow[] = [];
@@ -207,6 +212,64 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   let definitionViolations = 0;
   let citationsChecked = 0;
   let citationsUnsupported = 0;
+  /** Claims whose judge step was skipped because the provider failed; after a rate limit the judge isn't asked again. */
+  let judgeSkipped = 0;
+  let judgeDown: string | undefined;
+
+  /**
+   * The claim rules of V1 (and V4's decline sign) on a text with its facts and citations: free numerals, unknown
+   * placeholders, digits inside quotes, "fell {{N}}" with a signed value, and "more than the whole" without its
+   * comparison. Claims, and every other text the report shows (the headline, titles, actions, not_advised), pass it.
+   */
+  // The job's own period years (from its facts' period labels and the data's end): a bare year in report text is a
+  // date only if it is one of them (findFreeNumerals).
+  const jobYears = periodYears([...[...all.values()].map((f) => f.label), ctx.periodEnd.slice(0, 7)]);
+  const ruleBreak = (
+    text: string,
+    facts: readonly string[],
+    citations: Claim["citations"],
+  ): readonly [CheckRow["check"], string] | undefined => {
+    // V1: numbers only as placeholders, each a known fact listed by the claim.
+    const free = findFreeNumerals(text, jobYears);
+    if (free.length) return ["V1", `free numeral(s) ${free.join(", ")}`];
+    const unknown = placeholders(text).find((id) => !factIds.has(id) || !facts.includes(id));
+    if (unknown) return ["V1", `placeholder {{${unknown}}} is not a listed fact`];
+    // Quoted text may hold digits only when it really is quoted: from a cited source, or a name from the data.
+    for (const span of quotedSpans(text).filter((q) => /\p{Nd}/u.test(q))) {
+      // From a cited source: its text, the quote, or the source's own file name ("“email-0412.eml” says: …", which
+      // code writes in small-model mode).
+      const fromSource = citations.some(
+        (x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span) || fileOf.get(x.source_id) === span,
+      );
+      // A name from the data: a whole member value or label, never a fragment like a period's "04".
+      const fromData =
+        /\p{L}/u.test(span) && [...all.values()].some((f) => dataNames(f.label).some((n) => n.toLowerCase() === span.toLowerCase()));
+      if (!fromSource && !fromData) return ["V1", `quoted “${span}” is not from a cited source or the data`];
+    }
+    // A decline is stated as a magnitude (report-schema §5a): "fell {{N}}" with a negative N reads as a double
+    // negative ("fell −7,900") or an increase, depending on the renderer.
+    for (const m of text.matchAll(
+      /(?<![\p{L}])(?:fell|dropped|declined|decreased|shrank|lost|fall|drop|decline|decrease|упал\p{L}*|снизил\p{L}*|сократил\p{L}*|kamaydi|tushdi)(?![\p{L}])(?:\s+\p{L}+){0,3}\s+(?:by\s+|на\s+)?\{\{(N\d+)\}\}/giu,
+    )) {
+      const v = all.get(m[1] ?? "")?.value ?? 0;
+      if (v < 0) return ["V4", `a word of decline is followed by the signed value {{${m[1]}}} (state the magnitude)`];
+    }
+    // "More than the whole drop" is a comparison, so it is held to a fact like any number: the claim must cite an
+    // `abs_exceeds` fact equal to 1 (recomputed by V2 from its inputs; analysis-library §4.1) whose first input is the
+    // change of the member quoted just before the phrase, so one member's comparison can't speak for another. The
+    // label ends in `:delta:<member>` because the decomposer names each member's change `delta:<member>` (decompose.ts).
+    const phrase = text.search(/more than the whole/i);
+    if (phrase >= 0) {
+      const named = [...text.slice(0, phrase).matchAll(/“([^”]+)”/g)].map((m) => m[1]).slice(-1);
+      const backed = facts.some((id) => {
+        const f = all.get(id);
+        const first = all.get(f?.computation.inputs?.[0] ?? "");
+        return f?.computation.fn === "abs_exceeds" && f.value === 1 && named.some((n) => first?.label.endsWith(`:delta:${n}`));
+      });
+      if (!backed) return ["V1", "“more than the whole” is not backed by a comparison fact for the member it names"];
+    }
+    return undefined;
+  };
 
   const checkClaim = async (c: Claim, where: string): Promise<Claim | undefined> => {
     const drop = (check: CheckRow["check"], reason: string) => {
@@ -214,45 +277,9 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       dropped.push({ claim: c.text, reason: `${check}: ${reason}` });
       return undefined;
     };
-    // V1: numbers only as placeholders, each a known fact listed by the claim.
-    const free = findFreeNumerals(c.text);
-    if (free.length) return drop("V1", `free numeral(s) ${free.join(", ")}`);
-    const unknown = placeholders(c.text).find((id) => !factIds.has(id) || !c.facts.includes(id));
-    if (unknown) return drop("V1", `placeholder {{${unknown}}} is not a listed fact`);
-    // Quoted text may hold digits only when it really is quoted: from a cited source, or a name from the data.
-    for (const span of quotedSpans(c.text).filter((q) => /\p{Nd}/u.test(q))) {
-      // From a cited source: its text, the quote, or the source's own file name ("“email-0412.eml” says: …", which
-      // code writes in small-model mode).
-      const fromSource = c.citations.some(
-        (x) => (x.quote ?? "").includes(span) || (sources.get(x.source_id)?.text ?? "").includes(span) || fileOf.get(x.source_id) === span,
-      );
-      // A name from the data: a whole member value or label, never a fragment like a period's "04".
-      const fromData =
-        /\p{L}/u.test(span) && [...all.values()].some((f) => dataNames(f.label).some((n) => n.toLowerCase() === span.toLowerCase()));
-      if (!fromSource && !fromData) return drop("V1", `quoted “${span}” is not from a cited source or the data`);
-    }
-    // A decline is stated as a magnitude (report-schema §5a): "fell {{N}}" with a negative N reads as a double
-    // negative ("fell −7,900") or an increase, depending on the renderer.
-    for (const m of c.text.matchAll(
-      /(?<![\p{L}])(?:fell|dropped|declined|decreased|shrank|lost|fall|drop|decline|decrease|упал\p{L}*|снизил\p{L}*|сократил\p{L}*|kamaydi|tushdi)(?![\p{L}])(?:\s+\p{L}+){0,3}\s+(?:by\s+|на\s+)?\{\{(N\d+)\}\}/giu,
-    )) {
-      const v = all.get(m[1] ?? "")?.value ?? 0;
-      if (v < 0) return drop("V4", `a word of decline is followed by the signed value {{${m[1]}}} (state the magnitude)`);
-    }
-    // "More than the whole drop" is a comparison, so it is held to a fact like any number: the claim must cite an
-    // `abs_exceeds` fact equal to 1 (recomputed by V2 from its inputs; analysis-library §4.1) whose first input is the
-    // change of the member quoted just before the phrase, so one member's comparison can't speak for another. The
-    // label ends in `:delta:<member>` because the decomposer names each member's change `delta:<member>` (decompose.ts).
-    const phrase = c.text.search(/more than the whole/i);
-    if (phrase >= 0) {
-      const named = [...c.text.slice(0, phrase).matchAll(/“([^”]+)”/g)].map((m) => m[1]).slice(-1);
-      const backed = c.facts.some((id) => {
-        const f = all.get(id);
-        const first = all.get(f?.computation.inputs?.[0] ?? "");
-        return f?.computation.fn === "abs_exceeds" && f.value === 1 && named.some((n) => first?.label.endsWith(`:delta:${n}`));
-      });
-      if (!backed) return drop("V1", "“more than the whole” is not backed by a comparison fact for the member it names");
-    }
+    // V1 (and V4's decline sign): the shared text rules.
+    const broken = ruleBreak(c.text, c.facts, c.citations);
+    if (broken) return drop(broken[0], broken[1]);
     checks.push({ check: "V1", passed: true, claim: c.text, where, detail: where });
 
     // V4: each fact measures a defined metric with its unit/currency, period and filters; and the claim names no
@@ -262,15 +289,17 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
         new RegExp(`(?<![\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/_/g, "[ _]")}(?![\\p{L}])`, "iu").test(c.text),
       ),
     );
+    // The metrics the claim may name are those of all its facts together (spec §7 V4), not of each fact alone: "revenue
+    // fell {{N1}} as {{N2}} fewer bags sold" names revenue, which N1 measures, though N2 measures units.
+    const from = new Set(c.facts.flatMap((id) => (all.has(id) ? [...metricsOf(id)] : [])));
+    const lexicon =
+      named.length > 0 &&
+      from.size > 0 &&
+      !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
     for (const id of c.facts) {
       const f = all.get(id);
       if (!f) continue;
       const def = f.metric_id ? ctx.defs.find((d) => d.id === f.metric_id) : undefined;
-      const from = metricsOf(id);
-      const lexicon =
-        named.length > 0 &&
-        from.size > 0 &&
-        !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
       const problem =
         f.metric_id && !def
           ? `fact ${id} measures unknown metric ${f.metric_id}`
@@ -280,7 +309,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
               ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
               : (definitionProblem(f) ??
                 (lexicon
-                  ? `the claim names ${named.map((n) => n.label).join(", ")} but fact ${id} measures ${[...from].map(labelOf).join(", ")}`
+                  ? `the claim names ${named.map((n) => n.label).join(", ")} but its facts measure ${[...from].map(labelOf).join(", ")}`
                   : undefined));
       if (problem) {
         definitionViolations++;
@@ -309,14 +338,41 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
         return drop("V5", `the quote is not in source ${x.source_id}`);
       }
     }
-    if (quoted.length && ctx.judge) {
-      const { object } = await ctx.judge.generateObject({
-        role: "judge",
-        schema: Judgement,
-        system: renderPrompt("judge", { claim: data(c.text), sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))) }),
-        prompt: "Do these excerpts support the claim?",
+    let judged = ctx.judge ? "" : ", judge not configured";
+    if (quoted.length && ctx.judge && judgeDown) {
+      judgeSkipped++;
+      judged = `, judge unavailable (${judgeDown})`;
+    } else if (quoted.length && ctx.judge) {
+      // A quoted member name that reads as an instruction goes to the judge withheld, like at every planner door
+      // (security §3): the judge still sees the claim's shape and the source excerpts.
+      const claim = c.text.replace(/“[^”]*”|"[^"]*"/g, (q) => (screen(q) ? "“withheld”" : q));
+      const system = renderPrompt("judge", {
+        claim: data(claim),
+        sources: data(quoted.map((x) => ({ source: x.source_id, quote: x.quote }))),
       });
-      if (!object.supported) {
+      let supported = false;
+      try {
+        ({
+          object: { supported },
+        } = await ctx.judge.generateObject({ role: "judge", schema: Judgement, system, prompt: "Do these excerpts support the claim?" }));
+      } catch (err) {
+        // The provider is down, slow or out of quota: the judge step is skipped for this claim and the check row says
+        // so (spec §7 V5), as with no judge; the quotes were still found in their sources. An answer that never
+        // validated (the excerpts are untrusted text that could cause it) counts as "not supported". Anything else is
+        // an engine bug and stops VERIFY.
+        if (!(err instanceof ModelError)) throw err;
+        if (err.code === "INVALID_OUTPUT") {
+          citationsUnsupported++;
+          return drop("V5", "the judge's answer did not validate; treated as not supported");
+        }
+        if (["TIMEOUT", "RATE_LIMITED", "PROVIDER"].includes(err.code)) {
+          judgeSkipped++;
+          judged = `, judge unavailable (${err.code})`;
+          if (err.code === "RATE_LIMITED") judgeDown = err.code;
+          supported = true;
+        } else throw err;
+      }
+      if (!supported) {
         citationsUnsupported++;
         return drop("V5", "the judge found the cited sources don't support the claim");
       }
@@ -325,7 +381,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       check: "V5",
       passed: true,
       claim: c.text,
-      detail: `${where}: ${quoted.length} quote(s)${quoted.length && !ctx.judge ? ", judge not configured" : ""}`,
+      detail: `${where}: ${quoted.length} quote(s)${quoted.length ? judged : ""}`,
     });
 
     // V6: causal wording needs a document; otherwise the claim is reworded to correlational.
@@ -382,7 +438,21 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     checks.push({ check: "V6", passed: false, where, detail: `${where}: reworded` });
     return reworded;
   };
-  for (const [k, f] of findings.entries()) findings[k] = { ...f, title: plain(f.title, documented.has(f.id), `the title of ${f.id}`) };
+  for (const [k, f] of findings.entries()) {
+    // A title is text the reader sees like a claim: the same rules, over its own claims' facts and citations. One that
+    // breaks them is replaced by a neutral title, not shipped (the finding's claims still stand).
+    const broken = ruleBreak(
+      f.title,
+      f.claims.flatMap((c) => c.facts),
+      f.claims.flatMap((c) => c.citations),
+    );
+    if (broken) {
+      checks.push({ check: broken[0], passed: false, where: `the title of ${f.id}`, detail: `the title of ${f.id}: ${broken[1]}` });
+      dropped.push({ claim: f.title, reason: `${broken[0]}: the title of ${f.id}: ${broken[1]}; replaced by a neutral title` });
+    }
+    const title = broken ? NEUTRAL_TITLE : f.title;
+    findings[k] = { ...f, title: plain(title, documented.has(f.id), `the title of ${f.id}`) };
+  }
   const kept = new Set(findings.map((f) => f.id));
 
   const recommendations: Recommendation[] = [];
@@ -412,28 +482,67 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       checks.push({ check: "V7", passed: false, detail: `recommendation ${r.id}: rationale dropped` });
       continue;
     }
+    // The action and not_advised are text the reader sees: the same rules as claims (with the rationale's facts).
+    const rationaleFacts = rationale.flatMap((c) => c.facts);
+    const actionBroken = ruleBreak(r.action, rationaleFacts, []);
+    if (actionBroken) {
+      dropped.push({ claim: r.action, reason: `${actionBroken[0]}: the action of ${r.id}: ${actionBroken[1]}` });
+      checks.push({ check: actionBroken[0], passed: false, detail: `recommendation ${r.id}: ${actionBroken[1]}` });
+      continue;
+    }
+    const notAdvisedBroken = r.not_advised ? ruleBreak(r.not_advised, rationaleFacts, []) : undefined;
+    if (notAdvisedBroken) {
+      dropped.push({ claim: r.not_advised ?? "", reason: `${notAdvisedBroken[0]}: not_advised of ${r.id}: ${notAdvisedBroken[1]}` });
+      checks.push({ check: notAdvisedBroken[0], passed: false, detail: `not_advised of ${r.id}: ${notAdvisedBroken[1]}` });
+    }
     checks.push({ check: "V7", passed: true, detail: `recommendation ${r.id}` });
     const backed = because.some((b) => documented.has(b));
+    // Built without the drafted not_advised, so a broken one is left out rather than spread back in.
+    const { not_advised: _drafted, ...rest } = r;
     recommendations.push({
-      ...r,
+      ...rest,
       action: plain(r.action, backed, `the action of ${r.id}`),
-      ...(r.not_advised ? { not_advised: plain(r.not_advised, backed, `not_advised of ${r.id}`) } : {}),
+      ...(r.not_advised && !notAdvisedBroken ? { not_advised: plain(r.not_advised, backed, `not_advised of ${r.id}`) } : {}),
       because,
       rationale,
     });
   }
 
+  if (judgeSkipped)
+    checks.push({ check: "V5", passed: true, detail: `judge skipped for ${judgeSkipped} claim(s): the judge provider was unavailable` });
   // Summary after the cascade: bullets from the surviving findings; a headline that no longer holds falls back.
   const bullets = findings.flatMap((f) => f.claims.slice(0, 1)).slice(0, 5);
   const surviving = new Set(findings.flatMap((f) => f.claims.flatMap((c) => c.facts)));
-  const headlineOk =
-    findFreeNumerals(draft.summary.headline).length === 0 && placeholders(draft.summary.headline).every((id) => surviving.has(id));
+  // The headline passes the claim rules over the surviving findings' facts and citations (V1, V4's decline sign).
+  const headlineBroken = ruleBreak(
+    draft.summary.headline,
+    [...surviving],
+    findings.flatMap((f) => f.claims.flatMap((c) => c.citations)),
+  );
+  // A headline that breaks the rules falls back to the first title that kept its own wording (a neutral title only
+  // when none did), and the replaced headline is listed like any dropped text.
+  const fallback = findings.find((f) => f.title !== NEUTRAL_TITLE)?.title ?? findings[0]?.title ?? "No verified findings for this period.";
+  if (headlineBroken)
+    dropped.push({ claim: draft.summary.headline, reason: `${headlineBroken[0]}: the headline: ${headlineBroken[1]}; replaced` });
+  // Causal words in the headline need a document behind the finding it speaks for: the findings whose facts its
+  // placeholders use, the finding whose title it fell back to, or (with neither) the top finding.
+  const headlineDraft = headlineBroken ? fallback : draft.summary.headline;
+  const usedIds = new Set(placeholders(headlineDraft));
+  const about = headlineBroken
+    ? findings.filter((f) => f.title === fallback)
+    : usedIds.size
+      ? findings.filter((f) => f.claims.some((c) => c.facts.some((id) => usedIds.has(id))))
+      : findings.slice(0, 1);
   const headlineText = plain(
-    headlineOk ? draft.summary.headline : (findings[0]?.title ?? "No verified findings for this period."),
-    documented.size > 0,
+    headlineDraft,
+    about.some((f) => documented.has(f.id)),
     "the headline",
   );
-  checks.push({ check: "V1", passed: headlineOk, detail: headlineOk ? "headline" : "headline replaced by the first finding's title" });
+  checks.push({
+    check: headlineBroken ? headlineBroken[0] : "V1",
+    passed: !headlineBroken,
+    detail: headlineBroken ? `headline replaced by a finding's title: ${headlineBroken[1]}` : "headline",
+  });
 
   const verifiedFacts = new Set(v2.filter((r) => r.ok).map((r) => r.fact));
   // References to dropped findings and recommendations go too (assumptions, open questions).

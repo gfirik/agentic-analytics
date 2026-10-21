@@ -244,11 +244,30 @@ export class JobManager {
 
   /** All events so far, then live ones; returns an unsubscribe function. */
   async subscribe(id: string, listener: (e: JobEvent) => void): Promise<() => void> {
-    for (const e of await this.events(id)) listener(e);
+    // Listen first and buffer, then replay the history: an event emitted while the history is read is neither lost
+    // nor delivered twice (each seq goes out once, in order).
+    let replayed = false;
+    let last = -1;
+    const buffered: JobEvent[] = [];
+    const deliver = (e: JobEvent) => {
+      if (e.seq <= last) return;
+      last = e.seq;
+      listener(e);
+    };
+    const live = (e: JobEvent) => (replayed ? deliver(e) : void buffered.push(e));
     const set = this.listeners.get(id) ?? new Set();
-    set.add(listener);
+    set.add(live);
     this.listeners.set(id, set);
-    return () => set.delete(listener);
+    try {
+      for (const e of await this.events(id)) deliver(e);
+      replayed = true;
+      for (const e of buffered) deliver(e);
+    } catch (err) {
+      // A failed history read, or a listener that throws during the replay: no listener is left behind.
+      set.delete(live);
+      throw err;
+    }
+    return () => set.delete(live);
   }
 
   async events(id: string): Promise<JobEvent[]> {

@@ -1,8 +1,8 @@
 // The MCP door (interfaces §3): five tools and two resources over the job manager. A calling model gets verified
 // numbers with their provenance; every tool description tells it to quote them, never recalculate them.
-import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, join, resolve, sep } from "node:path";
-import type { JobManager, JobStatus } from "@agentic-analytics/core";
+import { type JobManager, type JobStatus, ManagerError } from "@agentic-analytics/core";
 import { fillPlaceholders, reportSummaryText } from "@agentic-analytics/report";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -19,6 +19,21 @@ export interface McpOptions {
    * the default is none, so a caller that can reach /mcp can't read the server's files (set AA_MCP_ROOTS to allow).
    */
   readonly roots?: "any" | readonly string[];
+  /** The most bytes one `analyze_files` call may read (default 200 MB, the HTTP upload limit). */
+  readonly maxBytes?: number;
+  /** Gets unexpected errors; the caller only sees a generic message (paths and SQL stay in the log). */
+  readonly onError?: (err: unknown) => void;
+}
+
+/** Thrown when one `analyze_files` call asks for too many files or bytes. */
+export class LimitError extends Error {
+  constructor(
+    readonly code: "TOO_MANY_FILES" | "TOO_LARGE",
+    message: string,
+  ) {
+    super(message);
+    this.name = "LimitError";
+  }
 }
 
 /** Thrown when a path is outside the allowed roots (or local paths are off). */
@@ -55,26 +70,44 @@ export function allowedPath(p: string, roots: "any" | readonly string[]): string
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }] });
 const json = (v: unknown) => text(JSON.stringify(v, null, 2));
-const fail = (err: unknown) => ({
-  ...text(err instanceof Error ? `${"code" in err ? `${String(err.code)}: ` : ""}${err.message}` : String(err)),
-  isError: true,
-});
+const known = (err: unknown): err is ManagerError | PathNotAllowedError | LimitError =>
+  err instanceof ManagerError || err instanceof PathNotAllowedError || err instanceof LimitError;
+const INTERNAL = "internal error (details are in the server log)";
+
+/** Only our own typed errors carry their message out; anything else (DuckDB, the filesystem) goes to the log hook. */
+const failWith = (onError?: (err: unknown) => void) => (err: unknown) => {
+  if (!known(err)) onError?.(err);
+  return { ...text(known(err) ? `${err.code}: ${err.message}` : `INTERNAL: ${INTERNAL}`), isError: true };
+};
 
 const MAX_FILES = 500;
+const MAX_PATHS = 100;
 
-/** Files under the given paths: symlinks are skipped (no cycles, no escaping the folder), at most MAX_FILES. */
-function collect(p: string, out: string[] = []): string[] {
+/** Files under the given paths: symlinks are skipped (no cycles, no escaping the folder), at most MAX_FILES in all. */
+function collect(p: string, out: string[]): string[] {
   const st = lstatSync(p);
   if (st.isSymbolicLink()) return out;
   if (st.isDirectory()) for (const n of readdirSync(p).sort()) collect(join(p, n), out);
   else if (st.isFile()) out.push(p);
-  if (out.length > MAX_FILES) throw new Error(`more than ${MAX_FILES} files under the given paths; point at a smaller folder`);
+  if (out.length > MAX_FILES)
+    throw new LimitError("TOO_MANY_FILES", `more than ${MAX_FILES} files under the given paths; point at a smaller folder`);
   return out;
 }
 
 export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpServer {
   const server = new McpServer({ name: "agentic-analytics", version: o.version ?? "0.0.0" });
   const today = o.today ?? (() => new Date().toISOString().slice(0, 10));
+  const fail = failWith(o.onError);
+  /** Resource reads throw (the SDK turns that into an error reply): with the same rule as tools for what goes out. */
+  const guard = async <T>(f: () => Promise<T>): Promise<T> => {
+    try {
+      return await f();
+    } catch (err) {
+      if (known(err)) throw err;
+      o.onError?.(err);
+      throw new Error(INTERNAL);
+    }
+  };
 
   const describeStatus = async (s: JobStatus) => {
     if (s.status === "done") return `${s.job_id}: done\n\n${reportSummaryText(await manager.report(s.job_id))}`;
@@ -82,7 +115,8 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
       const m = await manager.metrics(s.job_id);
       return `${s.job_id}: waiting for metric confirmation. Review these definitions with the user, then call confirm_metrics with the (edited) YAML:\n\n${m.metrics.map((x) => `- ${x.text}`).join("\n")}\n\n${m.yaml}`;
     }
-    if (s.status === "failed") return `${s.job_id}: failed at ${s.error?.stage ?? "?"}: ${s.error?.code}: ${s.error?.message}`;
+    // The code only: a failure message can name files, paths or SQL meant for the owner's log (as in the Telegram door).
+    if (s.status === "failed") return `${s.job_id}: failed at ${s.error?.stage ?? "?"}: ${s.error?.code} (details are in the server log)`;
     return `${s.job_id}: ${s.status}${s.stage ? ` (${s.stage})` : ""}`;
   };
 
@@ -92,7 +126,7 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
       title: "Analyze business files",
       description: `Start an analysis job on local files or folders (spreadsheets, CSV, PDF, Word, email). Returns the job id and status; with wait=true, waits and returns the report summary. ${VERIFIED}`,
       inputSchema: {
-        paths: z.array(z.string()).min(1).describe("Absolute paths of files or folders on this machine"),
+        paths: z.array(z.string()).min(1).max(MAX_PATHS).describe("Absolute paths of files or folders on this machine"),
         objective: z.string().optional().describe("The business goal recommendations are ranked by"),
         web: z.boolean().optional().describe("Allow sanitized web searches for context (off by default)"),
         small_model: z.boolean().optional(),
@@ -105,9 +139,16 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
       try {
         const roots = o.roots ?? "any";
         // Each file is checked again at read time: collect skips symlinks, and the real path must stay inside a root.
-        const files = a.paths
-          .flatMap((p) => collect(allowedPath(p, roots)))
-          .map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(allowedPath(p, roots))) }));
+        // One file list and one byte budget for the whole call, checked before anything is read.
+        const found: string[] = [];
+        for (const p of a.paths) collect(allowedPath(p, roots), found);
+        const maxBytes = o.maxBytes ?? 200 * 1024 * 1024;
+        let total = 0;
+        for (const p of found) {
+          total += statSync(p).size;
+          if (total > maxBytes) throw new LimitError("TOO_LARGE", `the files are over ${Math.round(maxBytes / 1024 / 1024)} MB in all`);
+        }
+        const files = found.map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(allowedPath(p, roots))) }));
         const s = await manager.create(files, {
           today: today(),
           ...(a.currency ? { currency: a.currency.toUpperCase() } : {}),
@@ -207,15 +248,17 @@ export function createMcpServer(manager: JobManager, o: McpOptions = {}): McpSer
     "report",
     new ResourceTemplate("report://{job_id}", { list }),
     { title: "Verified report (JSON)", mimeType: "application/json", description: VERIFIED },
-    async (uri, v) => ({
-      contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await manager.report(String(v.job_id)), null, 2) }],
-    }),
+    async (uri, v) =>
+      guard(async () => ({
+        contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await manager.report(String(v.job_id)), null, 2) }],
+      })),
   );
   server.registerResource(
     "report-html",
     new ResourceTemplate("report-html://{job_id}", { list: undefined }),
     { title: "Report (HTML)", mimeType: "text/html" },
-    async (uri, v) => ({ contents: [{ uri: uri.href, mimeType: "text/html", text: await manager.reportHtml(String(v.job_id)) }] }),
+    async (uri, v) =>
+      guard(async () => ({ contents: [{ uri: uri.href, mimeType: "text/html", text: await manager.reportHtml(String(v.job_id)) }] })),
   );
   return server;
 }

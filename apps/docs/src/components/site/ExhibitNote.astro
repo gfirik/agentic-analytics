@@ -23,7 +23,7 @@ interface Props {
   /** The id of the note's summary line (the chip's aria-describedby); omitted in the static list. */
   sumId?: string;
   /** The live margin column: the SQL sits in a "Show SQL" disclosure, which the exhibit's script opens beside the
-   * exhibit (from 900px) and leaves closed below it, so the tallest note stays short on a phone. */
+   * exhibit (when it is at least 48rem wide) and leaves closed below it, so the tallest note stays short on a phone. */
   foldSql?: boolean;
 }
 const { n, sumId, foldSql = false } = Astro.props;
@@ -182,7 +182,7 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
     text-transform: uppercase;
     color: var(--aa-ink-3);
   }
-  /* "Show SQL" (the live column under 900px): the caption is the toggle; open, it reads as the plain caption. */
+  /* "Show SQL" (the live column below the exhibit): the caption is the toggle; open, it reads as the plain caption. */
   /* A 24px target (DESIGN.md §8), at label size. */
   .aa-note-fold > summary {
     display: flex;

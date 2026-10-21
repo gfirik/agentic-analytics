@@ -18,7 +18,10 @@ export async function writeHeadline(model: ModelClient, findings: readonly Findi
       .string()
       .min(10)
       .max(240)
-      .refine(noNumerals, "numbers only as {{N…}} placeholders; no other digits except dates")
+      .refine(
+        noNumerals,
+        "numbers only as {{N…}} placeholders; no other digits except dates (2026-04, March 2026, 2025-Q4; never a bare year)",
+      )
       .refine((h) => placeholders(h).every((id) => allowed.has(id)), "use only fact placeholders that appear in the findings"),
   });
   const { object } = await model.generateObject({

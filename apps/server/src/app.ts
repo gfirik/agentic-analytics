@@ -1,12 +1,13 @@
 // The HTTP door (interfaces §1): Hono with zod-openapi, so `/openapi.json` is generated from the same schemas that
 // validate requests. Every route is a thin call into the job manager; no engine logic lives here.
 import { timingSafeEqual } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { type JobManager, ManagerError } from "@agentic-analytics/core";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { HTTPException } from "hono/http-exception";
 import { streamSSE } from "hono/streaming";
 
 export interface ServerOptions {
@@ -98,6 +99,12 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
 
   app.onError((err, c) => {
     if (err instanceof ManagerError) return c.json({ error: { code: err.code, message: err.message } }, STATUS[err.code]);
+    // Hono's own refusals (413 from the upload limit, 415 from the media-type check) keep their status: a client must
+    // tell "too big" from "server broken", and they are not internal errors.
+    if (err instanceof HTTPException && err.status < 500) {
+      const code = err.status === 413 ? "TOO_LARGE" : err.status === 415 ? "UNSUPPORTED_MEDIA_TYPE" : "BAD_REQUEST";
+      return c.json({ error: { code, message: err.message || code.toLowerCase().replace(/_/g, " ") } }, err.status);
+    }
     o.onError?.(err);
     return c.json({ error: { code: "INTERNAL", message: "internal error (details are in the server log)" } }, 500);
   });
@@ -240,6 +247,22 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
               live = true;
               const s = await manager.status(id);
               if (s.status !== "running" && s.status !== "queued") void writes.then(resolve);
+            })
+            // The job was deleted mid-request, or its history can't be read: end the stream with one error event. An
+            // unhandled rejection here would end the whole process.
+            .catch((err: unknown) => {
+              const code = err instanceof ManagerError ? err.code : "INTERNAL";
+              if (!(err instanceof ManagerError)) o.onError?.(err instanceof Error ? err : new Error(String(err)));
+              // A `failed` job event (no seq of its own: -1), so every client that follows the stream shows it.
+              const failed = {
+                job_id: id,
+                seq: -1,
+                at: new Date().toISOString(),
+                type: "failed",
+                error: { code, message: "the job's events could not be read" },
+              };
+              writes = writes.then(() => stream.writeSSE({ event: "failed", data: JSON.stringify(failed) }));
+              void writes.then(resolve, resolve);
             });
         });
         await finished;
@@ -297,7 +320,13 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
       const { id } = c.req.valid("param");
       const html =
         c.req.valid("query").format === "html" || (!c.req.valid("query").format && /text\/html/.test(c.req.header("accept") ?? ""));
-      if (html) return c.html(await manager.reportHtml(id), 200);
+      // The report holds untrusted text and an inline script, on the origin where the viewer keeps its token: sandbox it
+      // (an opaque origin, no storage or cookies of ours) so one escaping slip can't become token theft (security §4).
+      if (html)
+        return c.html(await manager.reportHtml(id), 200, {
+          "content-security-policy": "sandbox allow-scripts",
+          "x-content-type-options": "nosniff",
+        });
       return c.json(await manager.report(id), 200);
     },
   );
@@ -309,7 +338,8 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
       summary: "Ask a follow-up question; the answer is verified claims with facts and citations",
       request: {
         params: z.object({ id: JobId }),
-        body: { content: { "application/json": { schema: z.object({ question: z.string().min(3).max(500) }) } } },
+        // Required: an optional body is validated only when the request says application/json.
+        body: { required: true, content: { "application/json": { schema: z.object({ question: z.string().min(3).max(500) }) } } },
       },
       responses: {
         200: json(
@@ -435,7 +465,7 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
     }
     const rel = normalize(path).replace(/^([/\\])+/, "");
     const file = join(dir, rel);
-    if (rel && !rel.startsWith("..") && existsSync(file) && extname(file))
+    if (rel && !rel.startsWith("..") && existsSync(file) && statSync(file).isFile())
       return c.body(readFileSync(file), 200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
     return c.html(readFileSync(join(dir, "index.html"), "utf8"), 200);
   });

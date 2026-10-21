@@ -125,6 +125,7 @@ export class FakeModel implements ModelClient {
           toolCalls.push({ toolName: call.toolName, input: call.input, error: `invalid input: ${parsed.error.message}` });
           continue;
         }
+        // A tool that throws fails the call, as in the real client: it is an engine failure, not a model mistake.
         toolCalls.push({ toolName: call.toolName, input: parsed.data, output: await t.execute(parsed.data) });
       }
       steps.push({ text: s.text ?? "", toolCalls, usage: FAKE_USAGE });
