@@ -205,6 +205,26 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     expect(reasonFor(r.report, text)).toBe(`V4: a word of decline is followed by the signed value {{${change}}} (state the magnitude)`);
   });
 
+  it("“more than the whole drop” needs the comparison fact of the member it names (V1, M14a)", async () => {
+    const beyond = f1(draft).claims.find((c) => c.text.includes("more than the whole")) as Claim;
+    expect(beyond, "the coffee draft states wholesale beyond the drop").toBeDefined();
+    // As drafted (wholesale's exceeds fact cited) it survives.
+    expect(f1((await verify(clone(draft))).report).claims.map((c) => c.text)).toContain(beyond.text);
+    const exceeds = beyond.facts.find((id) => draft.facts.find((f) => f.id === id)?.computation.fn === "abs_exceeds") as string;
+    // Without the comparison fact: dropped.
+    const stripped = claim(
+      "By channel, “wholesale” fell more than the whole drop.",
+      beyond.facts.filter((id) => id !== exceeds),
+    );
+    // Wholesale's comparison cited for another member: dropped too.
+    const borrowed = claim("By channel, “retail” fell more than the whole drop.", [exceeds]);
+    const d = clone(draft);
+    f1(d).claims.push(stripped, borrowed);
+    const r = await verify(d);
+    for (const t of [stripped.text, borrowed.text])
+      expect(reasonFor(r.report, t)).toBe("V1: “more than the whole” is not backed by a comparison fact for the member it names");
+  });
+
   it("a recommendation whose whole rationale is dropped is dropped (V7)", async () => {
     const d = clone(draft);
     const r1 = d.recommendations[0] as Report["recommendations"][number];

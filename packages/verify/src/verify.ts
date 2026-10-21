@@ -240,12 +240,17 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       if (v < 0) return drop("V4", `a word of decline is followed by the signed value {{${m[1]}}} (state the magnitude)`);
     }
     // "More than the whole drop" is a comparison, so it is held to a fact like any number: the claim must cite an
-    // `abs_exceeds` fact equal to 1 (recomputed by V2 from its inputs; analysis-library §4.1).
-    if (
-      /more than the whole/i.test(c.text) &&
-      !c.facts.some((id) => all.get(id)?.computation.fn === "abs_exceeds" && all.get(id)?.value === 1)
-    )
-      return drop("V1", "“more than the whole” is not backed by a comparison fact");
+    // `abs_exceeds` fact equal to 1 (recomputed by V2 from its inputs; analysis-library §4.1) whose first input is the
+    // change of a member the claim names in quotes, so one member's comparison can't speak for another.
+    if (/more than the whole/i.test(c.text)) {
+      const named = [...c.text.matchAll(/“([^”]+)”/g)].map((m) => m[1]);
+      const backed = c.facts.some((id) => {
+        const f = all.get(id);
+        const first = all.get(f?.computation.inputs?.[0] ?? "");
+        return f?.computation.fn === "abs_exceeds" && f.value === 1 && named.some((n) => first?.label.endsWith(`:delta:${n}`));
+      });
+      if (!backed) return drop("V1", "“more than the whole” is not backed by a comparison fact for the member it names");
+    }
     checks.push({ check: "V1", passed: true, claim: c.text, where, detail: where });
 
     // V4: each fact measures a defined metric with its unit/currency, period and filters; and the claim names no
