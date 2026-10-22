@@ -114,6 +114,13 @@ export async function fetchDataset(d: RealDataset, deps: FetchDeps): Promise<Fet
   return { id: d.id, file: d.derived.file, sha256: d.derived.sha256, cached: false };
 }
 
+/** An error's message plus its cause's code: Node's fetch says only "fetch failed", the code says why (ETIMEDOUT…). */
+export function fetchFailure(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const code = (err.cause as { code?: unknown } | undefined)?.code;
+  return typeof code === "string" ? `${err.message} (${code})` : err.message;
+}
+
 /**
  * A pending dataset (manifest.ts): re-checks its licence and probes its data page. Returns "reachable" (pin it now)
  * or "deferred" with the reason; it never downloads data, since there is nothing pinned to verify it against. A
@@ -126,10 +133,7 @@ export async function probePending(d: PendingDataset, deps: Pick<FetchDeps, "fet
     if (!res.ok) throw new RealDataError("DOWNLOAD_FAILED", `HTTP ${res.status} from ${d.page}`);
   } catch (err) {
     if (err instanceof RealDataError && err.code === "LICENCE_CHANGED") throw err;
-    // Node's fetch says only "fetch failed"; the cause's code says why (ETIMEDOUT, ENOTFOUND…).
-    const code = err instanceof Error ? (err.cause as { code?: unknown } | undefined)?.code : undefined;
-    const reason = `${err instanceof Error ? err.message : String(err)}${typeof code === "string" ? ` (${code})` : ""}`;
-    deps.print(`${d.id}: DEFERRED, not reachable (${reason}); see evals/real/DATASETS.md "Pending"`);
+    deps.print(`${d.id}: DEFERRED, not reachable (${fetchFailure(err)}); see evals/real/DATASETS.md "Pending"`);
     return "deferred";
   }
   deps.print(`${d.id}: reachable and the licence still reads as recorded: pin it now (evals/real/DATASETS.md "Pending")`);

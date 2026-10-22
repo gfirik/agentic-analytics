@@ -23,8 +23,8 @@ ground_truth:
     result: >-
       bookings 119390 (40060 resort + 79330 city, as the article states); cancelled 44224; status_disagrees 0
       (ReservationStatus is Canceled or No-Show exactly when IsCanceled is 1: it leaks the outcome); agent_null 16340;
-      children_na 4; negative_adr 1 (-6.38); max_adr 5400 (city hotel, whose median ADR is 99.9: 54 × 100, a
-      decimal-point slip); city_median_adr 99.9
+      children_na 4; negative_adr 1 (-6.38); max_adr 5400 (city hotel, whose median ADR is 99.9; 5400 is about
+      54 times that median and reads as 54.00 with the decimal point slipped two places); city_median_adr 99.9
   - id: G2
     about: Monthly room revenue (EUR), bookings and room nights by arrival month
     sql: >-

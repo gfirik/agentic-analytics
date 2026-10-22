@@ -3,8 +3,8 @@
 # may read it (a test checks). FILE in each `sql` stands for evals/real/data/hotel-bookings.csv, read raw as in
 # golden.yaml.
 #
-# UNREVIEWED: written by one session (M14 PR 4); no item carries a review record yet, so none counts toward the bars
-# until a separate reviewer re-derives it (docs/plans/m14.md "Golden-set review").
+# Agent-reviewed (2026-10-22): a separate subagent re-derived every answer with its own SQL and agrees, so every item
+# counts toward the bars; not yet maintainer-reviewed (accuracy.md §3).
 dataset: hotel-bookings
 items:
   - id: G9
@@ -18,6 +18,7 @@ items:
       SELECT round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2)
       FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 4) = '2016'
     split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G10
     question: Among market segments with at least 100 bookings, which has the highest cancellation rate?
     kind: categorical
@@ -28,6 +29,7 @@ items:
       SELECT MarketSegment FROM read_csv('FILE', all_varchar = true) GROUP BY 1 HAVING count(*) >= 100
       ORDER BY avg(IsCanceled::INTEGER) DESC LIMIT 1
     split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G11
     question: How many of the bookings arriving in September 2017 will be cancelled?
     kind: trap
@@ -36,3 +38,4 @@ items:
       the right answer is a refusal.
     source: { kind: ask }
     split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }

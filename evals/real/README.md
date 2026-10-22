@@ -61,6 +61,7 @@ bun run aa eval --suite real --answers examples/my-evals --data examples/coffee-
 - `REAL_DATASETS`: each dataset's URLs, licence (with the publisher's own wording), citation and checksums.
 - `PENDING_DATASETS`: datasets chosen but not pinned yet (EIA-861M), with their licence and why they wait.
 - `fetchDataset(dataset, { fetch, read, write, print })`: re-check the licence, download, verify and derive, with every side effect injected (the tests use no network). Throws `RealDataError` (`DOWNLOAD_FAILED`, `CHECKSUM_MISMATCH`, `ENTRY_MISSING`, `LICENCE_CHANGED`, and `UNEXPECTED_LAYOUT` when a source file isn't laid out as the derivation expects).
+- `fetchFailure(err)`: an error's message plus its cause's code (`fetch failed (ETIMEDOUT)`), for the fetch script and the pending probe.
 - `checkLicence(id, { url, text }, deps)` and `plainText(html)`: the licence re-check, comparing the recorded wording with the page as plain text.
 - `probePending(dataset, { fetch, print })`: a pending dataset's licence re-check and reachability probe; `"deferred"` when its host doesn't answer.
 - `verifySha256`, `sha256`, `zipEntry`, `deriveOnlineRetailSample`, `deriveCardSpendByIndustry`, `deriveHotelBookings`, `keepInvoice`, `serialToIso`.

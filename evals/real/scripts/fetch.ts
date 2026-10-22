@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchDataset, PENDING_DATASETS, probePending, REAL_DATASETS } from "../src/index.ts";
+import { fetchDataset, fetchFailure, PENDING_DATASETS, probePending, REAL_DATASETS } from "../src/index.ts";
 
 const dir = fileURLToPath(new URL("../data", import.meta.url));
 mkdirSync(dir, { recursive: true });
@@ -12,11 +12,6 @@ const print = (line: string) => process.stdout.write(`${line}\n`);
 const get = (url: string) =>
   fetch(url, { headers: { "user-agent": "agentic-analytics-evals (+https://github.com/gfirik/agentic-analytics)" } });
 /** An error with its cause's code: Node's fetch says only "fetch failed", the cause says why (ETIMEDOUT, ENOTFOUND…). */
-const why = (err: unknown): string => {
-  if (!(err instanceof Error)) return String(err);
-  const cause = err.cause as { code?: unknown } | undefined;
-  return typeof cause?.code === "string" ? `${err.message} (${cause.code})` : err.message;
-};
 let failed = false;
 for (const d of REAL_DATASETS) {
   try {
@@ -28,7 +23,7 @@ for (const d of REAL_DATASETS) {
     });
   } catch (err) {
     failed = true;
-    process.stderr.write(`${d.id}: ${why(err)}\n`);
+    process.stderr.write(`${d.id}: ${fetchFailure(err)}\n`);
   }
 }
 for (const d of PENDING_DATASETS) {
@@ -36,7 +31,7 @@ for (const d of PENDING_DATASETS) {
     await probePending(d, { fetch: get, print });
   } catch (err) {
     failed = true;
-    process.stderr.write(`${d.id}: ${why(err)}\n`);
+    process.stderr.write(`${d.id}: ${fetchFailure(err)}\n`);
   }
 }
 process.exitCode = failed ? 1 : 0;

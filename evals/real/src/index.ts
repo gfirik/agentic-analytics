@@ -14,6 +14,7 @@ export {
   type FetchDeps,
   type Fetched,
   fetchDataset,
+  fetchFailure,
   plainText,
   probePending,
   RealDataError,
