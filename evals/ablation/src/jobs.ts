@@ -44,9 +44,13 @@ export interface AblationJob {
 const filesOf = (files: Readonly<Record<string, Uint8Array>>): InputFile[] =>
   Object.entries(files).map(([name, bytes]) => ({ name, bytes }));
 
-/** The smoke suite's datasets (coffee_roaster-v1, saas-v2, restaurant-v3), as the main eval runs them. */
+/**
+ * The smoke suite's development datasets (coffee_roaster-v1, saas-v2, restaurant-v3), as the main eval runs them. The
+ * smoke suite's held-out dataset is left out: the ablation is a development tool, and the held-out generated set is
+ * scored only by release runs (docs/specs/accuracy.md §9).
+ */
 export function smokeJobs(only?: string): AblationJob[] {
-  const all = suiteDatasets("smoke");
+  const all = suiteDatasets("smoke").filter((d) => d.answers.split !== "heldout");
   const picked = only ? all.filter((d) => d.id === only) : all;
   if (!picked.length) throw new AblationError("USAGE", `${only} is not in the smoke suite (${all.map((d) => d.id).join(", ")})`);
   return picked.map((ds) => ({
