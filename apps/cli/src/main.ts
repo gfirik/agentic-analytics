@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand, evalMatrix, evalRepeat, realEvalCommand, repeatPassed } from "@agentic-analytics/eval-runner";
+import { evalCommand, evalMatrix, evalRepeat, goldenEvalCommand, realEvalCommand, repeatPassed } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -369,7 +369,8 @@ const evalCmd = defineCommand({
   args: {
     suite: {
       type: "string",
-      description: "smoke (3 datasets), full (30 datasets) or real (public datasets; run `bun run eval:real:fetch` first); default smoke",
+      description:
+        "smoke (3 datasets), full (30 datasets), real (public datasets; run `bun run eval:real:fetch` first) or golden (the real datasets' golden sets); default smoke",
     },
     model: {
       type: "string",
@@ -422,11 +423,19 @@ const evalCmd = defineCommand({
       type: "boolean",
       description: "Don't read or write the response cache (evals/.cache): every model call is live. Implied by --repeat",
     },
+    dataset: { type: "string", description: "With --suite golden: one dataset (default: every real dataset with a golden set)" },
+    split: { type: "string", description: "With --suite golden: dev (default) or heldout (release runs only)" },
   },
   async run({ args }) {
     const model = args.model ?? "baseline";
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
-    if ((args.label || args.note || args.only !== undefined || args.passes !== undefined) && args.suite === "real")
+    if ((args.dataset || args.split) && args.suite !== "golden") throw new Error("--dataset and --split go with --suite golden");
+    if (args.suite === "golden" && (args["keep-reports"] || args["small-model"] || args["replay-drafts"] || args["results-dir"]))
+      throw new Error("--suite golden takes --dataset, --split, --model and --embedder only (it prints its results)");
+    if (
+      (args.label || args.note || args.only !== undefined || args.passes !== undefined) &&
+      (args.suite === "real" || args.suite === "golden")
+    )
       throw new Error("--label, --note, --only and --passes go with --suite smoke|full");
     const nightly = nightlyArgs(
       { model, ...(args.label ? { label: args.label } : {}), ...(args.passes !== undefined ? { passes: args.passes } : {}) },
@@ -488,6 +497,23 @@ const evalCmd = defineCommand({
         deps,
       );
       process.exitCode = runs.every((r) => (r.repeat ? repeatPassed(r.repeat) : r.result?.bars.every((b) => b.pass !== false))) ? 0 : 1;
+      return;
+    }
+    if (args.suite === "golden") {
+      if (args.split !== undefined && args.split !== "dev" && args.split !== "heldout")
+        throw new Error(`--split must be dev or heldout, not "${args.split}"`);
+      // Scored and printed, not published: golden results reach RESULTS.md with the baseline report (M14 PR 8).
+      const runs = await goldenEvalCommand(
+        {
+          model,
+          ...(args.dataset ? { dataset: args.dataset } : {}),
+          split: args.split === "heldout" ? "heldout" : "dev",
+          dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
+          answersDir: fileURLToPath(new URL("../../../evals/real/answers", import.meta.url)),
+        },
+        deps,
+      );
+      process.exitCode = runs.every((r) => r.completed) ? 0 : 1;
       return;
     }
     if (args.suite === "real") {

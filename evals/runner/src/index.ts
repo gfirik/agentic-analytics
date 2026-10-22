@@ -34,6 +34,20 @@ export {
   withinTolerance,
 } from "./golden.ts";
 export {
+  GOLDEN_DIR,
+  type GoldenEvalArgs,
+  type GoldenItemResult,
+  type GoldenRunOptions,
+  type GoldenRunResult,
+  type GoldenSplit,
+  goldenDatasets,
+  goldenEvalCommand,
+  goldenFile,
+  goldenLines,
+  loadGoldenSet,
+  runGoldenSet,
+} from "./golden-run.ts";
+export {
   loadRealAnswers,
   missingRealData,
   monthlyFacts,
@@ -41,7 +55,9 @@ export {
   type RealDatasetResult,
   type RealRunOptions,
   type RealSuiteResult,
+  readRealFile,
   realResultsMarkdown,
+  runRealJob,
   runRealSuite,
   scoreCheck,
   scoreRealReport,

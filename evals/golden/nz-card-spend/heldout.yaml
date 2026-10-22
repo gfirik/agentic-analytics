@@ -1,0 +1,38 @@
+# Golden set, held-out split (docs/specs/accuracy.md §1–§4): Stats NZ electronic card transactions by industry group
+# (NZD million). Read only by release runs (`bun run eval:golden -- --split heldout`); no file under packages/ or apps/
+# may read it (a test checks). FILE in each `sql` stands for evals/real/data/nz-card-spend-by-industry.csv, read raw
+# as in golden.yaml.
+#
+# Agent-reviewed (2026-10-22): a separate subagent re-derived every answer with its own SQL and agrees, so every item
+# counts toward the bars; not yet maintainer-reviewed (accuracy.md §3).
+dataset: nz-card-spend
+items:
+  - id: G8
+    question: What was total card spending over calendar 2025, all industry groups together (NZD million)?
+    kind: numeric
+    expected: 115076.3
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [Period, Data_value]
+    sql: >-
+      SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period LIKE '2025.%'
+    split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G9
+    question: Which industry group had the most card spending in September 2026?
+    kind: categorical
+    expected: Consumables
+    source: { kind: ask }
+    columns: [Series_title_2, Period, Data_value]
+    sql: >-
+      SELECT Series_title_2 FROM read_csv('FILE', all_varchar = true) WHERE Period = '2026.09'
+      ORDER BY Data_value::DOUBLE DESC LIMIT 1
+    split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G10
+    question: What will total card spending be in December 2026?
+    kind: trap
+    reason: The data ends in September 2026 and the engine makes no forecasts; the right answer is a refusal.
+    source: { kind: ask }
+    split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
