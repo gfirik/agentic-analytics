@@ -1,11 +1,11 @@
 // Metric → parameterized SQL (docs/specs/metric-layer.md §4): metric(id, period_range, dimension_filters?,
 // group_by?). Every number a report shows comes through this compiler, so it is tied to a metric id and its SQL.
-import type { MetricDef } from "@agentic-analytics/schema";
+import type { Grain, MetricDef } from "@agentic-analytics/schema";
 import { ident, type Sql, type Workspace } from "@agentic-analytics/store";
 import { type Catalog, NUMERIC_TYPES } from "./catalog.ts";
 import { builder, compileExpr, compileFilter, exprColumns, parseExpression, parseFilter, type SqlBuilder } from "./lang.ts";
 
-export type Grain = "day" | "week" | "month" | "quarter" | "year";
+export type { Grain };
 
 export interface MetricQuery {
   /** Inclusive period range at the grain, e.g. "2026-01" … "2026-06" for months. */

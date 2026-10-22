@@ -307,6 +307,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
         "@agentic-analytics/store": "workspace:*",
       },
       "devDependencies": {
