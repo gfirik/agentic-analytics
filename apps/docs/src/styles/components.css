@@ -208,21 +208,20 @@ table.aa-ledger {
 .aa-button:active {
   translate: 0 1px;
 }
-/* The primary action is the brand accent (site v5 PR 1b; it is the hero's, the only primary on the site): a soft
-   gradient of the accent, lighter at the top, over the accent, which deepens on hover. White on its lightest stop is
-   6.1:1. */
+/* The primary action is ink (it is the hero's Quickstart, the only primary on the site): a soft sheen at the top over
+   ink, which lifts to ink-2 on hover. White on its lightest stop is 14:1. */
 .aa-button-primary {
-  border-color: var(--aa-accent-deep);
-  background-color: var(--aa-accent);
-  background-image: linear-gradient(to bottom, rgb(255 255 255 / 0.12), transparent 60%);
+  border-color: var(--aa-ink);
+  background-color: var(--aa-ink);
+  background-image: linear-gradient(to bottom, rgb(255 255 255 / 0.1), transparent 60%);
   color: var(--aa-raised);
   box-shadow:
     0 1px 2px rgb(18 20 23 / 0.12),
-    0 6px 16px -6px color-mix(in srgb, var(--aa-accent) 55%, transparent);
+    0 6px 16px -6px rgb(18 20 23 / 0.35);
 }
 .aa-button-primary:hover {
-  background-color: var(--aa-accent-deep);
-  border-color: var(--aa-accent-deep);
+  background-color: var(--aa-ink-2);
+  border-color: var(--aa-ink-2);
 }
 .aa-button-secondary {
   background: var(--aa-raised);

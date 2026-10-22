@@ -1815,7 +1815,9 @@ test.describe("motion", () => {
         }),
       );
     await expect(root).toHaveClass(/\bis-undrawn\b/);
-    expect(await scales()).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    // Undrawing eases each segment to 0 over 180ms (the rail's own transition), so wait for it to land rather than
+    // read it once: read straight after load it caught 0.0103 on a busy machine.
+    await expect.poll(scales, { timeout: 2_000 }).toEqual([0, 0, 0, 0, 0, 0, 0]);
     await root.locator(".aa-stages-rail").evaluate((el) => el.scrollIntoView({ block: "center" }));
     // Mid-draw: the first stops are drawn while the last are not yet; it runs left to right.
     const mid = await page.waitForFunction(
