@@ -3,6 +3,7 @@ import {
   builder,
   compileExpr,
   compileFilter,
+  describeExpr,
   describeFilter,
   exprColumns,
   filterColumns,
@@ -66,5 +67,18 @@ describe("metric filters", () => {
     expect(describeFilter(parseFilter("(status IS NULL OR status <> 'x') AND channel = 'a'"))).toBe(
       "(status is empty or status is not x) and channel is a",
     );
+  });
+});
+
+describe("describeExpr keeps the reading of the expression", () => {
+  it("adds parentheses where precedence or order needs them", () => {
+    const d = (src: string) => describeExpr(parseExpression(src));
+    expect(d("(revenue - cost) / revenue")).toBe("(revenue - cost) ÷ revenue");
+    expect(d("revenue - cost / revenue")).toBe("revenue - cost ÷ revenue");
+    expect(d("a - (b - c)")).toBe("a - (b - c)");
+    expect(d("a - b - c")).toBe("a - b - c");
+    expect(d("a / (b * c)")).toBe("a ÷ (b × c)");
+    expect(d("a * (b + c)")).toBe("a × (b + c)");
+    expect(d("-(a + b)")).toBe("−(a + b)");
   });
 });

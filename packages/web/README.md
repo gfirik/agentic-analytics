@@ -19,7 +19,8 @@ The web lane: search providers (SearXNG first), the query sanitizer, the safe fe
   - every resolved address checked at connect time (`isBlockedAddress`: private, loopback, link-local, CGNAT, reserved, multicast, IPv6 and mapped forms);
   - manual redirects, re-checked each time, at most 3;
   - a 10 s timeout, a 3 MB cap, and text types only.
-  - `checkUrl` runs the URL checks alone.
+  - `checkUrl` runs the URL checks alone. A private value is matched in the query the way the sanitizer matches it (every spelling `phrases` gives, on the normalised text, whole words, plus joined spellings).
+  - The body is decoded in the page's own charset (`decodeBody`: the Content-Type header's, else `<meta charset>`, else UTF-8).
 - `htmlToText(html)` returns `{ title, text, hidden }`: `text` is the visible text only (scripts, navigation and hidden elements dropped); `hidden` is the text of hidden and white-on-white elements, kept only so the injection screen can read it.
 - `searxngProvider({ baseUrl })` is a `SearchProvider` over SearXNG's JSON API. `docker compose --profile web up -d searxng` starts one with JSON enabled (`docker/searxng/settings.yml`).
 - `webSearch(query, { provider, terms, fetchPage? })` runs sanitize → search → fetch the top pages → readable text. It returns `{ query (as sent), removed, pages, skipped }`; each `WebPage` carries `text` and `hidden` (never the raw HTML).

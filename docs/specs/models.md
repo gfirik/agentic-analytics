@@ -66,7 +66,8 @@ Model profiles (`packages/models/src/profiles.ts`) record per-model facts: conte
 ## 5. Reliability
 
 - **Structured output:** validated by Zod. On failure, retry up to 2 times with the validation error fed back. After that, the stage degrades gracefully (fewer findings) and logs it.
-- **Timeouts:** 120s per call by default, longer for local CPU models (`MODEL_TIMEOUT_MS`).
+- **Timeouts:** 120s per call by default, longer for local CPU models (`MODEL_TIMEOUT_MS`, a whole number of milliseconds; anything else is a CONFIG error at startup).
+- **Roles and providers** are checked at startup: planner, extractor and judge can't use `transformers`; the embedder is `transformers` or `ollama`; the reranker is `transformers`.
 - **Usage:** tokens and latency are recorded per role in job events, so evals can report cost and speed.
 - **Router** (M13a). Each route (provider + model) has a token bucket fed by the `x-ratelimit-remaining-*` and `x-ratelimit-reset-*` headers, and by 429s with their `retry-after`:
   - A call goes to the first route with capacity.

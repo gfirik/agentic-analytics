@@ -116,7 +116,8 @@ function coreName(name: string): string | undefined {
   return core.length >= 3 ? core : undefined;
 }
 
-function phrases(terms: PrivateTerms): string[] {
+/** Every spelling of the private names the sanitizer removes: full, without legal forms, joined, leading two words. */
+export function phrases(terms: PrivateTerms): string[] {
   const out = new Set<string>();
   for (const n of terms.names) {
     const full = normalizeText(n);
@@ -135,7 +136,7 @@ function phrases(terms: PrivateTerms): string[] {
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const wordRe = (p: string) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(p)}(?![\\p{L}\\p{N}])`, "gu");
+export const wordRe = (p: string) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(p)}(?![\\p{L}\\p{N}])`, "gu");
 
 export function sanitizeQuery(query: string, terms: PrivateTerms = { names: [] }): Sanitized {
   const removed: { kind: Sanitized["removed"][number]["kind"]; text: string }[] = [];

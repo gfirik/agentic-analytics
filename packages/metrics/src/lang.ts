@@ -384,16 +384,28 @@ export function describeFilter(f: Filter): string {
   }
 }
 
+/** Binding strength of an operator: × and ÷ bind tighter than + and −. */
+const PREC: Record<string, number> = { "+": 1, "-": 1, "*": 2, "/": 2 };
+
 export function describeExpr(e: Expr): string {
+  // Parentheses where the reading would change without them: "(revenue − cost) ÷ revenue", "a − (b − c)", "−(a + b)".
+  const wrap = (child: Expr, parens: boolean) => (parens ? `(${describeExpr(child)})` : describeExpr(child));
   switch (e.k) {
     case "col":
       return e.name;
     case "num":
       return String(e.value);
     case "neg":
-      return `−${describeExpr(e.arg)}`;
-    case "bin":
-      return `${describeExpr(e.left)} ${e.op === "*" ? "×" : e.op === "/" ? "÷" : e.op} ${describeExpr(e.right)}`;
+      return `−${wrap(e.arg, e.arg.k === "bin")}`;
+    case "bin": {
+      const p = PREC[e.op] ?? 2;
+      const left = wrap(e.left, e.left.k === "bin" && (PREC[e.left.op] ?? 2) < p);
+      const right = wrap(
+        e.right,
+        e.right.k === "bin" && ((PREC[e.right.op] ?? 2) < p || ((PREC[e.right.op] ?? 2) === p && (e.op === "-" || e.op === "/"))),
+      );
+      return `${left} ${e.op === "*" ? "×" : e.op === "/" ? "÷" : e.op} ${right}`;
+    }
     case "call":
       return `${e.fn}(${e.args.map(describeExpr).join(", ")})`;
   }
