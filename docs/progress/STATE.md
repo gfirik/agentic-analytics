@@ -113,6 +113,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 
 ## Decisions made by agents
 
+- [Token budget, maintainer, 2026-10-22] From 12:28 Tashkent time: one background agent; one PR at a time, end to end; spec-reviewer and QA subagents only for engine, numeric or security changes, on Sonnet (docs, site, test-only and eval-tooling PRs need the gate and green CI); at most 4 merged PRs a day; no work 00:00–08:00 Tashkent time except the nightly eval; no real-model runs except the nightly (a targeted check only when a PR can't be judged otherwise). Recorded in AGENTS.md §9 "Token budget" and docs/AUTOPILOT.md. 2026-10-22 had already passed the daily cap when the limits arrived (14 merges), so this PR and M14 PR 6 (#80) merge from 2026-10-23 08:00; M14 PR 7's branch (`m14/heldout-generated`, 4 unpushed commits, docs unfinished) waits until #80 has merged.
 - [M0] Package manager is Bun 1.4.3 (`packageManager` field, `bun.lock`), runtime Node 22 — maintainer decision mid-M0 — DECISIONS D14, D7
 - [M0] Toolchain at current majors: TypeScript 7.0 (native `tsc`), Vitest 5, Biome 2.5, Turborepo 2.11, Zod 4 — latest stable at build time; all pass `bun run check` — AGENTS.md §3
 - [M0] Internal-package pattern: each workspace exports `./src/index.ts` directly, so dev, tests and the CLI need no build step; the CLI bin runs TS through `tsx`. A bundled build comes with Docker/M10 — ARCHITECTURE §5
