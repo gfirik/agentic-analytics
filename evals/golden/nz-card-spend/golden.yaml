@@ -1,0 +1,92 @@
+# Golden set, dev split (docs/specs/accuracy.md §1–§4): Stats NZ electronic card transactions, the monthly actual
+# values by industry group (series ECTM.S1GA1–8) the real tier reads (evals/real/answers/nz-card-spend.yaml; `bun run
+# eval:real:fetch` downloads and checksums it). Values are NZD million (UNITS Dollars, Magnitude 6).
+#
+# Every `sql` reads the RAW derived file in a separate DuckDB, never the engine's workspace: FILE stands for
+# evals/real/data/nz-card-spend-by-industry.csv, read with all_varchar, so Period stays as published (2020.04).
+# evals/runner/test/golden-real.test.ts runs each query and checks it returns `expected` (skipped without the data).
+#
+# Agent-reviewed (2026-10-22): a separate subagent re-derived every answer with its own SQL and agrees, so every item
+# counts toward the bars; not yet maintainer-reviewed (accuracy.md §3). The held-out items are in heldout.yaml, read only by release runs.
+dataset: nz-card-spend
+items:
+  - id: G1
+    question: What was total card spending, all industry groups together, in December 2025 (NZD million)?
+    kind: numeric
+    expected: 11321.6
+    tolerance: { abs: 0.05 }
+    source: { kind: fact, label: card_spend_2025-12 }
+    columns: [Period, Data_value]
+    sql: >-
+      SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period = '2025.12'
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G2
+    question: What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)?
+    kind: numeric
+    expected: 9190.7
+    tolerance: { abs: 0.05 }
+    source: { kind: fact, label: card_spend_2026-09 }
+    columns: [Period, Data_value]
+    sql: >-
+      SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period = '2026.09'
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G3
+    question: Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020?
+    kind: categorical
+    expected: Durables
+    source: { kind: driver, metric: card_spend, period: 2020-04 }
+    columns: [Series_title_2, Period, Data_value]
+    sql: >-
+      SELECT Series_title_2 FROM read_csv('FILE', all_varchar = true) WHERE Period IN ('2020.03', '2020.04')
+      GROUP BY Series_title_2
+      ORDER BY sum(CASE WHEN Period = '2020.04' THEN 1 ELSE -1 END * Data_value::DOUBLE) LIMIT 1
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G4
+    question: By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)?
+    kind: numeric
+    expected: -3803.7
+    tolerance: { abs: 0.05 }
+    source: { kind: ask }
+    columns: [Period, Data_value]
+    sql: >-
+      SELECT round(sum(CASE WHEN Period = '2020.04' THEN 1 ELSE -1 END * Data_value::DOUBLE), 1)
+      FROM read_csv('FILE', all_varchar = true) WHERE Period IN ('2020.03', '2020.04')
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G5
+    question: What share of 2025 card spending, in percent, was in the Consumables industry group?
+    kind: numeric
+    expected: 29.015
+    tolerance: { abs: 0.05 }
+    source: { kind: ask }
+    columns: [Series_title_2, Period, Data_value]
+    sql: >-
+      SELECT round(100 * sum(Data_value::DOUBLE) FILTER (WHERE Series_title_2 = 'Consumables') / sum(Data_value::DOUBLE), 3)
+      FROM read_csv('FILE', all_varchar = true) WHERE Period LIKE '2025.%'
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G6
+    question: By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier?
+    kind: numeric
+    expected: 1.25
+    tolerance: { abs: 0.05 }
+    source: { kind: ask }
+    columns: [Period, Data_value]
+    sql: >-
+      WITH m AS (SELECT Period AS p, sum(Data_value::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true) GROUP BY 1)
+      SELECT round(100 * ((SELECT v FROM m WHERE p = '2026.09') / (SELECT v FROM m WHERE p = '2025.09') - 1), 2)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G7
+    question: What was the average value of a card transaction in 2025?
+    kind: trap
+    reason: >-
+      The file holds only spending totals per industry group and month, with no count of transactions (the full Stats NZ
+      release publishes counts, but the derived file keeps only the dollar series), so an average transaction value
+      can't be computed; the right answer is a refusal.
+    source: { kind: ask }
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }

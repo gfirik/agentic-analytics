@@ -31,6 +31,7 @@
     "eval:merge": "tsx evals/runner/scripts/merge.ts",
     "eval:real:fetch": "tsx evals/real/scripts/fetch.ts",
     "eval:real": "node apps/cli/bin/aa.js eval --suite real",
+    "eval:golden": "node apps/cli/bin/aa.js eval --suite golden",
     "readme:assets": "tsx scripts/readme-assets/assets.ts --write",
     "readme:check": "tsx scripts/readme-assets/assets.ts --check",
     "readme:check:browser": "playwright test -c scripts/readme-assets/playwright.config.ts",

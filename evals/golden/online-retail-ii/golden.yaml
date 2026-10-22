@@ -1,0 +1,110 @@
+# Golden set, dev split (docs/specs/accuracy.md §1–§4): UCI Online Retail II, the 10% invoice sample the real tier
+# reads (evals/real/answers/online-retail-ii.yaml; `bun run eval:real:fetch` downloads and checksums it).
+#
+# Every `sql` reads the RAW derived file in a separate DuckDB, never the engine's workspace: FILE stands for
+# evals/real/data/online_retail_II.sample10.csv, read with all_varchar so no type guess of ours or the engine's
+# applies. Net sales are quantity × price with cancellation lines netted in, which is how the file records them.
+# evals/runner/test/golden-real.test.ts runs each query and checks it returns `expected` (skipped without the data).
+#
+# Agent-reviewed (2026-10-22): a separate subagent re-derived every answer with its own SQL and agrees, so every item
+# counts toward the bars; not yet maintainer-reviewed (accuracy.md §3). The held-out items are in heldout.yaml, read only by release runs.
+dataset: online-retail-ii
+items:
+  - id: G1
+    question: What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010?
+    kind: numeric
+    expected: 140447.11
+    tolerance: { abs: 0.5 }
+    source: { kind: fact, label: revenue_2010-11 }
+    columns: [Quantity, Price, InvoiceDate]
+    sql: >-
+      SELECT round(sum(Quantity::DOUBLE * Price::DOUBLE), 2) FROM read_csv('FILE', all_varchar = true)
+      WHERE left(InvoiceDate, 7) = '2010-11'
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G2
+    question: How many distinct invoices (cancellation invoices included) were there in December 2010?
+    kind: numeric
+    expected: 201
+    tolerance: { abs: 0 }
+    source: { kind: fact, label: orders_2010-12 }
+    columns: [Invoice, InvoiceDate]
+    sql: >-
+      SELECT count(DISTINCT Invoice) FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) = '2010-12'
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G3
+    question: What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011?
+    kind: numeric
+    expected: 145480.93
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [Quantity, Price, InvoiceDate]
+    sql: >-
+      SELECT round(max(v), 2) FROM (SELECT left(InvoiceDate, 7) AS m, sum(Quantity::DOUBLE * Price::DOUBLE) AS v
+      FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 4) = '2011' GROUP BY 1)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G4
+    question: By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011?
+    kind: numeric
+    expected: 37570.84
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [Quantity, Price, InvoiceDate]
+    sql: >-
+      SELECT round(sum(CASE WHEN left(InvoiceDate, 7) = '2011-11' THEN 1 ELSE -1 END * Quantity::DOUBLE * Price::DOUBLE), 2)
+      FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) IN ('2011-10', '2011-11')
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G5
+    question: >-
+      What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with
+      no customer ID stay in the total.
+    kind: numeric
+    expected: 13.7
+    tolerance: { abs: 0.1 }
+    source: { kind: ask }
+    columns: [Customer ID, Quantity, Price, InvoiceDate]
+    sql: >-
+      WITH r AS (SELECT "Customer ID" AS c, Quantity::DOUBLE * Price::DOUBLE AS v FROM read_csv('FILE', all_varchar = true)
+                 WHERE left(InvoiceDate, 4) = '2010'),
+           top AS (SELECT sum(v) AS s FROM r WHERE c IS NOT NULL GROUP BY c ORDER BY s DESC LIMIT 10)
+      SELECT round(100 * (SELECT sum(s) FROM top) / (SELECT sum(v) FROM r), 2)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G6
+    question: By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier?
+    kind: numeric
+    expected: 3.58
+    tolerance: { abs: 0.05 }
+    source: { kind: ask }
+    columns: [Quantity, Price, InvoiceDate]
+    sql: >-
+      WITH m AS (SELECT left(InvoiceDate, 7) AS m, sum(Quantity::DOUBLE * Price::DOUBLE) AS v
+                 FROM read_csv('FILE', all_varchar = true) GROUP BY 1)
+      SELECT round(100 * ((SELECT v FROM m WHERE m = '2011-11') / (SELECT v FROM m WHERE m = '2010-11') - 1), 2)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G7
+    question: Which country accounted for most of the fall in invoices from November to December 2010?
+    kind: categorical
+    expected: United Kingdom
+    source: { kind: driver, metric: orders, period: 2010-12 }
+    columns: [Country, Invoice, InvoiceDate]
+    sql: >-
+      SELECT Country FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) IN ('2010-11', '2010-12')
+      GROUP BY Country
+      ORDER BY count(DISTINCT Invoice) FILTER (WHERE left(InvoiceDate, 7) = '2010-12')
+             - count(DISTINCT Invoice) FILTER (WHERE left(InvoiceDate, 7) = '2010-11') LIMIT 1
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  - id: G8
+    question: What was the gross margin on 2011 sales?
+    kind: trap
+    reason: >-
+      The file has prices and quantities but no cost or margin column, so a margin can't be computed; the right answer
+      is a refusal.
+    source: { kind: ask }
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
