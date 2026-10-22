@@ -15,7 +15,7 @@ The binary is `agentic-analytics`, alias `aa` (`bun run aa …` from a clone).
 | `aa serve [--port 8080] [--host 127.0.0.1] [--allow-no-auth]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. A non-loopback `--host` needs `API_TOKEN` (or `--allow-no-auth` behind a proxy or a localhost-only port mapping). `AA_MCP_ROOTS` lists the folders MCP over HTTP may read. |
 | `aa mcp` | The MCP server on stdio. |
 | `aa jobs ls \| rm <id> \| resume <id>` | Manage jobs in `AA_JOBS_DIR` (default `data/jobs`). |
-| `aa eval [--suite smoke\|full\|real] [--model …]` | The eval suite; updates `evals/RESULTS.md`. |
+| `aa eval [--suite smoke\|full\|heldout\|real] [--model …]` | The eval suite; updates `evals/RESULTS.md`. `heldout` is the held-out generated set, for release runs. |
 | `aa eval --suite full --label "<name>" [--note "<text>"] [--only <id,…> --results-dir <dir>]` | A run under its own model row (a self-hosted model); `--only` runs some businesses, joined later with `bun run eval:merge`. |
 | `aa eval --suite full --model configured --passes 2` | A run over up to two nights (what `scripts/eval-daily.sh` runs): the next night resumes it and runs only the businesses a free tier's quota stopped. It is partial only if businesses are unfinished after the last pass. |
 | `aa eval --suite smoke --repeat 5 [--model <m>]` | Consistency: the suite five times with the response cache off, then the share of businesses where every run agrees on the numbers, the top findings, each finding's driver and cause grade, and the top action. The disagreements are written side by side in `evals/results/repeat/`. |

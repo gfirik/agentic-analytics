@@ -14,6 +14,8 @@ Each dataset plants:
 - a new product cannibalizing an old one (variant 3),
 - a ×1000 typo and ambiguous dates, a noise blip inside the band and every December's seasonal peak as **distractors**, and cause documents next to coincidental and irrelevant ones.
 
+**A held-out set.** The engine's rules were tuned on those 30 businesses, so their scores are optimistic. A second set of 14 generated businesses is kept apart and scored only by release runs: the 10 archetypes again with new seeds, and two businesses no rule was written against — an equipment-hire company whose rows are hire-contract lines across four depots, and a car-wash chain whose rows are daily takings per site and wash programme — with their own planted events (a depot closed after a fire, an account lost across every depot, improvements, a refund fault at one site, buyers trading down after a price rise). A test keeps the engine's code from naming them. The first offline baseline run finds 75% of their planted events (96% on the development set): 15 of 16 on the reseeded businesses, 3 of 8 on the two new ones.
+
 **Scoring never reads wording.** A finding matches a planted event by what its code-written first claim states — the metric (mapped by definition, not name), the member, and a comparison that spans the event. Recall counts an event only with the correct driver. A top recommendation about anything else is a miss.
 
 | Metric | v0.1 bar |
@@ -32,6 +34,7 @@ Each dataset plants:
 ```bash
 bun run eval -- --suite full --model baseline                        # offline, ~3 minutes
 bun run eval -- --suite smoke --small-model --model ollama:qwen3.5:9b  # a real model
+bun run eval -- --suite heldout --model baseline --results-dir /tmp/heldout   # the held-out set (release runs)
 ```
 
 The **baseline** is a scripted heuristic used to check the harness; it is never presented as model quality. Results: [Eval results](../results/).
