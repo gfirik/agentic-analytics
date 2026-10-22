@@ -56,7 +56,18 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - run: bunx playwright install --with-deps chromium
+      # The runner's Ubuntu mirror sometimes stalls apt for ten minutes or more (three site-browser runs on
+      # 2026-10-22 hit the job timeout inside this step, not in the tests): apt gives up on a silent connection after
+      # 20s and moves on, a failed install is tried again, and the step is capped so it cannot eat the job.
+      - name: Install Chromium and its system libraries
+        timeout-minutes: 9
+        run: |
+          printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null
+          for attempt in 1 2 3; do
+            bunx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $attempt failed; retrying"
+          done
+          exit 1
       - run: bun run readme:check:browser
 
   site-browser:
@@ -82,6 +93,17 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - run: bunx playwright install --with-deps chromium
+      # The runner's Ubuntu mirror sometimes stalls apt for ten minutes or more (three site-browser runs on
+      # 2026-10-22 hit the job timeout inside this step, not in the tests): apt gives up on a silent connection after
+      # 20s and moves on, a failed install is tried again, and the step is capped so it cannot eat the job.
+      - name: Install Chromium and its system libraries
+        timeout-minutes: 9
+        run: |
+          printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null
+          for attempt in 1 2 3; do
+            bunx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $attempt failed; retrying"
+          done
+          exit 1
       - run: bun run --filter @agentic-analytics/docs build
       - run: bun run site:check:browser
