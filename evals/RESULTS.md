@@ -128,6 +128,8 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 
 
 ### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-21
 
+The before of the M14a real-model before/after: run over two nights (2026-10-20 and 2026-10-21) on the engine before the M14a fixes (#44–#49), and scored with the scoring of that time (before code-quality fix 9). The next nightly runs measure the merged fixes.
+
 Passes: 2026-10-20, 2026-10-21 (2 of up to 2; every job finished).
 
 30 datasets · 1681 s · 1007951 tokens
