@@ -34,7 +34,7 @@ It also generates the documents that mention those events, plus **distractors**:
 9. Construction supplier
 10. Agency
 
-There are at least 3 variants each with different seeds and planted events: **30+ datasets** in total. A hand-reviewed golden set of 10 is planned (M14); none exists yet.
+There are at least 3 variants each with different seeds and planted events: **30+ datasets** in total. A reviewed synthetic subset was once planned here; the golden set is now the M14 question set over real datasets (docs/specs/accuracy.md).
 
 **v0.1 generator (M11):** 10 archetypes × 3 variants = 30 generated datasets (evals/generator/README.md), plus the two hand-built ones (coffee-roaster-v1, printing-shop-v1). The planted events are a key client lost after a price rise (all variants), a supplier switch that raises refunds (v2), and a new product cannibalizing an old one (v3). Each dataset also has a ×1000 typo, date ambiguity (v1), a noise blip inside the band, a seasonal December peak (v3) as a distractor, and coincidental and irrelevant documents. The Simpson's-paradox and concentration-risk setups are not generated yet.
 
@@ -73,6 +73,8 @@ quality:
 A key states no expected change size: a planted event matches on its metric, period, member and direction (evals/runner/README.md). `type` and `persists` are recorded for readers and are not scored; a quality key matches on its file and the sheet in `location` (its column only when a citation names cells).
 
 ## 2. Metrics
+
+The golden question set, its scorer, the paired bootstrap and (as M14 builds them) repeated runs, the ablation and the held-out sets are specified in **docs/specs/accuracy.md**.
 
 How a finding is matched to a planted event (by the subject its code-written first claim states, never by wording) is described in evals/runner/README.md.
 
