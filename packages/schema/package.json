@@ -5,7 +5,8 @@
   "type": "module",
   "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./stages": "./src/stages.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
