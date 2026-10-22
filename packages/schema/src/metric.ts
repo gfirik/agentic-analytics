@@ -13,6 +13,7 @@ export const RatioTerm = z.union([
   z.object({ table: z.string(), expression: z.string(), filters: z.array(z.string()).optional() }).strict(),
   z.object({ metric: ident }).strict(),
 ]);
+export type RatioTerm = z.infer<typeof RatioTerm>;
 
 export const MetricDef = z
   .object({
