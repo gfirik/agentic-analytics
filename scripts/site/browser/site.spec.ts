@@ -1587,7 +1587,7 @@ test.describe("motion", () => {
   });
 
   test("no layout shift from any of it: CLS under 0.05 through the whole landing page (1440, 390)", async ({ browser }) => {
-    type Shift = { value: number; time: number; mine: boolean };
+    type Shift = { value: number; time: number; mine: boolean; sticky: boolean; sources: string[] };
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -1599,18 +1599,36 @@ test.describe("motion", () => {
       await page.addInitScript(() => {
         const w = window as unknown as { aaShifts: Shift[] };
         w.aaShifts = [];
-        type Entry = PerformanceEntry & { value: number; hadRecentInput: boolean; sources: { node?: Node | null }[] };
+        type Rect = { x: number; y: number; width: number; height: number };
+        type Entry = PerformanceEntry & {
+          value: number;
+          hadRecentInput: boolean;
+          sources: { node?: Node | null; previousRect: Rect; currentRect: Rect }[];
+        };
         new PerformanceObserver((list) => {
-          for (const e of list.getEntries() as Entry[])
-            if (!e.hadRecentInput)
-              w.aaShifts.push({
-                value: e.value,
-                time: e.startTime,
-                mine: e.sources.some((s) => {
-                  const el = s.node instanceof Element ? s.node : (s.node?.parentElement ?? null);
-                  return Boolean(el?.closest("[data-reveal], .aa-stages, .aa-exhibit"));
-                }),
-              });
+          for (const e of list.getEntries() as Entry[]) {
+            if (e.hadRecentInput) continue;
+            const els = e.sources.map((s) => (s.node instanceof Element ? s.node : (s.node?.parentElement ?? null)));
+            w.aaShifts.push({
+              value: e.value,
+              time: e.startTime,
+              mine: els.some((el) => Boolean(el?.closest("[data-reveal], .aa-stages, .aa-exhibit"))),
+              // A sticky row head (§1, §2 from 1100px) moves with the scroll by design once it reaches the end of
+              // its row; that is position, not animation, so those shifts are told apart by identity.
+              sticky:
+                els.length > 0 &&
+                els.every(
+                  (el) =>
+                    Boolean(el?.closest(".aa-cell-head")) &&
+                    getComputedStyle(el?.closest(".aa-cell-head") as Element).position === "sticky",
+                ),
+              sources: e.sources.map((s, i) => {
+                const el = els[i];
+                const r = (q: Rect) => `${Math.round(q.x)},${Math.round(q.y)} ${Math.round(q.width)}×${Math.round(q.height)}`;
+                return `${el ? `${el.tagName.toLowerCase()}.${[...el.classList].join(".")}` : "?"} ${r(s.previousRect)} → ${r(s.currentRect)}`;
+              }),
+            });
+          }
         }).observe({ type: "layout-shift", buffered: true });
       });
       await page.goto(LANDING, { waitUntil: "networkidle" });
@@ -1637,11 +1655,12 @@ test.describe("motion", () => {
       }
       const total = shifts.reduce((t, s) => t + s.value, 0);
       console.log(`CLS through the landing page at ${viewport.width}: ${cls.toFixed(4)} (all shifts summed ${total.toFixed(4)})`);
-      // A real shift in an animated part is a visible move; sub-pixel layout rounding on a CI runner registers as a
-      // shift of a few millionths (seen: 0.000004 and 0.000008 at 1440), which no reader can see. Those don't count.
+      // Every shift in an animated part is printed with its sources, so a failure names the node that moved.
+      for (const s of shifts.filter((x) => x.mine))
+        console.log(`shift ${s.value.toFixed(6)} at ${Math.round(s.time)} ms: ${s.sources.join("; ")}`);
       expect(
-        shifts.filter((s) => s.mine && s.value >= 0.0001),
-        `${viewport.width}: shifts in the revealed parts, the stages or the exhibit`,
+        shifts.filter((s) => s.mine && !s.sticky),
+        `${viewport.width}: shifts in the revealed parts, the stages or the exhibit (sticky heads excepted)`,
       ).toEqual([]);
       expect(cls, `${viewport.width}`).toBeLessThan(0.05);
       await ctx.close();
