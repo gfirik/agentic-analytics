@@ -440,7 +440,7 @@ const evalCmd = defineCommand({
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
     if ((args.dataset || args.split) && args.suite !== "golden") throw new Error("--dataset and --split go with --suite golden");
     if (args.suite === "golden" && (args["keep-reports"] || args["small-model"] || args["replay-drafts"] || args["results-dir"]))
-      throw new Error("--suite golden takes --dataset, --split, --model and --embedder only (it prints its results)");
+      throw new Error("--suite golden takes --dataset, --split, --model and --embedder only (it writes evals/results/golden/)");
     if (
       (args.label || args.note || args.only !== undefined || args.passes !== undefined) &&
       (args.suite === "real" || args.suite === "golden")
@@ -511,10 +511,12 @@ const evalCmd = defineCommand({
     if (args.suite === "golden") {
       if (args.split !== undefined && args.split !== "dev" && args.split !== "heldout")
         throw new Error(`--split must be dev or heldout, not "${args.split}"`);
-      // Scored and printed, not published: golden results reach RESULTS.md with the baseline report (M14 PR 8).
+      // Scored, printed and written to evals/results/golden/; RESULTS.md shows only the committed baseline report
+      // (evals/results/m14-baseline), so a local golden run never changes the page.
       const runs = await goldenEvalCommand(
         {
           model,
+          resultsDir: where.dir,
           ...(args.dataset ? { dataset: args.dataset } : {}),
           split: args.split === "heldout" ? "heldout" : "dev",
           dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),

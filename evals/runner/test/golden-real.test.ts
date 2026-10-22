@@ -14,6 +14,7 @@ import {
   baselineModel,
   GOLDEN_DIR,
   type GoldenSplit,
+  type GoldenSuiteResult,
   goldenDatasets,
   goldenEvalCommand,
   goldenFile,
@@ -144,10 +145,28 @@ items:
           dataDir: join(EXAMPLES, "coffee-roaster"),
           answersDir: join(EXAMPLES, "my-evals"),
           goldenDir: g,
+          resultsDir: join(g, "results"),
+          now: () => new Date("2026-10-22T12:00:00Z"),
         },
         { embedder: hashEmbedder(), print: (l) => lines.push(l) },
       );
       expect(r?.completed).toBe(true);
+      // Written beside the other results: the run as JSON and its page (RESULTS.md shows only the committed report).
+      const base = join(g, "results", "golden", "2026-10-22-baseline-golden-dev");
+      const written = JSON.parse(readFileSync(`${base}.json`, "utf8")) as GoldenSuiteResult;
+      expect([written.suite, written.split, written.model, written.date, written.runs.length]).toEqual([
+        "golden",
+        "dev",
+        "baseline",
+        "2026-10-22",
+        1,
+      ]);
+      const md = readFileSync(`${base}.md`, "utf8");
+      expect(md).toContain("# Golden v1: baseline · dev split · 2026-10-22");
+      expect(md).toContain("agent-reviewed, not maintainer-reviewed");
+      expect(md).toMatch(/\| G1 \| numeric \| fact \| yes \| 36200 \| 36200(\.\d+)? \| What was revenue in April 2026\? \|/);
+      expect(md).toMatch(/\| G2 \| trap \| ask \| \*\*no\*\* \| refusal \| no answer \(/);
+      expect(lines.at(-1)).toBe(`results: ${base}.json and .md`);
       expect(r?.items.map((i) => [i.id, i.pass])).toEqual([
         ["G1", true],
         ["G2", false],
@@ -157,7 +176,7 @@ items:
       expect(r?.summary).toEqual({ numericCategorical: { passed: 0, of: 0 }, traps: { passed: 0, of: 0 }, notCounted: 2 });
       expect(lines[0]).toMatch(/^coffee-roaster \(dev, baseline\): 1\/2 pass · /);
       expect(lines[1]).toMatch(/^ {2}G1 +pass numeric +fact +expected 36200; got 36200(\.\d+)? — What was revenue in April 2026\?$/);
-      expect(lines.at(-1)).toContain("2 not counted");
+      expect(lines.at(-2)).toContain("2 not counted");
     } finally {
       rmSync(g, { recursive: true, force: true });
     }

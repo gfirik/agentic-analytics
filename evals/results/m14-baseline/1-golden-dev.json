@@ -1,0 +1,321 @@
+{
+  "suite": "golden",
+  "split": "dev",
+  "model": "baseline",
+  "date": "2026-10-22",
+  "runs": [
+    {
+      "dataset": "hotel-bookings",
+      "split": "dev",
+      "model": "baseline",
+      "completed": true,
+      "seconds": 25.612,
+      "items": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": true,
+          "got": "1809324.7500000042",
+          "counts": true,
+          "question": "What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)?",
+          "source": "fact",
+          "expected": "1809324.75"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": true,
+          "got": "1970181.6000000036",
+          "counts": true,
+          "question": "What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)?",
+          "source": "fact",
+          "expected": "1970181.6"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=24a1546f: Answer the question.)",
+          "counts": true,
+          "question": "What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)?",
+          "source": "ask",
+          "expected": "41.73"
+        },
+        {
+          "id": "G4",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=0307b5ac: Answer the question.)",
+          "counts": true,
+          "question": "Which deposit type has the highest cancellation rate, both hotels and all arrival dates together?",
+          "source": "ask",
+          "expected": "Non Refund"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=4df2b94d: Answer the question.)",
+          "counts": true,
+          "question": "By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (May minus April, EUR)?",
+          "source": "ask",
+          "expected": "118669.91"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=d5bd2436: Answer the question.)",
+          "counts": true,
+          "question": "What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included?",
+          "source": "ask",
+          "expected": "81.98"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=39ada550: Answer the question.)",
+          "counts": true,
+          "question": "Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel?",
+          "source": "ask",
+          "expected": "Resort Hotel"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=b1d0731f: Answer the question.)",
+          "counts": true,
+          "question": "What was the gross operating profit margin of the two hotels in 2016?",
+          "source": "ask",
+          "expected": "refusal"
+        }
+      ],
+      "summary": {
+        "numericCategorical": {
+          "passed": 2,
+          "of": 7
+        },
+        "traps": {
+          "passed": 0,
+          "of": 1
+        },
+        "notCounted": 0
+      }
+    },
+    {
+      "dataset": "nz-card-spend",
+      "split": "dev",
+      "model": "baseline",
+      "completed": true,
+      "seconds": 5.3,
+      "items": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": true,
+          "got": "11321.6",
+          "counts": true,
+          "question": "What was total card spending, all industry groups together, in December 2025 (NZD million)?",
+          "source": "fact",
+          "expected": "11321.6"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": true,
+          "got": "9190.7",
+          "counts": true,
+          "question": "What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)?",
+          "source": "fact",
+          "expected": "9190.7"
+        },
+        {
+          "id": "G3",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": true,
+          "got": "Durables",
+          "counts": true,
+          "question": "Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020?",
+          "source": "driver",
+          "expected": "Durables"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=86b3b549: Answer the question.)",
+          "counts": true,
+          "question": "By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)?",
+          "source": "ask",
+          "expected": "-3803.7"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=acc46eaf: Answer the question.)",
+          "counts": true,
+          "question": "What share of 2025 card spending, in percent, was in the Consumables industry group?",
+          "source": "ask",
+          "expected": "29.015"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=e17aab3b: Answer the question.)",
+          "counts": true,
+          "question": "By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier?",
+          "source": "ask",
+          "expected": "1.25"
+        },
+        {
+          "id": "G7",
+          "kind": "trap",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=0020d93a: Answer the question.)",
+          "counts": true,
+          "question": "What was the average value of a card transaction in 2025?",
+          "source": "ask",
+          "expected": "refusal"
+        }
+      ],
+      "summary": {
+        "numericCategorical": {
+          "passed": 3,
+          "of": 6
+        },
+        "traps": {
+          "passed": 0,
+          "of": 1
+        },
+        "notCounted": 0
+      }
+    },
+    {
+      "dataset": "online-retail-ii",
+      "split": "dev",
+      "model": "baseline",
+      "completed": true,
+      "seconds": 11.791,
+      "items": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": true,
+          "got": "140447.10999999937",
+          "counts": true,
+          "question": "What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010?",
+          "source": "fact",
+          "expected": "140447.11"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": true,
+          "got": "201",
+          "counts": true,
+          "question": "How many distinct invoices (cancellation invoices included) were there in December 2010?",
+          "source": "fact",
+          "expected": "201"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=8881ba09: Answer the question.)",
+          "counts": true,
+          "question": "What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011?",
+          "source": "ask",
+          "expected": "145480.93"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=c3216eac: Answer the question.)",
+          "counts": true,
+          "question": "By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011?",
+          "source": "ask",
+          "expected": "37570.84"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=3d621d90: Answer the question.)",
+          "counts": true,
+          "question": "What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with no customer ID stay in the total.",
+          "source": "ask",
+          "expected": "13.7"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=024601a7: Answer the question.)",
+          "counts": true,
+          "question": "By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier?",
+          "source": "ask",
+          "expected": "3.58"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no driver",
+          "counts": true,
+          "question": "Which country accounted for most of the fall in invoices from November to December 2010?",
+          "source": "driver",
+          "expected": "United Kingdom"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "split": "dev",
+          "pass": false,
+          "got": "no answer (FakeModel has no scripted response for role=planner promptHash=9a70101b: Answer the question.)",
+          "counts": true,
+          "question": "What was the gross margin on 2011 sales?",
+          "source": "ask",
+          "expected": "refusal"
+        }
+      ],
+      "summary": {
+        "numericCategorical": {
+          "passed": 2,
+          "of": 7
+        },
+        "traps": {
+          "passed": 0,
+          "of": 1
+        },
+        "notCounted": 0
+      }
+    }
+  ]
+}

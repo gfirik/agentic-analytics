@@ -372,3 +372,241 @@ Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. ht
 
 Metrics: revenue, orders. Data-quality kinds: prefixed_id, negative_quantity, missing_id. Findings: improvement: revenue 2011-11 (trend.v1); anomaly: orders 2010-11 → 2010-12 (anomaly.v1).
 
+
+## Baseline report (M14)
+
+### The runs
+
+Today's engine on the M14 measuring tools (docs/plans/m14.md PR 8), published as it is, gaps included. Every run here is offline and scripted (2026-10-22, no language model), each run through `scripts/heavy.sh`: the scripted baseline for the engine, and canned FakeModel answers built from the answer keys for ablation arms A and B. So these are **harness checks**: they show the tools measure what they should, not what a model does, and nothing here says the engine adds accuracy. The real-model runs are DEFERRED to the nightly runs (below).
+
+Golden v1 is the **dev split** of three real datasets' golden sets (Online Retail II, NZ card spend, hotel bookings; 23 items, 3 traps). EIA-861M is DEFERRED (its host doesn't answer from this machine), so golden v1 has three datasets until it runs. Held-out golden items are scored only in release runs (M21), and the held-out generated set is not part of this report. Golden items are agent-reviewed, not maintainer-reviewed.
+
+| Run | Command | Result |
+|---|---|---|
+| Golden v1, scripted (dev split) | `bun run eval -- --suite golden --model baseline` (`bun run eval:golden` is the same run: the model defaults to baseline) | 7/23 items pass: hotel bookings 2/8, NZ card spend 3/7, Online Retail II 2/8. Counted toward the bars: 7/20 numeric and categorical, 0/3 traps. 7 of the 8 items read from the report (facts and drivers) pass; the baseline answers no follow-up question, so all 15 `ask` items (traps included) are misses |
+| Consistency on smoke, scripted | `bun run eval -- --suite smoke --repeat 5 --model baseline` | 4/4 jobs agree in all 5 runs on every measure (numbers, findings, driver, cause grade, action), 0 disagreements; the cache is n/a (no provider calls). It checks the repeat harness: the scripted engine is deterministic |
+| Ablation on smoke, scripted | `bun run eval:ablation -- --arms A,B,C --suite smoke` | Planted recall@5: A 40%, B 60%, C 100% (5 tasks over 3 datasets). C − A 0.600 [0.200, 1.000]; C − B 0.400 [0.000, 0.800]; B − A 0.200 [−0.600, 1.000] |
+| Ablation on golden v1, scripted | `bun run eval:ablation -- --arms A,B,C --suite golden` | Numeric accuracy: A 8/16, B 0/16, C 6/16; traps: A 0/3, B 3/3, C 0/3 (23 tasks). C − A −0.217 [−0.478, 0.043]; C − B 0.174 [−0.087, 0.435]; B − A −0.391 [−0.652, −0.087] |
+
+Each difference is paired by task, with its 95% interval from the paired bootstrap (10,000 resamples, fixed seed 20261022, docs/specs/accuracy.md §5). The canned answers decide these numbers: arm A answers every other numeric item right by design, and arm B replays each item's answer SQL, which reads the raw file with `read_csv`, so the locked sandbox refuses every one (`SQL_REFUSED`: the containment working) and arm B ends in a refusal. Arm A saw a sample of each file (the cut is stated below with its numbers).
+
+**Not run here (DEFERRED to the nightly runs, docs/progress/STATE.md "Deferred checks"):** golden v1 on the configured Groq routes (`bun run eval:real:fetch && bun run eval -- --suite golden --model configured`); consistency over 5 runs on smoke with the configured model, cache off (`bun run eval -- --suite smoke --repeat 5 --model configured`); the ablation on a free model (`bun run eval:ablation -- --arms A,B,C --suite smoke --model openai-compatible:groq:openai/gpt-oss-120b` and the same with `--suite golden`); EIA-861M's pinning and golden set.
+
+**Gaps** (docs/progress/STATE.md "Known gaps carried forward"): hotel bookings C4 and C6 in the real tier; retail golden item G7 (no driver on anomaly findings); the held-out generated set's drop (recall@5 75.0% against 96.0% on the development 30); the post-ship citation judge, deferred to M21.
+
+### Golden v1: baseline · dev split · 2026-10-22
+
+Items are agent-reviewed, not maintainer-reviewed. An item counts toward the bars only when its independent re-derivation agreed. The baseline is the scripted heuristic with no language model: it answers no follow-up question, so every `ask` item (traps included) is a miss, never n/a.
+
+#### hotel-bookings
+
+Job completed in 25.6 s · 2/8 items pass · counted toward the bars: 2/7 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 1809324.75 | 1809324.7500000042 | What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)? |
+| G2 | numeric | fact | yes | 1970181.6 | 1970181.6000000036 | What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)? |
+| G3 | numeric | ask | **no** | 41.73 | no answer (FakeModel has no scripted response for role=planner promptHash=24a1546f: Answer the question.) | What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)? |
+| G4 | categorical | ask | **no** | Non Refund | no answer (FakeModel has no scripted response for role=planner promptHash=0307b5ac: Answer the question.) | Which deposit type has the highest cancellation rate, both hotels and all arrival dates together? |
+| G5 | numeric | ask | **no** | 118669.91 | no answer (FakeModel has no scripted response for role=planner promptHash=4df2b94d: Answer the question.) | By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (May minus April, EUR)? |
+| G6 | numeric | ask | **no** | 81.98 | no answer (FakeModel has no scripted response for role=planner promptHash=d5bd2436: Answer the question.) | What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included? |
+| G7 | categorical | ask | **no** | Resort Hotel | no answer (FakeModel has no scripted response for role=planner promptHash=39ada550: Answer the question.) | Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel? |
+| G8 | trap | ask | **no** | refusal | no answer (FakeModel has no scripted response for role=planner promptHash=b1d0731f: Answer the question.) | What was the gross operating profit margin of the two hotels in 2016? |
+
+#### nz-card-spend
+
+Job completed in 5.3 s · 3/7 items pass · counted toward the bars: 3/6 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 11321.6 | 11321.6 | What was total card spending, all industry groups together, in December 2025 (NZD million)? |
+| G2 | numeric | fact | yes | 9190.7 | 9190.7 | What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)? |
+| G3 | categorical | driver | yes | Durables | Durables | Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020? |
+| G4 | numeric | ask | **no** | -3803.7 | no answer (FakeModel has no scripted response for role=planner promptHash=86b3b549: Answer the question.) | By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)? |
+| G5 | numeric | ask | **no** | 29.015 | no answer (FakeModel has no scripted response for role=planner promptHash=acc46eaf: Answer the question.) | What share of 2025 card spending, in percent, was in the Consumables industry group? |
+| G6 | numeric | ask | **no** | 1.25 | no answer (FakeModel has no scripted response for role=planner promptHash=e17aab3b: Answer the question.) | By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier? |
+| G7 | trap | ask | **no** | refusal | no answer (FakeModel has no scripted response for role=planner promptHash=0020d93a: Answer the question.) | What was the average value of a card transaction in 2025? |
+
+#### online-retail-ii
+
+Job completed in 11.8 s · 2/8 items pass · counted toward the bars: 2/7 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 140447.11 | 140447.10999999937 | What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010? |
+| G2 | numeric | fact | yes | 201 | 201 | How many distinct invoices (cancellation invoices included) were there in December 2010? |
+| G3 | numeric | ask | **no** | 145480.93 | no answer (FakeModel has no scripted response for role=planner promptHash=8881ba09: Answer the question.) | What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011? |
+| G4 | numeric | ask | **no** | 37570.84 | no answer (FakeModel has no scripted response for role=planner promptHash=c3216eac: Answer the question.) | By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011? |
+| G5 | numeric | ask | **no** | 13.7 | no answer (FakeModel has no scripted response for role=planner promptHash=3d621d90: Answer the question.) | What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with no customer ID stay in the total. |
+| G6 | numeric | ask | **no** | 3.58 | no answer (FakeModel has no scripted response for role=planner promptHash=024601a7: Answer the question.) | By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier? |
+| G7 | categorical | driver | **no** | United Kingdom | no driver | Which country accounted for most of the fall in invoices from November to December 2010? |
+| G8 | trap | ask | **no** | refusal | no answer (FakeModel has no scripted response for role=planner promptHash=9a70101b: Answer the question.) | What was the gross margin on 2011 sales? |
+
+### Consistency: baseline · smoke suite · 5 runs · 2026-10-22
+
+Response cache: n/a (scripted model, no provider calls). Datasets: coffee_roaster-v1, restaurant-v3, saas-v2, tool_hire-v1.
+
+- Run 1: 4/4 jobs finished, 0 provider calls (0 cached)
+- Run 2: 4/4 jobs finished, 0 provider calls (0 cached)
+- Run 3: 4/4 jobs finished, 0 provider calls (0 cached)
+- Run 4: 4/4 jobs finished, 0 provider calls (0 cached)
+- Run 5: 4/4 jobs finished, 0 provider calls (0 cached)
+
+| Measure | Jobs where every run agrees | Bar (§4.7, over 5 runs) | Pass |
+|---|---|---|---|
+| (a) numbers: every fact value identical | 4/4 (100.0%) | 100% | yes |
+| (b) findings: the same top-5 findings | 4/4 (100.0%) | 95% | yes |
+| (c) driver: the same top driver per finding | 4/4 (100.0%) | 95% | yes |
+| (d) cause grade: the same grade per finding | 4/4 (100.0%) | 90% | yes |
+| (e) action: the same top recommendation scenario | 4/4 (100.0%) | 90% | yes |
+
+#### Disagreements
+
+None: every run agreed on every measure.
+
+### Ablation: smoke, baseline (2026-10-22)
+
+**Harness check, not an engine-vs-model comparison.** Arms A and B gave canned FakeModel answers built from the answer keys, and arm C ran the scripted planner; the numbers show the harness works, not what a model does.
+
+Jobs: coffee_roaster-v1, restaurant-v3, saas-v2. Context window for arm A: 32768 tokens.
+
+| Measure | A (model alone) | B (model + SQL) | C (the engine) |
+|---|---|---|---|
+| Planted recall@5 (with driver) | 40% (2/5) | 60% (3/5) | 100% (5/5) |
+| Driver accuracy | 0% (0/3) | 100% (3/3) | 100% (3/3) |
+| Distractor FP rate | 60% (3/5) | 0% (0/5) | 0% (0/5) |
+| Tokens in / out | 30 / 15 | 60 / 30 | 1570 / 785 |
+| Time (s) | 0.1 | 0.4 | 14.5 |
+
+**Arm A saw a sample.** coffee_roaster-v1: The input is cut to fit the model's context window: t_t1 (sales.xlsx#Orders) shows rows 1–843 of 11564. Answers about the whole data rest on this sample. restaurant-v3: The input is cut to fit the model's context window: t_t1 (sales.xlsx#Orders) shows rows 1–907 of 31389. Answers about the whole data rest on this sample. saas-v2: The input is cut to fit the model's context window: t_t1 (orders.csv) shows rows 1–896 of 14628. Answers about the whole data rest on this sample.
+
+| Paired difference | Tasks | Mean | 95% interval | Adds accuracy? |
+|---|---|---|---|---|
+| C − A | 5 | 0.600 | [0.200, 1.000] | interval above 0, but canned answers: no claim |
+| C − B | 5 | 0.400 | [0.000, 0.800] | not shown (interval includes 0 or is below) |
+| B − A | 5 | 0.200 | [-0.600, 1.000] | not shown (interval includes 0 or is below) |
+
+Bootstrap: 10,000 paired resamples, fixed seed (accuracy.md §5).
+
+#### Per task
+
+| Arm | Job | Task | Score | Got |
+|---|---|---|---|---|
+| C | coffee_roaster-v1 | P1 | 1 | found at rank 1 |
+| A | coffee_roaster-v1 | P1 | 0 | found at rank 1, wrong driver |
+| B | coffee_roaster-v1 | P1 | 1 | found at rank 1 |
+| C | restaurant-v3 | P1 | 1 | found at rank 1 |
+| C | restaurant-v3 | P3 | 1 | found at rank 2 |
+| A | restaurant-v3 | P1 | 0 | found at rank 1, wrong driver |
+| A | restaurant-v3 | P3 | 1 | found at rank 2 |
+| B | restaurant-v3 | P1 | 1 | found at rank 1 |
+| B | restaurant-v3 | P3 | 0 | not found |
+| C | saas-v2 | P1 | 1 | found at rank 1 |
+| C | saas-v2 | P2 | 1 | found at rank 2 |
+| A | saas-v2 | P1 | 0 | found at rank 1, wrong driver |
+| A | saas-v2 | P2 | 1 | found at rank 2 |
+| B | saas-v2 | P1 | 1 | found at rank 1 |
+| B | saas-v2 | P2 | 0 | not found |
+
+### Ablation: golden, baseline (2026-10-22)
+
+**Harness check, not an engine-vs-model comparison.** Arms A and B gave canned FakeModel answers built from the answer keys, and arm C ran the scripted planner; the numbers show the harness works, not what a model does.
+
+Jobs: hotel-bookings, nz-card-spend, online-retail-ii. Context window for arm A: 32768 tokens.
+
+| Measure | A (model alone) | B (model + SQL) | C (the engine) |
+|---|---|---|---|
+| Numeric accuracy | 50% (8/16) | 0% (0/16) | 38% (6/16) |
+| Categorical accuracy | 100% (4/4) | 0% (0/4) | 25% (1/4) |
+| Trap pass rate | 0% (0/3) | 100% (3/3) | 0% (0/3) |
+| Unsupported-number rate | 47% (9/19) | n/a (0 of 0) | — |
+| … without source cells | 53% (10/19) | n/a (0 of 0) | — |
+| Citation validity (SQL re-run) | — | n/a (0 of 0) | — |
+| Tokens in / out | 230 / 115 | 460 / 230 | 380 / 190 |
+| Time (s) | 7.7 | 1.6 | 42.6 |
+
+**Arm A saw a sample.** hotel-bookings: The input is cut to fit the model's context window: t_t1 (hotel-bookings.csv) shows rows 1–394 of 119390. Answers about the whole data rest on this sample. nz-card-spend: The input is cut to fit the model's context window: t_t1 (nz-card-spend-by-industry.csv) shows rows 1–476 of 2568. Answers about the whole data rest on this sample. online-retail-ii: The input is cut to fit the model's context window: t_t1 (online_retail_II.sample10.csv) shows rows 1–603 of 105797. Answers about the whole data rest on this sample.
+
+The unsupported-number support set is the golden answers, arm C's facts for the same job and the source cells of the columns each item names; the second row leaves the cells out. It is wider than "the data or the golden set", which favours arms A and B.
+
+| Paired difference | Tasks | Mean | 95% interval | Adds accuracy? |
+|---|---|---|---|---|
+| C − A | 23 | -0.217 | [-0.478, 0.043] | not shown (interval includes 0 or is below) |
+| C − B | 23 | 0.174 | [-0.087, 0.435] | not shown (interval includes 0 or is below) |
+| B − A | 23 | -0.391 | [-0.652, -0.087] | not shown (interval includes 0 or is below) |
+
+Bootstrap: 10,000 paired resamples, fixed seed (accuracy.md §5).
+
+#### Per task
+
+| Arm | Job | Task | Score | Got |
+|---|---|---|---|---|
+| C | hotel-bookings | G1 | 1 | 1809324.7500000042 |
+| C | hotel-bookings | G2 | 1 | 1970181.6000000036 |
+| C | hotel-bookings | G3 | 0 | no answer |
+| C | hotel-bookings | G4 | 0 | no answer |
+| C | hotel-bookings | G5 | 0 | no answer |
+| C | hotel-bookings | G6 | 0 | no answer |
+| C | hotel-bookings | G7 | 0 | no answer |
+| C | hotel-bookings | G8 | 0 | no answer |
+| A | hotel-bookings | G1 | 1 | 1,809,324.75 |
+| A | hotel-bookings | G2 | 0 | 2,167,200 |
+| A | hotel-bookings | G3 | 1 | 41.73 |
+| A | hotel-bookings | G4 | 1 | Non Refund |
+| A | hotel-bookings | G5 | 1 | 118,669.91 |
+| A | hotel-bookings | G6 | 0 | 90 |
+| A | hotel-bookings | G7 | 1 | Resort Hotel |
+| A | hotel-bookings | G8 | 0 | answered: It will be about 512,000. |
+| B | hotel-bookings | G1 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G2 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G3 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G4 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G5 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G6 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G7 | 0 | refused: SQL_REFUSED |
+| B | hotel-bookings | G8 | 1 | refused: no column answers it (SQL_REFUSED) |
+| C | nz-card-spend | G1 | 1 | 11321.6 |
+| C | nz-card-spend | G2 | 1 | 9190.7 |
+| C | nz-card-spend | G3 | 1 | Durables |
+| C | nz-card-spend | G4 | 0 | no answer |
+| C | nz-card-spend | G5 | 0 | no answer |
+| C | nz-card-spend | G6 | 0 | no answer |
+| C | nz-card-spend | G7 | 0 | no answer |
+| A | nz-card-spend | G1 | 1 | 11,321.6 |
+| A | nz-card-spend | G2 | 0 | 10,110 |
+| A | nz-card-spend | G3 | 1 | Durables |
+| A | nz-card-spend | G4 | 0 | -4,184 |
+| A | nz-card-spend | G5 | 1 | 29.02 |
+| A | nz-card-spend | G6 | 0 | 1 |
+| A | nz-card-spend | G7 | 0 | answered: It will be about 512,000. |
+| B | nz-card-spend | G1 | 0 | refused: SQL_REFUSED |
+| B | nz-card-spend | G2 | 0 | refused: SQL_REFUSED |
+| B | nz-card-spend | G3 | 0 | refused: SQL_REFUSED |
+| B | nz-card-spend | G4 | 0 | refused: SQL_REFUSED |
+| B | nz-card-spend | G5 | 0 | refused: SQL_REFUSED |
+| B | nz-card-spend | G6 | 0 | refused: SQL_REFUSED |
+| B | nz-card-spend | G7 | 1 | refused: no column answers it (SQL_REFUSED) |
+| C | online-retail-ii | G1 | 1 | 140447.10999999937 |
+| C | online-retail-ii | G2 | 1 | 201 |
+| C | online-retail-ii | G3 | 0 | no answer |
+| C | online-retail-ii | G4 | 0 | no answer |
+| C | online-retail-ii | G5 | 0 | no answer |
+| C | online-retail-ii | G6 | 0 | no answer |
+| C | online-retail-ii | G7 | 0 | no driver |
+| C | online-retail-ii | G8 | 0 | no answer |
+| A | online-retail-ii | G1 | 1 | 140,447.11 |
+| A | online-retail-ii | G2 | 0 | 221 |
+| A | online-retail-ii | G3 | 1 | 145,480.93 |
+| A | online-retail-ii | G4 | 0 | 41,328 |
+| A | online-retail-ii | G5 | 1 | 13.7 |
+| A | online-retail-ii | G6 | 0 | 4 |
+| A | online-retail-ii | G7 | 1 | United Kingdom |
+| A | online-retail-ii | G8 | 0 | answered: It will be about 512,000. |
+| B | online-retail-ii | G1 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G2 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G3 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G4 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G5 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G6 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G7 | 0 | refused: SQL_REFUSED |
+| B | online-retail-ii | G8 | 1 | refused: no column answers it (SQL_REFUSED) |

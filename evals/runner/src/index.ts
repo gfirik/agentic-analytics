@@ -1,6 +1,8 @@
 // Public API of @agentic-analytics/eval-runner (docs/EVALS.md §2–§4).
 export { baselineModel, baselineScript } from "./baseline.ts";
 export {
+  BASELINE_REPORT_DIR,
+  baselineReport,
   configuredName,
   type EvalArgs,
   type EvalDeps,
@@ -40,10 +42,13 @@ export {
   type GoldenRunOptions,
   type GoldenRunResult,
   type GoldenSplit,
+  type GoldenSuiteResult,
   goldenDatasets,
   goldenEvalCommand,
   goldenFile,
   goldenLines,
+  goldenMarkdown,
+  goldenPath,
   loadGoldenSet,
   runGoldenSet,
 } from "./golden-run.ts";

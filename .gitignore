@@ -21,6 +21,9 @@ evals/results/*.bad
 evals/results/repeat/*-baseline-smoke-repeat*
 # --model baseline ablation runs: canned answers, a harness check (docs/specs/accuracy.md §8.5)
 evals/results/ablation/*-baseline-*
+# golden runs (accuracy.md §4): baseline runs are local; held-out results are never published (release runs only, M21)
+evals/results/golden/*-baseline-*
+evals/results/golden/*-heldout*
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/
