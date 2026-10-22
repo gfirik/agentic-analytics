@@ -553,5 +553,34 @@ export function resultsPage(dir: string): string {
     "Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.",
     "",
     ...(real.length ? real.map(realResultsMarkdown) : ["No real-data runs yet.", ""]),
+    ...baselineReport(dir),
   ].join("\n");
+}
+
+/** The committed M14 baseline report, beside the results files (docs/plans/m14.md PR 8). */
+export const BASELINE_REPORT_DIR = "m14-baseline";
+
+/**
+ * RESULTS.md's "Baseline report (M14)" section: the pages in `<results dir>/m14-baseline/*.md`, in name order, each
+ * heading two levels down. The pages are the golden, repeat and ablation runs' own markdown, copied there with their
+ * JSON when the report is published; local runs write to golden/, repeat/ and ablation/ instead, so they never change
+ * the page (and `bun run readme:check` stays the same on every clone).
+ */
+export function baselineReport(dir: string): string[] {
+  const folder = join(dir, BASELINE_REPORT_DIR);
+  if (!existsSync(folder)) return [];
+  const pages = readdirSync(folder)
+    .filter((f) => f.endsWith(".md"))
+    .sort();
+  if (!pages.length) return [];
+  return [
+    "## Baseline report (M14)",
+    "",
+    ...pages.flatMap((f) => [
+      readFileSync(join(folder, f), "utf8")
+        .replace(/^(#{1,4}) /gm, "$1## ")
+        .trimEnd(),
+      "",
+    ]),
+  ];
 }

@@ -1,7 +1,10 @@
 // A run with unfinished jobs (a free tier's daily quota) is partial: its rates count those jobs as misses or cover
 // only the finished few, so RESULTS.md judges no bar but "Jobs completed" (M13a review).
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resultsMarkdown, type SuiteResult } from "../src/index.ts";
+import { BASELINE_REPORT_DIR, baselineReport, resultsMarkdown, resultsPage, type SuiteResult } from "../src/index.ts";
 
 const score = (dataset: string, completed: boolean) =>
   ({
@@ -36,5 +39,31 @@ describe("resultsMarkdown", () => {
   });
   it("judges every bar when all jobs finished", () => {
     expect(resultsMarkdown(run([true, true]))).toContain("| Distractor FP rate | 0.0% | ≤ 10% | yes |");
+  });
+});
+
+describe("the baseline report section (M14 PR 8)", () => {
+  it("embeds the committed pages in name order, two heading levels down, after the real-data tier", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-baseline-report-"));
+    try {
+      expect(baselineReport(dir)).toEqual([]);
+      const folder = join(dir, BASELINE_REPORT_DIR);
+      mkdirSync(folder);
+      writeFileSync(join(folder, "2-b.md"), "# Second\n\n## Per task\n\nrow #1 stays\n");
+      writeFileSync(join(folder, "1-a.md"), "# First\n\ntext\n");
+      writeFileSync(join(folder, "1-a.json"), "{}");
+      expect(baselineReport(dir)).toEqual([
+        "## Baseline report (M14)",
+        "",
+        "### First\n\ntext",
+        "",
+        "### Second\n\n#### Per task\n\nrow #1 stays",
+        "",
+      ]);
+      const page = resultsPage(dir);
+      expect(page.indexOf("## Baseline report (M14)")).toBeGreaterThan(page.indexOf("## Real public data"));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

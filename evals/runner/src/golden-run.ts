@@ -3,7 +3,7 @@
 // job (`aa ask`), and scores every item with scoreGoldenItem. The golden files live beside this package
 // (evals/golden/<dataset>/), and only this module maps a split to its file: nothing under packages/ or apps/ names
 // the held-out file (a test checks).
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Answer, askJob } from "@agentic-analytics/core";
@@ -173,9 +173,60 @@ export interface GoldenEvalArgs {
   readonly dataDir: string;
   readonly answersDir: string;
   readonly goldenDir?: string;
+  /** Where the results go: `<resultsDir>/golden/<date>-<model>-golden-<split>.json` and `.md` (none when absent). */
+  readonly resultsDir?: string;
+  readonly now?: () => Date;
 }
 
-/** `aa eval --suite golden` (`bun run eval:golden`): prints per-item results and the bars' counts per dataset. */
+/** A golden run over its datasets, as written to `<results dir>/golden/`. */
+export interface GoldenSuiteResult {
+  readonly suite: "golden";
+  readonly split: GoldenSplit;
+  readonly model: string;
+  readonly date: string;
+  readonly runs: readonly GoldenRunResult[];
+}
+
+/** `<results dir>/golden/<date>-<model>-golden-<split>` (without the extension). */
+export const goldenPath = (resultsDir: string, date: string, model: string, split: GoldenSplit) =>
+  join(resultsDir, "golden", `${date}-${model.replace(/[^\w.-]+/g, "_")}-golden-${split}`);
+
+const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
+
+/**
+ * The golden results page: per dataset, the bars' counts and one row per item. Every golden item is agent-reviewed,
+ * not maintainer-reviewed (docs/plans/m14.md "Golden-set review"), and the page says so.
+ */
+export function goldenMarkdown(r: GoldenSuiteResult): string {
+  const out = [
+    `# Golden v1: ${r.model} · ${r.split} split · ${r.date}`,
+    "",
+    `Items are agent-reviewed, not maintainer-reviewed. An item counts toward the bars only when its independent re-derivation agreed. ${r.model === "baseline" ? "The baseline is the scripted heuristic with no language model: it answers no follow-up question, so every `ask` item (traps included) is a miss, never n/a." : ""}`.trimEnd(),
+    "",
+  ];
+  for (const d of r.runs) {
+    const s = d.summary;
+    out.push(
+      `## ${d.dataset}`,
+      "",
+      `${d.completed ? "Job completed" : `Job failed: ${cell(d.error ?? "unknown error")}`} in ${d.seconds.toFixed(1)} s · ${d.items.filter((i) => i.pass).length}/${d.items.length} items pass · counted toward the bars: ${s.numericCategorical.passed}/${s.numericCategorical.of} numeric and categorical, ${s.traps.passed}/${s.traps.of} traps; ${s.notCounted} not counted.`,
+      "",
+      "| Item | Kind | Source | Pass | Expected | Got | Question |",
+      "|---|---|---|---|---|---|---|",
+      ...d.items.map(
+        (i) =>
+          `| ${i.id} | ${i.kind} | ${i.source} | ${i.pass ? "yes" : "**no**"} | ${cell(i.expected)} | ${cell(i.got.slice(0, 120))} | ${cell(i.question)} |`,
+      ),
+      "",
+    );
+  }
+  return out.join("\n");
+}
+
+/**
+ * `aa eval --suite golden` (`bun run eval:golden`): prints per-item results and the bars' counts per dataset, and with
+ * `resultsDir` writes them to `<results dir>/golden/` (.json and .md).
+ */
 export async function goldenEvalCommand(
   a: GoldenEvalArgs,
   d: { readonly modelFor?: (name: string) => ModelClient; readonly embedder: Embedder; readonly print: (line: string) => void },
@@ -199,6 +250,15 @@ export async function goldenEvalCommand(
     });
     for (const line of goldenLines(r)) d.print(line);
     out.push(r);
+  }
+  if (a.resultsDir) {
+    const date = (a.now ?? (() => new Date()))().toISOString().slice(0, 10);
+    const result: GoldenSuiteResult = { suite: "golden", split: a.split, model: a.model, date, runs: out };
+    const base = goldenPath(a.resultsDir, date, a.model, a.split);
+    mkdirSync(join(a.resultsDir, "golden"), { recursive: true });
+    writeFileSync(`${base}.json`, `${JSON.stringify(result, null, 2)}\n`);
+    writeFileSync(`${base}.md`, goldenMarkdown(result));
+    d.print(`results: ${base}.json and .md`);
   }
   return out;
 }
