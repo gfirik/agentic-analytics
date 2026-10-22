@@ -260,6 +260,8 @@ export interface RunOptions {
   /** Keep each report as `<dir>/<dataset>.json` (real-model runs cost tokens; this lets them be inspected later). */
   readonly keepReports?: string;
   readonly now?: () => Date;
+  /** Each dataset's report as the job shipped it (undefined when the job failed): `aa eval --repeat` compares them. */
+  readonly onReport?: (dataset: string, report: Report | undefined) => void;
 }
 
 /**
@@ -288,11 +290,13 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
       ...(o.smallModel ? { smallModel: true } : {}),
     };
     let score: DatasetScore;
+    let report: Report | undefined;
     try {
       const out = await runJob(
         { dir, jobId: ds.id, files: Object.entries(ds.files).map(([name, bytes]) => ({ name, bytes })), options },
         { model, embedder: o.embedder },
       );
+      report = out.report;
       score = scoreReport(out.report, ds.answers, { seconds: (Date.now() - started) / 1000, tokens });
       if (o.keepReports) {
         mkdirSync(o.keepReports, { recursive: true });
@@ -312,6 +316,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
       rmSync(dir, { recursive: true, force: true });
     }
     scores.push({ ...score, routes: routeSummary(calls) });
+    o.onReport?.(ds.id, report);
     o.onDataset?.(score, i, datasets.length);
   }
   return {

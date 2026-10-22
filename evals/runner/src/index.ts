@@ -1,5 +1,5 @@
 // Public API of @agentic-analytics/eval-runner (docs/EVALS.md §2–§4).
-export { baselineModel } from "./baseline.ts";
+export { baselineModel, baselineScript } from "./baseline.ts";
 export {
   configuredName,
   type EvalArgs,
@@ -7,6 +7,7 @@ export {
   EvalRunError,
   evalCommand,
   evalMatrix,
+  evalRepeat,
   evalSlug,
   type MatrixRun,
   matrixLines,
@@ -14,6 +15,8 @@ export {
   type RealEvalArgs,
   readPrevious,
   realEvalCommand,
+  repeatPassed,
+  repeatPath,
   replayedDrafts,
   resultsPage,
   selectDatasets,
@@ -43,6 +46,25 @@ export {
   scoreCheck,
   scoreRealReport,
 } from "./real.ts";
+export {
+  CONSISTENCY_BARS,
+  type Consistency,
+  consistency,
+  type Disagreement,
+  findingGrade,
+  findingKey,
+  type JobAgreement,
+  type JobSnapshot,
+  jobAgreement,
+  MEASURES,
+  type Measure,
+  type MeasureShare,
+  measureLines,
+  type RepeatResult,
+  type RepeatRun,
+  repeatMarkdown,
+  snapshotOf,
+} from "./repeat.ts";
 export {
   keepDraftedMetrics,
   mergeResults,

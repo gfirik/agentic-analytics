@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand, evalMatrix, realEvalCommand } from "@agentic-analytics/eval-runner";
+import { evalCommand, evalMatrix, evalRepeat, realEvalCommand, repeatPassed } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -29,7 +29,8 @@ import { parse } from "yaml";
 import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { collectPaths } from "./collect.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
-import { nightlyArgs } from "./eval-args.ts";
+import { nightlyArgs, repeatArgs } from "./eval-args.ts";
+import { evalModelFor } from "./eval-models.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
@@ -412,6 +413,15 @@ const evalCmd = defineCommand({
       type: "string",
       description: "With --suite real: the folder holding the files the answer files name (default: the --answers folder)",
     },
+    repeat: {
+      type: "string",
+      description:
+        "Run the suite N times (N ≥ 2) with the response cache off and measure how often the runs agree (numbers, findings, driver, cause grade, action)",
+    },
+    "no-cache": {
+      type: "boolean",
+      description: "Don't read or write the response cache (evals/.cache): every model call is live. Implied by --repeat",
+    },
   },
   async run({ args }) {
     const model = args.model ?? "baseline";
@@ -431,26 +441,27 @@ const evalCmd = defineCommand({
     const only = args.only === undefined ? undefined : onlyIds(args.only);
     const cacheDir = modelsDir();
     const where = resultsLocation(args["results-dir"], process.env, process.cwd(), checkoutResults, Boolean(args.answers));
-    const evalRouter = new Router();
-    const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
+    const { repeat, cacheOff } = repeatArgs({
+      ...(args.repeat !== undefined ? { repeat: args.repeat } : {}),
+      ...(args["no-cache"] ? { noCache: true } : {}),
+      ...(args.suite !== undefined ? { suite: args.suite } : {}),
+      ...(args.passes !== undefined ? { passes: args.passes } : {}),
+    });
+    if (repeat !== undefined && !args["no-cache"] && (args.models !== undefined || model !== "baseline"))
+      print("--repeat: the response cache is off, so every call is live (runs 2..N can't replay run 1)");
     const deps = {
       // Evals default to the hash embedder everywhere (deterministic, no download), unlike analyze.
       embedder: !args.embedder || args.embedder === "hash" ? hashEmbedder() : transformersEmbedder({ model: args.embedder, cacheDir }),
       print,
-      modelFor: (name: string, onCall?: (c: CallRecord) => void) => {
-        // One model for every role, unless "configured" keeps the per-role settings.
-        const env = name === "configured" ? process.env : { ...process.env, PLANNER_MODEL: name, EXTRACTOR_MODEL: name, JUDGE_MODEL: name };
-        // Shared across datasets: the router keeps each route's rate state, the cache makes reruns free.
-        return createModelClient(resolveModelConfig(env, configFile()), {
-          env: process.env,
-          router: evalRouter,
-          cache: evalCache,
-          onCall: (c) => {
-            onCall?.(c);
-            logCall(c);
-          },
-        });
-      },
+      // Shared across datasets: the router keeps each route's rate state, the cache makes reruns free (unless it's off).
+      modelFor: evalModelFor({
+        env: process.env,
+        config: (env) => resolveModelConfig(env, configFile()),
+        router: new Router(),
+        cache: () => fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url))),
+        cacheOff,
+        log: logCall,
+      }),
     };
     if (args.models !== undefined) {
       if (args.suite !== undefined && args.suite !== "smoke" && args.suite !== "full")
@@ -470,12 +481,13 @@ const evalCmd = defineCommand({
           ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
           ...(args.note ? { note: args.note } : {}),
           ...(only?.length ? { only } : {}),
+          ...(repeat !== undefined ? { repeat } : {}),
           resultsDir: where.dir,
           ...(where.page ? { resultsPage: where.page } : {}),
         },
         deps,
       );
-      process.exitCode = runs.every((r) => r.result?.bars.every((b) => b.pass !== false)) ? 0 : 1;
+      process.exitCode = runs.every((r) => (r.repeat ? repeatPassed(r.repeat) : r.result?.bars.every((b) => b.pass !== false))) ? 0 : 1;
       return;
     }
     if (args.suite === "real") {
@@ -491,6 +503,27 @@ const evalCmd = defineCommand({
         deps,
       );
       process.exitCode = r.datasets.every((d) => d.checks.every((c) => c.pass)) ? 0 : 1;
+      return;
+    }
+    if (repeat !== undefined) {
+      const { passes: _passes, ...named } = nightly;
+      const r = await evalRepeat(
+        {
+          suite: args.suite === "full" ? "full" : "smoke",
+          model,
+          repeat,
+          ...(args["small-model"] ? { smallModel: true } : {}),
+          ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+          ...(args.label ? { label: args.label } : {}),
+          ...(args.note ? { note: args.note } : {}),
+          ...(args["replay-drafts"] ? { replayDrafts: args["replay-drafts"] } : {}),
+          ...named,
+          ...(only?.length ? { only } : {}),
+          resultsDir: where.dir,
+        },
+        deps,
+      );
+      process.exitCode = repeatPassed(r) ? 0 : 1;
       return;
     }
     const r = await evalCommand(
