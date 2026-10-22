@@ -5,6 +5,9 @@
 //   tsx scripts/site-screenshots.ts --sections --out dir   → every section of /, /learn/ and /learn/stages/analysis/ at
 //                                                1440×900 and 390×844 (JPEG): landing sections as elements, docs pages
 //                                                one clip per h2 section, plus the figures (docs/plans/site-v3.md §5)
+//   tsx scripts/site-screenshots.ts --hero --out dir → the hero's first screen at 1920, 1440 and 390, with the browser
+//                                                set to light and to dark (the site is light only, so both must
+//                                                match), named hero-<width>-<scheme>.png (site v5)
 //   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification as it comes into view, the
 //                                                timed walkthrough step by step, a hover, then Replay
 //                                                (needs ffmpeg; without it hero.webm is kept)
@@ -25,6 +28,7 @@ const { values } = parseArgs({
     only: { type: "string" },
     record: { type: "boolean", default: false },
     sections: { type: "boolean", default: false },
+    hero: { type: "boolean", default: false },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
@@ -58,7 +62,25 @@ const smoothScroll = async (page: Page, y: number) => {
 
 const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 try {
-  if (values.sections) {
+  if (values.hero) {
+    // The first screen as a reader sees it: motion on, after the replay has landed.
+    for (const colorScheme of ["light", "dark"] as const)
+      for (const [width, height] of [
+        [1920, 1080],
+        [1440, 900],
+        [390, 844],
+      ] as const) {
+        const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, colorScheme });
+        const page = await ctx.newPage();
+        await page.goto(`${base}/`, { waitUntil: "networkidle" });
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+        });
+        await page.waitForTimeout(3200);
+        await page.screenshot({ path: join(out, `hero-${width}-${colorScheme}.png`) });
+        await ctx.close();
+      }
+  } else if (values.sections) {
     // Before/after shots for a design pass: the same names every time, so two folders compare file by file.
     const shot = { type: "jpeg", quality: 78 } as const;
     for (const s of sizes) {
