@@ -1,6 +1,6 @@
 // Writes one job's ingested and normalized data into the workspace (ARCHITECTURE §3): files, sources,
 // one typed `t_<id>` table per source table (with `_row`, `_is_total`, `_period`), and quality issues.
-import { ident, idents, sql } from "./sql.ts";
+import { ident, sql } from "./sql.ts";
 import { DUCKDB_TYPE, type IssueRow, type LoadInput, type NormalizedTable, tableName } from "./types.ts";
 import type { Workspace } from "./workspace.ts";
 
@@ -49,9 +49,4 @@ export async function insertIssues(ws: Workspace, issues: readonly IssueRow[]): 
       ${q.sheet ?? null}, ${q.cell ?? null}, ${q.rows ? arr(q.rows) : null}::INTEGER[], ${q.page ?? null}, ${q.column_name ?? null},
       ${q.details === undefined ? null : JSON.stringify(q.details)}::JSON)`);
   }
-}
-
-/** Column list helper for callers that select a table's data columns. */
-export function dataColumns(t: NormalizedTable) {
-  return idents(t.columns.map((c) => c.name));
 }

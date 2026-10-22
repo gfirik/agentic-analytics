@@ -14,6 +14,8 @@ The per-job DuckDB workspace: one database file per job, schema migrations, para
 | `ws.append(table, rows)` | Bulk insert through DuckDB's appender |
 | `sql\`…${value}…\`` | Tagged template: values become `$n` parameters; `ident(name)` / `idents([...])` splice checked snake_case identifiers; `fragment(sql)` splices another template |
 | `loadJob(ws, { files, tables, sections, issues })` | Writes `files`, `sources` (tables and document sections, with provenance), one typed `t_<id>` per table (`_row`, `_is_total`, `_period` + data columns) and `quality_issues` |
+| `loadTable(ws, table)` | Writes one normalized table: its `sources` row, `table_columns` and the typed `t_<id>` table |
+| `insertIssues(ws, issues)` | Writes `quality_issues` rows |
 | `MIGRATIONS` | Append-only schema versions (every ARCHITECTURE §3 table) |
 | `tableName("T1")` | `"t_t1"` |
 | `duckdbVersion()` | Embedded DuckDB version (used by `aa doctor`) |
