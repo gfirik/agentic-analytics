@@ -454,7 +454,9 @@ const evalCmd = defineCommand({
     };
     if (args.models !== undefined) {
       if (args.model || args.label || args.passes !== undefined || args["replay-drafts"] || args.suite === "real")
-        throw new Error("--models runs a smoke or full suite per model: drop --model, --label, --passes and --replay-drafts");
+        throw new Error(
+          "--models runs a smoke or full suite per model: drop --model, --label, --passes and --replay-drafts, and use --suite smoke|full",
+        );
       const runs = await evalMatrix(
         args.models
           .split(",")

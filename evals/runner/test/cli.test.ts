@@ -4,6 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Dataset } from "@agentic-analytics/eval-generator";
+import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { describe, expect, it } from "vitest";
 import {
@@ -264,20 +265,28 @@ describe("evalCommand with --replay-drafts (M14a)", () => {
 });
 
 describe("the model matrix (M14)", () => {
-  it("runs each model as its own row, reports a model that fails and goes on to the next", async () => {
+  it("runs each model as its own row with its own reports; a failing provider or a missing client doesn't stop the next", async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-matrix-"));
     const results = join(dir, "results");
+    const kept = join(dir, "kept");
     const lines: string[] = [];
+    // A "provider" whose every call is rate limited: its job fails, and its results file still records it.
+    const base = baselineModel({ small: false });
+    const limited: ModelClient = {
+      generateObject: () => Promise.reject(new ModelError("RATE_LIMITED", "every route is rate limited")),
+      generateWithTools: () => Promise.reject(new ModelError("RATE_LIMITED", "every route is rate limited")),
+      embed: (t) => base.embed(t),
+    };
     const runs = await evalMatrix(
-      ["baseline", "fake-b", "no-such-model"],
-      { suite: "full", only: ["coffee_roaster-v1"], resultsDir: results, resultsPage: join(dir, "RESULTS.md") },
+      ["baseline", "fake-b", "flaky", "no-such-model"],
+      { suite: "full", only: ["coffee_roaster-v1"], resultsDir: results, resultsPage: join(dir, "RESULTS.md"), keepReports: kept },
       {
         embedder: hashEmbedder(),
         print: (l) => lines.push(l),
         now: () => new Date("2026-10-22T10:00:00Z"),
-        // A second scripted "model" stands in for a provider; an unknown name has no client.
         modelFor: (name) => {
           if (name === "fake-b") return baselineModel({ small: false });
+          if (name === "flaky") return limited;
           throw new EvalRunError("NO_MODEL", `no model client for ${name}`);
         },
       },
@@ -285,23 +294,40 @@ describe("the model matrix (M14)", () => {
     expect(runs.map((r) => [r.model, r.result !== undefined, r.error])).toEqual([
       ["baseline", true, undefined],
       ["fake-b", true, undefined],
+      ["flaky", true, undefined],
       ["no-such-model", false, "NO_MODEL: no model client for no-such-model"],
     ]);
-    // One results file per model that ran, each its own row.
-    expect(readdirSync(results).sort()).toEqual(["2026-10-22-baseline-full.json", "2026-10-22-fake-b-full.json"]);
+    // One results file per model that ran, each named and labelled by its own model.
+    expect(readdirSync(results).sort()).toEqual([
+      "2026-10-22-baseline-full.json",
+      "2026-10-22-fake-b-full.json",
+      "2026-10-22-flaky-full.json",
+    ]);
+    const read = (f: string) => JSON.parse(readFileSync(join(results, f), "utf8")) as SuiteResult;
+    expect(read("2026-10-22-baseline-full.json").model).toBe("baseline");
+    expect(read("2026-10-22-fake-b-full.json").model).toBe("fake-b");
+    const flaky = read("2026-10-22-flaky-full.json");
+    expect(flaky.scores.map((x) => [x.dataset, x.completed])).toEqual([["coffee_roaster-v1", false]]);
+    // Each model's reports in its own folder: none overwrites another's.
+    expect(readdirSync(kept).sort()).toEqual(["baseline-full", "fake-b-full", "flaky-full"]);
+    expect(readdirSync(join(kept, "baseline-full"))).toContain("coffee_roaster-v1.json");
     expect(matrixLines(runs)).toEqual([
       "baseline: 1/1 jobs, recall@5 100.0%, number mismatches 0",
       "fake-b: 1/1 jobs, recall@5 100.0%, number mismatches 0",
+      "flaky: 0/1 jobs, recall@5 0.0%, number mismatches 0",
       "no-such-model: not run (NO_MODEL: no model client for no-such-model)",
     ]);
     expect(lines).toContain("== matrix");
   }, 180_000);
 
-  it("needs two or more distinct models", async () => {
+  it("needs two or more models with distinct results files, and never `configured`", async () => {
     const deps = { embedder: hashEmbedder(), print: () => {} };
-    await expect(evalMatrix(["baseline"], { suite: "smoke", resultsDir: "/nonexistent" }, deps)).rejects.toMatchObject({ code: "USAGE" });
-    await expect(evalMatrix(["baseline", "baseline"], { suite: "smoke", resultsDir: "/nonexistent" }, deps)).rejects.toMatchObject({
-      code: "USAGE",
-    });
+    const bad = async (models: string[]) =>
+      expect(evalMatrix(models, { suite: "smoke", resultsDir: "/nonexistent" }, deps)).rejects.toMatchObject({ code: "USAGE" });
+    await bad(["baseline"]);
+    await bad(["baseline", "baseline"]);
+    // "a:b" and "a_b" would both write <date>-a_b-smoke.json.
+    await bad(["ollama:a:b", "ollama_a_b"]);
+    await bad(["baseline", "configured"]);
   });
 });

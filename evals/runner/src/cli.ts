@@ -315,13 +315,21 @@ export async function evalMatrix(
   d: EvalDeps,
 ): Promise<MatrixRun[]> {
   if (models.length < 2) throw new EvalRunError("USAGE", "--models needs at least two models (use --model for one)");
-  if (new Set(models).size !== models.length) throw new EvalRunError("USAGE", "--models lists a model twice");
+  // Two specs that slug to the same file name would replace each other's results row.
+  const slugs = models.map((model) => evalSlug("", { model, suite: a.suite, ...(a.smallModel ? { smallModel: true } : {}) }));
+  if (new Set(slugs).size !== slugs.length)
+    throw new EvalRunError("USAGE", "--models lists a model twice (or two that name the same results file)");
+  // `configured` is the nightly's row, named after its routes there; in a matrix, name each route explicitly instead.
+  if (models.includes("configured"))
+    throw new EvalRunError("USAGE", "--models takes provider routes (provider:endpoint:model) or baseline, not configured");
   const runs: MatrixRun[] = [];
   for (const [i, model] of models.entries()) {
     d.print("");
     d.print(`== model ${i + 1} of ${models.length}: ${model}`);
     try {
-      runs.push({ model, result: await evalCommand({ ...a, model }, d) });
+      // Each model keeps its reports in its own subfolder: one shared folder would let the next model overwrite them.
+      const keepReports = a.keepReports ? join(a.keepReports, (slugs[i] as string).slice(1)) : undefined;
+      runs.push({ model, result: await evalCommand({ ...a, model, ...(keepReports ? { keepReports } : {}) }, d) });
     } catch (err) {
       if (!(err instanceof Error)) throw err;
       runs.push({ model, error: "code" in err ? `${String(err.code)}: ${err.message}` : err.message });
