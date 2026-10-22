@@ -78,6 +78,8 @@ export interface AnswerKey {
   readonly planted: readonly Planted[];
   readonly distractors: readonly Distractor[];
   readonly quality: readonly QualityKey[];
+  /** "heldout" for the held-out generated set (src/heldout.ts), read only by release runs; absent for the 30. */
+  readonly split?: "heldout";
 }
 
 export interface Dataset {
