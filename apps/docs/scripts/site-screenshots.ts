@@ -8,8 +8,11 @@
 //   tsx scripts/site-screenshots.ts --hero --out dir → the hero's first screen at 1920, 1440 and 390, with the browser
 //                                                set to light and to dark (the site is light only, so both must
 //                                                match), named hero-<width>-<scheme>.png (site v5)
-//   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification as it comes into view, the
-//                                                timed walkthrough step by step, a hover, then Replay
+//   tsx scripts/site-screenshots.ts --story --out dir → the scroll-driven walkthrough (site v5 PR 2): at 1920 and 1440
+//                                                the pinned exhibit at each step and the release into the engine
+//                                                machine, at 390 the stacked tap list (pr2-<width>-<what>.png)
+//   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification on load, then the walkthrough
+//                                                stepped by scrolling through the pinned exhibit, and a hover
 //                                                (needs ffmpeg; without it hero.webm is kept)
 // Besides the pages (rendered with reduced motion, so the hero's walkthrough shows as its static list), it captures
 // the live walkthrough: hero-step-<k>-desktop.png and hero-step-<k>-mobile.png at each step.
@@ -29,6 +32,7 @@ const { values } = parseArgs({
     record: { type: "boolean", default: false },
     sections: { type: "boolean", default: false },
     hero: { type: "boolean", default: false },
+    story: { type: "boolean", default: false },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
@@ -45,6 +49,15 @@ const sizes = [
   { name: "mobile", width: 390, height: 844 },
 ];
 
+/** The scroll position at which the walkthrough shows step k (1..n): the step's sentinel just past the line 65% down
+ * the screen (Exhibit.astro); step 0 is half a step before the first. */
+const stepAt = (page: Page, k: number) =>
+  page.evaluate((k) => {
+    const s = document.querySelector<HTMLElement>(`[data-walk-sentinel="${Math.max(k, 1)}"]`);
+    if (!s) return 0;
+    const top = s.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.65;
+    return Math.max(0, Math.round(k === 0 ? top - s.offsetHeight / 2 : top + 40));
+  }, k);
 /** The scroll position that puts the exhibit's step bar at the top of the screen. */
 const walkStart = (page: Page) =>
   page.evaluate(() => {
@@ -149,6 +162,50 @@ try {
       }
       await ctx.close();
     }
+  } else if (values.story) {
+    // The scroll-driven story for review: pinned steps on desktop, then the release; the tap list on a phone.
+    for (const [width, height] of [
+      [1920, 1080],
+      [1440, 900],
+    ] as const) {
+      const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
+      const page = await ctx.newPage();
+      await page.goto(`${base}/`, { waitUntil: "networkidle" });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      await page.waitForTimeout(3200);
+      const n = await page.locator("[data-walk-sentinel]").count();
+      for (let k = 1; k <= n; k++) {
+        await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), await stepAt(page, k));
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: join(out, `pr2-${width}-step${k}.png`) });
+      }
+      // Past the track: the pin has let go and the engine machine's band follows.
+      await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), (await stepAt(page, n)) + Math.round(height * 0.9));
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: join(out, `pr2-${width}-release.png`) });
+      await ctx.close();
+    }
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+    const page = await ctx.newPage();
+    await page.goto(`${base}/`, { waitUntil: "networkidle" });
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+    await page.screenshot({ path: join(out, "pr2-390-top.png") });
+    await page.locator(".aa-hero-cmd").evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await page.evaluate(() => window.scrollBy(0, -16));
+    await page.waitForTimeout(3200);
+    await page.screenshot({ path: join(out, "pr2-390-install.png") });
+    await page.locator(".aa-walk-list").evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, "pr2-390-stacked.png") });
+    await page.locator('.aa-walk-list details[data-step-item="2"] > summary').click();
+    await page.locator('.aa-walk-list details[data-step-item="2"]').evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, "pr2-390-tap.png") });
+    await ctx.close();
   } else if (values.record) {
     // The one moment of motion: load (the replay runs once, ≤ 2.5 s), then hover two figures in turn.
     const tmp = join(out, ".video");
@@ -160,16 +217,18 @@ try {
     const page = await ctx.newPage();
     await page.goto(`${base}/`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1200);
-    // Scroll the exhibit into view (the verification runs), then let the timer step through the walkthrough.
-    await smoothScroll(page, await walkStart(page));
-    const n = (await page.locator(".aa-walk-cap").count()) - 1;
-    await page.waitForTimeout(3100 + 600 + n * 4500);
-    // Hover still explores any figure; Replay starts over.
-    await page.locator('.aa-exhibit a.aa-chip[data-note="N332"]').hover();
+    // The verification runs on load; then scroll through the pinned exhibit, a step at a time.
+    await page.waitForTimeout(3100);
+    const n = await page.locator("[data-walk-sentinel]").count();
+    for (let k = 1; k <= n; k++) {
+      await smoothScroll(page, await stepAt(page, k));
+      await page.waitForTimeout(2200);
+    }
+    // Hover still explores any figure.
+    await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').hover();
     await page.waitForTimeout(1800);
     await page.mouse.move(10, 10);
-    await page.locator("[data-walk-replay]").click();
-    await page.waitForTimeout(3200);
+    await page.waitForTimeout(600);
     await ctx.close();
     const [video] = readdirSync(tmp).filter((f) => f.endsWith(".webm"));
     if (!video) throw new Error("no video recorded");
@@ -191,7 +250,8 @@ try {
       process.stdout.write("ffmpeg not available: kept hero.webm only\n");
     }
   } else {
-    // The live walkthrough, motion allowed: each step, stepped by hand here (the timer stops), on desktop and mobile.
+    // The live walkthrough, motion allowed: on desktop each step as the scroll reaches it (pinned); on a phone the
+    // tap list with each step opened in turn.
     for (const s of sizes) {
       if (values.only && !`hero-step-${s.name}`.includes(values.only as string)) continue;
       const ctx = await browser.newContext({ viewport: { width: s.width, height: s.height }, deviceScaleFactor: 1 });
@@ -201,15 +261,14 @@ try {
         await document.fonts.ready;
       });
       const n = (await page.locator(".aa-walk-cap").count()) - 1;
-      await page.evaluate((y) => window.scrollTo(0, y), await walkStart(page));
+      const pinned = (await page.locator("[data-exhibit]").getAttribute("data-walk")) === "pin";
+      if (!pinned) await page.evaluate((y) => window.scrollTo(0, y), await walkStart(page));
       for (let k = 0; k <= n; k++) {
-        if (k > 0) {
-          // From step 0 by hand; on a phone, at the notes under the sticky step bar.
-          if (k === 1)
-            while ((await page.locator("[data-walk-prev]").getAttribute("aria-disabled")) !== "true")
-              await page.locator("[data-walk-prev]").click();
-          await page.locator("[data-walk-next]").click();
-          if (s.name === "mobile") await page.locator(".aa-notes").evaluate((el) => el.scrollIntoView({ block: "center" }));
+        if (pinned) await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), await stepAt(page, k));
+        else if (k > 0) {
+          const item = page.locator(`.aa-walk-list details[data-step-item="${k}"]`);
+          if ((await item.getAttribute("open")) === null) await item.locator("summary").click();
+          await item.evaluate((el) => el.scrollIntoView({ block: "start" }));
         }
         await page.waitForTimeout(k === 0 ? 3200 : 500);
         await page.screenshot({ path: join(out, `hero-step-${k}-${s.name}.png`) });

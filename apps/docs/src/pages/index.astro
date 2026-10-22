@@ -103,6 +103,8 @@ const PROOF_ICONS = {
   // A laptop: runs on your own machine.
   local: icon("M3.5 4h9v6h-9zM1.8 12.5h12.4"),
 } as const;
+// The exhibit's walkthrough steps, for the hero's scroll track (one sentinel each).
+const walkSteps = (exhibit as unknown as { walk: { id: string }[] }).walk;
 const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-windows-x64.exe", "SHA256SUMS"];
 const doors = [
   {
@@ -171,8 +173,8 @@ const doors = [
             }
           </ul>
           <div class="aa-hero-cmd-frame">
-            <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
-              <pre><code>git clone {GITHUB_URL}
+            <div class="aa-hero-cmd">
+              <pre aria-label="Install command"><code>git clone <span class="aa-url">https://github.com/<wbr /><span class="aa-nowrap">{GITHUB_URL.replace("https://github.com/", "")}</span></span>
 cd agentic-analytics && bun install</code></pre>
             </div>
           </div>
@@ -181,6 +183,12 @@ cd agentic-analytics && bun install</code></pre>
         <div class="aa-hero-exhibit">
           <p class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
           <Exhibit />
+        </div>
+        {/* The scroll track the pinned exhibit stays over (site v5 PR 2; only when the walkthrough is pinned): one
+            sentinel per step, which the exhibit's script observes, and a tail so the last step holds before the pin
+            releases into the engine machine below. */}
+        <div class="aa-hero-track" aria-hidden="true">
+          {walkSteps.map((_, i) => <div class="aa-hero-step" data-walk-sentinel={i + 1} />)}
         </div>
       </div>
     </section>
@@ -203,8 +211,10 @@ cd agentic-analytics && bun install</code></pre>
       <div class="aa-cell aa-split">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={1} text="How it works" />
-          <h2 id="aa-how-title" class="aa-h2 aa-center">Files in, a verified and cited report out.</h2>
-          <p class="aa-lead aa-center">One real run, stage by stage, from the files to a verified report.</p>
+          {/* Site v5 PR 2: the machine above says what each station does, so this head no longer repeats "files in, a
+              checked report out"; it says what these panels add: what one run's stages actually produced. */}
+          <h2 id="aa-how-title" class="aa-h2 aa-center">What one run produced, stop by stop.</h2>
+          <p class="aa-lead aa-center">The files it read, the SQL it ran, the figures and the checks, from the same run.</p>
         </div>
         <div class="aa-how">
           <PipelineStages draw />
@@ -779,9 +789,21 @@ AA_DEMO_MODEL=scripted \
     overflow-x: auto;
     text-align: left;
   }
+  /* The install line wraps instead of scrolling (site v5 PR 2: at 390 the clone URL was cut off at the box's edge):
+     the URL only after "github.com/" (the <wbr>), and as an inline block its second line starts under its first, so it
+     reads as one argument. "10ch" is "git clone " only while the span inherits the pre's mono face and size. */
   .aa-hero-cmd pre {
     margin: 0;
-    white-space: pre;
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+  }
+  .aa-hero-cmd .aa-url {
+    display: inline-block;
+    max-width: calc(100% - 10ch);
+    vertical-align: top;
+  }
+  .aa-hero-cmd .aa-nowrap {
+    white-space: nowrap;
   }
   .aa-hero-cmd code {
     font: 400 var(--aa-text-code) / 1.6 var(--aa-font-mono);
@@ -797,6 +819,40 @@ AA_DEMO_MODEL=scripted \
   }
   .aa-exhibit-label {
     margin-bottom: var(--aa-space-4);
+  }
+  /* The scroll-driven walkthrough (site v5 PR 2; DESIGN.md §6, overriding D2's "nothing pinned"). From 900px, when the
+     exhibit fits the screen (Exhibit.astro decides before first paint: data-walk="pin"), the hero row holds a scroll
+     track under its content and the exhibit sticks while the track passes: each sentinel crossing a line 65% down the
+     screen is the next step. From 1100px the statement sticks beside it, so the whole hero holds still; both release
+     together as the track ends, straight into the engine machine's band. Under 900px, under reduced motion and without
+     JS there is no track. Position only: nothing animates. */
+  .aa-hero-row {
+    --aa-walk-step: 45vh;
+    --aa-pin-top: var(--aa-space-6);
+    timeline-scope: --aa-walk-track;
+  }
+  .aa-hero-track {
+    display: none;
+  }
+  .aa-hero-row:has([data-walk="pin"]) > .aa-hero-track {
+    display: block;
+    grid-column: 1 / -1;
+    /* The tail: the last step holds for a while before the pin lets go. */
+    padding-bottom: 20vh;
+    view-timeline: --aa-walk-track block;
+  }
+  .aa-hero-step {
+    height: var(--aa-walk-step);
+  }
+  .aa-hero-row:has([data-walk="pin"]) > .aa-hero-exhibit {
+    position: sticky;
+    top: var(--aa-pin-top);
+  }
+  @media (min-width: 68.75rem) {
+    .aa-hero-row:has([data-walk="pin"]) > .aa-statement {
+      position: sticky;
+      top: var(--aa-pin-top);
+    }
   }
   @media (min-width: 68.75rem) {
     .aa-hero-row {

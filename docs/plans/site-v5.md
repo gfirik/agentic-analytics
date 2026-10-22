@@ -58,4 +58,14 @@ The maintainer, after PR 1: "it's still too flat and restrained. Be bold this ti
 
 ## PR 2: the scroll-pinned story
 
-The next PR. Not started here.
+The maintainer's spec (it overrides site v3's D2, "no scroll-pinning"): the hero exhibit tells its story as the reader scrolls instead of on a timer.
+
+1. Pin: from 900px, when it fits the screen, the exhibit is sticky over a scroll track in the hero row (one sentinel per step); from 1100px the statement sticks beside it. Each step's sentinel crossing a line 65% down the screen activates the next figure and opens its note; after step 4 the pin releases into the engine machine's band.
+2. Progress: step marks and a 2px rule driven by the track's view timeline (scroll-driven animation), stepped by the script where unsupported.
+3. Controls: prev/next stay and scroll to the step; ←/→ while the exhibit has focus; the timer, Pause and Replay go. `aria-live` on the caption, `aria-current="step"` on the step's chip.
+4. Phones: no pin; the steps stack as a list, each a disclosure that opens on tap. Reduced motion and no JS: the static list, every note open.
+5. §1 "How it works": trimmed where it repeated the machine (its head); its panels show the run's artifacts, which the machine doesn't.
+6. The install line wraps after `github.com/` at 390 instead of clipping.
+7. Checks: Playwright (pin and step on scroll, release, tap list, reduced motion, keyboard, axe on the live modes), CLS with CI-like fonts, Lighthouse, 360px, screenshots `pr2-*.png`.
+
+**Risks:** a pinned exhibit taller than the screen (pin only when it fits, measured before first paint); scroll and buttons disagreeing (the buttons scroll to the step and hold it until the scroll lands); layout shift as the pin releases (position, not animation; the shift test tells sticky moves apart).

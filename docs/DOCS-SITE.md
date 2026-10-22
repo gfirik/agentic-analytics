@@ -33,7 +33,7 @@ They share one design system, `apps/docs/DESIGN.md`. Its tokens live in `src/sty
 - **The hero exhibit** (`components/site/Exhibit.astro`, landing page):
   - It shows the first finding of the real coffee-roaster run, each number followed by its fact-ID chip.
   - It replays its verification as it comes into view, unless reduced motion is on.
-  - It walks through its key figures by itself (M13k): the change, its SQL input and sheet rows, the driver, the quoted cause (`walkthrough()` in `scripts/landing-data.ts`, chosen by role from the run's data). A timer advances the steps at every size while the notes are on screen (site v3, no scroll-pinning), with Pause, waiting while the reader hovers or focuses inside; step 1's note is open from the start. Previous, next and replay are always there; reduced motion or no JS shows the steps as a static ruled list.
+  - It walks through its key figures by itself (M13k): the change, its SQL input and sheet rows, the driver, the quoted cause (`walkthrough()` in `scripts/landing-data.ts`, chosen by role from the run's data). From 900 px the exhibit pins and the reader's scroll steps it, with a scroll-driven progress rule, then releases into the engine machine (site v5 PR 2; there is no timer); previous, next and the arrow keys scroll to a step; step 1's note is open from the start. Under 900 px the steps are a list that opens on tap; reduced motion or no JS shows them as a static ruled list, every note open.
   - Hovering or focusing a figure opens its margin note: the SQL and parameters (or the function and its inputs), and the cited sheet rows.
   - A chip links to the fact's row in a static fact ledger, so it works without JS.
 - **`<Sidenote>` / `<MarginNote>`** (Learn, MDX): Tufte-style notes in the margin column, tap-to-expand under 1000px.
@@ -106,7 +106,7 @@ The README is the first thing people see on GitHub. It carries five visuals, and
   - no horizontal scroll at 360 px on every page, and at 1024 px on a Learn page (the margin column's narrowest);
   - light only, even under a dark OS with a stored dark theme;
   - the hero replays its verification once within 2.5 s, and not under reduced motion, also on a 667×375 landscape phone;
-  - the walkthrough (M13k, site v3): at 1440 it advances on a timer with nothing sticky, step 1's note open from the start, each step opening its note, plus prev, next and Replay, and a hover mid-walkthrough returning to the step's note; stepping never moves the page below it (1440 and 390); under 900 px it advances with the notes below, each note at its own height and its SQL folded, with a Pause/Play button, a hover hold and manual steps; under reduced motion and without JS it is a static list;
+  - the walkthrough (site v5 PR 2): at 1440 the exhibit and the statement pin, each scroll step opens the next figure's note (aria-current on its chip) as the progress rule grows, scrolling back steps back, a hover mid-walkthrough returns to the step's note, and past the track the pin releases into the engine machine; the arrow keys (exhibit focused) and prev/next step it, scrolling the page; stepping never moves the page below it; under 900 px nothing is pinned and the steps are a list that opens on tap; under reduced motion and without JS it is a static list, every note open, nothing sticky; axe on the live modes;
   - the status strip, header and install line keep their height while the web fonts arrive late (390 and 1440 px);
   - a margin note opens on hover and focus, beside its figure, and Escape closes it; under 900 px it opens below the exhibit;
   - without JS the page is complete and chips land on the fact ledger;
@@ -115,7 +115,7 @@ The README is the first thing people see on GitHub. It carries five visuals, and
   - the pipeline stages are still until Play, Play steps once to Report, a stop selects its panel and stepping never moves the page; the mobile menu sets aria-expanded and Escape closes it;
   - the favicons, OG image and sitemaps are served, with an absolute og:image;
   - on every Learn page each fact chip lands on a row of that page's ledger, and a stage diagram is complete without JS and marks a step's outputs.
-- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` writes `docs/assets/site/`. It shoots the landing page, a Learn stage guide and a docs page at 1440 and 390. It also shoots the live walkthrough at each step (`hero-step-<k>-desktop.png` scrolled, `hero-step-<k>-mobile.png` stepped). With `--record` it writes `hero.gif`, recorded as WebM and encoded with ffmpeg: the verification as the exhibit comes into view, the walkthrough scrolled step by step, a hover, then Replay.
+- **Screenshots** for review: `apps/docs/scripts/site-screenshots.ts` writes `docs/assets/site/`. It shoots the landing page, a Learn stage guide and a docs page at 1440 and 390. It also shoots the live walkthrough at each step (`hero-step-<k>-desktop.png` scrolled through the pinned exhibit, `hero-step-<k>-mobile.png` with each step of the tap list opened). With `--story` it writes the scroll-driven story for review (`pr2-<width>-step<k>.png`, the release, and the 390 tap list). With `--record` it writes `hero.gif`, recorded as WebM and encoded with ffmpeg: the verification on load, the walkthrough scrolled step by step, then a hover.
 
 ## 5. Rules
 
