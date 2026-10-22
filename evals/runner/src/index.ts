@@ -82,6 +82,7 @@ export {
   snapshotOf,
 } from "./repeat.ts";
 export {
+  allGeneratedDatasets,
   keepDraftedMetrics,
   mergeResults,
   mergeRoutes,
@@ -99,6 +100,7 @@ export {
   runStatus,
   runSuite,
   runUsage,
+  SMOKE_DATASETS,
   type Suite,
   type SuiteResult,
   suiteDatasets,
