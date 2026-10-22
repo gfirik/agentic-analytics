@@ -2,7 +2,7 @@
 
 The `agentic-analytics` / `aa` command line (citty).
 
-- **Status:** M0–M1 ship `aa doctor`; M4 adds `aa metrics`; M7 adds `aa run`; M10 adds `analyze`, `ask`, `explain`, `serve`, `mcp` and `jobs`. `aa eval` arrives with the eval runner in M11.
+- **Status:** M0–M1 ship `aa doctor`; M4 adds `aa metrics`; M7 adds `aa run`; M10 adds `analyze`, `ask`, `explain`, `serve`, `mcp` and `jobs`. M11 adds `aa eval`; M14a adds `aa usage`.
 - **Spec:** docs/specs/interfaces.md §2
 
 ## Commands
