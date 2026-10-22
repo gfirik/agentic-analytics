@@ -14,7 +14,7 @@ const Source = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("fact"), label: z.string().min(1) }),
   /** The top driver of the report's finding on `metric` at `period` (its first `drivers` entry). */
   z.object({ kind: z.literal("driver"), metric: z.string().min(1), period: z.string().min(1) }),
-  /** The facts an `aa ask` answer to the question cites; a trap passes on `notCovered` or no claims. */
+  /** The `aa ask` answer's first claim and the facts it cites; a trap passes only on an answer with no verified claim. */
   z.object({ kind: z.literal("ask") }),
 ]);
 

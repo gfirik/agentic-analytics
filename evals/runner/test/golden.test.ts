@@ -189,6 +189,11 @@ describe("golden scorer", () => {
         "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, kind: numeric, expected: 1, source: { kind: driver, metric: r, period: p }, split: dev }",
       ),
     ).toThrowError(/a driver answers categorical items only/);
+    expect(() =>
+      parseGoldenSet(
+        "dataset: d\nitems:\n  - { id: G1, question: Which channel?, kind: categorical, expected: w, source: { kind: fact, label: x }, split: dev }",
+      ),
+    ).toThrowError(/a fact answers numeric items only/);
   });
 });
 
