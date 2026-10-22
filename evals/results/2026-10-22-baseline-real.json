@@ -2,7 +2,7 @@
   "suite": "real",
   "model": "baseline",
   "note": "Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.",
-  "date": "2026-10-17",
+  "date": "2026-10-22",
   "datasets": [
     {
       "dataset": "nz-card-spend",
@@ -11,10 +11,10 @@
       "licence": "CC BY 4.0",
       "citation": "This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.",
       "page": "https://www.stats.govt.nz/information-releases/electronic-card-transactions-september-2026/",
-      "file": "nz-card-spend-by-industry.csv",
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
+      "file": "nz-card-spend-by-industry.csv",
       "completed": true,
-      "seconds": 5.644,
+      "seconds": 6.121,
       "metrics": [
         "card_spend"
       ],
@@ -40,7 +40,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "380 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
+          "detail": "380 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
@@ -72,10 +72,10 @@
       "licence": "CC BY 4.0",
       "citation": "Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.",
       "page": "https://archive.ics.uci.edu/dataset/502/online+retail+ii",
-      "file": "online_retail_II.sample10.csv",
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
+      "file": "online_retail_II.sample10.csv",
       "completed": true,
-      "seconds": 12.057,
+      "seconds": 12.755,
       "metrics": [
         "revenue",
         "orders"
@@ -102,7 +102,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "31 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations"
+          "detail": "31 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
@@ -142,5 +142,5 @@
       ]
     }
   ],
-  "seconds": 17.705
+  "seconds": 18.884
 }
