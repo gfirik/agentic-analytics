@@ -8,6 +8,7 @@
   --aa-raised: #ffffff;
   --aa-surface: #f1f2f0;
   --aa-mark: #e8ecef;
+  --aa-glow: #e3eaf0; /* the hero's soft tint behind the headline only (site v5) */
   --aa-rule: #dcdcd6;
   --aa-rule-strong: #8b8f94;
   --aa-ink: #121417;
@@ -21,7 +22,7 @@
   --aa-font-display: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
   --aa-font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --aa-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --aa-text-display: 3.5rem;
+  --aa-text-display: clamp(2.5rem, 1.25rem + 3.4vw, 4.25rem); /* the hero statement: 40px on phones to 68px (site v5) */
   --aa-text-h2: 2.25rem;
   --aa-text-h3: 1.125rem;
   --aa-text-lead: 1.1875rem;
@@ -62,7 +63,6 @@
 
 @media (max-width: 40rem) {
   :root {
-    --aa-text-display: 2.25rem;
     --aa-text-h2: 1.75rem;
   }
 }
