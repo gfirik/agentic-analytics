@@ -19,6 +19,8 @@ evals/results/*-baseline-smoke.json
 evals/results/*.bad
 # --repeat on the scripted baseline: local, like baseline smoke runs (docs/specs/accuracy.md §7)
 evals/results/repeat/*-baseline-smoke-repeat*
+# --model baseline ablation runs: canned answers, a harness check (docs/specs/accuracy.md §8.5)
+evals/results/ablation/*-baseline-*
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/

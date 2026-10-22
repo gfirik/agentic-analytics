@@ -152,6 +152,27 @@
         "vite": "^8.3.4",
       },
     },
+    "evals/ablation": {
+      "name": "@agentic-analytics/eval-ablation",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agentic-analytics/core": "workspace:*",
+        "@agentic-analytics/eval-datasets": "workspace:*",
+        "@agentic-analytics/eval-generator": "workspace:*",
+        "@agentic-analytics/eval-runner": "workspace:*",
+        "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/models": "workspace:*",
+        "@agentic-analytics/profile": "workspace:*",
+        "@agentic-analytics/retrieval": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
+        "@agentic-analytics/store": "workspace:*",
+        "@duckdb/node-api": "^1.5.6-r.1",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "tsx": "^4.23.15",
+      },
+    },
     "evals/datasets": {
       "name": "@agentic-analytics/eval-datasets",
       "version": "0.0.0",
@@ -402,6 +423,8 @@
     "@agentic-analytics/core": ["@agentic-analytics/core@workspace:packages/core"],
 
     "@agentic-analytics/docs": ["@agentic-analytics/docs@workspace:apps/docs"],
+
+    "@agentic-analytics/eval-ablation": ["@agentic-analytics/eval-ablation@workspace:evals/ablation"],
 
     "@agentic-analytics/eval-datasets": ["@agentic-analytics/eval-datasets@workspace:evals/datasets"],
 

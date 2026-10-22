@@ -8,6 +8,7 @@ The eval suite: how we prove the engine works (docs/EVALS.md). Results are in [R
 | [datasets/](datasets/) | Hand-built datasets and the generated answer keys |
 | [runner/](runner/README.md) | `aa eval`: runs a suite, scores every report, writes `results/*.json` and `RESULTS.md` |
 | [real/](real/README.md) | The real-data tier: public datasets as published, with SQL-backed checks |
+| [ablation/](ablation/README.md) | `bun run eval:ablation`: the same model alone (arm A), with SQL (arm B) and with the engine (arm C); prompts and harness published |
 | [retrieval/](retrieval/), [injection/](injection/) | Retrieval recall and the prompt-injection suite |
 | [kaggle/](kaggle/full-suite-vllm.ipynb) | A Kaggle notebook that runs the full suite on a model served by vLLM in the notebook |
 | [results/](results/) | One JSON per published run; RESULTS.md and the README table are generated from these |

@@ -95,9 +95,69 @@ A job that failed in any run agrees on nothing. (c) and (d) are n/a for a job wi
 
 **CI path.** evals/runner/test/repeat.test.ts checks the measures on hand-computed snapshots (four jobs × three runs with known disagreements, and an n/a job), and runs `evalRepeat` offline with a FakeModel whose second run writes no explanation and proposes no action: (a) and (b) agree, (d) and (e) don't, and every disagreement row shows runs 1 and 3 equal and run 2 different. apps/cli/test/eval-models.test.ts runs the real model client against a stubbed transport and shows the call records are `cached: false` across repeats with the cache off (nothing read or written), and `[false, true, true]` with it on.
 
+## 8. Ablation: the same model with and without the engine
+
+`bun run eval:ablation -- [--arms A,B,C] [--suite smoke|golden] [--model baseline|<provider:model>] [--dataset id] [--context tokens] [--no-tools] [--results-dir dir]` (evals/ablation, `@agentic-analytics/eval-ablation`; analyst-grade §4.5, §6.4). The prompts (`src/prompts.ts`) and the harness are published there so anyone can rerun them.
+
+### 8.1 Arms and tasks
+
+| Arm | What the model gets | Code |
+|---|---|---|
+| A. Model alone | The job's files as text: each ingested table as CSV rows, each document's text (email headers included), and the task; cut to the context window minus the prompt (§8.2) | `runArmA` |
+| B. Model + SQL | The same tables in a locked DuckDB and one tool, `run_sql`; the table list with columns and row counts; the documents' names only (a text-to-SQL analyst reads tables) | `runArmB` |
+| C. The engine | The full pipeline (`runJob`, then `askJob` for `ask` items) | `runArmC` in src/run.ts |
+
+- **The same for every arm:** the tasks, the model (`--model` serves every role in every arm; `configured` is refused, since its roles may differ), the scoring, and the retry budget: 2 retries on an answer that isn't the fixed JSON shape or on a tool error. Arm A's retries are `generateObject`'s validation retries (`maxRetries: 2`); arm B's tool errors and invalid final replies share one budget of 2, after which the next tool error stops the task and an invalid reply is final (a miss).
+- **The tables** are the engine's own: the files go through `ingest` and `normalizeTable` (monthly grain), so every arm sees the same rows and column names. Arm B's tables keep the engine's helper columns `_row`, `_is_total` and `_period`, explained in its prompt.
+- **Tasks.** Golden (`--suite golden`): one question per dev-split item, whatever its `source` (arms A and B have no report, so every item is asked). The CI mini set is `--dataset coffee-roaster`; without `--dataset`, every real dataset with a dev golden set (after `bun run eval:real:fetch`; `NO_DATA` otherwise). Held-out items are never read here. Smoke (`--suite smoke`): one "what changed" task per dataset (coffee_roaster-v1, saas-v2, restaurant-v3), answered as a list of findings.
+- **A model that can't call tools** (`--no-tools`, or a profile with `toolCalling: "none"`) runs arm A only; arms B and C are reported as skipped (arm B's `run_sql` and the engine's planner both need tools).
+
+### 8.2 Containment
+
+Arms A and B are eval-only controls, not the agent, and break two rules on purpose: arm B runs model-written SQL (AGENTS §2.6) and arm A feeds raw untrusted text to a model (§2.5). The fence:
+
+- **Where:** `run_sql` and the arms live in evals/ablation only, never in `packages/agent/tools`. test/guard.test.ts fails if any code file under packages/ or apps/ imports `@agentic-analytics/eval-ablation` or names `evals/ablation`, or if `run_sql` appears under packages/. The entry is its own script (`bun run eval:ablation`), not an `aa` subcommand, so no allow-list is needed.
+- **Arm B's database** is built per run in two phases (`buildSourceDatabase`, `SqlSandbox.open`): a writable instance loads the ingested source tables only (no metric definitions, facts or document chunks; a test lists them: `t_t1`, `t_t2`, `t_t3` for coffee-roaster) and is closed; then the file is reopened locked. The per-run folder (database, temp directory) is created under the OS temp dir and deleted after the run, whatever happened (`cleanedUp` in the result; tested).
+- **The locked open** applies nine options in this order: `temp_directory` (the per-run dir), `max_temp_directory_size` ("1GB"), `access_mode` ("READ_ONLY"), `enable_external_access` ("false"), `autoinstall_known_extensions` ("false"), `autoload_known_extensions` ("false"), `memory_limit` ("1GB"), `threads` ("2"), `lock_configuration` ("true"). `temp_directory` must come before `enable_external_access=false`, and the lock last. **Deviation from the plan, checked on @duckdb/node-api 1.5.6:** `max_temp_directory_size` given to `DuckDBInstance.create` reads back but is not enforced (a sort wrote 87 MB of spill past a 1 MB cap), while the same value set with `SET` is. So `create` takes the first eight options, then `SET max_temp_directory_size` re-applies the cap and `SET lock_configuration = true` locks it, before any model-written statement runs. A test reads `current_setting` back for all nine and compares normalised values (sizes parsed to bytes, `memory_limit` reads "953.6 MiB"; booleans and `access_mode` case-folded), and checks the order.
+- **Per statement:** a timer calls `connection.interrupt()` after `timeoutMs` (10 s). Results are read with `stream()` and `fetchChunk`, counting rows and bytes (as JSON) as they come, and stopped past 200 rows or 32 KiB.
+- **Typed tool errors** (`AblationError`): `SQL_REFUSED` (DuckDB's permission, read-only and locked-configuration errors), `SQL_TIMEOUT`, `SQL_OUT_OF_MEMORY`, `SQL_OUT_OF_SPACE` (spilling past the temp cap surfaces as "failed to offload"), `RESULT_TOO_LARGE`, `SQL_ERROR` (syntax, unknown names). `run_sql` returns them to the model as `{ error: { code, message } }`; each uses one retry.
+- **Tested from a scripted arm B, each refused:** `COPY … TO`, `read_csv('/…')`, `read_text('/etc/hostname')`, `read_blob`, `glob('/*')`, `INSTALL`, `LOAD httpfs`, `ATTACH`, `SET enable_external_access=true`, `SET lock_configuration=false`, `SET memory_limit=…`, a settings `PRAGMA`, `CREATE TABLE`. A cross join of `range()` is stopped by the timeout (`SQL_TIMEOUT`); `list()` over 400M rows fails with `SQL_OUT_OF_MEMORY`; a 12M-row sort over the memory limit completes and leaves spill files in the per-run temp directory, and the same sort on a test-only instance with `max_temp_directory_size` 1 MB fails with `SQL_OUT_OF_SPACE`. A `CREATE TEMP TABLE` is allowed: it lives in the instance's bounded memory and goes with it.
+- **Arm A's text** never reaches an engine prompt or the engine's cache: every arm has its own `ModelClient` (`armModelClient`) built with no response cache and its own call log (`<results>/ablation/<run>.calls.jsonl`, never data/logs/model-calls.jsonl). A test runs arm A twice through that client on a stubbed transport and checks both calls were live, both are in the arm's log, and the engine's cache folders (AA_MODEL_CACHE and evals/.cache) are unchanged.
+
+**Arm A's cut** (`armAText`): documents first, each whole or left out; then every table shows its first k rows (all of them when it has fewer), k the largest that fits the context window minus the system prompt, the answer schema, the question and 1,024 tokens for the answer (estimated tokens, `estimateTokens`). The cut is a sentence in the input ("t_t1 (sales.xlsx#Orders) shows rows 1–843 of 11564 … Answers about the whole data rest on this sample") and beside arm A's results. `--context` sets the window (default: the model's profile, else 32,768).
+
+### 8.3 The answer shapes
+
+Arms A and B answer in a fixed JSON shape (`QuestionAnswer`, `ChangesAnswer` in src/prompts.ts):
+
+- a question: `answer` (prose with the numbers in digits), `member` (for a "which" question), `refused`, `caveat`, and for arm B `sql` (the statements its numbers come from);
+- "what changed": `findings` (at most 10, most important first), each with `metric`, `member` (`{dimension, member}` or null), `before` and `period` (YYYY-MM), `direction`, `drivers` (biggest first) and `summary`; `refused`, `caveat`.
+
+Arm B's final reply is parsed as JSON (the whole reply, a fenced block, or the outermost braces).
+
+### 8.4 Measures
+
+Each has a hand-computed test (test/measures.test.ts, test/numbers.test.ts).
+
+- **Numbers in prose** (`proseNumbers`): thousands separators, decimals, a currency sign, `k`/`M`/`bn`/`thousand`/`million`/`billion`, `%`, and an explicit sign (ASCII or "−"). Excluded: dates and periods (ISO months and days, d/m/y, quarters, month-name dates with a day 1–31, fiscal years, a bare whole number 1900–2100), ordinals ("3rd"), rank sizes ("top 10", "the 5 largest") and numbers echoed from the question. Digits inside a name (`t_t1`, `Q2`) are never read. Words ("ten") are not read.
+- **Readings** of a prose number when compared: itself; for an unsigned number also its negative ("fell by 7,900" for −7,900); for a percent also the fraction. This lenient reading favours arms A and B.
+- **Numeric accuracy:** a numeric item passes when some claimed number, in one of its readings, is within the item's tolerance of the expected answer. **Categorical:** the `member` field equals the expected answer, case-insensitively. Arm C is scored by `scoreGoldenItem` (§2).
+- **Trap pass rate:** a trap passes only on `refused: true`; an answer with a caveat is not a refusal. An answerable item that is refused is a miss.
+- **Unsupported-number rate** (arms A and B, golden): a claimed number is supported when one of its readings is within the item's tolerance, widened to at least 0.5% (prose rounds), of a value in the support set: the dataset's golden answers, arm C's fact values for the same job (its report and its `ask` answers; absent when arm C did not run, which the page states), and the numeric source cells of the columns the item names (`columns`, matched by SQL name or original header). The rate is also reported without source cells. This set is wider than analyst-grade's "the data or the golden set", which favours arms A and B (the conservative direction). Arm C's rate is not computed: every engine number is a fact with a computation.
+- **Driver accuracy, planted recall@5, distractor FP rate** (smoke): each finding becomes the scorer's subject from its structured fields (metric through `armMetric`: snake_case, plain sales words → `revenue`, order counts → `orders`, refund or return rates → `refund_rate`; the member's dimension in snake_case; periods at the key's grain), then `matchesPlanted` and `matchesDistractor` from the eval's scorer decide, as for the engine. Recall counts an event found among the top 5 with the correct driver (the first `drivers` entry, or an accepted alternative). Arm C is scored by `scoreReport`.
+- **Citation validity** (arm B, golden): the answer's citations are its `sql` list (or every statement it ran successfully, when it lists none). Valid when every cited statement is one it ran successfully, re-running it on a fresh locked open of the same file gives the rows it saw, and every number the answer claims is in a re-run result (support tolerance, readings). Answers with no claimed number are not counted.
+- **Tokens and time** per arm: the usage the client reports for the calls that returned (arm C's job and questions included), and wall seconds. A call that failed after its retries reports no usage to the arm, so a failed task under-counts its tokens; the run's call log (`<results>/ablation/<run>.calls.jsonl`) records every call, failed ones included.
+- **Paired differences:** C − A, C − B and B − A over the tasks both arms ran (golden items; smoke planted events, scored 1 when found with the driver), with `pairedBootstrap` (§5). "Adds accuracy" is printed only when the interval's low end is above 0, and never for a scripted run.
+
+### 8.5 Output and the scripted run
+
+Each run writes `<results>/ablation/<date>-<model>-<suite>[-<dataset>].json` (the `AblationResult`) and `.md`: the measures per arm side by side, arm A's cuts, the paired differences with their intervals, and every task's score. `--model baseline` runs offline: arms A and B answer from canned FakeModel scripts built from the answer keys and golden items (src/scripted.ts), and arm C runs the scripted planner (`coffeePlanner` on the mini set, `baselineModel` elsewhere). The page labels it a harness check, not an engine-vs-model comparison. Scripted runs are gitignored (`evals/results/ablation/*-baseline-*`), like baseline smoke runs.
+
+**CI path.** test/ablation.test.ts runs scripted arms A, B and C on the mini golden set and arms A and B on the smoke suite, with expected measures worked out from the canned answers; test/sandbox.test.ts, test/arm-a.test.ts and test/guard.test.ts cover §8.2.
+
 ## 9. The held-out generated set
 
-(§8 is the ablation's, M14 PR 6.) The offline baseline's detection and ranking rules were tuned on the same 30 generated businesses they are scored on (STATE, M13a row), so their scores are optimistic for unseen data. The held-out generated set is a second, separate set from the same generator (evals/generator/src/heldout.ts, analyst-grade §4.6), read only by release runs.
+The offline baseline's detection and ranking rules were tuned on the same 30 generated businesses they are scored on (STATE, M13a row), so their scores are optimistic for unseen data. The held-out generated set is a second, separate set from the same generator (evals/generator/src/heldout.ts, analyst-grade §4.6), read only by release runs.
 
 **What it holds (14 datasets).**
 - **New seeds:** each of the 10 development archetypes once, in variants v1, v2, v3 in turn, with a new seed (`20270000 + 100 × (archetype index + 1) + variant`, no seed of the 30): ids `<archetype>-v<k>-heldout`. The templates and planted months are the 30's; the noise, account shares and order splits are new.
