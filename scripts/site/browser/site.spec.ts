@@ -86,8 +86,10 @@ test("WCAG 2 A/AA (axe) on the live walkthrough: pinned at 1440 mid-story, the t
     await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
     await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 6_000 });
     if (viewport.width === 1440) {
-      await page.locator("[data-walk-next]").click();
-      await page.locator("[data-walk-next]").click();
+      const y = await page
+        .locator('[data-walk-sentinel="2"]')
+        .evaluate((el) => el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.65 + 40);
+      await page.evaluate((v) => window.scrollTo({ top: v, behavior: "instant" }), y);
       await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
       await page.waitForTimeout(1_000);
     } else {
@@ -215,8 +217,8 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
   expect(steps.length).toBeGreaterThanOrEqual(3);
   expect(steps.length).toBeLessThanOrEqual(4);
   const open = page.locator(".aa-note.is-open");
-  // No timer: no Pause or Replay, and nothing advances by itself.
-  await expect(page.locator("[data-walk-pause], [data-walk-replay]")).toHaveCount(0);
+  // No timer and no step controls (prev, next, Pause, Replay): nothing advances by itself, only the scroll moves it.
+  await expect(page.locator(".aa-hero-exhibit button")).toHaveCount(0);
   await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
   await page.waitForTimeout(5_000);
   expect(await shownStep(page)).toBe(0);
@@ -263,10 +265,9 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
       await expect(open.locator("tr.is-cited")).not.toHaveCount(0);
     }
   }
-  // At the last step the rule is full and Next is at its end.
+  // At the last step the rule is full.
   const bar = await page.locator(".aa-walk-progress").evaluate((el) => el.getBoundingClientRect().width);
   expect(Math.abs(lastProgress - bar)).toBeLessThan(2);
-  await expect(page.locator("[data-walk-next]")).toHaveAttribute("aria-disabled", "true");
   // Scrolling back steps back.
   await jumpTo(page, (await sentinelY(2)) - 900 * 0.65 + 40);
   await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(2);
@@ -289,52 +290,40 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
   expect(engineTop - stageBottom, "the band follows the released exhibit").toBeLessThan(200);
 });
 
-test("hero: the arrow keys (with the exhibit focused) and prev/next step through it, scrolling the page to each step", async ({ page }) => {
+test("hero: keyboard scrolling (Page Down, Space) steps the pinned walkthrough, announced; no step control exists", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
   const wrap = page.locator("[data-exhibit]");
+  await expect(wrap).toHaveAttribute("data-walk", "pin");
   const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
-  const body = page.locator(".aa-walk-body");
-  await expect(body).toHaveAttribute("tabindex", "0");
-  await expect(body).toHaveAttribute("role", "group");
-  await expect(body).toHaveAttribute("aria-label", /arrow keys/);
-  await expect(page.locator(".aa-walk-status")).toHaveAttribute("aria-live", "polite");
-  await expect(page.locator(".aa-walk-status")).not.toHaveAttribute("aria-busy", /.*/);
-  await body.focus();
-  const y0 = await page.evaluate(() => window.scrollY);
-  for (let k = 1; k <= steps.length; k++) {
-    await page.keyboard.press("ArrowRight");
-    await expect.poll(() => shownStep(page)).toBe(k);
-    await expect(page.locator(".aa-note.is-open")).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
+  // No controls of its own: no buttons, no focusable group, no key handler to learn.
+  await expect(
+    page.locator(".aa-hero-exhibit button, [data-walk-prev], [data-walk-next], [data-walk-pause], [data-walk-replay]"),
+  ).toHaveCount(0);
+  await expect(page.locator(".aa-walk-body")).not.toHaveAttribute("tabindex", /.*/);
+  // The step is announced politely, and the step's chip says it is current.
+  const status = page.locator(".aa-walk-status");
+  await expect(status).toHaveAttribute("aria-live", "polite");
+  await expect(status).not.toHaveAttribute("aria-busy", /.*/);
+  // The page's own keyboard scrolling drives it: Page Down and Space from the top reach every step, in order.
+  await page.locator("h1").click();
+  const seen: number[] = [];
+  for (let i = 0; i < 12 && (seen.at(-1) ?? 0) < steps.length; i++) {
+    await page.keyboard.press(i % 2 ? "Space" : "PageDown");
+    await page.waitForTimeout(700);
+    const k = await shownStep(page);
+    if (k !== (seen.at(-1) ?? 0)) seen.push(k);
   }
-  // The page scrolled with the steps, so the scroll keeps the step (it doesn't jump back once the scroll settles).
-  await page.waitForTimeout(1_200);
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(y0);
-  expect(await shownStep(page)).toBe(steps.length);
-  await expect(body).toBeFocused();
-  // At the end, ArrowRight does nothing; ArrowLeft steps back.
-  await page.keyboard.press("ArrowRight");
-  expect(await shownStep(page)).toBe(steps.length);
-  await page.keyboard.press("ArrowLeft");
-  await expect.poll(() => shownStep(page)).toBe(steps.length - 1);
-  await page.waitForTimeout(1_200);
-  expect(await shownStep(page)).toBe(steps.length - 1);
-  // The buttons do the same, and keep focus at the ends (aria-disabled, never disabled).
-  const prev = page.locator("[data-walk-prev]");
-  for (let k = steps.length - 2; k >= 0; k--) {
-    await prev.click();
-    await expect.poll(() => shownStep(page)).toBe(k);
-  }
-  await expect(prev).toHaveAttribute("aria-disabled", "true");
-  // aria-disabled, not disabled: still clickable (force: Playwright reads aria-disabled as disabled), still focused.
-  await prev.click({ force: true });
-  await expect(prev).toBeFocused();
-  await page.waitForTimeout(1_200);
-  expect(await shownStep(page)).toBe(0);
-  await page.locator("[data-walk-next]").click();
-  await expect.poll(() => shownStep(page)).toBe(1);
-  await page.waitForTimeout(1_200);
-  expect(await shownStep(page)).toBe(1);
+  expect(seen.at(-1), "the last step is reached").toBe(steps.length);
+  for (let i = 1; i < seen.length; i++) expect(seen[i] ?? 0).toBeGreaterThan(seen[i - 1] ?? 0);
+  await expect(status).toContainText(`${steps.length}/${steps.length}`);
+  await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[steps.length - 1]}"]`)).toHaveAttribute("aria-current", "step");
+  // Page Up goes back.
+  await page.keyboard.press("PageUp");
+  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBeLessThan(steps.length);
+  // Every figure stays reachable by Tab, and focusing one opens its note.
+  await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').focus();
+  await expect(page.locator("#aa-note-N12")).toHaveClass(/is-open/);
 });
 
 test("chips and the SQL toggle are at least 24 px tall to tap or click, and the hit box reaches above and below the chip", async ({
@@ -395,13 +384,15 @@ test("hero: stepping through the walkthrough never moves the page below it (1440
   const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
   const below = () => page.locator("#engine").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
   const y = await below();
-  for (let k = 1; k <= steps.length; k++) {
-    await page.locator("[data-walk-next]").click();
+  const at = (k: number) =>
+    page
+      .locator(`[data-walk-sentinel="${k}"]`)
+      .evaluate((el) => el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.65 + 40);
+  for (const k of [...steps.keys()].map((i) => i + 1).concat([1])) {
+    await jumpTo(page, await at(k));
     await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toBeVisible();
     expect(await below(), `step ${k}`).toBe(y);
   }
-  await page.locator("[data-walk-prev]").click();
-  expect(await below()).toBe(y);
 });
 
 test("hero: on a landscape phone (667 × 375) the figures still verify as the exhibit comes into view", async ({ page }) => {
@@ -918,7 +909,7 @@ test("hero proof chips: every figure is the generated data's, cross-checked agai
   await expect(page.locator(".aa-strip")).toContainText(`real public data: ${expected.real?.figure} checks`);
 });
 
-test("hero type and spacing at 390 and 360: the eyebrow on one line, each headline voice on one line, Pause clear of the exhibit", async ({
+test("hero type and spacing at 390 and 360: the eyebrow on one line, each headline voice on one line, a full gap above the exhibit", async ({
   browser,
 }) => {
   for (const width of [390, 360]) {
@@ -939,15 +930,15 @@ test("hero type and spacing at 390 and 360: the eyebrow on one line, each headli
     expect(lines.serif, `${width}: serif voice`).toBe(1);
     const eyebrowH = await page.locator(".aa-hero-eyebrow").evaluate((el) => el.getBoundingClientRect().height);
     expect(eyebrowH, `${width}: the eyebrow tag is one line tall`).toBeLessThan(32);
-    // The pause control has its own slot: a full row gap (at least 32px) between it and the exhibit's label.
-    const toggle = page.locator("[data-hf-toggle]");
-    await expect(toggle).toBeVisible({ timeout: 5_000 });
+    // No pause control (site v5 PR 2, the maintainer's call): a full row gap (at least 32px) from the install line to the
+    // exhibit's label.
+    await expect(page.locator("[data-hf-toggle], .aa-hero button")).toHaveCount(0);
     const gap = await page.evaluate(() => {
-      const t = (document.querySelector("[data-hf-toggle]") as HTMLElement).getBoundingClientRect();
+      const t = (document.querySelector(".aa-hero-cmd-frame") as HTMLElement).getBoundingClientRect();
       const l = (document.querySelector(".aa-exhibit-label") as HTMLElement).getBoundingClientRect();
       return l.top - t.bottom;
     });
-    expect(gap, `${width}: Pause to the exhibit's label`).toBeGreaterThanOrEqual(32);
+    expect(gap, `${width}: install line to the exhibit's label`).toBeGreaterThanOrEqual(32);
     await ctx.close();
   }
 });
@@ -1853,7 +1844,9 @@ test.describe("motion", () => {
   const frames = (page: import("@playwright/test").Page) =>
     page.locator(NET).evaluate((c) => (c as HTMLCanvasElement & { aaFrames?: number }).aaFrames ?? 0);
 
-  test("hero field: the net drifts while the hero is on screen, and pauses off-screen, in a hidden tab and on Pause", async ({ page }) => {
+  test("hero field: the net drifts while the hero is on screen, and pauses off-screen and in a hidden tab; it has no pause control", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(LANDING, { waitUntil: "networkidle" });
     const net = page.locator(NET);
@@ -1912,15 +1905,8 @@ test.describe("motion", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     await expect(net).toHaveAttribute("data-state", "running");
-    // The Pause control (WCAG 2.2.2) stops it, and Play starts it again.
-    const toggle = page.locator("[data-hf-toggle]");
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect(toggle).toHaveText("Play background");
-    await expect(net).toHaveAttribute("data-state", "paused");
-    await toggle.click();
-    await expect(net).toHaveAttribute("data-state", "running");
+    // No pause control (site v5 PR 2): the maintainer accepts the WCAG 2.2.2 trade-off; reduced motion turns it off.
+    await expect(page.locator("[data-hf-toggle]")).toHaveCount(0);
   });
 
   test("hero field: under reduced motion and without JS the net is absent; the static grid, glow and grain remain", async ({ browser }) => {
@@ -1936,7 +1922,6 @@ test.describe("motion", () => {
         const net = page.locator(NET);
         await expect(net).toHaveAttribute("data-state", "off");
         expect(await frames(page)).toBe(0);
-        await expect(page.locator("[data-hf-toggle]")).toBeHidden();
         if (opts.reducedMotion) expect(await net.evaluate((c) => getComputedStyle(c).display)).toBe("none");
         for (const layer of [".aa-hf-grid", ".aa-hf-glow", ".aa-hf-grain"])
           expect(await page.locator(layer).evaluate((el) => getComputedStyle(el).backgroundImage), layer).not.toBe("none");
@@ -1945,7 +1930,7 @@ test.describe("motion", () => {
     }
   });
 
-  test("hero field: no layout shift as it starts, fades in and shows its control (1440, 390)", async ({ browser }) => {
+  test("hero field: no layout shift as it starts and fades in (1440, 390)", async ({ browser }) => {
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -1974,7 +1959,7 @@ test.describe("motion", () => {
               const el = s.node instanceof Element ? s.node : (s.node?.parentElement ?? null);
               // The field, its control and the corner marks: what this adds to the hero. (The font swap may still nudge
               // a word of the statement by a pixel early on; that is the page's font budget, counted in the total.)
-              return Boolean(el?.closest(".aa-hero-field, .aa-hf-toggle, .aa-hero-corners"));
+              return Boolean(el?.closest(".aa-hero-field, .aa-hero-corners"));
             });
             if (inHero) {
               w.aaHeroShift += e.value;
@@ -1991,14 +1976,13 @@ test.describe("motion", () => {
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
       const before = await page.locator(".aa-statement").boundingBox();
       await expect(page.locator(NET)).toHaveAttribute("data-state", "running", { timeout: 5_000 });
-      await expect(page.locator("[data-hf-toggle]")).toBeVisible();
       await page.waitForTimeout(800); // the fade-in
       expect(await page.locator(".aa-statement").boundingBox(), `${viewport.width}: the statement keeps its box`).toEqual(before);
       const { aaHeroShift, aaShiftTotal } = await page.evaluate(() => {
         const w = window as unknown as { aaHeroShift: number; aaShiftTotal: number };
         return { aaHeroShift: w.aaHeroShift, aaShiftTotal: w.aaShiftTotal };
       });
-      expect(aaHeroShift, `${viewport.width}: shifts in the hero field, its control or the corner marks`).toBe(0);
+      expect(aaHeroShift, `${viewport.width}: shifts in the hero field or the corner marks`).toBe(0);
       expect(aaShiftTotal, `${viewport.width}: CLS on load`).toBeLessThan(0.05);
       await ctx.close();
     }

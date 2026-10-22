@@ -584,9 +584,6 @@ AA_DEMO_MODEL=scripted \
   .aa-statement {
     position: relative;
     isolation: isolate;
-    /* The pause control's own slot under the install line (HeroField.astro): reserved, so showing it moves nothing and
-       it keeps the row's full gap from the exhibit's label below it when stacked. */
-    padding-bottom: calc(1.5rem + var(--aa-space-4));
     container-type: inline-size; /* the field centres its glow on the statement with cqi */
     display: grid;
     grid-template-columns: minmax(0, 1fr);
