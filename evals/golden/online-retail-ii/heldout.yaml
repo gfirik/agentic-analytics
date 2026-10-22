@@ -1,0 +1,36 @@
+# Golden set, held-out split (docs/specs/accuracy.md §1–§4): UCI Online Retail II, the 10% invoice sample. Read only
+# by release runs (`bun run eval:golden -- --split heldout`); no file under packages/ or apps/ may read it (a test
+# checks). FILE in each `sql` stands for evals/real/data/online_retail_II.sample10.csv, read raw as in golden.yaml.
+#
+# Unreviewed: no item carries a `review` yet, so none counts toward the bars until an independent session re-derives
+# it (accuracy.md §3).
+dataset: online-retail-ii
+items:
+  - id: G9
+    question: What were total net sales (quantity × price, cancellations netted in) in calendar 2010?
+    kind: numeric
+    expected: 853618.8
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [Quantity, Price, InvoiceDate]
+    sql: >-
+      SELECT round(sum(Quantity::DOUBLE * Price::DOUBLE), 2) FROM read_csv('FILE', all_varchar = true)
+      WHERE left(InvoiceDate, 4) = '2010'
+    split: heldout
+  - id: G10
+    question: Outside the United Kingdom, which country had the highest net sales in 2011?
+    kind: categorical
+    expected: Netherlands
+    source: { kind: ask }
+    columns: [Country, Quantity, Price, InvoiceDate]
+    sql: >-
+      SELECT Country FROM read_csv('FILE', all_varchar = true)
+      WHERE left(InvoiceDate, 4) = '2011' AND Country <> 'United Kingdom'
+      GROUP BY Country ORDER BY sum(Quantity::DOUBLE * Price::DOUBLE) DESC LIMIT 1
+    split: heldout
+  - id: G11
+    question: What will net sales be in January 2012?
+    kind: trap
+    reason: The data ends on 2011-12-09 and the engine makes no forecasts; the right answer is a refusal.
+    source: { kind: ask }
+    split: heldout

@@ -201,6 +201,48 @@ export function missingRealData(answersDir: string, dataDir: string): string[] {
     .map(({ answers }) => answers.dataset);
 }
 
+/**
+ * The dataset's derived file, read from `dataDir`. A public dataset's bytes must match its pinned checksum; the
+ * checksum returned is of the bytes read, never the manifest's constant, so an edited file can't claim it.
+ */
+export function readRealFile(answers: RealAnswers, dataDir: string): { bytes: Uint8Array; sha256: string } {
+  const meta = REAL_DATASETS.find((d) => d.id === answers.dataset);
+  const bytes = new Uint8Array(readFileSync(join(dataDir, answers.file)));
+  const read = sha256(bytes);
+  if (meta && read !== meta.derived.sha256)
+    throw new EvalRunError(
+      "CHECKSUM_MISMATCH",
+      `${answers.file} does not match its pinned checksum (${read} ≠ ${meta.derived.sha256}); run eval:real:fetch again`,
+    );
+  return { bytes, sha256: read };
+}
+
+/**
+ * Runs the engine on the answer file's dataset in `dir`, as the real tier does, and leaves the job there (the golden
+ * runner asks follow-up questions of it). With `confirmed_metrics`, the product's own review flow: the job pauses at
+ * AWAIT_CONFIRM, the definitions are confirmed, it resumes.
+ */
+export async function runRealJob(
+  answers: RealAnswers,
+  answersDir: string,
+  bytes: Uint8Array,
+  dir: string,
+  deps: { readonly model: ModelClient; readonly embedder: Embedder },
+): Promise<Report> {
+  const options: JobOptions = {
+    today: answers.options.today,
+    ...(answers.options.currency ? { currency: answers.options.currency } : {}),
+    ...(answers.confirmed_metrics ? { autoConfirm: false } : {}),
+  };
+  const input = { dir, jobId: answers.dataset, files: [{ name: answers.file, bytes }], options };
+  if (!answers.confirmed_metrics) return (await runJob(input, deps)).report;
+  await runJob(input, deps).catch((err: unknown) => {
+    if (!(err instanceof Error && "code" in err && err.code === "AWAITING_CONFIRMATION")) throw err;
+  });
+  await confirmJobMetrics(dir, readFileSync(join(answersDir, answers.confirmed_metrics), "utf8"));
+  return (await runJob({ dir }, deps)).report;
+}
+
 export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> {
   const all = loadRealAnswers(o.answersDir);
   const results: RealDatasetResult[] = [];
@@ -212,21 +254,9 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
         "UNKNOWN_DATASET",
         `answer file for unknown dataset ${answers.dataset} (for your own data, give the answer file a \`title\`)`,
       );
-    const dir = mkdtempSync(join(tmpdir(), `aa-real-${answers.dataset}-`));
     const started = Date.now();
-    const options: JobOptions = {
-      today: answers.options.today,
-      ...(answers.options.currency ? { currency: answers.options.currency } : {}),
-      ...(answers.confirmed_metrics ? { autoConfirm: false } : {}),
-    };
-    const bytes = new Uint8Array(readFileSync(join(o.dataDir, answers.file)));
-    // The published checksum is of the bytes read, never the manifest's constant: an edited file must not claim it.
-    const read = sha256(bytes);
-    if (meta && read !== meta.derived.sha256)
-      throw new EvalRunError(
-        "CHECKSUM_MISMATCH",
-        `${answers.file} does not match its pinned checksum (${read} ≠ ${meta.derived.sha256}); run eval:real:fetch again`,
-      );
+    const { bytes, sha256: read } = readRealFile(answers, o.dataDir);
+    const dir = mkdtempSync(join(tmpdir(), `aa-real-${answers.dataset}-`));
     // A public dataset is described by its manifest; your own data by its answer file, with the file's own checksum.
     const about = meta
       ? {
@@ -241,18 +271,7 @@ export async function runRealSuite(o: RealRunOptions): Promise<RealSuiteResult> 
     let report: Report | undefined;
     let error: string | undefined;
     try {
-      const input = { dir, jobId: answers.dataset, files: [{ name: answers.file, bytes }], options };
-      const deps = { model: o.model(), embedder: o.embedder };
-      if (answers.confirmed_metrics) {
-        // The product's own review flow: the job pauses at AWAIT_CONFIRM, the definitions are confirmed, it resumes.
-        await runJob(input, deps).catch((err: unknown) => {
-          if (!(err instanceof Error && "code" in err && err.code === "AWAITING_CONFIRMATION")) throw err;
-        });
-        await confirmJobMetrics(dir, readFileSync(join(answersDir, answers.confirmed_metrics), "utf8"));
-        report = (await runJob({ dir }, deps)).report;
-      } else {
-        report = (await runJob(input, deps)).report;
-      }
+      report = await runRealJob(answers, answersDir, bytes, dir, { model: o.model(), embedder: o.embedder });
       if (o.keepReports) {
         mkdirSync(o.keepReports, { recursive: true });
         writeFileSync(join(o.keepReports, `${answers.dataset}.json`), `${JSON.stringify(report, null, 2)}\n`);
