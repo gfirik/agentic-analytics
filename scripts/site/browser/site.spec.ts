@@ -379,7 +379,7 @@ test("landing: the strip, header and install line keep their height while the fo
   // font, so they are measured in the fallback faces and again once the web fonts are in. Glyphs re-centring inside
   // their boxes depends on the machine's fallback fonts and is not tested here; Lighthouse measures CLS 0.
   // The web fonts are held; the local metric-matched fallback faces (fonts.css, "… Fallback") load at once.
-  const boxes = [".aa-strip", ".aa-header", ".aa-hero-cmd"];
+  const boxes = [".aa-strip", ".aa-header", ".aa-hero-cmd", ".aa-hero-title", ".aa-actions", ".aa-hero-proof"];
   for (const [width, height] of [
     [390, 844],
     [1440, 900],
@@ -751,6 +751,144 @@ test("the status strip leads with proven results and links the nightly regressio
   );
   await expect(page.locator(".aa-strip")).not.toContainText(/in progress|partial/);
   await expect(page.locator(".aa-strip a")).toHaveAttribute("href", "#results");
+});
+
+test("hero proof chips: every figure is the generated data's, cross-checked against the runs it names (site v5 PR 1b)", async ({
+  page,
+}) => {
+  const DATA = join(import.meta.dirname, "../../../apps/docs/src/data");
+  const evals = JSON.parse(readFileSync(join(DATA, "evals.json"), "utf8")) as {
+    proof: { id: string; figure: string; text: string; href: string; source: string }[];
+    real: { file: string; datasets: { checks: { pass: boolean }[] }[] };
+    smoke: { file: string; bars: { metric: string; value: number | null }[] };
+  };
+  const pipeline = JSON.parse(readFileSync(join(import.meta.dirname, "../../../docs/assets/readme/pipeline.json"), "utf8")) as {
+    checks: { check: string }[];
+  };
+  // The figures, recomputed here from the runs themselves rather than read back from the chips' own data.
+  const checks = evals.real.datasets.flatMap((d) => d.checks);
+  const mismatches = evals.smoke.bars.find((b) => b.metric === "Number mismatches")?.value;
+  const expected: Record<string, { figure: string; href: string; source: RegExp }> = {
+    real: { figure: `${checks.filter((c) => c.pass).length}/${checks.length}`, href: "#results", source: new RegExp(evals.real.file) },
+    numbers: { figure: String(mismatches), href: "#results", source: new RegExp(evals.smoke.file) },
+    verifier: { figure: `V1–V${pipeline.checks.length}`, href: `${BASE}/how-it-works/verifier/`, source: /checks on every report/ },
+    local: { figure: "", href: `${BASE}/models/running-free/`, source: /ollama:.*transformers:/ },
+  };
+  expect(evals.proof.map((c) => c.id)).toEqual(["real", "numbers", "verifier", "local"]);
+  await page.goto(LANDING);
+  const chips = page.locator(".aa-hero-proof .aa-pchip");
+  await expect(chips).toHaveCount(4);
+  for (const [i, c] of evals.proof.entries()) {
+    const want = expected[c.id] as (typeof expected)[string];
+    const chip = chips.nth(i);
+    expect(c.figure, c.id).toBe(want.figure);
+    await expect(chip).toHaveAttribute("data-proof", c.id);
+    await expect(chip).toHaveAttribute("href", want.href);
+    await expect(chip).toHaveAttribute("title", want.source);
+    // What the chip shows is the figure and the text, nothing typed beside them; its source is read after it.
+    await expect(chip.locator(".aa-pchip-text")).toHaveText(c.text);
+    if (want.figure) await expect(chip.locator(".aa-pchip-figure")).toHaveText(want.figure);
+    else await expect(chip.locator(".aa-pchip-figure")).toHaveCount(0);
+    await expect(chip.locator("svg")).toHaveCount(1);
+  }
+  // The real-data figure is the status strip's figure, the same run.
+  await expect(page.locator(".aa-strip")).toContainText(`real public data: ${expected.real?.figure} checks`);
+});
+
+test("hero type and spacing at 390 and 360: the eyebrow on one line, each headline voice on one line, Pause clear of the exhibit", async ({
+  browser,
+}) => {
+  for (const width of [390, 360]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 844 } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const lines = await page.evaluate(() => {
+      const one = (sel: string) => {
+        const el = document.querySelector(sel) as HTMLElement;
+        const lh = Number.parseFloat(getComputedStyle(el).lineHeight) || Number.parseFloat(getComputedStyle(el).fontSize) * 1.2;
+        return Math.round(el.getBoundingClientRect().height / lh);
+      };
+      return { eyebrow: one(".aa-hero-eyebrow"), sans: one(".aa-hero-title-sans"), serif: one(".aa-hero-title-serif") };
+    });
+    expect(lines.eyebrow, `${width}: eyebrow`).toBeLessThanOrEqual(2); // one line in a padded tag
+    expect(await page.locator(".aa-hero-eyebrow").evaluate((el) => el.getClientRects().length)).toBe(1);
+    expect(lines.sans, `${width}: sans voice`).toBe(1);
+    expect(lines.serif, `${width}: serif voice`).toBe(1);
+    const eyebrowH = await page.locator(".aa-hero-eyebrow").evaluate((el) => el.getBoundingClientRect().height);
+    expect(eyebrowH, `${width}: the eyebrow tag is one line tall`).toBeLessThan(32);
+    // The pause control has its own slot: a full row gap (at least 32px) between it and the exhibit's label.
+    const toggle = page.locator("[data-hf-toggle]");
+    await expect(toggle).toBeVisible({ timeout: 5_000 });
+    const gap = await page.evaluate(() => {
+      const t = (document.querySelector("[data-hf-toggle]") as HTMLElement).getBoundingClientRect();
+      const l = (document.querySelector(".aa-exhibit-label") as HTMLElement).getBoundingClientRect();
+      return l.top - t.bottom;
+    });
+    expect(gap, `${width}: Pause to the exhibit's label`).toBeGreaterThanOrEqual(32);
+    await ctx.close();
+  }
+});
+
+test("hero glow: the lead and headline keep AA over the accent at its strongest behind them (1440, 1100, 390)", async ({ browser }) => {
+  for (const [width, height] of [
+    [1440, 900],
+    [1100, 800],
+    [390, 844],
+  ] as const) {
+    const ctx = await browser.newContext({ viewport: { width, height }, reducedMotion: "reduce" });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const colours = await page.evaluate(() => ({
+      lead: getComputedStyle(document.querySelector(".aa-statement > .aa-lead") as Element).color,
+      title: getComputedStyle(document.querySelector(".aa-hero-title") as Element).color,
+    }));
+    // Only the glow behind the text: the text made transparent, the paper's 1px lines and the grain hidden (they are
+    // the page's existing graph paper, not this background), then the darkest pixel under each block is read.
+    await page.addStyleTag({
+      content:
+        ".aa-statement *{color:transparent!important;text-decoration-color:transparent!important} .aa-hf-grid,.aa-hf-grain,.aa-hf-net{display:none!important}",
+    });
+    await page.waitForTimeout(200);
+    const png = (await page.screenshot()).toString("base64");
+    const ratios = await page.evaluate(
+      async ({ png, colours }) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${png}`;
+        await img.decode();
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const g = c.getContext("2d") as CanvasRenderingContext2D;
+        g.drawImage(img, 0, 0);
+        const lin = (v: number) => {
+          const x = v / 255;
+          return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+        };
+        const lum = (r: number, gr: number, b: number) => 0.2126 * lin(r) + 0.7152 * lin(gr) + 0.0722 * lin(b);
+        const of = (css: string) => {
+          const [r, gr, b] = (css.match(/\d+/g) ?? []).map(Number) as [number, number, number];
+          return lum(r, gr, b);
+        };
+        const ratio = (sel: string, fg: string) => {
+          const r = (document.querySelector(sel) as Element).getBoundingClientRect();
+          const d = g.getImageData(
+            Math.max(0, r.x),
+            Math.max(0, r.y),
+            Math.min(r.width, c.width - r.x),
+            Math.min(r.height, c.height - r.y),
+          ).data;
+          let min = 1;
+          for (let i = 0; i < d.length; i += 4) min = Math.min(min, lum(d[i] as number, d[i + 1] as number, d[i + 2] as number));
+          return (min + 0.05) / (of(fg) + 0.05);
+        };
+        return { lead: ratio(".aa-statement > .aa-lead", colours.lead), title: ratio(".aa-hero-title", colours.title) };
+      },
+      { png, colours },
+    );
+    expect(ratios.lead, `${width}: lead`).toBeGreaterThanOrEqual(4.5);
+    expect(ratios.title, `${width}: headline`).toBeGreaterThanOrEqual(4.5);
+    await ctx.close();
+  }
 });
 
 test("Learn: sidenotes sit in the margin beside their line at 1440 px, and expand inline on tap under 1000 px", async ({ page }) => {
@@ -1600,6 +1738,23 @@ test.describe("motion", () => {
     const a = await frames(page);
     await page.waitForTimeout(600);
     expect(await frames(page), "draws while on screen").toBeGreaterThan(a + 5);
+    // Site v5 PR 1b: the connectors draw themselves in, pulses run along them, and it never draws past 30 fps.
+    type Debug = HTMLCanvasElement & { aaFrames?: number; aaLinks?: number; aaDrawn?: number; aaPulses?: number };
+    const stats = () =>
+      net.evaluate((c: Debug) => ({ frames: c.aaFrames ?? 0, links: c.aaLinks ?? 0, drawn: c.aaDrawn ?? 0, pulses: c.aaPulses ?? 0 }));
+    const t0 = await stats();
+    const started = Date.now();
+    let pulsed = 0;
+    for (let k = 0; k < 10; k++) {
+      await page.waitForTimeout(200);
+      pulsed = Math.max(pulsed, (await stats()).pulses);
+    }
+    const t1 = await stats();
+    const fps = ((t1.frames - t0.frames) * 1000) / (Date.now() - started);
+    expect(fps, "frames a second").toBeLessThanOrEqual(31);
+    expect(t1.links, "connectors").toBeGreaterThanOrEqual(12);
+    expect(t1.drawn, "connectors drawn in").toBeGreaterThanOrEqual(12);
+    expect(pulsed, "pulses along the connectors").toBeGreaterThanOrEqual(1);
     // The backing store is DPR-aware and capped, and the canvas is sized by CSS (it never sizes the layout).
     const size = await net.evaluate((c: HTMLCanvasElement) => ({
       w: c.width,
