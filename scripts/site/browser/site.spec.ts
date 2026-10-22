@@ -378,6 +378,7 @@ test("landing: the strip, header and install line keep their height while the fo
   // when its menu script ran late): the page below moved (Lighthouse CLS 0.05). Their heights must not depend on the
   // font, so they are measured in the fallback faces and again once the web fonts are in. Glyphs re-centring inside
   // their boxes depends on the machine's fallback fonts and is not tested here; Lighthouse measures CLS 0.
+  // The web fonts are held; the local metric-matched fallback faces (fonts.css, "… Fallback") load at once.
   const boxes = [".aa-strip", ".aa-header", ".aa-hero-cmd"];
   for (const [width, height] of [
     [390, 844],
@@ -396,12 +397,12 @@ test("landing: the strip, header and install line keep their height while the fo
     const heights = () => page.evaluate((sel) => sel.map((s) => document.querySelector(s)?.getBoundingClientRect().height ?? -1), boxes);
     await page.goto(LANDING, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded"))).toBe(false);
+    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded" && !f.family.endsWith("Fallback")))).toBe(false);
     const before = await heights();
     release();
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded"))).toBe(true);
+    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded" && !f.family.endsWith("Fallback")))).toBe(true);
     expect(await heights(), `${width} px`).toEqual(before);
     await ctx.close();
   }
