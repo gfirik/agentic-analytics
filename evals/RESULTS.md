@@ -126,64 +126,64 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 
 
 </details>
 
-### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-17
+### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-21
 
-**Partial run: 8 of 30 jobs finished** (pass of 2026-10-17 20:46–21:01 UTC, after the M13h fixes). Same Groq roles as the smoke run. Groq's free tier allows 200k tokens a day for qwen/qwen3.8-27b, so the other jobs stopped on the rate limit (RATE_LIMITED, never switching models); coffee_roaster-v1, which finished in an earlier pass, failed this one on a network error ("Cannot connect to API") in DECIDE; its DECIDE request changed with the M13h input budget, so the next pass re-sends that call live (its earlier calls are cached). The rates below count every unfinished job as a miss, so they are not the model's quality. Over the 8 finished jobs (coffee_roaster v2–v3, printing_shop v1–v3, clinic v1–v2, saas-v2): 10 of 14 planted events found, 0 of 12 distractors reported, 10 of 10 quality issues found, 0 number mismatches. printing_shop-v1 now finishes: with the M13h small-model input budget every planner call with a token count in this pass stayed at or under 5,378 input tokens (the tier allows 7,000 per minute). One pass runs per day after the quota resets (scripts/eval-daily.sh; finished calls are cached) until every job finishes.
+Passes: 2026-10-20, 2026-10-21 (2 of up to 2; every job finished).
 
-30 datasets · 929 s · 488896 tokens
+30 datasets · 1681 s · 1007951 tokens
 
 Usage: n/a (tokens per call not recorded for this run)
 
-Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (314 calls, 269 cached, 1 failed); judge → openai-compatible:groq:openai/gpt-oss-20b (32 calls, 30 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (58 calls, 40 cached, 3 failed)
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (540 calls, 467 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (120 calls, 111 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (177 calls, 96 cached, 35 failed)
 
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
-| Jobs completed | 26.7% | 100% | **no** |
-| Number mismatches | 0 | 0 | n/a (partial run) |
-| Planted recall@5 | 20.0% | ≥ 80% | n/a (partial run) |
-| Driver accuracy | 100.0% | ≥ 90% | n/a (partial run) |
-| Cause grade accuracy | 70.0% | ≥ 80% | n/a (partial run) |
-| Distractor FP rate | 0.0% | ≤ 10% | n/a (partial run) |
-| Quality-issue recall | 25.0% | ≥ 90% | n/a (partial run) |
-| Citation precision | 100.0% | ≥ 95% | n/a (partial run) |
-| Definition adherence | 100.0% | 100% | n/a (partial run) |
-| Recommendation grounding | 100.0% | 100% | n/a (partial run) |
-| Recommendation relevance | 50.0% | ≥ 70% | n/a (partial run) |
+| Jobs completed | 100.0% | 100% | yes |
+| Number mismatches | 0 | 0 | yes |
+| Planted recall@5 | 68.0% | ≥ 80% | **no** |
+| Driver accuracy | 100.0% | ≥ 90% | yes |
+| Cause grade accuracy | 67.6% | ≥ 80% | **no** |
+| Distractor FP rate | 0.0% | ≤ 10% | yes |
+| Quality-issue recall | 100.0% | ≥ 90% | yes |
+| Citation precision | 100.0% | ≥ 95% | yes |
+| Definition adherence | 96.7% | 100% | **no** |
+| Recommendation grounding | 100.0% | 100% | yes |
+| Recommendation relevance | 30.0% | ≥ 70% | **no** |
 
 <details><summary>Per dataset</summary>
 
 | Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
 |---|---|---|---|---|---|---|
-| coffee_roaster-v1 | no (PROVIDER: DECIDE failed: Cannot connect to API: ) | 0/1 | none | 0/2 | 0 | 11.3 s |
-| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 7.4 s |
-| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 26.4 s |
-| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 102.6 s |
-| printing_shop-v2 | yes | 1/2 | none | 1/1 | 3 | 52.9 s |
-| printing_shop-v3 | yes | 1/2 | none | 1/1 | 3 | 20.1 s |
-| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 4.6 s |
-| clinic-v2 | yes | 1/2 | none | 1/1 | 3 | 96.7 s |
-| clinic-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 175.9 s |
-| online_store-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 4.0 s |
-| online_store-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 6.5 s |
-| online_store-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 8.8 s |
-| distributor-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 2.4 s |
-| distributor-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.0 s |
-| distributor-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 8.6 s |
-| restaurant-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 3.0 s |
-| restaurant-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.2 s |
-| restaurant-v3 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 6.5 s |
-| saas-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 6.1 s |
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 4.5 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 7.0 s |
+| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 5.7 s |
+| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 4.0 s |
+| printing_shop-v2 | yes | 1/2 | none | 1/1 | 3 | 5.9 s |
+| printing_shop-v3 | yes | 1/2 | none | 1/1 | 3 | 5.3 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 4.4 s |
+| clinic-v2 | yes | 1/2 | none | 1/1 | 3 | 7.8 s |
+| clinic-v3 | yes | 1/2 | none | 1/1 | 3 | 5.2 s |
+| online_store-v1 | yes | 1/1 | none | 2/2 | 3 | 4.5 s |
+| online_store-v2 | yes | 1/2 | none | 1/1 | 3 | 11.1 s |
+| online_store-v3 | yes | 1/2 | none | 1/1 | 3 | 8.4 s |
+| distributor-v1 | yes | 1/1 | none | 2/2 | 3 | 2.8 s |
+| distributor-v2 | yes | 1/2 | none | 1/1 | 3 | 5.0 s |
+| distributor-v3 | yes | 1/2 | none | 1/1 | 3 | 70.2 s |
+| restaurant-v1 | yes | 1/1 | none | 2/2 | 3 | 3.7 s |
+| restaurant-v2 | yes | 2/2 | none | 1/1 | 3 | 36.7 s |
+| restaurant-v3 | yes | 1/2 | none | 1/1 | 3 | 7.4 s |
+| saas-v1 | yes | 1/1 | none | 2/2 | 3 | 137.7 s |
 | saas-v2 | yes | 2/2 | none | 1/1 | 3 | 4.9 s |
-| saas-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 7.8 s |
-| logistics-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 10.8 s |
-| logistics-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 133.0 s |
-| logistics-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 139.2 s |
-| construction_supplier-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 58.9 s |
-| construction_supplier-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 11.8 s |
-| construction_supplier-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 3.0 s |
-| agency-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 1.2 s |
-| agency-v2 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 1.6 s |
-| agency-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 2.2 s |
+| saas-v3 | yes | 1/2 | none | 1/1 | 3 | 6.5 s |
+| logistics-v1 | yes | 1/1 | none | 2/2 | 3 | 76.8 s |
+| logistics-v2 | yes | 2/2 | none | 1/1 | 3 | 119.5 s |
+| logistics-v3 | yes | 1/2 | none | 1/1 | 3 | 190.8 s |
+| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 3 | 215.3 s |
+| construction_supplier-v2 | yes | 1/2 | none | 1/1 | 3 | 248.0 s |
+| construction_supplier-v3 | yes | 1/2 | none | 1/1 | 3 | 176.8 s |
+| agency-v1 | yes | 1/1 | none | 2/2 | 3 | 206.1 s |
+| agency-v2 | yes | 1/2 | none | 1/1 | 3 | 89.6 s |
+| agency-v3 | yes | 1/2 | none | 1/1 | 3 | 8.9 s |
 
 </details>
 
