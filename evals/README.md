@@ -4,7 +4,7 @@ The eval suite: how we prove the engine works (docs/EVALS.md). Results are in [R
 
 | Folder | What |
 |---|---|
-| [generator/](generator/README.md) | The seeded generator of the 30 synthetic businesses (10 archetypes × 3 variants) with planted events |
+| [generator/](generator/README.md) | The seeded generator of the 30 synthetic businesses (10 archetypes × 3 variants) with planted events, and of the held-out generated set (14 businesses, two of them new archetypes; release runs only, docs/specs/accuracy.md §9) |
 | [datasets/](datasets/) | Hand-built datasets and the generated answer keys |
 | [runner/](runner/README.md) | `aa eval`: runs a suite, scores every report, writes `results/*.json` and `RESULTS.md` |
 | [real/](real/README.md) | The real-data tier: public datasets as published, with SQL-backed checks |

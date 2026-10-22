@@ -176,9 +176,9 @@ describe("mergeChunks (bun run eval:merge)", () => {
     tokens: { input: 0, output: 0 },
   });
   const order = ["a-v1", "b-v1"];
-  it("refuses a suite other than smoke or full", () => {
+  it("refuses a suite other than smoke, full or heldout", () => {
     expect(() => mergeChunks({ label: LABEL, suite: "real" }, [run("configured", "a-v1")], order)).toThrow(
-      /--suite must be smoke or full, not "real"/,
+      /--suite must be smoke, full or heldout, not "real"/,
     );
   });
   it("refuses chunks run in the other mode than --small-model says", () => {

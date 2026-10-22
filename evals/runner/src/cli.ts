@@ -1,4 +1,4 @@
-// `aa eval --suite smoke|full --model baseline|configured|<provider:model>` (docs/EVALS.md §3): runs the suite,
+// `aa eval --suite smoke|full|heldout --model baseline|configured|<provider:model>` (docs/EVALS.md §3): runs the suite,
 // writes `evals/results/<date>-<model>-<suite>.json` and regenerates `evals/RESULTS.md` from every results file.
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -87,7 +87,7 @@ export function readPrevious(path: string): SuiteResult | EvalRunError {
     const ok =
       r !== null &&
       typeof r === "object" &&
-      (r.suite === "smoke" || r.suite === "full") &&
+      (r.suite === "smoke" || r.suite === "full" || r.suite === "heldout") &&
       typeof r.model === "string" &&
       typeof r.date === "string" &&
       Array.isArray(r.scores) &&
@@ -156,7 +156,7 @@ export function selectDatasets(suite: Suite, only?: readonly string[], from?: re
 }
 
 /**
- * `bun run eval:merge`: checks the arguments against the chunks, then mergeResults. The suite must be smoke or full,
+ * `bun run eval:merge`: checks the arguments against the chunks, then mergeResults. The suite must be smoke, full or heldout,
  * and every chunk must have run in the mode `smallModel` says (its model name carries the small-model suffix).
  */
 export function mergeChunks(
@@ -164,7 +164,8 @@ export function mergeChunks(
   parts: readonly SuiteResult[],
   order?: readonly string[],
 ): SuiteResult {
-  if (a.suite !== "smoke" && a.suite !== "full") throw new EvalRunError("USAGE", `--suite must be smoke or full, not "${a.suite}"`);
+  if (a.suite !== "smoke" && a.suite !== "full" && a.suite !== "heldout")
+    throw new EvalRunError("USAGE", `--suite must be smoke, full or heldout, not "${a.suite}"`);
   const small = a.smallModel === true;
   const mismatched = parts.filter((p) => p.model.endsWith(" (small-model mode)") !== small);
   if (mismatched.length)
@@ -533,7 +534,9 @@ export function resultsPage(dir: string): string {
   for (const r of files) if (r.suite === "real") latestReal.set(r.model, r);
   const latest = new Map<string, SuiteResult>();
   for (const r of all) latest.set(`${r.suite} ${r.model}`, r);
-  const ordered = [...latest.values()].sort((x, y) => (x.suite === y.suite ? x.model.localeCompare(y.model) : x.suite === "full" ? -1 : 1));
+  // Full suites first, then the held-out set (release runs), then smoke runs.
+  const rank = (suite: string) => (suite === "full" ? 0 : suite === "heldout" ? 1 : 2);
+  const ordered = [...latest.values()].sort((x, y) => rank(x.suite) - rank(y.suite) || x.model.localeCompare(y.model));
   const real = [...latestReal.values()].sort((x, y) => x.model.localeCompare(y.model));
   return [
     "# Eval results",
@@ -542,7 +545,7 @@ export function resultsPage(dir: string): string {
     "",
     "Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variants) with planted events, distractors and data-quality issues. Retrieval recall@8 and the injection suite run separately (`bun run --filter @agentic-analytics/retrieval eval:retrieval`, `bunx vitest run packages/core/test/injection.test.ts`).",
     "",
-    "No held-out set: the engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every score here is optimistic for unseen data. Of the Groq tables, the three single-model smoke runs (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b alone) predate the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions). The \"planner, extractor, judge\" smoke run used the M13a engine, before the merge's representative-rule fix (a template with no measured change keeps its priority), which changes nothing per dataset on the offline baseline. Its full run (2026-10-20/21, over two nights) used the engine just before the M14a fixes (#44–#49) and the scoring before code-quality fix 9: it is the *before* of the M14a before/after, and the after run follows. A run with unfinished jobs is partial: its rates count those jobs as misses and its pass column reads n/a. A nightly run is carried over two passes (`aa eval --passes 2`, scripts/eval-daily.sh): a job the first night's quota stopped runs again the next night, and the run is partial only if jobs are still unfinished after that. The ten v3 datasets changed on 2026-10-22 (code-quality fix 11b: their noise blip moved from 2025-12 to 2025-11, off the planted December peak): v3 rows of runs before that date used the old data.",
+    "The engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every full and smoke score here is optimistic for unseen data. The held-out generated set (10 reseeded businesses and two archetypes no rule was written against, docs/specs/accuracy.md §9) is scored only by release runs (`aa eval --suite heldout`); the smoke suite includes one of its datasets as a CI check (smoke runs before 2026-10-22 had three datasets, now four). Of the Groq tables, the three single-model smoke runs (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b alone) predate the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions). The \"planner, extractor, judge\" smoke run used the M13a engine, before the merge's representative-rule fix (a template with no measured change keeps its priority), which changes nothing per dataset on the offline baseline. Its full run (2026-10-20/21, over two nights) used the engine just before the M14a fixes (#44–#49) and the scoring before code-quality fix 9: it is the *before* of the M14a before/after, and the after run follows. A run with unfinished jobs is partial: its rates count those jobs as misses and its pass column reads n/a. A nightly run is carried over two passes (`aa eval --passes 2`, scripts/eval-daily.sh): a job the first night's quota stopped runs again the next night, and the run is partial only if jobs are still unfinished after that. The ten v3 datasets changed on 2026-10-22 (code-quality fix 11b: their noise blip moved from 2025-12 to 2025-11, off the planted December peak): v3 rows of runs before that date used the old data.",
     "",
     ...(ordered.length ? ordered.map(resultsMarkdown) : ["No results yet."]),
     "## Real public data",

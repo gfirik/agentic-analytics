@@ -364,13 +364,22 @@ const jobs = defineCommand({
   },
 });
 
+/**
+ * The generated-data suite `--suite` names: full, heldout (the held-out generated set, read only by release runs,
+ * docs/specs/accuracy.md §9) or smoke (the default). An unknown name is refused rather than run as smoke.
+ */
+function generatedSuite(suite: string | undefined): "smoke" | "full" | "heldout" {
+  if (suite === undefined || suite === "smoke" || suite === "full" || suite === "heldout") return suite ?? "smoke";
+  throw new Error(`--suite must be smoke, full, heldout, real or golden, not "${suite}"`);
+}
+
 const evalCmd = defineCommand({
   meta: { name: "eval", description: "Run the eval suite on the generated datasets (or the real public ones) and update evals/RESULTS.md" },
   args: {
     suite: {
       type: "string",
       description:
-        "smoke (3 datasets), full (30 datasets), real (public datasets; run `bun run eval:real:fetch` first) or golden (the real datasets' golden sets); default smoke",
+        "smoke (4 datasets), full (the 30 development datasets), heldout (the held-out generated set; release runs only), real (public datasets; run `bun run eval:real:fetch` first) or golden (the real datasets' golden sets); default smoke",
     },
     model: {
       type: "string",
@@ -436,7 +445,7 @@ const evalCmd = defineCommand({
       (args.label || args.note || args.only !== undefined || args.passes !== undefined) &&
       (args.suite === "real" || args.suite === "golden")
     )
-      throw new Error("--label, --note, --only and --passes go with --suite smoke|full");
+      throw new Error("--label, --note, --only and --passes go with --suite smoke|full|heldout");
     const nightly = nightlyArgs(
       { model, ...(args.label ? { label: args.label } : {}), ...(args.passes !== undefined ? { passes: args.passes } : {}) },
       () => resolveModelConfig(process.env, configFile()).models,
@@ -473,11 +482,11 @@ const evalCmd = defineCommand({
       }),
     };
     if (args.models !== undefined) {
-      if (args.suite !== undefined && args.suite !== "smoke" && args.suite !== "full")
-        throw new Error(`--models runs --suite smoke or full, not ${args.suite}`);
+      if (args.suite !== undefined && args.suite !== "smoke" && args.suite !== "full" && args.suite !== "heldout")
+        throw new Error(`--models runs --suite smoke, full or heldout, not ${args.suite}`);
       if (args.model || args.label || args.passes !== undefined || args["replay-drafts"])
         throw new Error(
-          "--models runs a smoke or full suite per model: drop --model, --label, --passes and --replay-drafts, and use --suite smoke|full",
+          "--models runs a smoke, full or heldout suite per model: drop --model, --label, --passes and --replay-drafts, and use --suite smoke|full|heldout",
         );
       const runs = await evalMatrix(
         args.models
@@ -485,7 +494,7 @@ const evalCmd = defineCommand({
           .map((m) => m.trim())
           .filter(Boolean),
         {
-          suite: args.suite === "full" ? "full" : "smoke",
+          suite: generatedSuite(args.suite),
           ...(args["small-model"] ? { smallModel: true } : {}),
           ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
           ...(args.note ? { note: args.note } : {}),
@@ -535,7 +544,7 @@ const evalCmd = defineCommand({
       const { passes: _passes, ...named } = nightly;
       const r = await evalRepeat(
         {
-          suite: args.suite === "full" ? "full" : "smoke",
+          suite: generatedSuite(args.suite),
           model,
           repeat,
           ...(args["small-model"] ? { smallModel: true } : {}),
@@ -554,7 +563,7 @@ const evalCmd = defineCommand({
     }
     const r = await evalCommand(
       {
-        suite: args.suite === "full" ? "full" : "smoke",
+        suite: generatedSuite(args.suite),
         model,
         ...(args["small-model"] ? { smallModel: true } : {}),
         ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),

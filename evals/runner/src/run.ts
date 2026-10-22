@@ -5,21 +5,36 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DRAFTED_METRICS, type JobOptions, runJob } from "@agentic-analytics/core";
-import { type Dataset, generatedDatasets } from "@agentic-analytics/eval-generator";
+import { type Dataset, generatedDatasets, HELDOUT_SMOKE, heldoutDatasets } from "@agentic-analytics/eval-generator";
 import { type CallRecord, failedCall, type ModelClient, routeOf, spendOf } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import type { Report } from "@agentic-analytics/schema";
 import { EvalRunError } from "./errors.ts";
 import { type Bar, type DatasetScore, type RouteUse, scoreReport, summarize } from "./score.ts";
 
-export type Suite = "smoke" | "full";
+export type Suite = "smoke" | "full" | "heldout";
 
-/** Smoke: three datasets across archetypes and every variant (EVALS §3). Full: all 30. */
-export function suiteDatasets(suite: Suite, all: readonly Dataset[] = generatedDatasets()): Dataset[] {
-  if (suite === "full") return [...all];
-  const pick = ["coffee_roaster-v1", "saas-v2", "restaurant-v3"];
-  return all.filter((d) => pick.includes(d.id));
+/**
+ * The smoke suite: three development datasets across archetypes and every variant, plus one held-out dataset (the
+ * held-out set's CI path, docs/specs/accuracy.md §9).
+ */
+export const SMOKE_DATASETS = ["coffee_roaster-v1", "saas-v2", "restaurant-v3", HELDOUT_SMOKE] as const;
+
+/**
+ * Smoke: SMOKE_DATASETS (EVALS §3). Full: the 30 development datasets. Heldout: the held-out generated set, for
+ * release runs only (docs/specs/accuracy.md §9). `all` replaces the generated pool (tests).
+ */
+export function suiteDatasets(suite: Suite, all?: readonly Dataset[]): Dataset[] {
+  // `answers` may be absent on a test's id-only datasets.
+  const split = (d: Dataset) => (d.answers as Dataset["answers"] | undefined)?.split;
+  if (suite === "full") return (all ?? generatedDatasets()).filter((d) => split(d) !== "heldout");
+  if (suite === "heldout") return (all ?? heldoutDatasets()).filter((d) => split(d) === "heldout");
+  const pool = all ?? [...generatedDatasets(), ...heldoutDatasets()];
+  return pool.filter((d) => (SMOKE_DATASETS as readonly string[]).includes(d.id));
 }
+
+/** Every generated answer key: the 30 and the held-out set (rescoring a kept run of any suite). */
+export const allGeneratedDatasets = (): Dataset[] => [...generatedDatasets(), ...heldoutDatasets()];
 
 export type { RouteUse } from "./score.ts";
 
@@ -518,7 +533,11 @@ export function resultsMarkdown(r: SuiteResult): string {
  * Scores a published run again from its kept reports (`--keep-reports`), e.g. after a scoring fix, without calling
  * the model again. Datasets without a kept report keep their original score; timings and tokens are unchanged.
  */
-export function rescore(r: SuiteResult, reports: ReadonlyMap<string, Report>, keys: readonly Dataset[] = generatedDatasets()): SuiteResult {
+export function rescore(
+  r: SuiteResult,
+  reports: ReadonlyMap<string, Report>,
+  keys: readonly Dataset[] = allGeneratedDatasets(),
+): SuiteResult {
   const scores = r.scores.map((s) => {
     const report = reports.get(s.dataset);
     const key = keys.find((d) => d.id === s.dataset)?.answers;

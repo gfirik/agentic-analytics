@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:datasets": "tsx scripts/build.ts"
+    "build:datasets": "tsx scripts/build.ts",
+    "build:heldout": "tsx scripts/build-heldout.ts"
   },
   "dependencies": {
     "@agentic-analytics/eval-datasets": "workspace:*",

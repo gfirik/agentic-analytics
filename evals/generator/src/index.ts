@@ -13,3 +13,5 @@ export {
   type Planted,
   type QualityKey,
 } from "./generate.ts";
+// The held-out generated set (docs/specs/accuracy.md §9): release runs and the smoke suite's held-out dataset only.
+export { HELDOUT_ARCHETYPES, HELDOUT_GENERATOR_VERSION, HELDOUT_SMOKE, heldoutDatasets } from "./heldout.ts";

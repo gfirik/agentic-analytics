@@ -1,0 +1,151 @@
+{
+  "coffee_roaster-v1-heldout": {
+    "seed": 20270100,
+    "files": {
+      "sales.xlsx": "a86251dd3c4ee3067086db0611d29365e35685a73747a93b28f9726a41a7c7a1",
+      "email-seaview-hotels.eml": "163148a39314e9ced9922929c6ddb95ca35d9866961319c373b47afab8c91cf5",
+      "price-notice.pdf": "2b0a2ef64ac1a6d2ee1e90c1eff48f422efc19d48b38114b596c7285fc64938a",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e"
+    }
+  },
+  "printing_shop-v2-heldout": {
+    "seed": 20270201,
+    "files": {
+      "orders.csv": "339c6fa8f194a4a97516f1ee89027a897c5b59debdc0f67b42e4750b6e1ed1b0",
+      "costs.xlsx": "f887718492c159251f956d92b4c670b69c2ad0aa1e14f192b7b18e3f484cfe20",
+      "email-brightline-agency.eml": "5b530d793e40aa088305057471434b865e8dbad0401ca19d8c635643471b544b",
+      "price-notice.md": "124f757502c5f647bf83a98ce79d3177534e9601d40dd183b20fac5d2f29b82f",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e",
+      "ops-notes.docx": "08ec113a2c7993ea5c5ad937e24cfe0ab80fdb0d9c5bec7d532cbe7cdee45b09"
+    }
+  },
+  "clinic-v3-heldout": {
+    "seed": 20270302,
+    "files": {
+      "sales.xlsx": "dcdd30293ba26ca6525d989fe44c4f9911d6871525ba2261ce64b5f9a49c7b16",
+      "email-atlas-logistics.eml": "ba5c706a8c1a8cb22be45d1868d886e260403684930ff87c0a0ac1d29fe20f3d",
+      "price-notice.pdf": "c7041d25a7c884cc138f17fd3455c8611bfae55dd404ccf09f06b442ba5e9b68",
+      "office-notes.txt": "1d34d33f744a376d7c5319f49e73dd1e5271f3ed641db48a461ebc5fd35f0966",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e",
+      "launch-plan.md": "79c4d905d85c6d58a7fc6a1cd5b1e6be0daa0cc2a3fb32cedce3e7e033b810b2"
+    }
+  },
+  "online_store-v1-heldout": {
+    "seed": 20270400,
+    "files": {
+      "sales.xlsx": "6a95e366fe9e6911f0c59d46f6204272e745b90d97284e83e35eb60e32a5834a",
+      "email-interior-studio-vale.eml": "56dfc15fc3caffc43f94eb121ed7e45d9f88a3da53ca45f8138a38475cef7ac9",
+      "price-notice.pdf": "65cfce6d0b134474180871f76a2ab50882356d01ba36989e61eeb029b8d06360",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e"
+    }
+  },
+  "distributor-v2-heldout": {
+    "seed": 20270501,
+    "files": {
+      "orders.csv": "7364661571faf50a1972404ecda55cd5b05b51047517b834254530210eaf80eb",
+      "costs.xlsx": "227c296637b0e686fae75aa0c85e6036ba67fba2667a3548a08603ca7dc2c6e7",
+      "email-freshmart-chain.eml": "6020b772351ae86b20b98c9a9387a82cf147f046207f2338f7603c5d5c66cd8f",
+      "price-notice.md": "e74b57df71aa48639469c841a85746b342074d94c75f0710e8c8969f4a9a4c1d",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e",
+      "ops-notes.docx": "449c507c4833bf3a6fcaf8ada1f5d0950c570d264ccdce62cb7b2acb921d71a3"
+    }
+  },
+  "restaurant-v3-heldout": {
+    "seed": 20270602,
+    "files": {
+      "sales.xlsx": "18772f0552a7c4fe1050451f002269474f6c42169680dd3d7ed8fcb03082b478",
+      "email-tech-park-offices.eml": "a25c33f4a0933bcd64471014caa8b81c2432a0d66c3106fb13581c7bd827333d",
+      "price-notice.pdf": "c7306cf36dd5aa8e91ebdbb4a0017b3858f5a1190b50d4246d6ca2956a3dcad4",
+      "office-notes.txt": "1d34d33f744a376d7c5319f49e73dd1e5271f3ed641db48a461ebc5fd35f0966",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e",
+      "launch-plan.md": "1fb7c28d61ad730c88de4fd53719dd19b95f368736a9873e8c80cb0f34f66b5a"
+    }
+  },
+  "saas-v1-heldout": {
+    "seed": 20270700,
+    "files": {
+      "sales.xlsx": "6891faab4aa7cd6b89c843c6e9d68839a8f60a341883d174e55194cf52e9aeec",
+      "email-vertex-manufacturing.eml": "4791cbd54e3cea715a1d05eae83b985054a7d7d0e2f8d9b0854c7e691cbe7772",
+      "price-notice.pdf": "410840fe74a52d0220be120534d91c68d09a2d8ecddb2f1137bdbc78adc27fdc",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e"
+    }
+  },
+  "logistics-v2-heldout": {
+    "seed": 20270801,
+    "files": {
+      "orders.csv": "a47a5c27914bfabd04fb2288af34df4cd39f5d6d7d1dfe3b39b0c97b09f00b05",
+      "costs.xlsx": "23ac9a264baf0ebf678aa8afb7b2639722f0dbd0a12a2b9db6806c6381067b06",
+      "email-medisupply.eml": "55aafd70754dd4ea455bd58927f3aeae337f34dc14fcf03df92e6e6a0168bc8f",
+      "price-notice.md": "e74b57df71aa48639469c841a85746b342074d94c75f0710e8c8969f4a9a4c1d",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e",
+      "ops-notes.docx": "a056ecf22589ff93fed4dce013915d0a3eb146bb869edeacc15594655faf2cf4"
+    }
+  },
+  "construction_supplier-v3-heldout": {
+    "seed": 20270902,
+    "files": {
+      "sales.xlsx": "d358c9661feede79432cd305df165d199556babbf7e49cb8d74833859760bb36",
+      "email-kestrel-builders.eml": "69fc687f4cddb3b899d97dbef1f9ae58fc62ccfbd371d413226d08cb4fe5ebbe",
+      "price-notice.pdf": "fb13ae68eb8a2f06b203fa510d810843a710631fbf4b329a08430a44c151a25c",
+      "office-notes.txt": "1d34d33f744a376d7c5319f49e73dd1e5271f3ed641db48a461ebc5fd35f0966",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e",
+      "launch-plan.md": "34b4988c8835bfa41fd795fde2d413525dcdbb50e15d77cec3325760e0991004"
+    }
+  },
+  "agency-v1-heldout": {
+    "seed": 20271000,
+    "files": {
+      "sales.xlsx": "37b821ff8725aece2b3dfcd632958fabd626966c4d60c1be54e78692c677d661",
+      "email-lumen-cosmetics.eml": "1bcea514bacfeacd5186142c6ebedcea63ee9f0f231911815d2d1e89a93dbbec",
+      "price-notice.pdf": "4c2cc05953f494f4209a6864066a9b6080cdc854d7caf504ef92954180d63895",
+      "office-notes.txt": "bfb7c808ccec0dc99e72c16fbf73986c204390302b15d2129bf92342b0d9d791",
+      "staff-policy.md": "c8f7f85cc1d078d5730165f7615c80fa4140f05bffae93bdffc1bf12dbbb4a9e"
+    }
+  },
+  "tool_hire-v1": {
+    "seed": 20271100,
+    "files": {
+      "hire-ledger.xlsx": "377613996c612e3eec5bd8a27c5d25fd225592c64133c430441487ee6f6eda77",
+      "email-eastgate-depot.eml": "94f9c67562fb204605884a72bc19f8ce2ae6ab013f7d1a4ac8f19e29c53f7856",
+      "framework-agreement.pdf": "c4fb4fcd3c0de1d41de5c8473efb182de38c9f9232b4b4d9962af9d2ccb23cf8",
+      "yard-notes.txt": "0b395676a775047b36f9b188dc04e487b4fa80e775fe96552352f6402a48e68b",
+      "health-and-safety.md": "072c0b6efa57388285bda541598e8a039533ca4a3c54549728fa1e8a0654816b"
+    }
+  },
+  "tool_hire-v2": {
+    "seed": 20271101,
+    "files": {
+      "hires.csv": "ffd73ca28012ed1ab372825060febf92d9bb83842cbd5236d6e0ac7f1943ed52",
+      "email-ashdown-civils.eml": "9382add4385397226f2b878f5e05cab5b4ffa14ecf7b71c9aec5a9c7a2455268",
+      "fleet-update.docx": "7d461e8fd3c446071749eed1fbf7ef264ade1184b36fc55add99acec49993879",
+      "yard-notes.txt": "1e7422d2fe90de435b22a8815d44c61847a6a144989fa3e943a69af422ca2b6f",
+      "health-and-safety.md": "072c0b6efa57388285bda541598e8a039533ca4a3c54549728fa1e8a0654816b"
+    }
+  },
+  "car_wash-v1": {
+    "seed": 20271200,
+    "files": {
+      "daily-takings.csv": "6656984fe15aab868a3987ab0851aaec29b6fa1c5da466d98846424edf51108e",
+      "council-notice.pdf": "c87518acf80d70ef78735d41a648036f25fe239389e5a02e08b8b8b7cdbc4923",
+      "maintenance-log.docx": "a4493f7fd3d2bfd83ddbe3ff0557505c7d0e3f9cfb7e45503a0f19d2126769e3",
+      "site-notes.txt": "b395e20d43e5aa9495d6eb5fad0a3b94f5a5956b19ef32a314998486b573cb9f",
+      "uniform-policy.md": "d76b59f31ec216d8c0c0247e034aafdbcec493d99b0e437e6cf1fde406454e28"
+    }
+  },
+  "car_wash-v2": {
+    "seed": 20271201,
+    "files": {
+      "takings.xlsx": "fa438f5e4c06d3703c085be7278a00dbfee03979a8cb62d8eadcf7169aa714d7",
+      "price-board.md": "1a125818319a714488fcd7e78e35867d4ce35cb625e35287653ae7abe46c22d5",
+      "local-news.txt": "94676bb5036794e5526d745b429316b799eeefb1b47c67597dd0985b8384b4e5",
+      "site-notes.txt": "ebbddf0b85f01ade29275fc19a44799f8c353e205070e8e4f1e7da6d77ff8c24",
+      "uniform-policy.md": "d76b59f31ec216d8c0c0247e034aafdbcec493d99b0e437e6cf1fde406454e28"
+    }
+  }
+}

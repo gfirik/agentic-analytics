@@ -255,10 +255,11 @@ describe("evalCommand --passes 2", () => {
       },
     );
 
-  it("resumes a night the quota cut short and publishes one complete run", { timeout: 120_000 }, async () => {
+  // Three nights over the four smoke businesses (one held-out, the slowest at ~8 s offline): CI runners are slower.
+  it("resumes a night the quota cut short and publishes one complete run", { timeout: 300_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     // Night 1: enough quota for the first business only (the baseline makes 43 calls on it, 53 on the next), so the
-    // other two stop.
+    // other three stop (the smoke suite is four businesses, one of them held-out).
     const lines1: string[] = [];
     const n1 = await night(dir, "2026-10-19", 60, lines1);
     const done1 = n1.scores.filter((s) => s.completed).map((s) => s.dataset);
@@ -267,7 +268,7 @@ describe("evalCommand --passes 2", () => {
     expect(n1.passes).toEqual({ dates: ["2026-10-19"], of: 2 });
     expect(n1.scores.find((s) => !s.completed)?.error).toMatch(/RATE_LIMITED/);
     expect(lines1.find((l) => l.startsWith("combined: "))).toMatch(
-      /^combined: \d of 3 jobs finished over 1 of up to 2 passes .*the next pass runs the rest$/,
+      /^combined: \d of 4 jobs finished over 1 of up to 2 passes .*the next pass runs the rest$/,
     );
     expect(readdirSync(join(dir, "results"))).toEqual(["2026-10-19-fake-quota-smoke.json"]);
     expect(readFileSync(join(dir, "RESULTS.md"), "utf8")).toContain("n/a (resumes next pass)");
@@ -277,10 +278,10 @@ describe("evalCommand --passes 2", () => {
     const n2 = await night(dir, "2026-10-20", 1000, lines2);
     expect(lines2[0]).toMatch(/^resuming the 2026-10-19 pass \(2026-10-19-fake-quota-smoke\.json\)/);
     const ran = lines2.filter((l) => /^\[\d+\/\d+\]/.test(l));
-    expect(ran).toHaveLength(3 - done1.length);
+    expect(ran).toHaveLength(4 - done1.length);
     expect(ran.some((l) => done1.some((id) => l.includes(id)))).toBe(false);
     expect(n2.scores.every((s) => s.completed)).toBe(true);
-    expect(n2.datasets).toBe(3);
+    expect(n2.datasets).toBe(4);
     expect(n2.passes).toEqual({ dates: ["2026-10-19", "2026-10-20"], of: 2 });
     // The first night's finished scores are carried over unchanged.
     for (const id of done1) expect(n2.scores.find((s) => s.dataset === id)).toEqual(n1.scores.find((s) => s.dataset === id));
@@ -294,11 +295,11 @@ describe("evalCommand --passes 2", () => {
     // Night 3: the run is closed, so a new one starts with every business.
     const lines3: string[] = [];
     const n3 = await night(dir, "2026-10-21", 1000, lines3);
-    expect(lines3.filter((l) => /^\[\d+\/\d+\]/.test(l))).toHaveLength(3);
+    expect(lines3.filter((l) => /^\[\d+\/\d+\]/.test(l))).toHaveLength(4);
     expect(n3.passes).toEqual({ dates: ["2026-10-21"], of: 2 });
   });
 
-  it("night 2 skipped: the next run starts again and the night-1 row reads partial", { timeout: 120_000 }, async () => {
+  it("night 2 skipped: the next run starts again and the night-1 row reads partial", { timeout: 300_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     // No quota at all: every job stops at its first call, so the night-1 result waits for a second pass.
     const n1 = await night(dir, "2026-10-19", 0, []);
@@ -306,7 +307,7 @@ describe("evalCommand --passes 2", () => {
     const lines: string[] = [];
     const n3 = await night(dir, "2026-10-21", 0, lines);
     expect(lines[0]).toMatch(/^starting a new run: the 2026-10-19 pass is not last night's/);
-    expect(lines[1]).toBe("closed 2026-10-19-fake-quota-smoke.json: 0 of 3 jobs finished (partial)");
+    expect(lines[1]).toBe("closed 2026-10-19-fake-quota-smoke.json: 0 of 4 jobs finished (partial)");
     expect(n3.passes).toEqual({ dates: ["2026-10-21"], of: 2 });
     expect(readdirSync(join(dir, "results")).sort()).toEqual(["2026-10-19-fake-quota-smoke.json", "2026-10-21-fake-quota-smoke.json"]);
     const old = readPrevious(join(dir, "results", "2026-10-19-fake-quota-smoke.json")) as SuiteResult;
@@ -315,7 +316,7 @@ describe("evalCommand --passes 2", () => {
     expect(resultsMarkdown(old)).toContain("n/a (partial run)");
   });
 
-  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", { timeout: 120_000 }, async () => {
+  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", { timeout: 300_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     mkdirSync(join(dir, "results"));
     writeFileSync(join(dir, "results", "2026-10-19-fake-quota-smoke.json"), "{ not json");
