@@ -297,6 +297,65 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
   return result;
 }
 
+export interface MatrixRun {
+  readonly model: string;
+  readonly result?: SuiteResult;
+  /** Why this model's run didn't finish (no client, a provider error): the other models still run. */
+  readonly error?: string;
+}
+
+/**
+ * The model matrix (docs/specs/accuracy.md §6): one suite run per model, one after the other, each written as its own
+ * results row (the model spec is its row name). A model that fails is reported and the next one runs; nothing is
+ * averaged across models.
+ */
+export async function evalMatrix(
+  models: readonly string[],
+  a: Omit<EvalArgs, "model" | "label" | "name" | "passes" | "replayDrafts" | "roleModels">,
+  d: EvalDeps,
+): Promise<MatrixRun[]> {
+  if (models.length < 2) throw new EvalRunError("USAGE", "--models needs at least two models (use --model for one)");
+  // Two specs that slug to the same file name would replace each other's results row.
+  const slugs = models.map((model) => evalSlug("", { model, suite: a.suite, ...(a.smallModel ? { smallModel: true } : {}) }));
+  if (new Set(slugs).size !== slugs.length)
+    throw new EvalRunError("USAGE", "--models lists a model twice (or two that name the same results file)");
+  // `configured` is the nightly's row, named after its routes there; in a matrix, name each route explicitly instead.
+  if (models.includes("configured"))
+    throw new EvalRunError("USAGE", "--models takes provider routes (provider:endpoint:model) or baseline, not configured");
+  const runs: MatrixRun[] = [];
+  for (const [i, model] of models.entries()) {
+    d.print("");
+    d.print(`== model ${i + 1} of ${models.length}: ${model}`);
+    try {
+      // Each model keeps its reports in its own subfolder: one shared folder would let the next model overwrite them.
+      // evalSlug("", …) is "-<model>[-small]-<suite>": the folder is that name without its leading dash.
+      const keepReports = a.keepReports ? join(a.keepReports, (slugs[i] as string).replace(/^-/, "")) : undefined;
+      runs.push({ model, result: await evalCommand({ ...a, model, ...(keepReports ? { keepReports } : {}) }, d) });
+    } catch (err) {
+      // A model's own failure (no client, a provider error, a refused run) is reported and the next model runs; anything
+      // else is an engine or filesystem bug that would fail every model the same way, so it stops the matrix.
+      if (!(err instanceof Error) || !(err instanceof EvalRunError || err.name === "ModelError")) throw err;
+      runs.push({ model, error: `${String((err as Error & { code?: string }).code ?? "ERROR")}: ${err.message}` });
+      d.print(`${model}: ${err.message}`);
+    }
+  }
+  d.print("");
+  d.print("== matrix");
+  for (const line of matrixLines(runs)) d.print(line);
+  return runs;
+}
+
+/** One line per model: jobs finished, planted recall@5 and number mismatches, or the error. */
+export function matrixLines(runs: readonly MatrixRun[]): string[] {
+  const pct = (v: number | undefined) => (v === undefined ? "n/a" : `${(v * 100).toFixed(1)}%`);
+  return runs.map((r) => {
+    if (!r.result) return `${r.model}: not run (${r.error ?? "unknown error"})`;
+    const bar = (m: string) => r.result?.bars.find((b) => b.metric === m)?.value;
+    const done = r.result.scores.filter((s) => s.completed).length;
+    return `${r.model}: ${done}/${r.result.scores.length} jobs, recall@5 ${pct(bar("Planted recall@5"))}, number mismatches ${bar("Number mismatches") ?? "n/a"}`;
+  });
+}
+
 export interface RealEvalArgs {
   /** "baseline" (the scripted heuristic, no LLM) or a model name used for every role. */
   readonly model: string;
