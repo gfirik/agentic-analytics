@@ -9,3 +9,64 @@
 @import "@fontsource/ibm-plex-sans/600.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
+
+/* Fallback faces with the web fonts' metrics (site v5, PR #85). Until a face arrives the text is set in a local
+   metric-compatible font (Arial/Liberation Sans, Times New Roman/Liberation Serif, Courier New/Liberation Mono), scaled
+   so its line length and line box match the web font's, so the swap moves nothing. Without them a machine whose
+   generic fallback is wider (Linux: DejaVu Sans) set the hero's buttons on two lines until Plex Sans 500 arrived, then
+   pulled everything below up 27px: a CLS of 0.068 at 390px in CI. size-adjust is the measured width ratio (web font /
+   fallback, over the hero's copy); the overrides are the web font's ascent and descent (Plex 1025/275, Source Serif 4
+   1036/335 per 1000) divided by it, since size-adjust scales them too. */
+@font-face {
+  font-family: "IBM Plex Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 449;
+  size-adjust: 100.52%;
+  ascent-override: 101.97%;
+  descent-override: 27.36%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "IBM Plex Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 450 549;
+  size-adjust: 102.73%;
+  ascent-override: 99.78%;
+  descent-override: 26.77%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "IBM Plex Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 550 900;
+  size-adjust: 97.04%;
+  ascent-override: 105.63%;
+  descent-override: 28.34%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Source Serif 4 Fallback";
+  src: local("Times New Roman"), local("TimesNewRomanPSMT"), local("Liberation Serif"), local("LiberationSerif");
+  font-weight: 100 549;
+  size-adjust: 117.7%;
+  ascent-override: 88.02%;
+  descent-override: 28.46%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Source Serif 4 Fallback";
+  src: local("Times New Roman Bold"), local("TimesNewRomanPS-BoldMT"), local("Liberation Serif Bold"), local("LiberationSerif-Bold");
+  font-weight: 550 900;
+  size-adjust: 112.02%;
+  ascent-override: 92.48%;
+  descent-override: 29.91%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "IBM Plex Mono Fallback";
+  src: local("Courier New"), local("CourierNewPSMT"), local("Liberation Mono"), local("LiberationMono");
+  size-adjust: 100%;
+  ascent-override: 102.5%;
+  descent-override: 27.5%;
+  line-gap-override: 0%;
+}

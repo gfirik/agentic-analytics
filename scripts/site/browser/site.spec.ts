@@ -1674,7 +1674,7 @@ test.describe("motion", () => {
       const ctx = await browser.newContext({ viewport });
       const page = await ctx.newPage();
       page.on("console", (m) => {
-        if (m.text().startsWith("hero shift")) console.log(`${viewport.width}: ${m.text()}`);
+        if (m.text().startsWith("hero shift") || m.text().startsWith("page shift")) console.log(`${viewport.width}: ${m.text()}`);
       });
       await page.addInitScript(() => {
         const w = window as unknown as { aaHeroShift: number; aaShiftTotal: number };
@@ -1685,6 +1685,12 @@ test.describe("motion", () => {
           for (const e of list.getEntries() as Entry[]) {
             if (e.hadRecentInput) continue;
             w.aaShiftTotal += e.value;
+            // Every shift is printed with what it moved, so a CI-only failure (other fallback fonts) names its cause.
+            console.log(
+              `page shift ${e.value.toFixed(6)} at ${Math.round(e.startTime)} ms: ${e.sources
+                .map((s) => (s.node instanceof Element ? s.node : s.node?.parentElement)?.getAttribute("class") ?? "?")
+                .join("; ")}`,
+            );
             const inHero = e.sources.some((s) => {
               const el = s.node instanceof Element ? s.node : (s.node?.parentElement ?? null);
               // The field, its control and the corner marks: what this adds to the hero. (The font swap may still nudge
@@ -1790,8 +1796,9 @@ test.describe("motion", () => {
       }
       const total = shifts.reduce((t, s) => t + s.value, 0);
       console.log(`CLS through the landing page at ${viewport.width}: ${cls.toFixed(4)} (all shifts summed ${total.toFixed(4)})`);
-      // Every shift in an animated part is printed with its sources, so a failure names the node that moved.
-      for (const s of shifts.filter((x) => x.mine))
+      // Every shift in an animated part is printed with its sources, and every shift at all when CLS is over budget, so
+      // a failure names the node that moved.
+      for (const s of shifts.filter((x) => x.mine || cls >= 0.05))
         console.log(`shift ${s.value.toFixed(6)} at ${Math.round(s.time)} ms: ${s.sources.join("; ")}`);
       expect(
         shifts.filter((s) => s.mine && !s.sticky),

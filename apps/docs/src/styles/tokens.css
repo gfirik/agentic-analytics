@@ -19,9 +19,9 @@
   color-scheme: light;
 
   /* Type */
-  --aa-font-display: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
-  --aa-font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --aa-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --aa-font-display: "Source Serif 4 Variable", "Source Serif 4", "Source Serif 4 Fallback", Georgia, "Times New Roman", serif;
+  --aa-font-sans: "IBM Plex Sans", "IBM Plex Sans Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --aa-font-mono: "IBM Plex Mono", "IBM Plex Mono Fallback", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --aa-text-display: clamp(2.5rem, 1.25rem + 3.4vw, 4.25rem); /* the hero statement: 40px on phones to 68px (site v5) */
   --aa-text-h2: 2.25rem;
   --aa-text-h3: 1.125rem;

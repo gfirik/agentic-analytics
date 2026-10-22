@@ -88,6 +88,7 @@ All three faces are self-hosted through `@fontsource` and imported once, in `src
 
 - **Serif file.** The serif uses its weight-axis file (51 KB) with its italic, not the optical-size file (122 KB). The docs' first paint is serif prose, and the larger file kept the Learn pages under Lighthouse 95.
 - **Preloads.** The serif is preloaded on every page and Plex Sans 400 on the landing page (`FontPreloads.astro`).
+- **Fallback metrics.** Each face has a fallback face (`… Fallback` in `fonts.css`, second in its token's stack): a local metric-compatible font (Arial / Liberation Sans, Times New Roman / Liberation Serif, Courier New / Liberation Mono) with `size-adjust` and ascent/descent overrides measured against the web font, so text set before the swap has the same line lengths and line boxes and the swap moves nothing. Without it, Linux's wider DejaVu fallback wrapped the hero's buttons until Plex Sans 500 arrived (CLS 0.068 at 390px in CI). New faces get a matching fallback face.
 - **CSS.** Page CSS is inlined (`astro.config.mjs`).
 
 | Role | Face | Use |
