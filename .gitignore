@@ -17,6 +17,8 @@ data/
 evals/results/*-baseline-smoke.json
 # an unreadable earlier results file set aside by aa eval --passes (docs/EVALS.md §3)
 evals/results/*.bad
+# --repeat on the scripted baseline: local, like baseline smoke runs (docs/specs/accuracy.md §7)
+evals/results/repeat/*-baseline-smoke-repeat*
 !evals/results/.gitkeep
 .autopilot/
 packages/report/out/
