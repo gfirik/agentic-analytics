@@ -255,7 +255,8 @@ describe("evalCommand --passes 2", () => {
       },
     );
 
-  it("resumes a night the quota cut short and publishes one complete run", { timeout: 120_000 }, async () => {
+  // Three nights over the four smoke businesses (one held-out, the slowest at ~8 s offline): CI runners are slower.
+  it("resumes a night the quota cut short and publishes one complete run", { timeout: 300_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     // Night 1: enough quota for the first business only (the baseline makes 43 calls on it, 53 on the next), so the
     // other three stop (the smoke suite is four businesses, one of them held-out).
@@ -298,7 +299,7 @@ describe("evalCommand --passes 2", () => {
     expect(n3.passes).toEqual({ dates: ["2026-10-21"], of: 2 });
   });
 
-  it("night 2 skipped: the next run starts again and the night-1 row reads partial", { timeout: 120_000 }, async () => {
+  it("night 2 skipped: the next run starts again and the night-1 row reads partial", { timeout: 300_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     // No quota at all: every job stops at its first call, so the night-1 result waits for a second pass.
     const n1 = await night(dir, "2026-10-19", 0, []);
@@ -315,7 +316,7 @@ describe("evalCommand --passes 2", () => {
     expect(resultsMarkdown(old)).toContain("n/a (partial run)");
   });
 
-  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", { timeout: 120_000 }, async () => {
+  it("a corrupt earlier file is not carried on: the pass warns and starts a new run", { timeout: 300_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-eval-passes-"));
     mkdirSync(join(dir, "results"));
     writeFileSync(join(dir, "results", "2026-10-19-fake-quota-smoke.json"), "{ not json");
