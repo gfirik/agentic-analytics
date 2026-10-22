@@ -66,7 +66,8 @@ describe("generated datasets", () => {
     const ratio = (month: string) => sum(blip, month) / sum(counter[0] as string, month);
     const base = 0.4 / 0.6;
     expect(ratio(d1?.period as string) / base).toBeCloseTo(1.03, 3);
-    for (const month of ["2025-12", "2026-02"]) expect(ratio(month) / base, month).toBeCloseTo(1, 3);
+    // The months either side of the blip are untouched.
+    for (const month of ["2025-10", "2025-12"]) expect(ratio(month) / base, month).toBeCloseTo(1, 3);
   });
 
   it("the typo is 1,000× its neighbours, at the cell the key names", () => {
