@@ -92,7 +92,8 @@ export async function runPipeline(ws: Workspace, bus: EventBus, log: Logger, sta
   for (const def of stages) {
     const prev = records.get(def.stage);
     if (prev?.status === "completed") continue;
-    // A skipped stage is looked at again on every run: once its feature exists (e.g. the verifier), it runs.
+    // A skipped stage is looked at again on every run: once its reason is gone (e.g. metrics now await confirmation, or
+    // the web lane is on), it runs.
     if (prev?.status === "skipped" && def.skip?.()) continue;
     const ctx: StageContext = {
       ws,

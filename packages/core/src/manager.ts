@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { InputFile } from "@agentic-analytics/ingest";
 import { describeMetric, type Grain, metricsYaml } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import type { JobEvent, MetricDef, Report, Stage } from "@agentic-analytics/schema";
+import { type JobEvent, type MetricDef, type Report, Stage } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { type Answer, askJob, explainFact, type FactExplanation } from "./followup.ts";
 import { confirmJobMetrics, type JobDeps, JobError, type JobOptions, runJob } from "./job.ts";
@@ -48,21 +48,8 @@ export interface ManagerOptions {
   readonly now?: () => Date;
 }
 
-const STAGES: readonly Stage[] = [
-  "INGEST",
-  "PROFILE",
-  "METRICS_DRAFT",
-  "AWAIT_CONFIRM",
-  "MEASURE",
-  "DETECT",
-  "DECOMPOSE",
-  "INDEX_DOCS",
-  "WEB_CONTEXT",
-  "EXPLAIN",
-  "DECIDE",
-  "VERIFY",
-  "RENDER",
-];
+// The schema's enum lists the stages in pipeline order; progress is a stage's place in it.
+const STAGES: readonly Stage[] = Stage.options;
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/;
 const TERMINAL: readonly JobState[] = ["done", "failed", "awaiting_confirmation"];
 
