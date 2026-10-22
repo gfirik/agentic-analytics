@@ -9,7 +9,7 @@ The model layer: one `ModelClient` interface over the Vercel AI SDK, free provid
 
 | Export | Does |
 |---|---|
-| `ModelClient` | `generateObject` (Zod-validated, retried with feedback), `generateWithTools` (fixed tools, step cap), `embed` |
+| `ModelClient` | `generateObject` (Zod-validated, retried with feedback), `generateWithTools` (fixed tools, step cap; a call the model got wrong — unknown tool, invalid input — is reported on that call as `error` and the loop goes on, while a tool that throws stops the call with its error, in both the real client and FakeModel), `embed` |
 | `createModelClient(config, { env, fetch?, embed? })` | AI SDK implementation. The only place `ai` is imported. |
 | `resolveModelConfig(env, file?)` | Defaults < config file < env (`PLANNER_MODEL=ollama:qwen3.5:9b`, `openai-compatible:groq:<model>`) |
 | `OPENAI_COMPATIBLE_PRESETS` | Free endpoints: groq, openrouter, cerebras, nvidia-nim, google-ai-studio, sambanova, mistral, cloudflare (`${CLOUDFLARE_ACCOUNT_ID}` in its URL). github-models was removed (retired 2026-07-30) |

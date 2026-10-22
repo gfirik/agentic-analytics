@@ -15,7 +15,11 @@ For each confirmed metric, compute the value:
 - per period, at the job grain;
 - per period for each listed dimension member, capped at the top 50 members by absolute value plus an "other" bucket.
 
+Every series has a point for each job period (a period where any metric has data) inside its metric's own first..last period, because the tests below work by position: a missing period is 0 for an additive metric (sum, count, distinct count) and unknown (NaN, skipped) for an average or ratio. Nothing is added outside that span, so a table that starts later gets no zeros before its first row, and a period with no data at all stays a gap (profile's `missing_periods`).
+
 ## 2. Baselines, noise and materiality
+
+**Percent change.** Δ% = (value ÷ base − 1) × 100 is stated (as a `change_pct` fact) only when the base is positive. From 0 it is undefined, and from a negative base it flips the sign (a loss going −10 → −5 would read −50%), so the change is stated alone. The materiality test still uses the relative size against |base|.
 
 **Baselines.** Use the first one that applies:
 

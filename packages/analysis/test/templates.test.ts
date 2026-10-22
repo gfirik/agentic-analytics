@@ -36,6 +36,38 @@ const RETAIL = series("revenue|channel=retail", [26400, 27600, 28200, 28800, 287
 const calc = (i: Insight, name: string) => i.calcs.find((c: Calc) => c.name === name)?.value;
 const isInsight = (x: unknown): x is Insight => typeof x === "object" && x !== null && "template" in x;
 
+describe("percent change needs a positive base (spec §2)", () => {
+  it("a loss going −10 → −5 states the change (+5) and no percent; from 0 no percent either", () => {
+    const loss = periodChange({
+      id: "profit",
+      metric: "profit",
+      unit: "currency",
+      points: [-12, -10, -5].map((value, k) => ({ period: months[k] as string, value })),
+    });
+    expect(calc(loss as Insight, "change")).toBe(5);
+    expect(loss?.direction).toBe("up");
+    expect(loss?.roles.change_pct).toBeUndefined();
+    expect(loss?.calcs.some((c) => c.name === "change_pct")).toBe(false);
+    const zero = periodChange({
+      id: "refunds",
+      metric: "refunds",
+      unit: "count",
+      points: [0, 0, 4].map((value, k) => ({ period: months[k] as string, value })),
+    });
+    expect(calc(zero as Insight, "change")).toBe(4);
+    expect(zero?.roles.change_pct).toBeUndefined();
+  });
+
+  it("trend_break leaves out change_pct and change_since_pct when the base isn't positive", () => {
+    const s = series("profit", [-100, -101, -99, -40, -41, -39], "currency");
+    const b = trendBreak(s);
+    if (!isInsight(b)) throw new Error("expected a trend break");
+    expect(b.roles.change_pct).toBeUndefined();
+    expect(b.roles.change_since_pct).toBeUndefined();
+    expect(b.calcs.every((c) => Number.isFinite(c.value))).toBe(true);
+  });
+});
+
 describe("period_change.v1", () => {
   it("June vs May revenue: +1,200 (+3.35%) is not material", () => {
     const i = periodChange(REVENUE);

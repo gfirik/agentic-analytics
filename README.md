@@ -18,7 +18,7 @@ It runs **fully locally, at $0**: models through Ollama (or a free endpoint such
 > **Status: v0.1, early.** What is proven so far:
 >
 > - **Real public data:** 12 of 12 checks pass on 2 public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).
-> - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (Groq free tier) finished 3 of 3 smoke jobs with 0 wrong numbers and 100% citation precision ([details](#real-model-runs)).
+> - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (Groq free tier) finished 3 of 3 smoke jobs, every number recomputed before shipping, and 100% citation precision ([details](#real-model-runs)).
 > - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.
 >
 > 30 generated businesses with planted events are the nightly regression check (each run over up to two nights within the free tier's daily quota: a night the quota cuts short resumes the next); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).

@@ -13,6 +13,7 @@ The verifier runs passes V1–V8 over the draft report, then applies the failure
 ## Public API
 
 - `verifyReport(draft, { ws, defs, catalog, grain, periodEnd, judge? })` returns `{ report, checks }`. It throws `VerifyError` (`RECOMPUTE_MISMATCH`, `REDERIVE_MISMATCH`, `CITATION_MISMATCH`, `UNVERIFIABLE`) with a diagnostic.
+- V5's judge: a quoted span the screen flags is sent as “withheld”; a provider failure (TIMEOUT, RATE_LIMITED, PROVIDER) skips the judge for that claim ("judge unavailable" in its check row, and after a rate limit for the rest of the report), an answer that never validates counts as "not supported", and any other error stops VERIFY.
 - V1 drops a claim saying "more than the whole" unless it cites an `abs_exceeds` fact equal to 1 whose first input is the change of the member quoted just before the phrase (agent-and-verifier §7, M14a).
 - `recomputeFacts(ws, facts, all)` is V2. SQL facts are re-run with their stored parameters. Function facts are recomputed from their inputs by a registry (`delta`, `sum`, `abs`, `abs_exceeds`, `mean`, `pct_change`, `share`, `contribution.v1`, `hhi`, `theil_sen`, `mann_kendall`, `robust_z`, `share_shift`, `pvm.v1`, `ratemix.v1`, `impact.v1:*`, `scenario_param` bounds, `external_quote` re-parsing, `benchmark_gap.v1`). The relative tolerance is `TOLERANCE` = 1e-9.
 - `isCausal(text)` and `rewriteCorrelational(text)` are V6's EN/RU/UZ lexicon and its rewrites.

@@ -156,3 +156,22 @@ describe("function steps", () => {
     expect(r.steps[1]?.toolCalls[0]?.output).toEqual({ used: "E7" });
   });
 });
+
+describe("tool errors", () => {
+  it("a tool that throws fails the call (an engine failure stops the stage)", async () => {
+    const { z } = await import("zod");
+    const tools = {
+      boom: {
+        description: "",
+        inputSchema: z.object({}),
+        execute: async () => {
+          throw new Error("no such fact");
+        },
+      },
+    };
+    const m = new FakeModel([{ role: "planner", steps: [{ toolCalls: [{ toolName: "boom", input: {} }] }, { text: "done" }] }]);
+    await expect(
+      m.generateWithTools({ role: "planner", system: "s", messages: [{ role: "user", content: "go" }], tools, maxSteps: 5 }),
+    ).rejects.toThrow("no such fact");
+  });
+});

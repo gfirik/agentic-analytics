@@ -516,7 +516,10 @@ export function rescore(r: SuiteResult, reports: ReadonlyMap<string, Report>, ke
   const scores = r.scores.map((s) => {
     const report = reports.get(s.dataset);
     const key = keys.find((d) => d.id === s.dataset)?.answers;
-    return report && key && s.completed ? scoreReport(report, key, { seconds: s.seconds, tokens: s.tokens }) : s;
+    // The routes (provider, model, tokens per call) come from the run, not the report: keep them.
+    return report && key && s.completed
+      ? { ...scoreReport(report, key, { seconds: s.seconds, tokens: s.tokens }), ...(s.routes ? { routes: s.routes } : {}) }
+      : s;
   });
   return { ...r, scores, bars: summarize(scores) };
 }
