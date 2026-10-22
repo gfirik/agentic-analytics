@@ -117,6 +117,7 @@ Both reuse Playwright (D15). No paid service is involved.
 The landing page's engine machine (apps/docs/DESIGN.md §6, the plan in `docs/plans/site-3d.md`) draws the pipeline in 3D with **three.js** (`three`, MIT), pinned to `0.186.1` as a dependency of `apps/docs` only, with `@types/three` `0.186.0` as a dev dependency:
 
 - It is imported as ES modules (`three`, `three/examples/jsm/controls/OrbitControls.js`), so the bundler keeps only what the machine uses. With the machine's own code it is one lazy chunk of about 140 KB gzip, fetched only when a reader shows intent on **Open the machine** (hover, focus or pointerdown), never with the page.
+- Site v4 (PR 2, 2026-10-22) supersedes the loading rule above: the machine is live in its own band, so the chunk is imported on idle after the page's load event once the band is near (a quarter screen away on desktop, a screen on phones), and OrbitControls is no longer used (the camera follows the scroll). The decision to use three is unchanged.
 - It is bundled into the site: no CDN, no third-party request.
 - The docs `assets` script also uses it at build time, in Playwright's Chromium, to render the machine's still images from the same scene.
 

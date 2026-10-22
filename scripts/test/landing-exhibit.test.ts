@@ -18,8 +18,6 @@ import { recordRun } from "../../apps/docs/scripts/pipeline-data.ts";
 import { formatWithCurrency } from "../../apps/docs/src/components/format.ts";
 import type { PipelineData } from "../../apps/docs/src/components/pipeline-scene.ts";
 import {
-  type FollowExhibit,
-  follow,
   LEARN_STAGES,
   machineStations,
   STATION_INFO,
@@ -360,7 +358,7 @@ describe("engine machine (the same run as the pipeline stages and the exhibit)",
     const scene = sceneInput(pipeline);
     expect(scene.stations.map((s) => s.key)).toEqual(stations.map((s) => s.key));
     expect(scene.checks).toEqual(pipeline.checks.map((c) => ({ check: c.check, failed: c.failed })));
-    // The tour visits every station and both side pieces once.
+    // The scroll tour visits every station and both side pieces once.
     const tour = tourOrder(stations);
     expect([...tour].sort()).toEqual([...stations.map((s) => s.key), "vault", "models"].sort());
   });
@@ -389,50 +387,6 @@ describe("engine machine (the same run as the pipeline stages and the exhibit)",
       expect(fact, f.id).toBeDefined();
       expect(f.text, f.id).toBe(formatWithCurrency(fact as Parameters<typeof formatWithCurrency>[0]));
     }
-  }, 120_000);
-
-  it("'Follow' follows the run's headline fact through its real inputs, and its label is the fact's stored value", async () => {
-    const { report, exhibit } = await recorded();
-    const facts = new Map(report.facts.map((f) => [f.id, f]));
-    const f = follow(pipeline, exhibit as unknown as FollowExhibit);
-    // The headline is the run's percent change: the pipeline stages' and the exhibit walkthrough's both.
-    expect(f.head.id).toBe(pipeline.change.pct.id);
-    expect(f.head.id).toBe(exhibit.walk[0]?.id);
-    expect(f.head.value).toBe(pipeline.change.pct.text);
-    const head = facts.get(f.head.id);
-    expect(f.head.value).toBe(formatWithCurrency(head as Parameters<typeof formatWithCurrency>[0]));
-    // Its inputs are the fact's own computation inputs, each with its stored value.
-    expect(f.head.inputs?.map((i) => i.id)).toEqual(head?.computation.inputs);
-    for (const i of f.head.inputs ?? [])
-      expect(i.value).toBe(formatWithCurrency(facts.get(i.id) as Parameters<typeof formatWithCurrency>[0]));
-    // The steps stop at stations on the line, in line order.
-    const order = machineStations(pipeline).map((s) => s.key);
-    const at = f.steps.map((s) => order.indexOf(s.at as (typeof order)[number]));
-    expect(at.every((i) => i >= 0)).toBe(true);
-    expect([...at].sort((a, b) => a - b)).toEqual(at);
-    // The SQL step shows one of the headline's inputs: its recorded query, with cited sheet rows.
-    const sql = f.steps.find((s) => s.kind === "sql");
-    if (sql?.kind !== "sql") throw new Error("no SQL step");
-    expect(head?.computation.inputs).toContain(sql.note.id);
-    expect(flat(sql.note.sql?.join(" ") ?? "")).toBe(flat(facts.get(sql.note.id)?.computation.sql ?? ""));
-    expect(sql.note.rows?.rows.some((r) => r.cited)).toBe(true);
-    // The model's sentence holds the headline as a placeholder, never as a figure; the rendered one holds the value.
-    const raw = f.steps.find((s) => s.kind === "placeholders");
-    if (raw?.kind !== "placeholders") throw new Error("no placeholder step");
-    expect(raw.sentence).toContain(`{{${f.head.id}}}`);
-    expect(raw.sentence.replace(/\{\{N\d+\}\}/g, "").replace(/\b\d{4}-\d{2}\b/g, "")).not.toMatch(/\d/);
-    // The verify step counts the run's own recompute check.
-    const v = f.steps.find((s) => s.kind === "verify");
-    if (v?.kind !== "verify") throw new Error("no verify step");
-    expect(v.recomputed).toBe(pipeline.checks.find((c) => c.check === "V2")?.run);
-    // Titles and badges carry only the stored value, an id or a cited row number: no typed figures.
-    for (const s of f.steps)
-      expect(
-        `${s.title} ${s.badge}`
-          .replaceAll(f.head.value, "")
-          .replace(/N\d+/g, "")
-          .replace(/row \d+/, ""),
-      ).not.toMatch(/\d/);
   }, 120_000);
 
   it("the verifier's gate has one light per check: green for a check that passed, ink for one that failed a claim", () => {

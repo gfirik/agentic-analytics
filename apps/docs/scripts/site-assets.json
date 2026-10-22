@@ -1,11 +1,11 @@
 {
-  "inputs": "66ea095deda90392ac5d4e429416a0f6075912a0561267dd21a4c55e401b0eb6",
+  "inputs": "57b8db518fc36f80597d3df50c40b482ae3767d2f5b493dfd646723dcdd11905",
   "outputs": {
     "public/og.png": "1f442e84fcfc20dfde19647c1574dd2b2227eed4edac9ea40bf9e0f66e458234",
     "public/favicon.ico": "3cdce01268f6e87bd95e9333a4f083242466603892c9c50622efa29640c1f8be",
-    "public/machine-strip.webp": "9c107f3a7774bb45fbfd36589a9d81690f5fa5223e1e1483042b786fb2cee3b8",
-    "public/machine-strip.png": "3448ab47f1f6d34b80a35873936e238648199d10784a11e4631ecee52b0b8017",
-    "public/machine-full.webp": "330d31edb747002c922dafb14835677da04a6f3a4257fd754b28a193110284a5",
-    "public/machine-full.png": "7b341da886768ae13497338a8de41162cfaa9a5e478c903ed0004e022d97ebeb"
+    "public/machine-wide.webp": "ceb942af273c5d823d2df8d3c044b36e86b9424220894932aa27a58124d1ab50",
+    "public/machine-wide.png": "29a2e0fd91ebd65fe4adedd36717bf5cca65abff15f3fb0306dd1a645cb0a664",
+    "public/machine-tall.webp": "366ecdf70d473e6420b4c8134015399602b27c1d704b95e7d771ce1bf69621c7",
+    "public/machine-tall.png": "784e46319807ab3c22be833f8aa81fd69e319c1ac22b4c5dcf5a725f9147076d"
   }
 }

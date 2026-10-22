@@ -1,10 +1,9 @@
 // The engine machine (DESIGN.md §6 "Engine machine"): the pipeline drawn as a factory line. This module is its data.
 // The stations, their names and their order come from the same run as §1's pipeline stages
-// (docs/assets/readme/pipeline.json, its event log's `stages`), grouped by one small mapping below; "Follow" walks the
-// run's own headline fact through its real inputs, from the exhibit's generated data (src/data/exhibit.json). Nothing
-// here computes or types a figure: every number shown is a stored value with its fact id, or a count the run recorded.
+// (docs/assets/readme/pipeline.json, its event log's `stages`), grouped by one small mapping below.
+// Nothing here computes or types a figure: every number shown is a stored value with its fact id, or a count the run
+// recorded.
 import type { PipelineData } from "../pipeline-scene.ts";
-import { firstSentence, type LinePart, placeholders } from "./exhibit.ts";
 import type { StageFact, StageRow } from "./pipeline-stages.ts";
 
 /** The Learn stage pages a station's sheet links to (apps/docs/src/content/docs/learn/stages/<slug>.mdx). */
@@ -370,123 +369,11 @@ export function sceneInput(run: PipelineData) {
   };
 }
 
-/** The static images' sizes in pixels (scripts/site-assets.ts renders them; the page gives the same width and height). */
-export const STILLS = { strip: [1700, 256], full: [1280, 600] } as const satisfies Record<string, readonly [number, number]>;
+/**
+ * The still frames' sizes in pixels (scripts/site-assets.ts renders them; the page gives the same width and height): the
+ * live section's home view in the stage beside its card (desktop) and on a phone's view.
+ */
+export const STILLS = { wide: [1600, 1160], tall: [720, 840] } as const satisfies Record<string, readonly [number, number]>;
 
 /** The Learn page of a stage, under the site's base. */
 export const learnPath = (slug: LearnStage) => `learn/stages/${slug}/`;
-
-/** The exhibit's generated data, as far as "Follow" reads it (src/data/exhibit.json, scripts/landing-data.ts). */
-export interface FollowExhibit {
-  readonly lines: readonly (readonly LinePart[])[];
-  readonly walk: readonly { readonly id: string }[];
-  readonly notes: Readonly<
-    Record<
-      string,
-      {
-        readonly id: string;
-        readonly kind: string;
-        readonly label: string;
-        readonly value: string;
-        readonly verified: boolean;
-        readonly sql?: readonly string[];
-        readonly params?: readonly (readonly [string, string])[];
-        readonly fn?: string;
-        readonly inputs?: readonly { readonly id: string; readonly label: string; readonly value: string }[];
-        readonly rows?: {
-          readonly file: string;
-          readonly columns: readonly string[];
-          readonly rows: readonly { readonly row: number; readonly cells: readonly string[]; readonly cited: boolean }[];
-          readonly count: number;
-        };
-        readonly quote?: string;
-        readonly section?: string;
-      }
-    >
-  >;
-}
-type Note = FollowExhibit["notes"][string];
-
-/** One step of "Follow": the station it stops at, a short tag over that station, and what the step shows. */
-export type FollowStep =
-  | { readonly at: StationKey; readonly kind: "rows"; readonly badge: string; readonly title: string; readonly note: Note }
-  | { readonly at: StationKey; readonly kind: "definition"; readonly badge: string; readonly title: string; readonly note: Note }
-  | {
-      readonly at: StationKey;
-      readonly kind: "sql";
-      readonly badge: string;
-      readonly title: string;
-      readonly note: Note;
-      readonly head: Note;
-    }
-  | {
-      readonly at: StationKey;
-      readonly kind: "placeholders";
-      readonly badge: string;
-      readonly title: string;
-      readonly sentence: string;
-      readonly source?: Note;
-    }
-  | {
-      readonly at: StationKey;
-      readonly kind: "verify";
-      readonly badge: string;
-      readonly title: string;
-      readonly head: Note;
-      readonly recomputed: number;
-    }
-  | {
-      readonly at: StationKey;
-      readonly kind: "render";
-      readonly badge: string;
-      readonly title: string;
-      readonly sentence: readonly LinePart[];
-    };
-
-export interface Follow {
-  /** The headline fact the steps follow: the exhibit walkthrough's first step (chosen there by role). */
-  readonly head: Note;
-  readonly steps: readonly FollowStep[];
-}
-
-/**
- * "Follow": the run's headline fact from the sheet rows to the report. The headline is the exhibit walkthrough's first
- * figure (the percent change, chosen by role in landing-data.ts) and its input is the walkthrough's SQL step (the
- * newest period's query, with the sheet rows it read); the sentence is the report's first, as the model wrote it and
- * as the reader sees it.
- */
-export function follow(run: PipelineData, ex: FollowExhibit): Follow {
-  const head = ex.notes[ex.walk[0]?.id ?? ""];
-  if (!head) throw new Error("engine machine: the exhibit has no headline step");
-  const input =
-    ex.walk.map((w) => ex.notes[w.id]).find((n) => n && n.kind === "sql" && n.rows && head.inputs?.some((i) => i.id === n.id)) ??
-    (head.inputs ?? []).map((i) => ex.notes[i.id]).find((n) => n?.kind === "sql" && n.rows);
-  if (!input?.rows) throw new Error(`engine machine: the headline ${head.id} has no SQL input with cited rows`);
-  const sentence = firstSentence(ex.lines[0] ?? []);
-  const source = Object.values(ex.notes).find((n) => n.kind === "source");
-  const cited = input.rows.rows.find((r) => r.cited);
-  const v2 = run.checks.find((c) => c.check === "V2");
-  const steps: FollowStep[] = [
-    { at: "ingest", kind: "rows", badge: `row ${cited?.row ?? ""}`.trim(), title: "It starts as rows in a spreadsheet", note: input },
-    { at: "metrics", kind: "definition", badge: run.metric.id, title: "A definition you can read and approve", note: input },
-    {
-      at: "analysis",
-      kind: "sql",
-      badge: `${head.id} = ${head.value}`,
-      title: "The database computes it and gives it an id",
-      note: input,
-      head,
-    },
-    {
-      at: "explain",
-      kind: "placeholders",
-      badge: `{{${head.id}}}`,
-      title: "The model writes a placeholder, not a number",
-      sentence: placeholders(sentence),
-      ...(source ? { source } : {}),
-    },
-    { at: "verify", kind: "verify", badge: `✓ ${head.id}`, title: "The verifier computes it again", head, recomputed: v2?.run ?? 0 },
-    { at: "render", kind: "render", badge: `${head.value} ${head.id}`, title: `Only now does ${head.value} appear`, sentence },
-  ];
-  return { head, steps };
-}

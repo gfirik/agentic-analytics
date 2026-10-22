@@ -22,8 +22,8 @@ export const SITE_ASSET_INPUTS = [
   "apps/docs/src/styles/tokens.css",
 ] as const;
 
-/** The engine machine's static images (public/), rendered by site-assets.ts from the same scene as the 3D view. */
-export const MACHINE_STILLS = ["machine-strip.webp", "machine-strip.png", "machine-full.webp", "machine-full.png"] as const;
+/** The engine machine's still frames (public/), rendered by site-assets.ts from the same scene as the live view. */
+export const MACHINE_STILLS = ["machine-wide.webp", "machine-wide.png", "machine-tall.webp", "machine-tall.png"] as const;
 
 export function siteAssetInputsHash(): string {
   const h = createHash("sha256");
