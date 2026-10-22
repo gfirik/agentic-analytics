@@ -135,9 +135,13 @@ function withoutReasoning(body: unknown): unknown {
   }
 }
 
+/** providerFetch's defaults: retries after a 429, and the longest single wait (ms). */
+export const DEFAULT_MAX_RETRIES = 4;
+export const DEFAULT_MAX_WAIT_MS = 90_000;
+
 export function providerFetch(base: typeof fetch = fetch, o: ProviderFetchOptions = {}): typeof fetch {
-  const maxRetries = o.maxRetries ?? 4;
-  const maxWait = o.maxWaitMs ?? 90_000;
+  const maxRetries = o.maxRetries ?? DEFAULT_MAX_RETRIES;
+  const maxWait = o.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
   const sleep = o.sleep ?? sleepFor;
   return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const body = init?.body;
