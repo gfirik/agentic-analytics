@@ -5,6 +5,80 @@
   "date": "2026-10-22",
   "datasets": [
     {
+      "dataset": "hotel-bookings",
+      "title": "Hotel booking demand datasets",
+      "publisher": "Data in Brief (Elsevier)",
+      "licence": "CC BY 4.0",
+      "citation": "Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126.",
+      "page": "https://doi.org/10.1016/j.dib.2018.11.126",
+      "sha256": "3b22c26428ec81ad9432ec81f063c3623921ea0865066b5412535a39d143773b",
+      "file": "hotel-bookings.csv",
+      "completed": true,
+      "seconds": 25.974,
+      "metrics": [
+        "room_revenue",
+        "room_nights",
+        "bookings",
+        "cancellation_rate"
+      ],
+      "findings": [
+        "trend_break: revenue 2017-04 → 2017-05 (contribution.v1)",
+        "anomaly: bookings 2015-10 → 2015-11 (contribution.v1)",
+        "anomaly: room_nights 2015-10 → 2015-11 (contribution.v1)",
+        "improvement: revenue[customertype=Group] 2016-08 → 2017-08 (period_change.v1)",
+        "improvement: revenue 2017-08 (trend.v1)"
+      ],
+      "quality": [
+        "unparseable_value",
+        "unit_error",
+        "missing_value"
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "kind": "completes",
+          "about": "The job completes on 119,390 bookings with the published padding and \"NULL\" text left in",
+          "pass": true,
+          "detail": "report with 5 findings, 3 data-quality items"
+        },
+        {
+          "id": "C2",
+          "kind": "verified",
+          "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
+          "pass": true,
+          "detail": "106 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+        },
+        {
+          "id": "C3",
+          "kind": "seasonal_peak",
+          "about": "The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2)",
+          "pass": true,
+          "detail": "2015 peak 2015-08; 2016 peak 2016-08; 2017 peak 2017-08; 3/3 values equal SQL"
+        },
+        {
+          "id": "C4",
+          "kind": "seasonal_not_flagged",
+          "about": "The autumn fall is not reported as news: bookings in November are below October in both years (G2)",
+          "pass": false,
+          "detail": "1 of 5 findings: F2 2015-10→2015-11 (contribution.v1)"
+        },
+        {
+          "id": "C5",
+          "kind": "quality_issue",
+          "about": "Missing values: Children is NA in 4 bookings (G1)",
+          "pass": true,
+          "detail": "Q3 missing_value: 4 rows (N624), SQL 4; cites rows 40602, 40669, 40681…"
+        },
+        {
+          "id": "C6",
+          "kind": "quality_issue",
+          "about": "The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip",
+          "pass": false,
+          "detail": "not reported (kinds reported: unparseable_value, unit_error, missing_value)"
+        }
+      ]
+    },
+    {
       "dataset": "nz-card-spend",
       "title": "Electronic card transactions, September 2026",
       "publisher": "Stats NZ (Tatauranga Aotearoa)",
@@ -14,7 +88,7 @@
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
       "file": "nz-card-spend-by-industry.csv",
       "completed": true,
-      "seconds": 6.121,
+      "seconds": 5.374,
       "metrics": [
         "card_spend"
       ],
@@ -75,7 +149,7 @@
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
       "file": "online_retail_II.sample10.csv",
       "completed": true,
-      "seconds": 12.755,
+      "seconds": 12.601,
       "metrics": [
         "revenue",
         "orders"
@@ -142,5 +216,5 @@
       ]
     }
   ],
-  "seconds": 18.884
+  "seconds": 43.955
 }

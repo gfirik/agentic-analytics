@@ -139,6 +139,9 @@ describe("golden scorer", () => {
       got: "several members: wholesale, retail",
     });
     expect(scoreGoldenItem(cat, report([]), answer([total], ["N3"]))).toMatchObject({ pass: false, got: "no member cited" });
+    // A published member keeps its padding (hotel bookings' "Non Refund     "); the padded label still names it.
+    const padded = fact("N4", "revenue[channel=wholesale     ]_2026-04", 7400);
+    expect(scoreGoldenItem(cat, report([]), answer([padded, total], ["N4", "N3"])).pass).toBe(true);
   });
 
   it("summarizes one split at a time when asked", () => {

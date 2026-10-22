@@ -1,0 +1,50 @@
+# PENDING (DEFERRED, not run): EIA-861M monthly sales to ultimate customers, by state and sector (U.S. Energy
+# Information Administration; public domain). www.eia.gov does not answer from the machine this was written on, so
+# no file is pinned and no number below has been computed. This folder is not read by the real tier (it loads
+# answers/*.yaml only), so the tier runs on the pinned datasets until this one is.
+#
+# The plan for the run that reaches EIA (evals/real/DATASETS.md, "Pending"):
+#   1. pin a dated file whose months are all final (EIA revises preliminary months), with its SHA-256;
+#   2. derive one long CSV, FILE = evals/real/data/eia-861m-sales.csv, one line per year × month × state × sector
+#      with the published columns Year, Month, State, Sector, Revenue (thousand dollars), Sales (megawatthours),
+#      Customers, Price (cents/kWh), out of the workbook's multi-row header (the column names below are that plan
+#      and are fixed to the real layout then);
+#   3. run each query below on FILE, write its result, and move this file up to answers/ with the checks completed
+#      (a seasonal peak with SQL values, the price cross-check, the quality items the file really has).
+dataset: eia-861m
+file: eia-861m-sales.csv
+options:
+  today: "2026-10-16"
+  currency: USD
+
+ground_truth:
+  - id: G1
+    about: The peak month of US retail sales (all sectors) in each year (the summer cooling peak, July or August)
+    sql: >-
+      WITH m AS (SELECT Year::INTEGER AS y, Month::INTEGER AS mo, sum("Sales"::DOUBLE) AS v
+                 FROM read_csv('FILE', all_varchar = true) WHERE Sector = 'TOTAL' GROUP BY ALL)
+      SELECT y, arg_max(mo, v) AS peak_month, max(v) AS peak FROM m GROUP BY y ORDER BY y
+    result: "pending: not run (no pinned file)"
+  - id: G2
+    about: >-
+      Price = revenue ÷ sales, checked against EIA's own Price column (cents/kWh = thousand dollars × 100,000 ÷ MWh ÷
+      1,000), the cross-check against a published figure the plan asks for
+    sql: >-
+      SELECT count(*) AS lines,
+             max(abs("Revenue"::DOUBLE * 100 / nullif("Sales"::DOUBLE, 0) - "Price"::DOUBLE)) AS max_abs_diff_cents
+      FROM read_csv('FILE', all_varchar = true)
+    result: "pending: not run (no pinned file)"
+  - id: G3
+    about: Months with a missing or withheld value (the multi-row header and adjustment lines the derivation drops)
+    sql: >-
+      SELECT count(*) FILTER (WHERE "Revenue" IS NULL OR "Sales" IS NULL OR "Customers" IS NULL) AS incomplete
+      FROM read_csv('FILE', all_varchar = true)
+    result: "pending: not run (no pinned file)"
+
+checks:
+  - id: C1
+    kind: completes
+    about: The job completes on the derived long file
+  - id: C2
+    kind: verified
+    about: Every number re-computes (no mismatch, re-derivation mismatch or definition violation)

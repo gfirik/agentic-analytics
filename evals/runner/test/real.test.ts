@@ -317,7 +317,11 @@ describe("your own data (aa eval --suite real --answers <dir> --data <dir>)", ()
 
 describe("the published real-data results", () => {
   it("parses every answer file", () => {
-    expect(loadRealAnswers(join(REAL, "answers")).map((a) => a.answers.dataset)).toEqual(["nz-card-spend", "online-retail-ii"]);
+    expect(loadRealAnswers(join(REAL, "answers")).map((a) => a.answers.dataset)).toEqual([
+      "hotel-bookings",
+      "nz-card-spend",
+      "online-retail-ii",
+    ]);
   });
 
   // CI has no downloaded data (it is never committed): this runs where `bun run eval:real:fetch` has been run.

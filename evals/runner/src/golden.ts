@@ -149,7 +149,8 @@ export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answe
 /** The member of a measured fact's label (`revenue[channel=wholesale]_2026-04` → wholesale); one filter only. */
 function memberOf(label: string): string | undefined {
   const m = /\[([^=\],]+)=([^\],]+)\]/.exec(label);
-  return m?.[2];
+  // Published members keep their padding ("Non Refund     "), and a padded label must still match the expected member.
+  return m?.[2]?.trim();
 }
 
 export interface GoldenSummary {
