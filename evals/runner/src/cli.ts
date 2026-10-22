@@ -297,6 +297,54 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
   return result;
 }
 
+export interface MatrixRun {
+  readonly model: string;
+  readonly result?: SuiteResult;
+  /** Why this model's run didn't finish (no client, a provider error): the other models still run. */
+  readonly error?: string;
+}
+
+/**
+ * The model matrix (docs/specs/accuracy.md §6): one suite run per model, one after the other, each written as its own
+ * results row (the model spec is its row name). A model that fails is reported and the next one runs; nothing is
+ * averaged across models.
+ */
+export async function evalMatrix(
+  models: readonly string[],
+  a: Omit<EvalArgs, "model" | "label" | "name" | "passes" | "replayDrafts" | "roleModels">,
+  d: EvalDeps,
+): Promise<MatrixRun[]> {
+  if (models.length < 2) throw new EvalRunError("USAGE", "--models needs at least two models (use --model for one)");
+  if (new Set(models).size !== models.length) throw new EvalRunError("USAGE", "--models lists a model twice");
+  const runs: MatrixRun[] = [];
+  for (const [i, model] of models.entries()) {
+    d.print("");
+    d.print(`== model ${i + 1} of ${models.length}: ${model}`);
+    try {
+      runs.push({ model, result: await evalCommand({ ...a, model }, d) });
+    } catch (err) {
+      if (!(err instanceof Error)) throw err;
+      runs.push({ model, error: "code" in err ? `${String(err.code)}: ${err.message}` : err.message });
+      d.print(`${model}: ${err.message}`);
+    }
+  }
+  d.print("");
+  d.print("== matrix");
+  for (const line of matrixLines(runs)) d.print(line);
+  return runs;
+}
+
+/** One line per model: jobs finished, planted recall@5 and number mismatches, or the error. */
+export function matrixLines(runs: readonly MatrixRun[]): string[] {
+  const pct = (v: number | undefined) => (v === undefined ? "n/a" : `${(v * 100).toFixed(1)}%`);
+  return runs.map((r) => {
+    if (!r.result) return `${r.model}: not run (${r.error ?? "unknown error"})`;
+    const bar = (m: string) => r.result?.bars.find((b) => b.metric === m)?.value;
+    const done = r.result.scores.filter((s) => s.completed).length;
+    return `${r.model}: ${done}/${r.result.scores.length} jobs, recall@5 ${pct(bar("Planted recall@5"))}, number mismatches ${bar("Number mismatches") ?? "n/a"}`;
+  });
+}
+
 export interface RealEvalArgs {
   /** "baseline" (the scripted heuristic, no LLM) or a model name used for every role. */
   readonly model: string;

@@ -7,9 +7,12 @@ import type { Dataset } from "@agentic-analytics/eval-generator";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { describe, expect, it } from "vitest";
 import {
+  baselineModel,
   EvalRunError,
   evalCommand,
+  evalMatrix,
   evalSlug,
+  matrixLines,
   mergeChunks,
   mergeResults,
   mergeRoutes,
@@ -257,5 +260,48 @@ describe("evalCommand with --replay-drafts (M14a)", () => {
     const err = await run(dir, join(dir, "results")).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EvalRunError);
     expect(String(err)).toMatch(/no model draft/);
+  });
+});
+
+describe("the model matrix (M14)", () => {
+  it("runs each model as its own row, reports a model that fails and goes on to the next", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-eval-matrix-"));
+    const results = join(dir, "results");
+    const lines: string[] = [];
+    const runs = await evalMatrix(
+      ["baseline", "fake-b", "no-such-model"],
+      { suite: "full", only: ["coffee_roaster-v1"], resultsDir: results, resultsPage: join(dir, "RESULTS.md") },
+      {
+        embedder: hashEmbedder(),
+        print: (l) => lines.push(l),
+        now: () => new Date("2026-10-22T10:00:00Z"),
+        // A second scripted "model" stands in for a provider; an unknown name has no client.
+        modelFor: (name) => {
+          if (name === "fake-b") return baselineModel({ small: false });
+          throw new EvalRunError("NO_MODEL", `no model client for ${name}`);
+        },
+      },
+    );
+    expect(runs.map((r) => [r.model, r.result !== undefined, r.error])).toEqual([
+      ["baseline", true, undefined],
+      ["fake-b", true, undefined],
+      ["no-such-model", false, "NO_MODEL: no model client for no-such-model"],
+    ]);
+    // One results file per model that ran, each its own row.
+    expect(readdirSync(results).sort()).toEqual(["2026-10-22-baseline-full.json", "2026-10-22-fake-b-full.json"]);
+    expect(matrixLines(runs)).toEqual([
+      "baseline: 1/1 jobs, recall@5 100.0%, number mismatches 0",
+      "fake-b: 1/1 jobs, recall@5 100.0%, number mismatches 0",
+      "no-such-model: not run (NO_MODEL: no model client for no-such-model)",
+    ]);
+    expect(lines).toContain("== matrix");
+  }, 180_000);
+
+  it("needs two or more distinct models", async () => {
+    const deps = { embedder: hashEmbedder(), print: () => {} };
+    await expect(evalMatrix(["baseline"], { suite: "smoke", resultsDir: "/nonexistent" }, deps)).rejects.toMatchObject({ code: "USAGE" });
+    await expect(evalMatrix(["baseline", "baseline"], { suite: "smoke", resultsDir: "/nonexistent" }, deps)).rejects.toMatchObject({
+      code: "USAGE",
+    });
   });
 });
