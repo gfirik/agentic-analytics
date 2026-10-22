@@ -17,7 +17,7 @@ It runs **fully locally, at $0**: models through Ollama (or a free endpoint such
 <!-- status:start -->
 > **Status: v0.1, early.** What is proven so far:
 >
-> - **Real public data:** 12 of 12 checks pass on 2 public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).
+> - **Real public data:** 16 of 18 checks pass on 3 public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).
 > - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (Groq free tier) finished 3 of 3 smoke jobs, every number recomputed before shipping, and 100% citation precision ([details](#real-model-runs)).
 > - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.
 >
@@ -166,13 +166,19 @@ stateDiagram-v2
 
 ### Real public data
 
-The engine on two public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines) and New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities and suppressed values are reported, whether the seasonal peak lands in the right month, and whether a part-month or the regular January fall is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
+The engine on three public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines), New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged) and two Portuguese hotels' bookings (*Data in Brief* hotel booking demand, 119,390 bookings, cancellations included). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities, suppressed values and an extreme rate are reported, whether the seasonal peak lands in the right month, and whether a part-month or a regular seasonal fall (January for card spending, November for hotel bookings) is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
 
 <!-- table:real-data:start -->
-12 of 12 checks pass (offline baseline, no language model, 2026-10-22). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
+16 of 18 checks pass (offline baseline, no language model, 2026-10-22). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
 
 | Dataset | Check | Result |
 |---|---|---|
+| Hotel booking demand datasets | The job completes on 119,390 bookings with the published padding and "NULL" text left in | pass |
+| Hotel booking demand datasets | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
+| Hotel booking demand datasets | The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2) | pass |
+| Hotel booking demand datasets | The autumn fall is not reported as news: bookings in November are below October in both years (G2) | **fail** |
+| Hotel booking demand datasets | Missing values: Children is NA in 4 bookings (G1) | pass |
+| Hotel booking demand datasets | The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip | **fail** |
 | Electronic card transactions, September 2026 | The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | pass |
 | Electronic card transactions, September 2026 | Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | pass |
 | Electronic card transactions, September 2026 | The December peak: December is the top month of 2023, 2024 and 2025 (G1) | pass |
@@ -186,6 +192,7 @@ The engine on two public datasets with their real mess left in: a UK online reta
 | Online Retail II | The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | pass |
 | Online Retail II | No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | pass |
 
+- Hotel booking demand datasets (Data in Brief (Elsevier), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126.
 - Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.
 - Online Retail II (UCI Machine Learning Repository, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.
 <!-- table:real-data:end -->

@@ -327,9 +327,24 @@ Public datasets run as they are published (evals/real/README.md): `bun run eval:
 
 Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.
 
+#### Hotel booking demand datasets (Data in Brief (Elsevier), CC BY 4.0)
+
+Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 26.0 s · 4/6 checks pass.
+
+| Check | Pass | What the report shows |
+|---|---|---|
+| C1: The job completes on 119,390 bookings with the published padding and "NULL" text left in | yes | report with 5 findings, 3 data-quality items |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 106 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+| C3: The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2) | yes | 2015 peak 2015-08; 2016 peak 2016-08; 2017 peak 2017-08; 3/3 values equal SQL |
+| C4: The autumn fall is not reported as news: bookings in November are below October in both years (G2) | **no** | 1 of 5 findings: F2 2015-10→2015-11 (contribution.v1) |
+| C5: Missing values: Children is NA in 4 bookings (G1) | yes | Q3 missing_value: 4 rows (N624), SQL 4; cites rows 40602, 40669, 40681… |
+| C6: The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip | **no** | not reported (kinds reported: unparseable_value, unit_error, missing_value) |
+
+Metrics: room_revenue, room_nights, bookings, cancellation_rate. Data-quality kinds: unparseable_value, unit_error, missing_value. Findings: trend_break: revenue 2017-04 → 2017-05 (contribution.v1); anomaly: bookings 2015-10 → 2015-11 (contribution.v1); anomaly: room_nights 2015-10 → 2015-11 (contribution.v1); improvement: revenue[customertype=Group] 2016-08 → 2017-08 (period_change.v1); improvement: revenue 2017-08 (trend.v1).
+
 #### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
 
-This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 6.1 s · 5/5 checks pass.
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 5.4 s · 5/5 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -343,7 +358,7 @@ Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.8 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.6 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
