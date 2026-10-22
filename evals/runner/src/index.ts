@@ -19,6 +19,18 @@ export {
   selectDatasets,
 } from "./cli.ts";
 export {
+  GoldenItem,
+  type GoldenScore,
+  GoldenSet,
+  type GoldenSummary,
+  type PairedDifference,
+  pairedBootstrap,
+  parseGoldenSet,
+  scoreGoldenItem,
+  summarizeGolden,
+  withinTolerance,
+} from "./golden.ts";
+export {
   loadRealAnswers,
   missingRealData,
   monthlyFacts,
