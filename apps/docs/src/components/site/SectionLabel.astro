@@ -1,14 +1,15 @@
 ---
-// A bracketed section label centred on a hairline (DESIGN.md §3): ⊣ §2 HOW IT WORKS ⊢, in mono.
+// A bracketed section label centred on a hairline (DESIGN.md §3): ⊣ §2 HOW IT WORKS ⊢, in mono. Without `n` it has no
+// section number (the engine machine's band under the hero, before §1).
 interface Props {
-  n: number;
+  n?: number;
   text: string;
 }
 const { n, text } = Astro.props;
 ---
 
 <p class="aa-seclabel">
-  <span class="aa-seclabel-text"><span aria-hidden="true">⊣ </span>§{n} {text}<span aria-hidden="true"> ⊢</span></span>
+  <span class="aa-seclabel-text"><span aria-hidden="true">⊣ </span>{n === undefined ? "" : `§${n} `}{text}<span aria-hidden="true"> ⊢</span></span>
 </p>
 
 <style>

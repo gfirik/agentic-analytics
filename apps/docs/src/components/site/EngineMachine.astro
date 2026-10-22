@@ -1,35 +1,22 @@
 ---
-// <EngineMachine />: the engine drawn as a factory line (DESIGN.md §6 "Engine machine", the one 3D exception of §1,
-// §2.6 and §9; its motion rules in §7). Closed, it is a still strip under the hero (an image rendered at build time by
-// scripts/site-assets.ts) with "Open the machine". Opening it fetches the 3D view (machine-3d.ts, a lazy chunk: on
-// hover, focus or pointerdown of the button, never on scroll) and expands it in place; its labels, legend, toolbar and
-// sheet are this HTML. Without JS, on weak devices, or if WebGL fails, the button opens the station list below with the
-// closed machine's image. Every station, its stages and its figures come from the recorded run (engine-machine.ts).
+// <EngineMachine />: the engine drawn as a factory line, live in its own band under the hero (DESIGN.md §6 "Engine
+// machine", the one 3D exception of §1, §2.6 and §9; its motion in §7). The still frame (rendered at build time from the
+// same scene by scripts/site-assets.ts) shows at once; three.js (machine-3d.ts, its own chunk) starts on idle after load
+// once the band is near, and draws over it. As the reader scrolls through the band, a sticky stage stays put and the camera moves from station
+// to station; hovering (or tapping) a station shows its card. The labels, the card and the station list are this HTML.
+// Without JS, under reduced motion and on weak devices it is the still frame with the station list, and three never
+// loads. Every station, its stages and its figures come from the recorded run (engine-machine.ts).
 import { getCollection } from "astro:content";
 import pipeline from "../../../../../docs/assets/readme/pipeline.json";
-import exhibit from "../../data/exhibit.json";
 import type { PipelineData } from "../pipeline-scene.ts";
-import {
-  type FollowExhibit,
-  follow,
-  type LearnStage,
-  learnPath,
-  machineStations,
-  STILLS,
-  type Station,
-  sceneInput,
-  sidePieces,
-  tourOrder,
-} from "./engine-machine.ts";
+import { type LearnStage, learnPath, machineStations, STILLS, type Station, sceneInput, sidePieces, tourOrder } from "./engine-machine.ts";
 import { withBase } from "./site.ts";
 
 const run = pipeline as unknown as PipelineData;
-const ex = exhibit as unknown as FollowExhibit;
 const stations = machineStations(run);
 const sides = sidePieces(run);
-const fol = follow(run, ex);
-const data = { scene: sceneInput(run), tour: tourOrder(stations), follow: fol.steps.map((s) => s.at) };
-const head = fol.head;
+const tour = tourOrder(stations);
+const data = { scene: sceneInput(run), tour };
 
 // The Learn pages' own titles, so a link reads as the page it opens (and a missing page fails the build).
 const learnPages = await getCollection("docs", (e) => e.id.startsWith("learn/stages/"));
@@ -44,250 +31,64 @@ const img = (file: string) => withBase(file);
 const callers = stations.filter((s) => s.info.calls.length > 0).map((s) => s.info.name);
 const and = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const kicker = (s: Station) =>
-  `${s.n ? `Station ${s.n}` : "Beside the line"} · ${s.info.name}${s.stages.length ? ` · ${s.stages.join(" · ")}` : ""}`;
-const stationOf = (key: string) => [...stations, ...sides].find((s) => s.key === key);
-const canvasLabel = `A three-dimensional drawing of the engine as a factory line: ${stations.length} stations on a conveyor, the job's database file in front and the model room behind glass. Each station's label is a button over the drawing, and every station is described in "Every station, as a list" below.`;
-const stripAlt = `The engine drawn as a factory line: ${stations.length} stations on a conveyor from the doors to the report, the job's database file in front and the model room behind glass.`;
+  // The stages, unless the only one is the station's own name ("Verify · Verify").
+  `${s.n ? `Station ${s.n}` : "Beside the line"} · ${s.info.name}${s.stages.length && !(s.stages.length === 1 && s.stages[0]?.toLowerCase() === s.info.name.toLowerCase()) ? ` · ${s.stages.join(" · ")}` : ""}`;
+const stillAlt = `The engine drawn as a factory line: ${stations.length} stations on a conveyor from the doors to the report, the job's database file in front and the model room behind glass. Every station is described in "Every station, as a list" below.`;
 ---
 
-<div class="aa-machine" data-machine>
+<div class="aa-engine" data-machine style={`--aa-engine-stops: ${tour.length + 1}`}>
   <script is:inline>
-    // Before first paint: with JS, the button opens the 3D view (or the list, on a weak device), and the list's own
-    // summary steps back; without JS the list's summary is the button.
-    document.currentScript.parentElement.setAttribute("data-live", "");
+    // Before first paint, so the band's height never changes after it: "live" (a tall band with a sticky stage, the
+    // list folded) for a capable device; "still" (the still frame and the open list) under reduced motion, on a weak
+    // device or with Save-Data. Without JS there is no mode: the still layout.
+    (function (root) {
+      var n = navigator;
+      var weak = (n.hardwareConcurrency || 4) <= 2 || (n.deviceMemory || 4) <= 2 || !!(n.connection && n.connection.saveData);
+      var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      root.setAttribute("data-mode", weak || reduced ? "still" : "live");
+    })(document.currentScript.parentElement);
   </script>
-  <div class="aa-machine-bar">
-    <p class="aa-label aa-machine-label">The engine, opened up<span class="aa-machine-count"> · {stations.length} stations</span></p>
-    <button type="button" class="aa-button aa-button-secondary aa-machine-open" data-machine-open aria-expanded="false" aria-controls="aa-machine-stage aa-machine-list">
-      Open the machine
-    </button>
-  </div>
-  <div class="aa-machine-strip">
-    <picture>
-      <source type="image/webp" srcset={img("machine-strip.webp")} />
-      <img src={img("machine-strip.png")} width={STILLS.strip[0]} height={STILLS.strip[1]} alt={stripAlt} loading="lazy" decoding="async" />
-    </picture>
-  </div>
-
-  <div class="aa-machine-stage" id="aa-machine-stage" hidden>
-    <div class="aa-machine-view" data-viewport>
-      <canvas data-canvas role="img" aria-label={canvasLabel}></canvas>
-      <div class="aa-machine-tags" data-tags>
-        {
-          [...stations, ...sides].map((s) => (
-            <button type="button" class:list={["aa-machine-tag", { "is-side": !s.n }]} data-tag data-id={s.key} aria-pressed="false">
-              {s.n ? <span class="aa-machine-tag-n">{s.n}</span> : null}
-              <span class="aa-machine-tag-t">{s.info.simple}</span>
-            </button>
-          ))
-        }
-        <div class="aa-machine-badge" data-badge hidden aria-hidden="true"></div>
+  <div class="aa-engine-track" data-track>
+    <div class="aa-engine-stage" data-engine-stage>
+      <div class="aa-engine-view" data-viewport>
+        <picture class="aa-engine-still">
+          <source media="(max-width: 39.99rem)" type="image/webp" srcset={img("machine-tall.webp")} width={STILLS.tall[0]} height={STILLS.tall[1]} />
+          <source media="(max-width: 39.99rem)" type="image/png" srcset={img("machine-tall.png")} width={STILLS.tall[0]} height={STILLS.tall[1]} />
+          <source type="image/webp" srcset={img("machine-wide.webp")} width={STILLS.wide[0]} height={STILLS.wide[1]} />
+          <img src={img("machine-wide.png")} width={STILLS.wide[0]} height={STILLS.wide[1]} alt={stillAlt} loading="lazy" decoding="async" />
+        </picture>
+        <div class="aa-engine-tags" data-tags>
+          {
+            [...stations, ...sides].map((s) => (
+              <button type="button" class:list={["aa-engine-tag", { "is-side": !s.n }]} data-tag data-id={s.key} aria-pressed="false">
+                {s.n ? <span class="aa-engine-tag-n">{s.n}</span> : null}
+                <span class="aa-engine-tag-t">{s.info.simple}</span>
+              </button>
+            ))
+          }
+        </div>
+        <div class="aa-engine-progress" aria-hidden="true"><i data-bar></i></div>
       </div>
-      <ul class="aa-machine-legend" aria-label="Legend">
-        <li><i class="aa-sw aa-sw-solid" aria-hidden="true"></i>Plain code</li>
-        <li><i class="aa-sw aa-sw-glass" aria-hidden="true"></i>Calls a model (behind glass)</li>
-        <li><i class="aa-sw aa-sw-pipe" aria-hidden="true"></i>Saves to the job's database file</li>
-        <li><i class="aa-sw aa-sw-cable" aria-hidden="true"></i>A call to a model</li>
-      </ul>
-      <div class="aa-machine-viewctl" role="group" aria-label="View">
-        <button type="button" class="aa-machine-vbtn" data-view="in" aria-label="Zoom in">+</button>
-        <button type="button" class="aa-machine-vbtn" data-view="out" aria-label="Zoom out">−</button>
-        <button type="button" class="aa-machine-vbtn is-wide" data-view="front">Front</button>
-        <button type="button" class="aa-machine-vbtn is-wide" data-view="top">From above</button>
-        <button type="button" class="aa-machine-vbtn is-wide" data-view="reset">Reset</button>
-      </div>
-      <div class="aa-machine-toolbar" role="group" aria-label="Guided">
-        <button type="button" class="aa-machine-btn is-primary" data-guide="tour" aria-pressed="false">Take the tour</button>
-        <button type="button" class="aa-machine-btn" data-guide="follow" aria-pressed="false">Follow {head.value}</button>
-        <button type="button" class="aa-machine-btn" data-guide="flow" aria-pressed="false">Run the line</button>
-      </div>
-    </div>
-    <aside class="aa-machine-sheet" aria-labelledby="aa-machine-sheet-title">
-      <div class="aa-machine-sheet-head" aria-live="polite">
-        <p class="aa-label" data-sheet-kicker></p>
-        <p class="aa-machine-sheet-title" id="aa-machine-sheet-title" data-sheet-title></p>
-      </div>
-      <div class="aa-machine-sheet-body" data-sheet-body tabindex="0" role="region" aria-label="Station sheet"></div>
-      <div class="aa-machine-steps" data-steps hidden>
-        <div class="aa-machine-progress" data-progress aria-hidden="true"></div>
-        <div class="aa-machine-stepnav">
-          <span class="aa-machine-count-n" data-step-count></span>
-          <button type="button" class="aa-machine-btn" data-step-prev>Back</button>
-          <button type="button" class="aa-machine-btn is-primary" data-step-next>Next</button>
-          <button type="button" class="aa-machine-btn" data-step-close>Close</button>
+      <div class="aa-engine-card" data-card>
+        <p class="aa-label aa-engine-card-kicker" data-card-kicker>How to read the machine</p>
+        <p class="aa-engine-card-title" data-card-title>Files in on the left, a checked report out on the right</p>
+        <div class="aa-engine-card-body" data-card-body>
+          <div class="aa-station-body" data-overview>
+            <p>
+              {and(callers)} sit behind glass: they call a model, and no model is allowed to write a number. Every number is computed by the database,
+              then computed again by the verifier.
+            </p>
+            <p>The long tank in front is the job's database file, where every station saves its work; the room at the back holds the models.</p>
+            <p class="aa-engine-live-only">Scroll to move down the line, or point at a station to see what it does.</p>
+          </div>
         </div>
       </div>
-    </aside>
-
-    <template data-sheet-for="overview">
-      <div data-head data-kicker="How to read the machine" data-title="A small factory for business questions"></div>
-      <div class="aa-station-body">
-        <p>Files go in on the left; a checked report comes out on the right.</p>
-        <p>
-          {and(callers)} sit behind dashed glass: they call a model, and no model is allowed to write a number. Every number is computed by the
-          database, then computed again by the verifier.
-        </p>
-        <p>The long tank in front is the job's database file, where every station saves its work. The room at the back holds the models; the dashed cables show which stations call them.</p>
-        <p>Press a station's label, take the tour, or follow {head.value} from the sheet's rows to the report.</p>
-      </div>
-    </template>
-    {
-      fol.steps.map((st, i) => {
-        const s = stationOf(st.at);
-        const verified = (st.kind === "verify" || st.kind === "render") && head.verified;
-        return (
-          <template data-follow-step={i}>
-            <div
-              data-head
-              data-kicker={`Follow ${head.value} · step ${i + 1} of ${fol.steps.length} · ${s?.info.simple ?? st.at}`}
-              data-title={st.title}
-              data-badge={st.badge}
-              data-verified={verified ? "" : undefined}
-            />
-            <div class="aa-station-body">
-              {st.kind === "rows" && st.note.rows ? (
-                <>
-                  <p>
-                    Ingest copies the rows of {st.note.rows.file} into the job's database, each with its row number, so a figure can be traced back to the
-                    rows it read. The rows {st.note.id} cites are marked:
-                  </p>
-                  <div class="aa-machine-scroll" tabindex="0" role="region" aria-label={`Rows of ${st.note.rows.file}`}>
-                    <table class="aa-machine-rows">
-                      <thead>
-                        <tr>
-                          <th scope="col">row</th>
-                          {st.note.rows.columns.map((c) => (
-                            <th scope="col">{c}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {st.note.rows.rows.map((r) => (
-                          <tr class:list={{ "is-cited": r.cited }}>
-                            <td>{r.row}</td>
-                            {r.cells.map((c) => (
-                              <td>{c}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              ) : st.kind === "definition" ? (
-                <>
-                  <p>A model proposes the definition; code checks every column it names, and you approve or edit it before anything is measured.</p>
-                  <dl class="aa-station-run">
-                    <div>
-                      <dt>{run.metric.id}</dt>
-                      <dd>
-                        {run.metric.formula}, per {run.metric.grain}
-                      </dd>
-                    </div>
-                    {(st.note.params ?? []).map(([k, v]) => (
-                      <div>
-                        <dt>{k}</dt>
-                        <dd>{v}</dd>
-                      </div>
-                    ))}
-                    <div>
-                      <dt>Status</dt>
-                      <dd>{run.metric.status}</dd>
-                    </div>
-                  </dl>
-                </>
-              ) : st.kind === "sql" ? (
-                <>
-                  <p>
-                    The database runs the query; {st.head.id} is computed from its inputs by <code>{st.head.fn}</code> and stored as a fact with them. No model
-                    is involved.
-                  </p>
-                  <pre class="aa-machine-sql" tabindex="0" aria-label={`SQL of ${st.note.id}`}><code>{[...(st.note.sql ?? []), ...(st.note.params ?? []).map(([k, v]) => `-- ${k} = ${v}`)].join("\n")}</code></pre>
-                  <dl class="aa-station-run">
-                    {[...(st.head.inputs ?? []), st.head].map((f) => (
-                      <div>
-                        <dt>{f.label}</dt>
-                        <dd>
-                          <span class="aa-fig">{f.value}</span>
-                          <a class="aa-chip" href={factHref(f.id)}>
-                            {f.id}
-                          </a>
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </>
-              ) : st.kind === "placeholders" ? (
-                <>
-                  <p>The model sees the facts and their ids, never the data. Where a number goes, it writes a placeholder:</p>
-                  <p class="aa-machine-raw">
-                    <code>{st.sentence}</code>
-                  </p>
-                  {st.source?.quote ? (
-                    <>
-                      <p>For the cause it cites a passage the quarantined extractor read, {st.source.id}:</p>
-                      <blockquote class="aa-machine-quote">
-                        <p>{st.source.quote}</p>
-                      </blockquote>
-                      <p class="aa-machine-src">{st.source.label}</p>
-                    </>
-                  ) : null}
-                </>
-              ) : st.kind === "verify" ? (
-                <>
-                  <p>
-                    Before release the verifier runs each fact's SQL again on the same rows and recomputes every function fact: its recompute check ran{" "}
-                    {st.recomputed} times on this run. {st.head.id} comes out the same:
-                  </p>
-                  <dl class="aa-station-run">
-                    <div>
-                      <dt>{st.head.label}</dt>
-                      <dd>
-                        <span class="aa-fig">{st.head.value}</span>
-                        <a class="aa-chip" href={factHref(st.head.id)} aria-label={`${st.head.id}${st.head.verified ? ", verified" : ""}`}>
-                          {st.head.verified ? <Fragment set:html={check} /> : null}
-                          {st.head.id}
-                        </a>
-                      </dd>
-                    </div>
-                  </dl>
-                </>
-              ) : st.kind === "render" ? (
-                <>
-                  <p>Render fills each placeholder with its checked fact. In the report, the chip after a figure opens its query and rows.</p>
-                  <p class="aa-machine-final">
-                    {st.sentence.map((p) =>
-                      p.fact ? (
-                        <>
-                          <span class="aa-fig">{ex.notes[p.fact]?.value}</span>
-                          <a class="aa-chip" href={factHref(p.fact)} aria-label={`${p.fact}${ex.notes[p.fact]?.verified ? ", verified" : ""}`}>
-                            {ex.notes[p.fact]?.verified ? <Fragment set:html={check} /> : null}
-                            {p.fact}
-                          </a>
-                        </>
-                      ) : (
-                        p.text
-                      ),
-                    )}
-                  </p>
-                </>
-              ) : null}
-            </div>
-          </template>
-        );
-      })
-    }
-    <script type="application/json" data-machine-data set:html={JSON.stringify(data)} />
+    </div>
   </div>
+  <script type="application/json" data-machine-data set:html={JSON.stringify(data)} />
 
-  <details class="aa-machine-list" id="aa-machine-list">
-    <summary>
-      <span class="aa-machine-nojs">Open the machine</span><span class="aa-machine-js">Every station, as a list</span>
-    </summary>
-    <picture class="aa-machine-still">
-      <source type="image/webp" srcset={img("machine-full.webp")} />
-      <img src={img("machine-full.png")} width={STILLS.full[0]} height={STILLS.full[1]} alt={stripAlt} loading="lazy" decoding="async" />
-    </picture>
+  <details class="aa-engine-list" id="aa-engine-list" open>
+    <summary>Every station, as a list</summary>
     {
       [
         { label: "The stations, in the order a job runs them", items: stations, ordered: true },
@@ -303,10 +104,12 @@ const stripAlt = `The engine drawn as a factory line: ${stations.length} station
                   <p class="aa-label aa-station-kicker">{kicker(s)}</p>
                   <p class="aa-station-title">{s.info.simple}</p>
                   <div class="aa-station-body">
-                    <p>
-                      {s.info.plain[0]} {s.info.plain[1]}
+                    <p class="aa-station-plain">
+                      <span class="aa-station-lead">{s.info.plain[0]}</span> <span class="aa-station-more">{s.info.plain[1]}</span>
                     </p>
-                    <p class="aa-station-model">{s.info.calls.length ? `Calls a model: the ${and(s.info.calls)}.` : s.key === "models" ? "The models themselves." : "No model: plain code."}</p>
+                    <p class="aa-station-model">
+                      {s.info.calls.length ? `Calls a model: the ${and(s.info.calls)}.` : s.key === "models" ? "The models themselves." : "No model: plain code."}
+                    </p>
                     {s.run.length ? (
                       <dl class="aa-station-run">
                         {s.run.map((r) => (
@@ -346,187 +149,403 @@ const stripAlt = `The engine drawn as a factory line: ${stations.length} station
       })
     }
   </details>
+  <script is:inline>
+    // Live, the list folds under its summary (the stage and its card show every station); before first paint.
+    (function (list) {
+      if (list.parentElement.getAttribute("data-mode") === "live") list.open = false;
+    })(document.currentScript.previousElementSibling);
+  </script>
 </div>
 
 <script>
-  import type { Machine, MachineData } from "./machine-3d.ts";
+  import type { Live, MachineData } from "./machine-3d.ts";
 
-  // A device that would struggle with the 3D view gets the list and the still image instead (DESIGN.md §6).
-  const weakDevice = () => {
-    const n = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
-    if ((n.hardwareConcurrency ?? 4) <= 2 || (n.deviceMemory ?? 4) <= 2 || n.connection?.saveData) return true;
+  const PHONE = "(max-width: 39.99rem)";
+  const WIDE = "(min-width: 60rem)";
+
+  const webgl = () => {
     try {
       const c = document.createElement("canvas");
       const gl = c.getContext("webgl2") ?? c.getContext("webgl");
-      if (!gl) return true;
+      if (!gl) return false;
       gl.getExtension("WEBGL_lose_context")?.loseContext();
-      return false;
-    } catch {
       return true;
+    } catch {
+      return false;
     }
   };
+  /** After load, when the browser is idle (with a timeout, and a plain timer where there is no requestIdleCallback). */
+  const idle = () =>
+    new Promise<void>((ok) => {
+      const go = () =>
+        "requestIdleCallback" in window ? requestIdleCallback(() => ok(), { timeout: 2000 }) : setTimeout(ok, 1200);
+      if (document.readyState === "complete") go();
+      else addEventListener("load", go, { once: true });
+    });
+  /** Once the element is within `margin` of the viewport. */
+  const near = (el: Element, margin: string) =>
+    new Promise<void>((ok) => {
+      const io = new IntersectionObserver(
+        (es) => {
+          if (es.some((e) => e.isIntersecting)) {
+            io.disconnect();
+            ok();
+          }
+        },
+        { rootMargin: margin },
+      );
+      io.observe(el);
+    });
 
   for (const root of document.querySelectorAll<HTMLElement>("[data-machine]")) {
-    const button = root.querySelector<HTMLButtonElement>("[data-machine-open]");
-    const stage = root.querySelector<HTMLElement>(".aa-machine-stage");
-    const list = root.querySelector<HTMLDetailsElement>(".aa-machine-list");
+    if (root.dataset.mode !== "live") continue;
+    const track = root.querySelector<HTMLElement>("[data-track]");
+    const stage = root.querySelector<HTMLElement>("[data-engine-stage]");
+    const card = root.querySelector<HTMLElement>("[data-card]");
+    const list = root.querySelector<HTMLElement>(".aa-engine-list");
+    const bar = root.querySelector<HTMLElement>("[data-bar]");
     const json = root.querySelector("script[data-machine-data]")?.textContent;
-    if (!button || !stage || !list || !json) continue;
-    let weak: boolean | undefined;
-    const isWeak = () => (weak ??= weakDevice());
-    // The chunk is fetched on intent (hover, focus, pointerdown) and run on click; never on scroll or load.
-    let chunk: Promise<typeof import("./machine-3d.ts")> | undefined;
-    const load = () => {
-      chunk ??= import("./machine-3d.ts").catch((e: unknown) => {
-        chunk = undefined;
-        throw e;
-      });
-      return chunk;
-    };
-    const intent = () => {
-      if (!isWeak()) load().catch(() => {});
-    };
-    for (const ev of ["pointerenter", "focus", "pointerdown"]) button.addEventListener(ev, intent, { passive: true });
+    if (!track || !stage || !card || !list || !bar || !json) continue;
+    const data = JSON.parse(json) as MachineData;
+    const kickerEl = card.querySelector<HTMLElement>("[data-card-kicker]");
+    const titleEl = card.querySelector<HTMLElement>("[data-card-title]");
+    const bodyEl = card.querySelector<HTMLElement>("[data-card-body]");
+    const overview = bodyEl?.firstElementChild?.cloneNode(true) ?? null;
+    const overviewHead = [kickerEl?.textContent ?? "", titleEl?.textContent ?? ""] as const;
+    const stops = data.tour.length;
 
-    let machine: Machine | undefined;
-    let open = false;
-    const still = () => {
-      root.dataset.open = "static";
-      stage.hidden = true;
-      list.open = true;
-    };
-    const setOpen = async (on: boolean) => {
-      open = on;
-      button.setAttribute("aria-expanded", String(on));
-      button.textContent = on ? "Close the machine" : "Open the machine";
-      if (!on) {
-        delete root.dataset.open;
-        stage.hidden = true;
-        list.open = false;
-        machine?.hide();
+    // The card: the station's own entry in the list (cloned), or the overview at the home view.
+    let shown: string | null = "";
+    const show = (key: string | null, prefix?: string) => {
+      if (key === shown || !kickerEl || !titleEl || !bodyEl) return;
+      shown = key;
+      if (!key) {
+        kickerEl.textContent = overviewHead[0];
+        titleEl.textContent = overviewHead[1];
+        bodyEl.replaceChildren(...(overview ? [overview.cloneNode(true)] : []));
         return;
       }
-      if (isWeak()) return still();
-      // The stage's height is set in CSS, so the page below moves once, on the click, before the canvas draws.
-      root.dataset.open = "3d";
-      stage.hidden = false;
-      list.open = false;
-      try {
-        const m = await load();
-        if (!open) return;
-        machine ??= m.mount(stage, list, JSON.parse(json) as MachineData);
-        machine.show();
-      } catch {
-        // Deliberately quiet: if the chunk can't load (offline, blocked) or WebGL fails to start, the reader gets the
-        // station list over the still image, the same fallback as a weak device, rather than an error.
-        if (open) still();
+      const li = list.querySelector<HTMLElement>(`[data-station="${key}"]`);
+      if (!li) return;
+      const k = li.querySelector(".aa-station-kicker")?.textContent ?? "";
+      kickerEl.textContent = prefix ? `${prefix} · ${k}` : k;
+      titleEl.textContent = li.querySelector(".aa-station-title")?.textContent ?? "";
+      const body = li.querySelector(".aa-station-body")?.cloneNode(true);
+      bodyEl.replaceChildren(...(body ? [body] : []));
+    };
+
+    // The scroll: how far through the band the reader is, in stops (0 is the home view).
+    let live: Live | null = null;
+    let stop = -1;
+    let hover: string | null = null;
+    const span = () => Math.max(1, track.offsetHeight - stage.offsetHeight);
+    const progress = () => {
+      const top = track.getBoundingClientRect().top - (parseFloat(getComputedStyle(stage).top) || 0);
+      return Math.min(1, Math.max(0, -top / span()));
+    };
+    const update = () => {
+      const p = progress();
+      const f = p * stops;
+      bar.style.transform = `scaleX(${p.toFixed(4)})`;
+      live?.setProgress(f);
+      const s = Math.round(f);
+      if (s !== stop) {
+        stop = s;
+        hover = null;
+        const key = s === 0 ? null : (data.tour[s - 1] ?? null);
+        show(key, key ? `Stop ${s} of ${stops}` : undefined);
+        live?.highlight(key);
       }
     };
-    button.addEventListener("click", () => void setOpen(!open));
+    let ticking = false;
+    addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          ticking = false;
+          update();
+        });
+      },
+      { passive: true },
+    );
+    addEventListener("resize", update, { passive: true });
+    update();
+
+    // A station picked by hover, focus or a tap shows its card and highlight until the scroll reaches another stop.
+    const pick = (key: string | null) => {
+      if (!key || key === hover) return;
+      hover = key;
+      show(key);
+      live?.highlight(key);
+    };
+    /** Scroll the page so the camera stops at this piece (the tour's position for it). */
+    const go = (key: string) => {
+      const i = data.tour.indexOf(key);
+      if (i < 0) return;
+      const y = track.getBoundingClientRect().top + scrollY + ((i + 1) / stops) * span() - (parseFloat(getComputedStyle(stage).top) || 0);
+      scrollTo({ top: Math.ceil(y), behavior: "smooth" });
+    };
+    for (const t of root.querySelectorAll<HTMLButtonElement>("[data-tag]")) {
+      const key = t.dataset.id ?? "";
+      t.addEventListener("pointerenter", () => pick(key));
+      t.addEventListener("focus", () => pick(key));
+      t.addEventListener("click", () => go(key));
+    }
+
+    // three.js: on idle after load, once the band is near (within a quarter screen below the viewport; a whole screen on
+    // phones, which scroll faster and draw a lighter scene). Creating the WebGL context and compiling the shaders is one
+    // long task on a GPU-less machine, so a reader who never comes here never pays for it, and the first screen's
+    // input stays free. If WebGL or the chunk fails, the still frame stays, with the card still following the scroll.
+    const phone = matchMedia(PHONE).matches;
+    const start = async () => {
+      await idle();
+      await near(track, phone ? "100% 0px" : "0px 0px 25% 0px");
+      if (!webgl()) return;
+      try {
+        const m = await import("./machine-3d.ts");
+        live = await m.mount(stage, data, {
+          detail: phone ? "lite" : "full",
+          drift: !phone,
+          onHover: (k) => pick(k),
+          onPick: (k) => pick(k),
+          coveredRight: () => (matchMedia(WIDE).matches ? card.offsetWidth + 24 : 0), // the card and its 24px inset
+        });
+        root.dataset.gl = "on";
+        stop = -1;
+        update();
+      } catch {
+        // The still frame and the scroll-linked card are the fallback, so the reader sees nothing break; the state is
+        // marked so a test (or a developer) can see the live view failed to start.
+        root.dataset.gl = "failed";
+      }
+    };
+    void start();
   }
 </script>
 
 <style>
-  .aa-machine {
-    justify-self: stretch;
+  .aa-engine {
+    --aa-engine-h: clamp(37.5rem, 100svh - 3rem, 45rem);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--aa-space-3);
-    width: 100%;
+    gap: var(--aa-space-5);
     text-align: left;
   }
-  .aa-machine-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--aa-space-2) var(--aa-space-4);
-    min-height: 2.75rem;
-  }
-  .aa-machine-label {
-    margin: 0;
-  }
-  .aa-machine:not([data-live]) .aa-machine-open {
-    display: none;
-  }
-  .aa-machine-open {
-    min-width: 11rem;
-    justify-content: center;
-  }
 
-  /* The strip: the still machine, its box fixed by the image's own width and height (no layout shift). */
-  .aa-machine-strip {
+  /* The band: with JS on a capable device it is tall, and the stage stays put inside it while the reader scrolls
+     through (one scroll span per stop, so the camera moves from station to station). Its height is set before first
+     paint, so it never shifts. Otherwise (no JS, reduced motion, a weak device) it is just the stage. */
+  .aa-engine[data-mode="live"] .aa-engine-track {
+    height: calc(var(--aa-engine-h) + var(--aa-engine-stops) * 22svh);
+  }
+  .aa-engine-stage {
+    position: relative;
+    height: var(--aa-engine-h);
+  }
+  .aa-engine[data-mode="live"] .aa-engine-stage {
+    position: sticky;
+    top: max(var(--aa-space-5), (100svh - var(--aa-engine-h)) / 2);
+  }
+  .aa-engine-view {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--aa-page);
     border: 1px solid var(--aa-rule);
     border-radius: var(--aa-radius);
-    background: var(--aa-page);
-    overflow: hidden;
   }
-  .aa-machine-strip img,
-  .aa-machine-still img {
+  .aa-engine-still,
+  .aa-engine-still img,
+  .aa-engine-view :global(canvas) {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
   }
-  .aa-machine[data-open] .aa-machine-strip {
+  .aa-engine-still img {
+    object-fit: contain;
+  }
+  /* The canvas fades in over the still once its first frame is drawn. */
+  .aa-engine-view :global(canvas) {
+    animation: aa-engine-in 400ms var(--aa-ease) both;
+  }
+  @keyframes aa-engine-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* The station labels: buttons placed by the live view from projected coordinates; hidden until it places them. */
+  .aa-engine-tags {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .aa-engine-tag {
+    position: absolute;
+    left: 0;
+    top: 0;
+    visibility: hidden;
+    pointer-events: auto;
+    min-height: 1.5rem;
+    padding: 0.125rem 0.375rem;
+    white-space: nowrap;
+    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink);
+    background: var(--aa-raised);
+    border: 1px solid var(--aa-rule-strong);
+    border-radius: var(--aa-radius-chip);
+    cursor: pointer;
+    transition:
+      background-color var(--aa-fast) var(--aa-ease),
+      color var(--aa-fast) var(--aa-ease),
+      border-color var(--aa-fast) var(--aa-ease);
+  }
+  .aa-engine:not([data-gl="on"]) .aa-engine-tag {
+    display: none;
+  }
+  .aa-engine-tag-n {
+    color: var(--aa-ink-3);
+    margin-right: var(--aa-space-1);
+  }
+  .aa-engine-tag.is-side {
+    color: var(--aa-ink-2);
+    background: var(--aa-surface);
+  }
+  .aa-engine-tag:hover {
+    border-color: var(--aa-ink);
+  }
+  .aa-engine-tag[aria-pressed="true"] {
+    z-index: 2;
+    color: var(--aa-page);
+    background: var(--aa-ink);
+    border-color: var(--aa-ink);
+  }
+  .aa-engine-tag[aria-pressed="true"] .aa-engine-tag-n {
+    color: var(--aa-page);
+  }
+  /* On a narrow or wide-open view the labels show their numbers only; the name stays in the button's text for screen
+     readers and comes back on hover, focus or when pressed. */
+  .aa-engine-tags.is-compact .aa-engine-tag:not(.is-side, [aria-pressed="true"], :hover, :focus-visible) .aa-engine-tag-t {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .aa-engine-tags.is-compact .aa-engine-tag:not(.is-side, [aria-pressed="true"], :hover, :focus-visible) .aa-engine-tag-n {
+    margin-right: 0;
+  }
+  .aa-engine-tags.is-compact .aa-engine-tag:focus-visible,
+  .aa-engine-tags.is-compact .aa-engine-tag:hover {
+    z-index: 3;
+  }
+
+  /* How far through the band the reader is: a 2px ink rule along the view's foot (live only). */
+  .aa-engine-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--aa-rule);
+  }
+  .aa-engine-progress i {
+    display: block;
+    height: 100%;
+    background: var(--aa-ink);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .aa-engine:not([data-mode="live"]) .aa-engine-progress,
+  .aa-engine:not([data-mode="live"]) .aa-engine-live-only {
     display: none;
   }
 
-  /* The list: without JS its summary is the button; with JS it shows only once the machine is open. */
-  .aa-machine-list > summary {
-    list-style: none;
-    cursor: pointer;
-  }
-  .aa-machine-list > summary::-webkit-details-marker {
-    display: none;
-  }
-  .aa-machine:not([data-live]) .aa-machine-list > summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 2.75rem;
-    padding: 0.625rem 1rem;
-    border: 1px solid var(--aa-ink);
+  /* The card: the station in view (or under the pointer), its kicker, title, what it does, its figures in the run and
+     its Learn pages. From 60rem it sits over the view's right side; below, under the view. */
+  .aa-engine-card {
+    display: grid;
+    align-content: start;
+    gap: var(--aa-space-2);
+    padding: var(--aa-space-4) var(--aa-space-5) var(--aa-space-5);
+    background: var(--aa-raised);
+    border: 1px solid var(--aa-rule);
     border-radius: var(--aa-radius);
-    font: 500 0.9375rem / 1.2 var(--aa-font-sans);
+  }
+  .aa-engine-card p {
+    margin: 0;
+  }
+  .aa-engine-card-title,
+  .aa-station-title {
+    margin: 0;
+    font: 600 var(--aa-text-h3) / 1.4 var(--aa-font-sans);
     color: var(--aa-ink);
   }
-  .aa-machine:not([data-live]) .aa-machine-list > summary:hover {
-    background: var(--aa-surface);
+  .aa-engine-card-body {
+    margin-top: var(--aa-space-1);
   }
-  .aa-machine-js,
-  .aa-machine[data-live] .aa-machine-nojs {
-    display: none;
+  @media (min-width: 60rem) {
+    /* The still frame fills the part of the view the card leaves free, as the live home view does. */
+    .aa-engine-still {
+      right: calc(22rem + var(--aa-space-5));
+    }
+    .aa-engine-card {
+      position: absolute;
+      z-index: 4;
+      top: var(--aa-space-5);
+      right: var(--aa-space-5);
+      width: 22rem;
+      max-height: calc(100% - 2 * var(--aa-space-5));
+      overflow: hidden;
+    }
   }
-  .aa-machine[data-live] .aa-machine-js {
-    display: inline;
+  @media (max-width: 59.99rem) {
+    .aa-engine {
+      --aa-engine-h: auto;
+    }
+    .aa-engine-stage {
+      display: grid;
+      grid-template-rows: auto auto;
+      gap: var(--aa-space-3);
+    }
+    .aa-engine-view {
+      position: relative;
+      height: min(30rem, 56svh);
+    }
+    .aa-engine[data-mode="live"] .aa-engine-track {
+      height: calc(100svh + var(--aa-engine-stops) * 18svh);
+    }
+    .aa-engine[data-mode="live"] .aa-engine-stage {
+      top: var(--aa-space-3);
+    }
+    /* Live on a narrow screen the card stays short: what it does in one sentence, and its Learn pages. The list has
+       the rest. */
+    .aa-engine[data-mode="live"] .aa-engine-card {
+      padding: var(--aa-space-3) var(--aa-space-4);
+    }
+    .aa-engine[data-mode="live"] .aa-engine-card :is(.aa-station-more, .aa-station-model, .aa-station-run, [data-overview] p:not(.aa-engine-live-only)) {
+      display: none;
+    }
   }
-  .aa-machine[data-live] .aa-machine-list {
-    display: none;
-  }
-  .aa-machine[data-live][data-open] .aa-machine-list {
-    display: block;
-  }
-  .aa-machine[data-live] .aa-machine-list > summary {
+
+  /* The list: open without JS and in the still mode; folded under its summary when live. */
+  .aa-engine-list > summary {
     display: inline-flex;
     align-items: center;
     min-height: 1.5rem;
+    cursor: pointer;
     font: 500 var(--aa-text-small) / 1.4 var(--aa-font-sans);
     color: var(--aa-ink);
     text-decoration: underline;
     text-decoration-color: var(--aa-rule-strong);
     text-decoration-thickness: 1px;
     text-underline-offset: 0.2em;
-  }
-  .aa-machine[data-open="3d"] .aa-machine-still,
-  .aa-machine[data-open="static"] .aa-machine-list > summary {
-    display: none;
-  }
-  .aa-machine-still {
-    display: block;
-    margin-top: var(--aa-space-3);
-    border: 1px solid var(--aa-rule);
-    border-radius: var(--aa-radius);
-    overflow: hidden;
   }
   .aa-stations-label {
     margin: var(--aa-space-5) 0 var(--aa-space-2);
@@ -546,15 +565,8 @@ const stripAlt = `The engine drawn as a factory line: ${stations.length} station
     padding: var(--aa-space-4) 0;
     border-bottom: 1px solid var(--aa-rule);
   }
-  .aa-station-kicker,
-  .aa-station-title {
+  .aa-station-kicker {
     margin: 0;
-  }
-  .aa-station-title,
-  .aa-machine-sheet-title {
-    margin: 0;
-    font: 600 var(--aa-text-h3) / 1.4 var(--aa-font-sans);
-    color: var(--aa-ink);
   }
   .aa-station-body {
     display: grid;
@@ -605,364 +617,12 @@ const stripAlt = `The engine drawn as a factory line: ${stations.length} station
       column-gap: var(--aa-space-6);
     }
   }
-
-  /* The open machine: the 3D view and its sheet. Both heights are set here, so opening moves the page once, on the
-     reader's click, before the canvas draws; nothing inside changes them. */
-  .aa-machine-stage {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 20rem;
-    border: 1px solid var(--aa-rule);
-    border-radius: var(--aa-radius);
-    background: var(--aa-raised);
-    overflow: hidden;
-  }
-  .aa-machine-stage[hidden] {
-    display: none;
-  }
-  .aa-machine-view {
-    position: relative;
-    height: 32.5rem;
-    min-width: 0;
-    overflow: hidden;
-    background: var(--aa-page);
-    border-right: 1px solid var(--aa-rule);
-  }
-  .aa-machine-view canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    touch-action: none;
-  }
-  .aa-machine-tags {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-  .aa-machine-tag,
-  .aa-machine-badge {
-    position: absolute;
-    left: 0;
-    top: 0;
-    visibility: hidden;
-    white-space: nowrap;
-    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
-    letter-spacing: var(--aa-label-tracking);
-    text-transform: uppercase;
-  }
-  .aa-machine-tag {
-    pointer-events: auto;
-    min-height: 1.5rem;
-    padding: 0.125rem 0.375rem;
-    color: var(--aa-ink);
-    background: var(--aa-raised);
-    border: 1px solid var(--aa-rule-strong);
-    border-radius: var(--aa-radius-chip);
-    cursor: pointer;
-    transition:
-      background-color var(--aa-fast) var(--aa-ease),
-      color var(--aa-fast) var(--aa-ease);
-  }
-  .aa-machine-tag-n {
-    color: var(--aa-ink-3);
-    margin-right: var(--aa-space-1);
-  }
-  .aa-machine-tag.is-side {
-    color: var(--aa-ink-2);
-    background: var(--aa-surface);
-  }
-  .aa-machine-tag:hover {
-    border-color: var(--aa-ink);
-  }
-  .aa-machine-tag[aria-pressed="true"] {
-    z-index: 2;
-    color: var(--aa-page);
-    background: var(--aa-ink);
-    border-color: var(--aa-ink);
-  }
-  .aa-machine-tag[aria-pressed="true"] .aa-machine-tag-n {
-    color: var(--aa-page);
-  }
-  /* On a narrow view (under 600px, or zoomed out under 1000px) the labels show their numbers only; the name stays in the button's text for screen
-     readers and comes back on hover, focus or when pressed. */
-  .aa-machine-tags.is-compact .aa-machine-tag:not(.is-side, [aria-pressed="true"], :hover, :focus-visible) .aa-machine-tag-t {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-  .aa-machine-tags.is-compact .aa-machine-tag:not(.is-side, [aria-pressed="true"], :hover, :focus-visible) .aa-machine-tag-n {
-    margin-right: 0;
-  }
-  .aa-machine-tags.is-compact .aa-machine-tag:focus-visible,
-  .aa-machine-tags.is-compact .aa-machine-tag:hover {
-    z-index: 3;
-  }
-  .aa-machine-badge {
-    pointer-events: none;
-    padding: 0.125rem 0.375rem;
-    color: var(--aa-page);
-    background: var(--aa-ink);
-    border-radius: var(--aa-radius-chip);
-    text-transform: none;
-    letter-spacing: 0.02em;
-  }
-  .aa-machine-badge.is-verified {
-    background: var(--aa-verified);
-  }
-  .aa-machine-badge[hidden] {
-    display: none;
-  }
-  .aa-machine-legend {
-    position: absolute;
-    top: var(--aa-space-3);
-    left: var(--aa-space-3);
-    display: grid;
-    gap: var(--aa-space-1);
-    margin: 0;
-    padding: var(--aa-space-2) var(--aa-space-3);
-    list-style: none;
-    font: 400 var(--aa-text-note) / 1.4 var(--aa-font-sans);
-    color: var(--aa-ink-2);
-    background: var(--aa-raised);
-    border: 1px solid var(--aa-rule);
-    border-radius: var(--aa-radius);
-    pointer-events: none;
-  }
-  .aa-machine-legend li {
-    display: flex;
-    align-items: center;
-    gap: var(--aa-space-2);
-  }
-  .aa-sw {
-    display: inline-block;
-    width: 0.875rem;
-    height: 0.625rem;
-    border: 1px solid var(--aa-ink);
-  }
-  .aa-sw-solid {
-    background: var(--aa-surface);
-  }
-  .aa-sw-glass {
-    border-style: dashed;
-    border-color: var(--aa-ink-2);
-  }
-  .aa-sw-pipe {
-    height: 3px;
-    border: 0;
-    background: var(--aa-rule-strong);
-  }
-  .aa-sw-cable {
-    height: 0;
-    border: 0;
-    border-top: 2px dashed var(--aa-ink-2);
-  }
-  .aa-machine-viewctl {
-    position: absolute;
-    top: var(--aa-space-3);
-    right: var(--aa-space-3);
-    display: flex;
-    gap: var(--aa-space-1);
-  }
-  .aa-machine-vbtn {
-    min-width: 2rem;
-    height: 2rem;
-    padding: 0 var(--aa-space-2);
-    font: 500 var(--aa-text-small) / 1 var(--aa-font-mono);
-    color: var(--aa-ink);
-    background: var(--aa-raised);
-    border: 1px solid var(--aa-rule-strong);
-    border-radius: var(--aa-radius);
-    cursor: pointer;
-  }
-  .aa-machine-vbtn.is-wide {
-    font-size: var(--aa-text-label);
-    letter-spacing: var(--aa-label-tracking);
-    text-transform: uppercase;
-  }
-  .aa-machine-vbtn:hover {
-    border-color: var(--aa-ink);
-    background: var(--aa-surface);
-  }
-  .aa-machine-toolbar {
-    position: absolute;
-    left: var(--aa-space-3);
-    bottom: var(--aa-space-3);
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--aa-space-2);
-  }
-  .aa-machine-btn {
-    min-height: 2rem;
-    padding: var(--aa-space-1) var(--aa-space-3);
-    font: 500 var(--aa-text-small) / 1.2 var(--aa-font-sans);
-    color: var(--aa-ink);
-    background: var(--aa-raised);
-    border: 1px solid var(--aa-ink);
-    border-radius: var(--aa-radius);
-    cursor: pointer;
-    transition: background-color var(--aa-fast) var(--aa-ease);
-  }
-  .aa-machine-btn:hover {
-    background: var(--aa-surface);
-  }
-  .aa-machine-btn.is-primary,
-  .aa-machine-btn[aria-pressed="true"] {
-    color: var(--aa-page);
-    background: var(--aa-ink);
-  }
-  .aa-machine-btn.is-primary:hover,
-  .aa-machine-btn[aria-pressed="true"]:hover {
-    background: var(--aa-ink-2);
-  }
-  .aa-machine-btn[aria-disabled="true"] {
-    color: var(--aa-ink-3);
-    border-color: var(--aa-rule-strong);
-    cursor: default;
-  }
-
-  .aa-machine-sheet {
-    display: flex;
-    flex-direction: column;
-    height: 32.5rem;
-    min-width: 0;
-  }
-  .aa-machine-sheet-head {
-    display: grid;
-    gap: var(--aa-space-1);
-    padding: var(--aa-space-4) var(--aa-space-4) var(--aa-space-3);
-    border-bottom: 1px solid var(--aa-rule);
-  }
-  .aa-machine-sheet-head p {
-    margin: 0;
-  }
-  .aa-machine-sheet-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: var(--aa-space-4);
-  }
-  .aa-machine-steps {
-    border-top: 1px solid var(--aa-rule);
-    padding: var(--aa-space-2) var(--aa-space-4) var(--aa-space-3);
-  }
-  .aa-machine-steps[hidden] {
-    display: none;
-  }
-  .aa-machine-progress {
-    display: flex;
-    gap: 3px;
-    margin-bottom: var(--aa-space-2);
-  }
-  .aa-machine-progress :global(i) {
-    flex: 1;
-    height: 2px;
-    background: var(--aa-rule);
-  }
-  .aa-machine-progress :global(i.is-on) {
-    background: var(--aa-ink);
-  }
-  .aa-machine-stepnav {
-    display: flex;
-    align-items: center;
-    gap: var(--aa-space-2);
-  }
-  .aa-machine-count-n {
-    margin-right: auto;
-    font: 400 var(--aa-text-note) / 1.3 var(--aa-font-mono);
-    color: var(--aa-ink-3);
-  }
-  .aa-machine-scroll {
-    overflow-x: auto;
-  }
-  .aa-machine-rows {
-    width: 100%;
-    border-collapse: collapse;
-    font: 400 var(--aa-text-note) / 1.5 var(--aa-font-mono);
-    color: var(--aa-ink);
-  }
-  .aa-machine-rows th {
-    text-align: left;
-    font: 500 var(--aa-text-label) / 1.3 var(--aa-font-mono);
-    letter-spacing: var(--aa-label-tracking);
-    text-transform: uppercase;
-    color: var(--aa-ink-3);
-    padding: var(--aa-space-1) var(--aa-space-2) var(--aa-space-1) 0;
-    border-bottom: 1px solid var(--aa-rule-strong);
-  }
-  .aa-machine-rows td {
-    padding: var(--aa-space-1) var(--aa-space-2) var(--aa-space-1) 0;
-    border-bottom: 1px solid var(--aa-rule);
-  }
-  .aa-machine-rows tr.is-cited td {
-    background: var(--aa-mark);
-  }
-  .aa-machine-sql {
-    margin: 0;
-    padding: var(--aa-space-2) var(--aa-space-3);
-    overflow-x: auto;
-    font: 400 var(--aa-text-code) / 1.5 var(--aa-font-mono);
-    color: var(--aa-ink);
-    background: var(--aa-page);
-    border: 1px solid var(--aa-rule);
-    border-radius: var(--aa-radius);
-  }
-  .aa-machine-raw code,
-  .aa-station-body code {
-    font: 400 var(--aa-text-code) / 1.5 var(--aa-font-mono);
-    color: var(--aa-ink);
-    overflow-wrap: anywhere;
-  }
-  .aa-machine-quote {
-    margin: 0;
-    padding-left: var(--aa-space-3);
-    border-left: 1px solid var(--aa-ink);
-    font: italic 400 var(--aa-text-small) / 1.5 var(--aa-font-display);
-    color: var(--aa-ink);
-  }
-  .aa-machine-src {
-    font: 400 var(--aa-text-note) / 1.4 var(--aa-font-mono);
-    color: var(--aa-ink-3);
-  }
-  .aa-machine-final {
-    color: var(--aa-ink);
-  }
-
-  @media (max-width: 60rem) {
-    .aa-machine-stage {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .aa-machine-view {
-      height: 26.25rem;
-      border-right: 0;
-      border-bottom: 1px solid var(--aa-rule);
-    }
-    .aa-machine-sheet {
-      height: 22rem;
-    }
-  }
-  @media (max-width: 40rem) {
-    /* On phones only the label and the button show while closed (no strip, and its image isn't fetched: lazy, hidden). */
-    .aa-machine-strip,
-    .aa-machine-legend,
-    .aa-machine-vbtn.is-wide {
-      display: none;
-    }
-    .aa-machine-toolbar {
-      left: var(--aa-space-2);
-      right: var(--aa-space-2);
-      bottom: var(--aa-space-2);
-    }
-  }
-  @media (max-width: 30rem) {
-    .aa-machine-count {
-      display: none;
-    }
-  }
   @media (prefers-reduced-motion: reduce) {
-    .aa-machine-tag,
-    .aa-machine-btn {
+    .aa-engine-tag {
       transition: none;
+    }
+    .aa-engine-view :global(canvas) {
+      animation: none;
     }
   }
 </style>
