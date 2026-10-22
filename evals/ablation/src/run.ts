@@ -162,6 +162,8 @@ export function cellSupport(sources: Sources, items: readonly GoldenItem[]): Map
 /** Runs the ablation over every job; the arms run one after another per job, never in parallel (AGENTS §9). */
 export async function runAblation(o: AblationOptions): Promise<AblationResult> {
   const arms = ARMS.filter((a) => o.arms.includes(a));
+  // A model that can't call tools runs arm A only: arm B's run_sql and the engine's planner (arm C) both need tools.
+  const runs = (a: Arm) => a === "A" || o.tools;
   const results: ArmJobResult[] = [];
   const support = new Map<string, Support>();
   for (const job of o.jobs) {
@@ -169,7 +171,7 @@ export async function runAblation(o: AblationOptions): Promise<AblationResult> {
     const items = job.items ?? [];
     const golden = items.filter((i) => i.kind === "numeric").map((i) => (i as Extract<GoldenItem, { kind: "numeric" }>).expected);
     let facts: number[] = [];
-    if (arms.includes("C")) {
+    if (arms.includes("C") && runs("C")) {
       const c = await runArmC(o, job);
       results.push(c.result);
       facts = c.facts;
@@ -177,8 +179,8 @@ export async function runAblation(o: AblationOptions): Promise<AblationResult> {
     support.set(job.id, { golden, facts, cells: cellSupport(sources, items) });
     const sup = support.get(job.id) as Support;
     if (arms.includes("A")) results.push(await runArmAJob(o, job, sources, sup));
-    if (arms.includes("B") && o.tools) results.push(await runArmBJob(o, job, sources, sup));
-    o.onJob?.(`${job.id}: ${arms.filter((a) => a !== "B" || o.tools).join(", ")} done`);
+    if (arms.includes("B") && runs("B")) results.push(await runArmBJob(o, job, sources, sup));
+    o.onJob?.(`${job.id}: ${arms.filter(runs).join(", ")} done`);
   }
   const measures = arms.map((arm) => measuresOf(arm, results, o));
   return {
@@ -191,11 +193,8 @@ export async function runAblation(o: AblationOptions): Promise<AblationResult> {
     jobs: o.jobs.map((j) => j.id),
     results,
     measures,
-    comparisons: comparisons(
-      arms.filter((a) => a !== "B" || o.tools),
-      results,
-    ),
-    supportHasFacts: arms.includes("C"),
+    comparisons: comparisons(arms.filter(runs), results),
+    supportHasFacts: arms.includes("C") && runs("C"),
   };
 }
 
@@ -213,6 +212,8 @@ async function runArmC(o: AblationOptions, job: AblationJob): Promise<{ result: 
   const asked = { input: 0, output: 0 };
   try {
     report = await job.runEngine(dir, { model: engine.client, embedder: o.embedder }).catch((err: unknown) => {
+      // As for the ask items: a model failure is this job's miss; anything else is a harness bug and stops the run.
+      if (!fromModel(err)) throw err;
       error = err instanceof Error ? err.message.split("\n")[0] : String(err);
       return undefined;
     });
@@ -394,7 +395,7 @@ async function runArmBJob(o: AblationOptions, job: AblationJob, sources: Sources
 }
 
 function measuresOf(arm: Arm, results: readonly ArmJobResult[], o: AblationOptions): ArmMeasures {
-  if (arm === "B" && !o.tools)
+  if (arm !== "A" && !o.tools)
     return {
       arm,
       ran: false,

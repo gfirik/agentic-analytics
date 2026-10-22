@@ -108,7 +108,7 @@ describe("the smoke suite, arms A and B scripted", () => {
   it("a model that can't call tools runs arm A only", async () => {
     const r = await runAblation({
       suite: "smoke",
-      arms: ["A", "B"],
+      arms: ["A", "B", "C"],
       jobs: smokeJobs("coffee_roaster-v1"),
       model: "baseline",
       scripted: true,
@@ -120,6 +120,7 @@ describe("the smoke suite, arms A and B scripted", () => {
     });
     expect(r.results.map((x) => x.arm)).toEqual(["A"]);
     expect(measure(r, "B")).toMatchObject({ ran: false, skipped: expect.stringMatching(/can't call tools/) });
+    expect(measure(r, "C")).toMatchObject({ ran: false, skipped: expect.stringMatching(/can't call tools/) });
   }, 60_000);
 });
 
