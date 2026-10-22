@@ -3,7 +3,7 @@
 The product site: a custom landing page and the Astro Starlight docs, deployed to GitHub Pages at https://gfirik.github.io/agentic-analytics/.
 
 - **Design:** `DESIGN.md` ("an AI analyst you can audit"). The tokens are in `src/styles/tokens.css`, and the shared ledger motifs (fact-ID chips, check marks, ruled tables) in `src/styles/components.css`.
-- **Landing page and 404:** `src/pages/index.astro` and `src/pages/404.astro`, on `src/components/site/` (BaseLayout, header, footer, the status strip, section labels and the hero exhibit).
+- **Landing page and 404:** `src/pages/index.astro` and `src/pages/404.astro`, on `src/components/site/` (BaseLayout, header, footer, the status strip, section labels, the hero field and the hero exhibit).
 - **Docs:** Starlight, themed by `src/styles/starlight.css` and the overrides in `src/components/starlight/` (Header, Footer, PageTitle; ThemeProvider and ThemeSelect keep the site light only; TwoColumnContent and PageSidebar make the article and margin columns). Code blocks use Expressive Code re-based onto the token surfaces (`astro.config.mjs`).
 
 - **Status:** built in M12. The site deploys once the repo is public and Pages is enabled (docs/LAUNCH.md).

@@ -182,41 +182,67 @@ table.aa-ledger {
   background: var(--aa-mark);
 }
 
-/* Buttons */
+/* Buttons (site v5): 44px tall, set tight; the primary is solid ink, the secondary a raised sheet in a strong hairline
+   that turns ink on hover. A trailing arrow (an inline SVG, .aa-button-arrow) steps 2px forward on hover. Hover and
+   press change tone and transform only, never size. */
 .aa-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--aa-space-2);
   min-height: 2.75rem;
-  padding: 0.625rem 1rem;
+  padding: 0 1.125rem;
   border: 1px solid var(--aa-ink);
   border-radius: var(--aa-radius);
-  font: 500 0.9375rem / 1.2 var(--aa-font-sans);
+  font: 500 0.9375rem / 1 var(--aa-font-sans);
+  letter-spacing: -0.005em;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--aa-fast) var(--aa-ease),
-    color var(--aa-fast) var(--aa-ease);
+    border-color var(--aa-fast) var(--aa-ease),
+    color var(--aa-fast) var(--aa-ease),
+    translate var(--aa-fast) var(--aa-ease);
+}
+.aa-button:active {
+  translate: 0 1px;
 }
 .aa-button-primary {
   background: var(--aa-ink);
   color: var(--aa-page);
 }
 .aa-button-primary:hover {
-  background: var(--aa-ink-2);
-  border-color: var(--aa-ink-2);
+  background: color-mix(in srgb, var(--aa-ink) 82%, var(--aa-ink-2));
+  border-color: color-mix(in srgb, var(--aa-ink) 82%, var(--aa-ink-2));
 }
 .aa-button-secondary {
-  background: transparent;
+  background: var(--aa-raised);
+  border-color: var(--aa-rule-strong);
   color: var(--aa-ink);
 }
 .aa-button-secondary:hover {
-  background: var(--aa-surface);
+  border-color: var(--aa-ink);
+  background: var(--aa-raised);
+}
+.aa-button-arrow {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+  transition: translate var(--aa-fast) var(--aa-ease);
+}
+.aa-button:hover .aa-button-arrow {
+  translate: 2px 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .aa-chip,
-  .aa-button {
+  .aa-button,
+  .aa-button-arrow {
     transition: none;
+  }
+  .aa-button:active,
+  .aa-button:hover .aa-button-arrow {
+    translate: none;
   }
 }

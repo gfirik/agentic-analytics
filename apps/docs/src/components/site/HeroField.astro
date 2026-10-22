@@ -1,0 +1,383 @@
+---
+// The hero's background system (DESIGN.md §5 "Hero field", §7; site v5 PR 1). Rendered inside the hero statement, it
+// runs full-bleed behind it and never behind the exhibit:
+// - graph paper (24px minor lines, 96px major lines, a dot on every crossing) fading out radially from the statement;
+// - a soft, cool-tinted glow (`--aa-glow`) with a lighter core behind the headline;
+// - a fine grain (an inline SVG noise in a data URI: no image request);
+// - a quiet ledger network on a canvas: small square nodes drifting slowly, joined by elbowed hairline connectors, an
+//   occasional ink tick running along one of them.
+// The first three are CSS and static. The canvas is the only motion, and it is cheap and polite:
+// - it starts on idle after load and fades in (opacity only), so it costs nothing on the first paint and never shifts
+//   the layout (the canvas is absolutely positioned and sized by CSS);
+// - it draws only while the hero is on screen (IntersectionObserver) and the tab is visible, at most 30 frames a
+//   second, with no layout reads per frame (sizes come from a ResizeObserver);
+// - its backing store is DPR-aware and capped (DPR ≤ 2 and about 1.6 million pixels);
+// - none of it under prefers-reduced-motion or Save-Data, or without JS: the static field is all there is;
+// - a "Pause background" button stops it (WCAG 2.2.2); it is absolutely placed and only made visible by the script.
+---
+
+<div class="aa-hero-field" aria-hidden="true">
+  <div class="aa-hf-glow"></div>
+  <div class="aa-hf-grid"></div>
+  <canvas class="aa-hf-net" data-state="off"></canvas>
+  <div class="aa-hf-grain"></div>
+</div>
+<button type="button" class="aa-hf-toggle" aria-pressed="false" data-hf-toggle hidden>Pause background</button>
+
+<script>
+  const field = document.querySelector<HTMLElement>(".aa-hero-field");
+  const canvas = field?.querySelector<HTMLCanvasElement>(".aa-hf-net") ?? null;
+  const toggle = document.querySelector<HTMLButtonElement>("[data-hf-toggle]");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const saveData = Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
+  const ctx = canvas?.getContext("2d") ?? null;
+
+  if (field && canvas && ctx && toggle && !reduce.matches && !saveData && typeof IntersectionObserver !== "undefined") {
+    type Node = { x: number; y: number; vx: number; vy: number; s: number; filled: boolean; flip: boolean };
+    type Pulse = { a: number; b: number; t: number };
+    const css = getComputedStyle(document.documentElement);
+    const ink = css.getPropertyValue("--aa-ink").trim() || "#121417";
+    const line = css.getPropertyValue("--aa-rule-strong").trim() || "#8b8f94";
+    const page = css.getPropertyValue("--aa-page").trim() || "#f8f8f6";
+    const FRAME = 1000 / 30;
+    const LINK = 168; // px: nodes closer than this are joined
+    const MAX_PIXELS = 1_600_000;
+
+    let w = 0;
+    let h = 0;
+    let nodes: Node[] = [];
+    let pulse: Pulse | null = null;
+    let nextPulse = 1800;
+    let onScreen = false;
+    let paused = false;
+    let raf = 0;
+    let last = 0;
+    let acc = 0;
+    let frames = 0;
+    // Deterministic per load (no Math.random flicker between frames): a small LCG.
+    let seed = 0x2f6e2b1;
+    const rnd = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 2 ** 32;
+    };
+
+    const seedNodes = () => {
+      const n = Math.max(10, Math.min(34, Math.round((w * h) / 21000)));
+      nodes = Array.from({ length: n }, () => {
+        const speed = 5 + rnd() * 9; // px a second: a drift, never a motion that pulls the eye
+        const dir = rnd() * Math.PI * 2;
+        return {
+          x: rnd() * w,
+          y: rnd() * h,
+          vx: Math.cos(dir) * speed,
+          vy: Math.sin(dir) * speed,
+          s: rnd() < 0.3 ? 5 : 3,
+          filled: rnd() < 0.22,
+          flip: rnd() < 0.5,
+        };
+      });
+    };
+
+    const resize = (cw: number, ch: number) => {
+      if (cw === w && ch === h) return;
+      const first = w === 0;
+      w = cw;
+      h = ch;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (w * h * dpr * dpr > MAX_PIXELS) dpr = Math.max(1, Math.sqrt(MAX_PIXELS / (w * h)));
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (first) seedNodes();
+      else
+        for (const p of nodes) {
+          p.x = Math.min(p.x, w);
+          p.y = Math.min(p.y, h);
+        }
+      draw();
+    };
+
+    /** An elbowed connector, horizontal then vertical (or the other way): the ledger's own right angles. */
+    const elbow = (a: Node, b: Node) => {
+      ctx.moveTo(a.x, a.y);
+      if (a.flip) ctx.lineTo(b.x, a.y);
+      else ctx.lineTo(a.x, b.y);
+      ctx.lineTo(b.x, b.y);
+    };
+    const pointOn = (a: Node, b: Node, t: number) => {
+      const c = a.flip ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+      const l1 = Math.abs(c.x - a.x) + Math.abs(c.y - a.y);
+      const l2 = Math.abs(b.x - c.x) + Math.abs(b.y - c.y);
+      const d = t * (l1 + l2);
+      if (d <= l1 || l2 === 0) {
+        const k = l1 ? d / l1 : 0;
+        return { x: a.x + (c.x - a.x) * k, y: a.y + (c.y - a.y) * k };
+      }
+      const k = (d - l1) / l2;
+      return { x: c.x + (b.x - c.x) * k, y: c.y + (b.y - c.y) * k };
+    };
+
+    const links: [number, number, number][] = [];
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      links.length = 0;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i] as Node;
+        // Each node joins its nearest neighbour within reach (at most two links a node), so the net stays sparse.
+        let best = -1;
+        let bestD = LINK;
+        for (let j = 0; j < nodes.length; j++) {
+          if (j === i) continue;
+          const b = nodes[j] as Node;
+          const d = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+          if (d < bestD) {
+            bestD = d;
+            best = j;
+          }
+        }
+        if (best >= 0) links.push([i, best, bestD]);
+      }
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = line;
+      for (const [i, j, d] of links) {
+        ctx.globalAlpha = 0.55 * (1 - d / LINK) ** 0.6;
+        ctx.beginPath();
+        elbow(nodes[i] as Node, nodes[j] as Node);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      for (const p of nodes) {
+        const x = Math.round(p.x - p.s / 2) + 0.5;
+        const y = Math.round(p.y - p.s / 2) + 0.5;
+        if (p.filled) {
+          ctx.fillStyle = ink;
+          ctx.globalAlpha = 0.7;
+          ctx.fillRect(x - 0.5, y - 0.5, p.s, p.s);
+        } else {
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = page;
+          ctx.fillRect(x, y, p.s - 1, p.s - 1);
+          ctx.strokeStyle = line;
+          ctx.strokeRect(x, y, p.s - 1, p.s - 1);
+        }
+      }
+      if (pulse && nodes[pulse.a] && nodes[pulse.b]) {
+        const q = pointOn(nodes[pulse.a] as Node, nodes[pulse.b] as Node, pulse.t);
+        ctx.globalAlpha = 0.8 * Math.sin(Math.PI * pulse.t);
+        ctx.fillStyle = ink;
+        ctx.fillRect(Math.round(q.x) - 1, Math.round(q.y) - 1, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const step = (dt: number) => {
+      const s = dt / 1000;
+      for (const p of nodes) {
+        p.x += p.vx * s;
+        p.y += p.vy * s;
+        if (p.x < -8 || p.x > w + 8) p.vx = -p.vx;
+        if (p.y < -8 || p.y > h + 8) p.vy = -p.vy;
+      }
+      if (pulse) {
+        pulse.t += dt / 1600;
+        if (pulse.t >= 1) pulse = null;
+      } else if ((nextPulse -= dt) <= 0 && links.length) {
+        const [a, b] = links[Math.floor(rnd() * links.length)] as [number, number, number];
+        pulse = { a, b, t: 0 };
+        nextPulse = 2400 + rnd() * 2400;
+      }
+    };
+
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const dt = Math.min(now - last, 100);
+      last = now;
+      acc += dt;
+      if (acc < FRAME) return;
+      step(acc);
+      acc = 0;
+      draw();
+      frames++;
+      (canvas as HTMLCanvasElement & { aaFrames?: number }).aaFrames = frames;
+    };
+
+    const running = () => onScreen && !paused && !document.hidden && !reduce.matches;
+    const sync = () => {
+      const go = running();
+      if (go && !raf) {
+        last = performance.now();
+        acc = 0;
+        raf = requestAnimationFrame(tick);
+      } else if (!go && raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      canvas.dataset.state = reduce.matches ? "off" : go ? "running" : "paused";
+    };
+
+    const start = () => {
+      const ro = new ResizeObserver((entries) => {
+        const box = entries[0]?.contentRect;
+        if (box) resize(Math.round(box.width), Math.round(box.height));
+      });
+      ro.observe(canvas);
+      new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) onScreen = e.isIntersecting;
+          sync();
+        },
+        { rootMargin: "0px" },
+      ).observe(field);
+      document.addEventListener("visibilitychange", sync);
+      toggle.hidden = false;
+      toggle.addEventListener("click", () => {
+        paused = !paused;
+        toggle.setAttribute("aria-pressed", String(paused));
+        toggle.textContent = paused ? "Play background" : "Pause background";
+        sync();
+      });
+      // Switched to reduced motion mid-visit: stop, clear, and hide the control (the static field remains).
+      reduce.addEventListener("change", () => {
+        if (!reduce.matches) return;
+        sync();
+        ctx.clearRect(0, 0, w, h);
+        field.classList.remove("is-live");
+        toggle.hidden = true;
+      });
+      canvas.dataset.state = "paused";
+      field.classList.add("is-live");
+    };
+
+    const later = () =>
+      "requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 2000 }) : setTimeout(start, 600);
+    if (document.readyState === "complete") later();
+    else window.addEventListener("load", later, { once: true });
+  }
+</script>
+
+<style>
+  /* The field: full-bleed behind the statement. Stacked (under 1100px) it spans the screen's width over the statement;
+     in the wide row it runs from the screen's left edge to the middle of the gap before the exhibit. It reaches up to
+     the header's hairline (the cell's top padding) and a little below the statement. 50vw / 100vw include a classic
+     scrollbar's width, so it can reach a few pixels past the viewport: .aa-paper's overflow-x: clip hides that. */
+  .aa-hero-field {
+    --hf-x: 50%;
+    --hf-y: 46%;
+    --hf-mask: radial-gradient(ellipse 62% 62% at var(--hf-x) var(--hf-y), #000 24%, rgb(0 0 0 / 0.5) 58%, transparent 100%);
+    position: absolute;
+    inset: calc(-1 * var(--aa-space-8)) calc(50% - 50vw) calc(-1 * var(--aa-space-7));
+    z-index: -1;
+    pointer-events: none;
+    contain: strict;
+  }
+  @media (min-width: 68.75rem) {
+    .aa-hero-field {
+      /* The statement's centre, measured from the field's right edge (the middle of the gap): half the gap plus half
+         the statement (cqi: the statement is an inline-size container). */
+      --hf-x: calc(100% - var(--aa-space-5) - 50cqi);
+      --hf-y: 44%;
+      --hf-mask: radial-gradient(ellipse 58% 64% at var(--hf-x) var(--hf-y), #000 22%, rgb(0 0 0 / 0.5) 56%, transparent 100%);
+      inset: calc(-1 * var(--aa-space-8)) calc(-1 * var(--aa-space-5)) calc(-1 * var(--aa-space-8))
+        calc(-1 * (var(--aa-gutter) + max(0px, (100vw - var(--aa-container)) / 2)));
+      /* It ends in the gap before the exhibit: fade it out there rather than cut it. */
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 12rem), transparent);
+    }
+  }
+  .aa-hero-field > * {
+    position: absolute;
+    inset: 0;
+  }
+  /* The glow: the statement sits on a lit sheet. A broad white core (`raised`, lighter than the page) right behind the
+     headline, inside a faint cool haze (`--aa-glow`) that dies out before the field's edge. Light, never a shadow:
+     nothing behind the text is darker than the page. */
+  .aa-hf-glow {
+    background:
+      radial-gradient(ellipse 46% 40% at var(--hf-x) calc(var(--hf-y) - 4%), var(--aa-raised) 0%, color-mix(in srgb, var(--aa-raised) 70%, transparent) 45%, transparent 100%),
+      radial-gradient(ellipse 60% 66% at var(--hf-x) var(--hf-y), transparent 20%, color-mix(in srgb, var(--aa-glow) 70%, transparent) 55%, transparent 100%);
+  }
+  /* Graph paper: 24px minor lines, every fourth line a little stronger, and a dot on each crossing. The lines are
+     anchored to the frame's left edge, so they meet the frame line exactly. */
+  .aa-hf-grid {
+    --hf-origin: calc(var(--aa-gutter) + max(0px, (100vw - var(--aa-container)) / 2));
+    background-image:
+      radial-gradient(circle at 0.5px 0.5px, color-mix(in srgb, var(--aa-rule-strong) 55%, transparent) 0.9px, transparent 1.3px),
+      linear-gradient(to right, var(--aa-rule) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--aa-rule) 1px, transparent 1px),
+      linear-gradient(to right, var(--aa-grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--aa-grid) 1px, transparent 1px);
+    background-size:
+      var(--aa-grid-size) var(--aa-grid-size),
+      calc(4 * var(--aa-grid-size)) calc(4 * var(--aa-grid-size)),
+      calc(4 * var(--aa-grid-size)) calc(4 * var(--aa-grid-size)),
+      var(--aa-grid-size) var(--aa-grid-size),
+      var(--aa-grid-size) var(--aa-grid-size);
+    background-position: var(--hf-origin) 0;
+    -webkit-mask-image: var(--hf-mask);
+    mask-image: var(--hf-mask);
+  }
+  @media (max-width: 68.6875rem) {
+    .aa-hf-grid {
+      /* Stacked, the field is centred on the screen: so is the paper. */
+      background-position: center 0;
+    }
+  }
+  /* The net: quiet at the centre where the headline is, visible in a ring around it, gone at the edges. */
+  .aa-hf-net {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 600ms var(--aa-ease);
+    -webkit-mask-image: radial-gradient(ellipse 60% 64% at var(--hf-x) var(--hf-y), rgb(0 0 0 / 0.28) 0%, rgb(0 0 0 / 0.28) 26%, #000 54%, transparent 92%);
+    mask-image: radial-gradient(ellipse 60% 64% at var(--hf-x) var(--hf-y), rgb(0 0 0 / 0.28) 0%, rgb(0 0 0 / 0.28) 26%, #000 54%, transparent 92%);
+  }
+  .aa-hero-field.is-live .aa-hf-net {
+    opacity: 1;
+  }
+  /* Grain: a 160px tile of SVG fractal noise in ink, at a whisper (an inline data URI, so no request). */
+  .aa-hf-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.07 0 0 0 0 0.08 0 0 0 0 0.09 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    opacity: 0.22;
+    -webkit-mask-image: var(--hf-mask);
+    mask-image: var(--hf-mask);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aa-hf-net {
+      display: none;
+    }
+  }
+
+  /* The pause control: a label-sized text button in the space under the statement, absolutely placed so showing it
+     (only once the net runs) never moves anything. */
+  .aa-hf-toggle {
+    position: absolute;
+    bottom: calc(-1 * var(--aa-space-6) - 0.25rem);
+    left: 50%;
+    translate: -50% 0;
+    min-height: 1.5rem;
+    padding: 0 var(--aa-space-2);
+    border: 0;
+    border-radius: var(--aa-radius-chip);
+    background: transparent;
+    font: 500 var(--aa-text-label) / 1.5rem var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-ink-3);
+    cursor: pointer;
+    transition: color var(--aa-fast) var(--aa-ease);
+  }
+  .aa-hf-toggle:hover {
+    color: var(--aa-ink);
+  }
+  .aa-hf-toggle[hidden] {
+    display: none;
+  }
+  @media (min-width: 68.75rem) {
+    .aa-hf-toggle {
+      left: 0;
+      translate: none;
+      margin-left: calc(-1 * var(--aa-space-2));
+    }
+  }
+</style>

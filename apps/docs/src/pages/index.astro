@@ -1,6 +1,6 @@
 ---
 // The landing page (DESIGN.md §4–§6): the cover sheet of an audited working paper. One long 1440px frame of wide
-// rows (site v4), graph paper behind the hero and the section heads, one live exhibit, and four sections. Every
+// rows (site v4), the hero field (site v5) and graph paper behind the section heads, one live exhibit, and four sections. Every
 // figure comes from generated data: the recorded engine run on examples/coffee-roaster (src/data/exhibit.json,
 // landing.json, and the pipeline scene's docs/assets/readme/pipeline.json) and the committed eval results
 // (src/data/evals.json, scored by the eval runner's summarize()). Nothing is typed by hand.
@@ -12,6 +12,7 @@ import EngineMachine from "../components/site/EngineMachine.astro";
 import Exhibit from "../components/site/Exhibit.astro";
 import { machineStations } from "../components/site/engine-machine.ts";
 import { firstSentence, type LinePart, placeholders } from "../components/site/exhibit.ts";
+import HeroField from "../components/site/HeroField.astro";
 import PipelineStages from "../components/site/PipelineStages.astro";
 import Reveal from "../components/site/Reveal.astro";
 import SectionLabel from "../components/site/SectionLabel.astro";
@@ -81,6 +82,8 @@ const metric = pipeline.metric;
 const compiled = (exhibit as unknown as { compiled: { fact: string; lines: string[] } }).compiled;
 
 const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+// The primary action's trailing arrow (DESIGN.md §6, buttons): a 14px stroke that steps forward on hover.
+const arrow = `<svg class="aa-button-arrow" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"></path></svg>`;
 const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-windows-x64.exe", "SHA256SUMS"];
 const doors = [
   {
@@ -116,15 +119,16 @@ const doors = [
   <div class="aa-paper">
     <section class="aa-sheet aa-hero" aria-labelledby="aa-hero-title">
       <div class="aa-cell aa-split aa-hero-row">
-        <div class="aa-grid-field aa-statement">
-          <p class="aa-label">Open source · self-hosted · free local models</p>
+        <div class="aa-hero-corners" aria-hidden="true"></div>
+        <div class="aa-statement">
+          <p class="aa-label aa-hero-eyebrow"><span class="aa-hero-node" aria-hidden="true"></span>Open source · self-hosted · free local models</p>
           <h1 id="aa-hero-title" class="aa-display">An AI analyst you can audit.</h1>
           <p class="aa-lead">
             Give it a business's spreadsheets, PDFs and emails. It reports what changed, why, and what to do next, and every number is recomputed
             and every claim cited before you see it.
           </p>
           <div class="aa-actions">
-            <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart</a>
+            <a class="aa-button aa-button-primary" href={withBase("start/quickstart/")}>Quickstart<Fragment set:html={arrow} /></a>
             <a class="aa-button aa-button-secondary" href={withBase(DOCS_HOME)}>Read the docs</a>
             <a class="aa-text-link" href={GITHUB_URL}>GitHub</a>
           </div>
@@ -134,6 +138,7 @@ const doors = [
 cd agentic-analytics && bun install</code></pre>
             </div>
           </div>
+          <HeroField />
         </div>
         <div class="aa-hero-exhibit">
           <p class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
@@ -525,27 +530,106 @@ AA_DEMO_MODEL=scripted \
 
   /* Hero: the statement on the left and the exhibit's report page on the right from 1100px, so the verification replay
      plays on the first screen; stacked and centred below that. The right column is wide enough at 1440 (about 795px)
-     for the exhibit's notes to sit beside it (its container query, Exhibit.astro). */
+     for the exhibit's notes to sit beside it (its container query, Exhibit.astro). Site v5: the statement stands on
+     its own field (HeroField.astro: graph paper, glow, grain and the drifting net), inside framed corner marks, with a
+     tighter type scale: the eyebrow as a quiet tag, the headline set close, the lead a step larger. */
   .aa-statement {
+    position: relative;
+    isolation: isolate;
+    container-type: inline-size; /* the field centres its glow on the statement with cqi */
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     align-content: start;
-    gap: var(--aa-space-5);
     text-align: center;
   }
-  .aa-statement .aa-lead {
-    max-width: 60ch;
+  .aa-statement > .aa-display {
+    margin-top: var(--aa-space-5);
+  }
+  .aa-statement > .aa-lead {
+    margin-top: var(--aa-space-5);
+    max-width: 34rem;
+    font-size: 1.125rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+  .aa-statement > .aa-actions {
+    margin-top: var(--aa-space-6);
+  }
+  .aa-statement > .aa-hero-cmd-frame {
+    margin-top: var(--aa-space-5);
+  }
+  @media (min-width: 40rem) {
+    .aa-statement > .aa-lead {
+      font-size: 1.25rem;
+      line-height: 1.55;
+    }
+  }
+  /* The eyebrow: a label in a hairline tag on the raised sheet, led by the net's own square node. */
+  .aa-hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--aa-space-2);
+    padding: var(--aa-space-1) var(--aa-space-3);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius-chip);
+    background: var(--aa-raised);
+    text-align: left;
+  }
+  /* On a phone the tag would wrap to two lines in its box: there it is the plain label, centred. */
+  @media (max-width: 29.9375rem) {
+    .aa-hero-eyebrow {
+      display: block;
+      padding: 0;
+      border: 0;
+      background: none;
+      text-align: center;
+    }
+    .aa-hero-node {
+      display: none;
+    }
+  }
+  .aa-hero-node {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    background: var(--aa-ink);
+  }
+  /* Framed corner marks at the hero's four corners, inside the frame: 12px arms in rule-strong, drawn as eight
+     background strokes on one box (no extra elements, nothing to lay out). */
+  .aa-hero-corners {
+    --c: var(--aa-rule-strong);
+    --arm: 12px;
+    position: absolute;
+    inset: var(--aa-space-4);
+    z-index: 1;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--c), var(--c)) left top / var(--arm) 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) left top / 1px var(--arm) no-repeat,
+      linear-gradient(var(--c), var(--c)) right top / var(--arm) 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) right top / 1px var(--arm) no-repeat,
+      linear-gradient(var(--c), var(--c)) left bottom / var(--arm) 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) left bottom / 1px var(--arm) no-repeat,
+      linear-gradient(var(--c), var(--c)) right bottom / var(--arm) 1px no-repeat,
+      linear-gradient(var(--c), var(--c)) right bottom / 1px var(--arm) no-repeat;
+  }
+  @media (max-width: 29.9375rem) {
+    .aa-hero-corners {
+      inset: var(--aa-space-2);
+      --arm: 8px;
+    }
   }
   .aa-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: var(--aa-space-3) var(--aa-space-4);
+    gap: var(--aa-space-3);
   }
   .aa-text-link {
     font: 500 0.9375rem / 1 var(--aa-font-sans);
+    padding: 0 var(--aa-space-2);
   }
   /* Two fixed lines (clone, then cd and install) in a hairline box that scrolls sideways on narrow screens: its height
      never depends on when the mono face arrives (a wrapping line re-wrapped on the swap and moved the page, M13k),
@@ -559,7 +643,7 @@ AA_DEMO_MODEL=scripted \
   }
   .aa-hero-cmd {
     margin: 0;
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem 0.875rem;
     overflow-x: auto;
     text-align: left;
   }
@@ -568,13 +652,15 @@ AA_DEMO_MODEL=scripted \
     white-space: pre;
   }
   .aa-hero-cmd code {
-    font: 400 var(--aa-text-code) / 1.5 var(--aa-font-mono);
+    font: 400 var(--aa-text-code) / 1.6 var(--aa-font-mono);
     color: var(--aa-ink-2);
   }
   .aa-hero-row {
-    padding-bottom: var(--aa-space-7);
+    padding-bottom: var(--aa-space-8);
   }
   .aa-hero-exhibit {
+    position: relative;
+    z-index: 1;
     min-width: 0;
   }
   .aa-exhibit-label {
@@ -588,6 +674,9 @@ AA_DEMO_MODEL=scripted \
     .aa-statement {
       justify-items: start;
       text-align: left;
+    }
+    .aa-hero-eyebrow {
+      margin-top: calc(-1 * var(--aa-space-1) - 1px);
     }
     .aa-actions {
       justify-content: flex-start;

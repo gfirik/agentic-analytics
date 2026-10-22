@@ -378,6 +378,7 @@ test("landing: the strip, header and install line keep their height while the fo
   // when its menu script ran late): the page below moved (Lighthouse CLS 0.05). Their heights must not depend on the
   // font, so they are measured in the fallback faces and again once the web fonts are in. Glyphs re-centring inside
   // their boxes depends on the machine's fallback fonts and is not tested here; Lighthouse measures CLS 0.
+  // The web fonts are held; the local metric-matched fallback faces (fonts.css, "… Fallback") load at once.
   const boxes = [".aa-strip", ".aa-header", ".aa-hero-cmd"];
   for (const [width, height] of [
     [390, 844],
@@ -396,12 +397,12 @@ test("landing: the strip, header and install line keep their height while the fo
     const heights = () => page.evaluate((sel) => sel.map((s) => document.querySelector(s)?.getBoundingClientRect().height ?? -1), boxes);
     await page.goto(LANDING, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded"))).toBe(false);
+    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded" && !f.family.endsWith("Fallback")))).toBe(false);
     const before = await heights();
     release();
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded"))).toBe(true);
+    expect(await page.evaluate(() => [...document.fonts].some((f) => f.status === "loaded" && !f.family.endsWith("Fallback")))).toBe(true);
     expect(await heights(), `${width} px`).toEqual(before);
     await ctx.close();
   }
@@ -1586,6 +1587,145 @@ test.describe("motion", () => {
     }
   });
 
+  // The hero field (site v5 PR 1): the drifting net behind the statement, on a canvas.
+  const NET = ".aa-hero-field .aa-hf-net";
+  const frames = (page: import("@playwright/test").Page) =>
+    page.locator(NET).evaluate((c) => (c as HTMLCanvasElement & { aaFrames?: number }).aaFrames ?? 0);
+
+  test("hero field: the net drifts while the hero is on screen, and pauses off-screen, in a hidden tab and on Pause", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const net = page.locator(NET);
+    await expect(net).toHaveAttribute("data-state", "running", { timeout: 5_000 });
+    const a = await frames(page);
+    await page.waitForTimeout(600);
+    expect(await frames(page), "draws while on screen").toBeGreaterThan(a + 5);
+    // The backing store is DPR-aware and capped, and the canvas is sized by CSS (it never sizes the layout).
+    const size = await net.evaluate((c: HTMLCanvasElement) => ({
+      w: c.width,
+      h: c.height,
+      cw: c.clientWidth,
+      ch: c.clientHeight,
+      position: getComputedStyle(c).position,
+    }));
+    expect(size.position).toBe("absolute");
+    expect(size.w * size.h).toBeLessThanOrEqual(1_600_000 + size.w + size.h);
+    expect(Math.abs(size.w - size.cw)).toBeLessThanOrEqual(1);
+    // Scrolled off-screen: paused, and no frame is drawn.
+    await page.locator("#how").evaluate((el) => el.scrollIntoView());
+    await expect(net).toHaveAttribute("data-state", "paused");
+    const b = await frames(page);
+    await page.waitForTimeout(600);
+    expect(await frames(page), "no frames off-screen").toBe(b);
+    // Back on screen it runs again.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(net).toHaveAttribute("data-state", "running");
+    // A hidden tab pauses it.
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect(net).toHaveAttribute("data-state", "paused");
+    const c = await frames(page);
+    await page.waitForTimeout(400);
+    expect(await frames(page), "no frames in a hidden tab").toBe(c);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect(net).toHaveAttribute("data-state", "running");
+    // The Pause control (WCAG 2.2.2) stops it, and Play starts it again.
+    const toggle = page.locator("[data-hf-toggle]");
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(toggle).toHaveText("Play background");
+    await expect(net).toHaveAttribute("data-state", "paused");
+    await toggle.click();
+    await expect(net).toHaveAttribute("data-state", "running");
+  });
+
+  test("hero field: under reduced motion and without JS the net is absent; the static grid, glow and grain remain", async ({ browser }) => {
+    for (const opts of [{ reducedMotion: "reduce" as const }, { javaScriptEnabled: false }]) {
+      for (const viewport of [
+        { width: 1440, height: 900 },
+        { width: 390, height: 844 },
+      ]) {
+        const ctx = await browser.newContext({ ...opts, viewport });
+        const page = await ctx.newPage();
+        await page.goto(LANDING, { waitUntil: "networkidle" });
+        await page.waitForTimeout(2_500); // past the idle start
+        const net = page.locator(NET);
+        await expect(net).toHaveAttribute("data-state", "off");
+        expect(await frames(page)).toBe(0);
+        await expect(page.locator("[data-hf-toggle]")).toBeHidden();
+        if (opts.reducedMotion) expect(await net.evaluate((c) => getComputedStyle(c).display)).toBe("none");
+        for (const layer of [".aa-hf-grid", ".aa-hf-glow", ".aa-hf-grain"])
+          expect(await page.locator(layer).evaluate((el) => getComputedStyle(el).backgroundImage), layer).not.toBe("none");
+        await ctx.close();
+      }
+    }
+  });
+
+  test("hero field: no layout shift as it starts, fades in and shows its control (1440, 390)", async ({ browser }) => {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      const ctx = await browser.newContext({ viewport });
+      const page = await ctx.newPage();
+      page.on("console", (m) => {
+        if (m.text().startsWith("hero shift") || m.text().startsWith("page shift")) console.log(`${viewport.width}: ${m.text()}`);
+      });
+      await page.addInitScript(() => {
+        const w = window as unknown as { aaHeroShift: number; aaShiftTotal: number };
+        w.aaHeroShift = 0;
+        w.aaShiftTotal = 0;
+        type Entry = PerformanceEntry & { value: number; hadRecentInput: boolean; sources: { node?: Node | null }[] };
+        new PerformanceObserver((list) => {
+          for (const e of list.getEntries() as Entry[]) {
+            if (e.hadRecentInput) continue;
+            w.aaShiftTotal += e.value;
+            // Every shift is printed with what it moved, so a CI-only failure (other fallback fonts) names its cause.
+            console.log(
+              `page shift ${e.value.toFixed(6)} at ${Math.round(e.startTime)} ms: ${e.sources
+                .map((s) => (s.node instanceof Element ? s.node : s.node?.parentElement)?.getAttribute("class") ?? "?")
+                .join("; ")}`,
+            );
+            const inHero = e.sources.some((s) => {
+              const el = s.node instanceof Element ? s.node : (s.node?.parentElement ?? null);
+              // The field, its control and the corner marks: what this adds to the hero. (The font swap may still nudge
+              // a word of the statement by a pixel early on; that is the page's font budget, counted in the total.)
+              return Boolean(el?.closest(".aa-hero-field, .aa-hf-toggle, .aa-hero-corners"));
+            });
+            if (inHero) {
+              w.aaHeroShift += e.value;
+              console.log(
+                `hero shift ${e.value.toFixed(6)} at ${Math.round(e.startTime)} ms: ${e.sources
+                  .map((s) => (s.node instanceof Element ? s.node : s.node?.parentElement)?.className ?? "?")
+                  .join("; ")}`,
+              );
+            }
+          }
+        }).observe({ type: "layout-shift", buffered: true });
+      });
+      await page.goto(LANDING, { waitUntil: "load" });
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      const before = await page.locator(".aa-statement").boundingBox();
+      await expect(page.locator(NET)).toHaveAttribute("data-state", "running", { timeout: 5_000 });
+      await expect(page.locator("[data-hf-toggle]")).toBeVisible();
+      await page.waitForTimeout(800); // the fade-in
+      expect(await page.locator(".aa-statement").boundingBox(), `${viewport.width}: the statement keeps its box`).toEqual(before);
+      const { aaHeroShift, aaShiftTotal } = await page.evaluate(() => {
+        const w = window as unknown as { aaHeroShift: number; aaShiftTotal: number };
+        return { aaHeroShift: w.aaHeroShift, aaShiftTotal: w.aaShiftTotal };
+      });
+      expect(aaHeroShift, `${viewport.width}: shifts in the hero field, its control or the corner marks`).toBe(0);
+      expect(aaShiftTotal, `${viewport.width}: CLS on load`).toBeLessThan(0.05);
+      await ctx.close();
+    }
+  });
+
   test("no layout shift from any of it: CLS under 0.05 through the whole landing page (1440, 390)", async ({ browser }) => {
     type Shift = { value: number; time: number; mine: boolean; sticky: boolean; sources: string[] };
     for (const viewport of [
@@ -1657,8 +1797,9 @@ test.describe("motion", () => {
       }
       const total = shifts.reduce((t, s) => t + s.value, 0);
       console.log(`CLS through the landing page at ${viewport.width}: ${cls.toFixed(4)} (all shifts summed ${total.toFixed(4)})`);
-      // Every shift in an animated part is printed with its sources, so a failure names the node that moved.
-      for (const s of shifts.filter((x) => x.mine))
+      // Every shift in an animated part is printed with its sources, and every shift at all when CLS is over budget, so
+      // a failure names the node that moved.
+      for (const s of shifts.filter((x) => x.mine || cls >= 0.05))
         console.log(`shift ${s.value.toFixed(6)} at ${Math.round(s.time)} ms: ${s.sources.join("; ")}`);
       expect(
         shifts.filter((s) => s.mine && !s.sticky),

@@ -13,7 +13,7 @@ The product's promise is that every number can be traced, so the site shows numb
 
 - **It is:** an audited statement, a lab notebook, an engineer's reference. Quiet surfaces, ruled lines, exact figures.
 - **It is not:**
-  - an AI startup page (no gradients, glow, blobs, 3D, robots or brains). The one exception is the engine machine (§6): the real pipeline as solid, lit models in an axonometric view, shaded only in the page's own greys by one hemisphere and one directional light in token colours, with hairline edges, no shadows and no glow. 3D as decoration stays banned;
+  - an AI startup page (no gradients, glow, blobs, 3D, robots or brains). The one exception is the engine machine (§6): the real pipeline as solid, lit models in an axonometric view, shaded only in the page's own greys by one hemisphere and one directional light in token colours, with hairline edges, no shadows and no glow. 3D as decoration stays banned. The other is the hero field (§5, site v5): a lit sheet behind the hero statement, with graph paper, one soft glow, grain and a quiet drifting net, all in the page's own greys plus one cool tint;
   - a BI dashboard (no chart wall);
   - a warm "paper" site. Our sibling project pas-agent uses cream and amber; this site is neutral off-white and ink.
 - **Tone:** plain statements that can be checked. "Recomputed by the verifier", never "powered by AI". Caveats sit next to the number they qualify, in the margin when there is one.
@@ -30,13 +30,13 @@ The product's promise is that every number can be traced, so the site shows numb
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
 5. **Motion that shows the work, never in the way of it (site v4).** The landing page moves where the movement says something true: the sections below the fold reveal as they scroll in, the pipeline's connector draws from stage to stage, the exhibit's figures count up to their recorded value and then verify, and hovers ease in. The rules (§7):
-   - **Nothing animates under the reader's eye.** Whatever is on screen at load renders final and never re-animates; a reveal happens once, as a part first enters from below. The exhibit's replay is the one motion on the first screen, because it is the demonstration.
+   - **Nothing animates under the reader's eye.** Whatever is on screen at load renders final and never re-animates; a reveal happens once, as a part first enters from below. The exhibit's replay is the one motion on the first screen that carries content, because it is the demonstration; the hero field's net (§5, site v5) is ambient background behind the statement, slow, quiet, pausable, and never over text the reader is on.
    - **Nothing blocks reading or input.** A reveal is 240ms; a jump (an anchor, the End key, keyboard focus) lands on final content.
    - **No layout shift.** Only `transform` and `opacity` animate (and colour on hover); CLS stays under 0.05.
    - **Every number stays the recorded fact.** A count runs toward the real value and ends on it; the HTML holds the real value, and the count is drawn over it.
    - **All off under `prefers-reduced-motion`**, and the final state renders without JS.
    The engine machine's drift and scroll-linked camera (§6) keep their own rules.
-6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji. One written exception: the engine machine (§6), the real pipeline as lit 3D models in its own band; nothing else on the site is 3D.
+6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji. Two written exceptions: the engine machine (§6), the real pipeline as lit 3D models in its own band (nothing else on the site is 3D), and the hero field (§5, site v5), the only gradients and glow on the site, behind the hero statement only.
 7. **Every number is real.**
    - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
    - Each figure carries its fact ID or its source file. Nothing is typed by hand (`scripts/test/landing-exhibit.test.ts`, `scripts/test/learn.test.ts`).
@@ -58,7 +58,8 @@ The product's promise is that every number can be traced, so the site shows numb
 | `--aa-grid` | `#ecece8` | Graph-paper lines (decorative only) |
 | `--aa-raised` | `#ffffff` | Exhibits, panels, code |
 | `--aa-surface` | `#f1f2f0` | Sidebars, the status strip, ledger header rows, inline code |
-| `--aa-mark` | `#e8ecef` | Highlighted cited rows, hover washes (not an accent) |
+| `--aa-mark` | `#e8ecef` | Highlighted cited rows, hover washes, text selection (not an accent) |
+| `--aa-glow` | `#e3eaf0` | The hero field's cool haze only (site v5): never a surface, a text colour or an accent |
 | `--aa-rule` | `#dcdcd6` | Hairlines, frames |
 | `--aa-rule-strong` | `#8b8f94` | Header rules, chip boxes, corner ticks (≥ 2.7:1, decorative) |
 | `--aa-ink` | `#121417` | Primary text, primary buttons, focus ring |
@@ -73,6 +74,7 @@ Contrast ratios (WCAG relative luminance; axe re-checks them in CI). All text pa
 - `ink-2`: 7.8:1 on page, 6.9:1 on mark.
 - `ink-3`: 5.6:1 on page, 5.3:1 on surface, 5.0:1 on mark.
 - `verified`: 6.2:1 on page, 6.6:1 on raised, 5.8:1 on its wash.
+- Over the hero field (site v5) the worst case is text on full-strength `glow` (the haze is lighter where it is mixed with the page, and the white core behind the headline is `raised`): `ink` 15.2:1, `ink-2` 6.8:1, `ink-3` 4.9:1. The grid's lines and dots are hairlines and 1px dots under the text, never a fill behind it.
 
 Rules:
 
@@ -86,6 +88,7 @@ All three faces are self-hosted through `@fontsource` and imported once, in `src
 
 - **Serif file.** The serif uses its weight-axis file (51 KB) with its italic, not the optical-size file (122 KB). The docs' first paint is serif prose, and the larger file kept the Learn pages under Lighthouse 95.
 - **Preloads.** The serif is preloaded on every page and Plex Sans 400 on the landing page (`FontPreloads.astro`).
+- **Fallback metrics.** Each face has a fallback face (`… Fallback` in `fonts.css`, second in its token's stack): a local metric-compatible font (Arial / Liberation Sans, Times New Roman / Liberation Serif, Courier New / Liberation Mono) with `size-adjust` and ascent/descent overrides measured against the web font, so text set before the swap has the same line lengths and line boxes and the swap moves nothing. Without it, Linux's wider DejaVu fallback wrapped the hero's buttons until Plex Sans 500 arrived (CLS 0.068 at 390px in CI). New faces get a matching fallback face.
 - **CSS.** Page CSS is inlined (`astro.config.mjs`).
 
 | Role | Face | Use |
@@ -103,7 +106,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 | Token | Size / line height | Face | Use |
 |---|---|---|---|
-| `--aa-text-display` | 3.5 / 1.05 (2.25 mobile), −0.02em | Serif 450 | The hero statement (one per page) |
+| `--aa-text-display` | `clamp(2.5rem, 1.25rem + 3.4vw, 4.25rem)` / 1.02 (40px on phones to 68px at 1440; site v5), −0.028em | Serif 440 | The hero statement (one per page) and the 404's h1 |
 | `--aa-text-h2` | 2.25 / 1.15 (1.75), −0.015em | Serif 450 | Section headings |
 | `--aa-text-h3` | 1.125 / 1.4 | Sans 600 | Cell, row and step titles |
 | `--aa-text-lead` | 1.1875 / 1.55 | Sans 400, `ink-2` | Lead paragraphs |
@@ -135,7 +138,15 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
   This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain. The paper clips anything outside the screen (`overflow-x: clip`), so the ticks and the graph paper never scroll the page sideways (the graph paper is sized with `vw`, which includes a classic scrollbar's width; the clip hides that excess).
 - **Wide rows (site v4).** From 1100px a section is one row of two columns, about 2:3: the text on the left (label, `h2`, lead, at the 56ch measure) and a large visual on the right. In §1 and §2 the head is sticky (`--aa-space-7` from the top), so it stays beside a taller visual while the row scrolls by (site v4 PR 3); only a head alone in its column may be sticky, since a sticky grid item is held within the whole grid and would slide over a neighbour below it (§4's binaries list). A visual that needs the room (the results table) gets a full-width band instead, with the head above it. Below 1100px the columns stack, the head centred above its visual.
-- **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero statement and the section heads only. It is full-bleed: stacked, a head's field spans the screen's width over the head's height; in a wide row it runs from the screen's left edge to the middle of the gap before the visual. It fades to the plain page at its edges through a CSS mask (no image) and is never behind a visual or long text.
+- **The hero field (site v5, `HeroField.astro`).** The hero statement stands on its own field instead of the plain graph paper. Same geometry as the graph-paper field below (full-bleed; stacked it spans the screen over the statement, in the wide row it runs from the screen's left edge into the gap before the exhibit, fading out over its last 12rem), reaching up to the header's hairline. Four layers, back to front:
+  - **glow:** a broad white core (`raised`, lighter than the page) behind the headline inside a faint cool haze of `--aa-glow` that dies out before the field's edge. It is light, never a shadow: nothing behind the text is darker than the page;
+  - **graph paper:** 24px minor lines in `grid`, every fourth line in `rule` (96px), a 1px `rule-strong` dot on every crossing, anchored to the frame's left edge so the lines meet the frame line, faded out radially from the statement's centre (a CSS mask centred with `cqi`: the statement is an inline-size container);
+  - **the net (the one motion):** a canvas of small square nodes (the pipeline rail's own node, 3 or 5px, a few filled ink, the rest outlined in `rule-strong`) drifting at 5–14px a second, each joined to its nearest neighbour by an elbowed hairline (right angles, like the ledger's rules), and every few seconds a 3px ink tick running along one connector. It is masked quiet (28%) right behind the text and visible in a ring around it. See §7 for its rules;
+  - **grain:** a 160px tile of SVG fractal noise in ink at 22% (an inline data URI, so no request), masked like the paper.
+  The static layers (glow, paper, grain) are CSS and render without JS and under reduced motion. Nothing in the field is behind the exhibit.
+- **Framed corner marks (site v5).** The hero's frame carries an L-shaped mark at each of its four corners, `--aa-space-4` inside it: 12px arms (8px under 480px, `--aa-space-2` inside) of 1px `rule-strong`, drawn as background strokes on one absolutely placed box, so they never take part in layout.
+- **Hero type (site v5).** The eyebrow is a label in a hairline tag (`rule` border, `raised`, 2px radius) led by the net's 6px ink node; on phones (under 480px) it is the plain centred label, since the tag would wrap. Then the headline (`--aa-text-display`), the lead a step up from other leads (1.25rem / 1.55, 1.125rem under 40rem; ≈ 34rem measure, `text-wrap: pretty`), the actions and the install line. Spacing, top to bottom: `--aa-space-5`, `--aa-space-5`, `--aa-space-6`, `--aa-space-5`.
+- **Graph-paper field.** A 24px grid in `--aa-grid`, behind the section heads only (the hero has its own field, above). It is full-bleed: stacked, a head's field spans the screen's width over the head's height; in a wide row it runs from the screen's left edge to the middle of the gap before the visual. It fades to the plain page at its edges through a CSS mask (no image) and is never behind a visual or long text.
 - **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways instead of wrapping (a horizontal scroll box, §6: keyboard-focusable, no scrollbar, a fade at the edge with more), so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
 - **Section heads:** every landing section opens with the same three lines, `--aa-space-4` apart: the bracketed label, the `h2` (at most a 48ch measure) and a one-sentence lead. Stacked, they are centred on the graph paper with the label's hairline on both sides; in a wide row or band (from 1100px) they sit on the left, and the label's hairline runs only after it. Caveats go next to what they qualify (§3's under its table), not in the lead.
 - **Sections, in order** (nothing else: no testimonials, logo wall or newsletter):
@@ -228,10 +239,10 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - Under 1000px it is a tap-to-expand inline note on a `surface` wash with an ink rule. A visually hidden checkbox makes it keyboard-focusable, and it works without JS.
   - Keep its content inline: text, links, `<Fact />`, code.
 - **Margin note** (`components/learn/MarginNote.astro`): the same without a number. Under 1000px a small ⊕ toggles it.
-- **Buttons:**
-  - `.aa-button` is Plex Sans 500 at 0.9375rem, 10×16 padding, 4px radius;
-  - the primary is `ink` filled with `page` text, the secondary is a 1px `ink` outline, and a third action is a plain text link;
-  - hover changes the background tone only.
+- **Buttons (site v5):**
+  - `.aa-button` is Plex Sans 500 at 0.9375rem / 1 (−0.005em), 44px tall with 18px side padding, 4px radius, on one line;
+  - the primary is `ink` filled with `page` text and may carry a trailing arrow (`.aa-button-arrow`, an inline 14px SVG, 1.5px square-capped stroke) that steps 2px forward on hover; the secondary is a `raised` sheet in a 1px `rule-strong` hairline that turns `ink` on hover; a third action is a plain text link;
+  - hover changes tone (and the arrow's position) only; a press moves the button down 1px. Never its size. No transform under reduced motion.
 - **Code:**
   - Expressive Code with `github-light` only, re-based onto `raised` (so its contrast correction targets our real background);
   - a hairline frame, a mono body at `--aa-text-code`, a mono caption label, no window dots.
@@ -302,6 +313,7 @@ Site v4 PR 3 brought tasteful motion to the whole landing page under the rules o
 - **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow and pipeline stepping (the connector is drawn from the start there).
 - **The engine machine** (§6): a slow camera drift (±3.4° about the vertical over 26 seconds, desktop only) while its band is on screen, and the camera moving from station to station as the reader scrolls through the band (eased, never ahead of the scroll). Nothing in it blocks the page's own scrolling, and nothing moves text the reader is on. Under reduced motion it is the still frame with the station list: no drift, no scroll-linked camera and no canvas.
 - **The engine machine keeps its own rules** (§6, site v4 PR 2): it is not revealed, and its drift and scroll-linked camera are described above.
+- **The hero field's net (site v5, §5):** the one ambient motion. It starts on idle after load and fades in over 600ms (opacity only); it draws only while the hero is on screen (IntersectionObserver) and the tab is visible, at most 30 frames a second, with no layout reads per frame (its size comes from a ResizeObserver); its backing store follows the device pixel ratio, capped at 2 and at about 1.6 million pixels. A "Pause background" control (label-sized, under the statement, absolutely placed, shown only once the net runs) stops it (WCAG 2.2.2). None of it under reduced motion (the canvas is not displayed), with Save-Data, or without JS; the static field stays.
 - **No other motion:** no parallax, no looping decoration, nothing that moves text the reader is on, nothing that animates layout (width, height, position): only `transform` and `opacity`, and colour on hover.
 - **Reduced motion** turns off the reveals, the connector's draw-in, the count, the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
 - **Tested** in `site.spec.ts` ("motion"): reveals happen once and only below the fold, nothing is held or counts under reduced motion or without JS, the figures end on their recorded values, the connector draws left to right, no layout shift is attributable to any of it (CLS under 0.05 through the whole page at 1440 and 390), and nothing scrolls sideways at 360 mid-reveal.
@@ -318,7 +330,7 @@ Site v4 PR 3 brought tasteful motion to the whole landing page under the rules o
 ## 9. What we don't use
 
 - **Look:**
-  - gradients, glow, blobs, 3D (except the engine machine, §6), glassmorphism, shadows (the machine's shading is light on its own faces, never a cast shadow);
+  - gradients, glow, blobs, 3D (except the engine machine, §6, and the hero field's glow and masks, §5), glassmorphism, shadows (the machine's shading is light on its own faces, never a cast shadow);
   - cream or amber, a dark theme;
   - rounded "bubbly" cards;
   - emoji, stock imagery, third-party logos.
@@ -339,6 +351,7 @@ Site v4 PR 3 brought tasteful motion to the whole landing page under the rules o
 11. Width (site v4): does a new landing section use the 1440px frame as a wide row (text left, visual right) or a full-width band, with backgrounds and the graph paper full-bleed, and stack below 1100px? Is long reading text (docs, Learn) still at its reading measure, never stretched to the frame?
 12. Is it checked at 1920, 1440, 1100, 1000, 390 and 360px (screenshots at 1920, 1440 and 390 in the PR), with no horizontal scroll at any of them and CLS under 0.05?
 13. Motion (site v4 PR 3): does anything new animate only `transform` and `opacity` (colour on hover), stay still while on the first screen, run once, end on the real value, and render its final state with reduced motion and without JS (§2.5, §7)? A new landing section opts into the reveal with `data-reveal`.
+14. Hero field (site v5): is the net still paused off-screen, in a hidden tab and on Pause, absent under reduced motion and without JS, and does the hero keep its box while it starts (`site.spec.ts`, "hero field")? Does all text over the field keep AA (§3)?
 
 ## 11. Site v3 (October 2026): what the review found, and what it settled
 
@@ -349,3 +362,14 @@ The site v3 design pass (`docs/plans/site-v3.md`, five PRs, #38–#42) started f
 - **Motion: rethought, not removed.** The verification replay stays (short and meaningful). The walkthrough stays, timed at every size, with nothing pinned to the scroll. The pipeline moves only when the reader presses Play, and then only its panel content crossfades. Nothing else moves.
 - **Scale, settled.** One type scale with three floors (labels, reading text in figures, code) and one ceiling (h2, except the hero and a page's own h1); one frame (hairlines, `raised` panels, 4px radius); every visual a component with an entry in §6.
 - **Moved out.** The report template's wording for shares over 100% ("accounted for 108% of the change") is an engine task in the analyst-grade plan, not a site change.
+
+## 12. Site v5 (October 2026): the hero's backgrounds and type
+
+Site v5 starts from the maintainer's note that the hero looked flat. PR 1 (this system) keeps the palette, the type families, light only, and the exhibit and its walkthrough exactly as they were, and adds:
+
+- **the hero field** (§5): glow, graph paper fading out radially, grain and the drifting net, with its motion rules in §7;
+- **framed corner marks** on the hero's frame (§5);
+- **a tighter scale:** a fluid display size (40–68px, set closer), a larger hero lead, the eyebrow as a tag, a fixed vertical rhythm in the statement, and reworked buttons (§6);
+- one new colour, `--aa-glow`, for the haze only (§3), and text selection in `mark`.
+
+The scroll-pinned story is PR 2.

@@ -63,6 +63,10 @@ a {
 a:hover {
   text-decoration-color: var(--aa-ink);
 }
+::selection {
+  background: var(--aa-mark);
+  color: var(--aa-ink);
+}
 :focus-visible {
   outline: 2px solid var(--aa-ink);
   outline-offset: 2px;
@@ -96,10 +100,10 @@ main:focus {
 .aa-display {
   font-family: var(--aa-font-display);
   font-size: var(--aa-text-display);
-  font-weight: 450;
+  font-weight: 440;
   font-optical-sizing: auto;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  line-height: 1.02;
+  letter-spacing: -0.028em; /* tighter as it grows (site v5): the statement reads as one set block */
   color: var(--aa-ink);
   text-wrap: balance;
 }
