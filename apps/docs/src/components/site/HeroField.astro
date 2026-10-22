@@ -16,8 +16,8 @@
 // - its backing store is DPR-aware and capped (DPR ≤ 2 and about 1.6 million pixels); the pulse's halo is drawn once
 //   to a sprite and stamped, never blurred per frame;
 // - none of it under prefers-reduced-motion or Save-Data, or without JS: the static field is all there is;
-// - a "Pause background" button stops it (WCAG 2.2.2); it sits in a slot the statement reserves and is only made
-//   visible by the script.
+// - there is no pause control (site v5 PR 2, the maintainer's call, DESIGN.md §7): it always plays while on screen,
+//   pausing only off-screen and in a hidden tab, for cost.
 ---
 
 <div class="aa-hero-field" aria-hidden="true">
@@ -26,19 +26,17 @@
   <canvas class="aa-hf-net" data-state="off"></canvas>
   <div class="aa-hf-grain"></div>
 </div>
-<button type="button" class="aa-hf-toggle" aria-pressed="false" data-hf-toggle hidden>Pause background</button>
 
 <script>
   const field = document.querySelector<HTMLElement>(".aa-hero-field");
   const canvas = field?.querySelector<HTMLCanvasElement>(".aa-hf-net") ?? null;
-  const toggle = document.querySelector<HTMLButtonElement>("[data-hf-toggle]");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   // The exhibit is to the right from 1100px and below the statement under it: pulses run toward it.
   const wide = matchMedia("(min-width: 68.75rem)");
   const saveData = Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
   const ctx = canvas?.getContext("2d") ?? null;
 
-  if (field && canvas && ctx && toggle && !reduce.matches && !saveData && typeof IntersectionObserver !== "undefined") {
+  if (field && canvas && ctx && !reduce.matches && !saveData && typeof IntersectionObserver !== "undefined") {
     type Node = { x: number; y: number; vx: number; vy: number; s: number; filled: boolean; flip: boolean; lit: number };
     type Link = { a: number; b: number; d: number; born: number };
     type Pulse = { a: number; b: number; t: number; hops: number };
@@ -67,7 +65,6 @@
     let clock = 0; // ms of running time: draw-in and pulses advance only while the net runs
     let nextPulse = 400;
     let onScreen = false;
-    let paused = false;
     let raf = 0;
     let last = 0;
     let acc = 0;
@@ -370,7 +367,7 @@
       (canvas as Debug).aaFrames = frames;
     };
 
-    const running = () => onScreen && !paused && !document.hidden && !reduce.matches;
+    const running = () => onScreen && !document.hidden && !reduce.matches;
     const sync = () => {
       const go = running();
       if (go && !raf) {
@@ -398,20 +395,12 @@
         { rootMargin: "0px" },
       ).observe(field);
       document.addEventListener("visibilitychange", sync);
-      toggle.hidden = false;
-      toggle.addEventListener("click", () => {
-        paused = !paused;
-        toggle.setAttribute("aria-pressed", String(paused));
-        toggle.textContent = paused ? "Play background" : "Pause background";
-        sync();
-      });
-      // Switched to reduced motion mid-visit: stop, clear, and hide the control (the static field remains).
+      // Switched to reduced motion mid-visit: stop and clear (the static field remains).
       reduce.addEventListener("change", () => {
         if (!reduce.matches) return;
         sync();
         ctx.clearRect(0, 0, w, h);
         field.classList.remove("is-live");
-        toggle.hidden = true;
       });
       canvas.dataset.state = "paused";
       field.classList.add("is-live");
@@ -451,6 +440,16 @@
       /* It ends in the gap before the exhibit: fade it out there rather than cut it. */
       -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 10rem), transparent);
       mask-image: linear-gradient(to right, #000 calc(100% - 10rem), transparent);
+    }
+    /* While the whole hero is pinned (site v5 PR 2) its content is centred in the screen, so the field's top no longer
+       meets the header's hairline: it fades in over its first 6rem instead of ending in an edge. */
+    :global(.aa-hero:has([data-walk="pin"])) .aa-hero-field {
+      -webkit-mask-image:
+        linear-gradient(to right, #000 calc(100% - 10rem), transparent), linear-gradient(to bottom, transparent, #000 6rem);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(to right, #000 calc(100% - 10rem), transparent), linear-gradient(to bottom, transparent, #000 6rem);
+      mask-composite: intersect;
     }
   }
   .aa-hero-field > * {
@@ -525,40 +524,6 @@
   @media (prefers-reduced-motion: reduce) {
     .aa-hf-net {
       display: none;
-    }
-  }
-
-  /* The pause control: a label-sized text button in the slot the statement reserves under the install line
-     (index.astro, .aa-statement's bottom padding), so showing it (only once the net runs) never moves anything, and
-     when stacked it keeps the row's full gap from the exhibit's label. */
-  .aa-hf-toggle {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    translate: -50% 0;
-    min-height: 1.5rem;
-    padding: 0 var(--aa-space-2);
-    border: 0;
-    border-radius: var(--aa-radius-chip);
-    background: transparent;
-    font: 500 var(--aa-text-label) / 1.5rem var(--aa-font-mono);
-    letter-spacing: var(--aa-label-tracking);
-    text-transform: uppercase;
-    color: var(--aa-ink-2);
-    cursor: pointer;
-    transition: color var(--aa-fast) var(--aa-ease);
-  }
-  .aa-hf-toggle:hover {
-    color: var(--aa-ink);
-  }
-  .aa-hf-toggle[hidden] {
-    display: none;
-  }
-  @media (min-width: 68.75rem) {
-    .aa-hf-toggle {
-      left: 0;
-      translate: none;
-      margin-left: calc(-1 * var(--aa-space-2));
     }
   }
 </style>

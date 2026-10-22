@@ -1,19 +1,23 @@
 ---
 // The hero exhibit (DESIGN.md §5–§6): a real report page from the recorded run (src/data/exhibit.json, written by
 // scripts/generate.ts from the same run as the pipeline scene), rendered by the server in its final, verified state,
-// in the hero's right column from 1100px and below the statement under it (site v4). It demonstrates itself, with no hover needed:
+// in the hero's right column from 1100px and below the statement under it (site v4). It demonstrates itself:
 //   1. As it comes into view (only without prefers-reduced-motion) the figures count up to their recorded value
 //      (600 ms, drawn over the real text, which keeps its place), then verify one by one: each chip's box draws in,
 //      then its check appears (≤ 200 ms per figure, ≤ 2.5 s in all).
-//   2. A guided walkthrough then steps through the story's key figures (walkthrough() in scripts/landing-data.ts),
-//      opening each figure's margin note (its SQL or function, the sheet rows it read, or the quoted source) under a
-//      step indicator. One behaviour at every size (site v3, D2): a step every few seconds while the notes are on
-//      screen (beside the exhibit when it is at least 48rem wide, below it otherwise, where the step bar stays at the top), waiting
-//      while the reader hovers or focuses inside; Pause stops it. Previous, next and replay are always there. Nothing
-//      is pinned to the scroll. Step 1's note is open from the start, so the margin is never empty.
-//   3. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
-// With reduced motion or without JS the steps are a static ruled list under the exhibit, and every chip is a link to
-// its row in the fact ledger.
+//   2. A scroll-driven walkthrough (site v5 PR 2, which overrides D2's "nothing pinned"): from 1100px, when the whole
+//      hero fits the screen, the hero row pins as one unit (position: sticky over a scroll track, index.astro) and each scroll step
+//      activates the next key figure (walkthrough() in scripts/landing-data.ts) and opens its margin note under a
+//      step indicator, with a progress rule driven by the track's view timeline. Steps are found by an
+//      IntersectionObserver on the track's sentinels: no scroll listener, no layout read per frame. There are no
+//      step controls (the maintainer's call): only the scroll moves it, the keyboard's included (Page Down, Space,
+//      arrows); the step is announced by a polite live region. After the last step the pin releases into the
+//      engine machine's band. Step 1's note is open from the start, so the margin is never empty.
+//   3. Under 1100px, where the hero stacks and can't fit one screen (or in a short window), nothing is pinned: the steps stack as a list
+//      under the exhibit and each opens on tap.
+//   4. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
+// With reduced motion or without JS the steps are a static ruled list under the exhibit, every note open, and every
+// chip is a link to its row in the fact ledger.
 import exhibit from "../../data/exhibit.json";
 import landing from "../../data/landing.json";
 import { formatWithCurrency } from "../format.ts";
@@ -65,18 +69,19 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
 
 <div class="aa-walk" data-exhibit data-steps={JSON.stringify(steps.map((s) => s.id))}>
   <script is:inline>
-    // Before first paint: when motion is welcome, hold the figures unverified for the replay and switch the
-    // walkthrough on (its step bar), so nothing shifts once the script runs. A safety net shows the
-    // final state if the walkthrough script never runs.
+    // Before first paint: when motion is welcome, hold the figures unverified for the replay and choose the
+    // walkthrough's mode, so nothing shifts once the script runs: "pin" from 1100px, where the whole hero (statement
+    // and exhibit side by side) can pin (checked against the screen's height at the end of this block), "tap" below. A safety net shows the static list if the script never runs.
     (() => {
       const el = document.currentScript?.parentElement;
       if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       el.dataset.anim = "pending";
-      el.dataset.walk = "live";
+      el.dataset.walk = matchMedia("(min-width: 68.75rem)").matches ? "pin" : "tap";
       setTimeout(() => {
         if (!el.dataset.ready) {
           el.dataset.anim = "done";
           delete el.dataset.walk;
+          for (const d of el.querySelectorAll(".aa-walk-list details")) d.open = true;
         }
       }, 4000);
     })();
@@ -100,15 +105,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
           ))
         }
       </p>
-      <div class="aa-walk-controls" role="group" aria-label="Walkthrough">
-        <span class="aa-walk-dots" aria-hidden="true">
-          {steps.map((_, i) => <span class="aa-walk-dot" data-dot={i + 1} />)}
-        </span>
-        <button type="button" class="aa-walk-btn" data-walk-prev aria-label="Previous step">←</button>
-        <button type="button" class="aa-walk-btn" data-walk-next aria-label="Next step">→</button>
-        <button type="button" class="aa-walk-btn aa-walk-pause" data-walk-pause>Pause</button>
-        <button type="button" class="aa-walk-btn aa-walk-replay" data-walk-replay>Replay</button>
-      </div>
+      <span class="aa-walk-dots" aria-hidden="true">
+        {steps.map((_, i) => <span class="aa-walk-dot" data-dot={i + 1} />)}
+      </span>
+      <span class="aa-walk-progress" aria-hidden="true"><i></i></span>
     </div>
     <div class="aa-walk-grid">
       <figure class="aa-exhibit" aria-labelledby="aa-exhibit-title">
@@ -176,22 +176,52 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         const n = notes[s.id];
         return (
           <li class="aa-walk-item">
-            <p class="aa-walk-item-head">
-              <span class="aa-walk-n">
-                {i + 1}/{steps.length}
-              </span>{" "}
-              {caption(s)} <span aria-hidden="true">→</span> <span class="aa-walk-how">{s.how}</span>
-            </p>
-            {n ? (
-              <div class="aa-walk-item-note">
-                <ExhibitNote n={n} />
-              </div>
-            ) : null}
+            <details class="aa-walk-item-fold" open data-step-item={i + 1}>
+              <summary class="aa-walk-item-head">
+                <span class="aa-walk-item-text">
+                  <span class="aa-walk-n">
+                    {i + 1}/{steps.length}
+                  </span>{" "}
+                  {caption(s)} <span aria-hidden="true">→</span> <span class="aa-walk-how">{s.how}</span>
+                </span>
+              </summary>
+              {n ? (
+                <div class="aa-walk-item-note">
+                  <ExhibitNote n={n} />
+                </div>
+              ) : null}
+            </details>
           </li>
         );
       })
     }
   </ol>
+  <script is:inline>
+    // Still before first paint, now that the exhibit is laid out: the notes' SQL opens beside the report page and stays
+    // folded below it; the pinned exhibit must fit the screen under its sticky top, or the walkthrough is the tap list;
+    // in the tap list only step 1 is open. One layout read, once.
+    (() => {
+      const el = document.currentScript?.parentElement;
+      if (!el?.dataset.walk) return;
+      const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const beside = el.clientWidth >= 48 * rem;
+      // Pinned on a laptop screen (under 900px of height) the SQL stays folded too, so the tallest note fits.
+      const roomy = el.dataset.walk !== "pin" || innerHeight >= 900;
+      for (const d of el.querySelectorAll(".aa-notes details[data-fold]")) d.open = beside && roomy;
+      // The whole hero pins down to 680px of viewport height; below that the walkthrough is the tap list.
+      if (el.dataset.walk === "pin" && innerHeight < 680) el.dataset.walk = "tap";
+      if (el.dataset.walk === "pin") {
+        // The whole hero row pins: its content (without the screen-tall minimum it takes when pinned) must fit.
+        const row = el.closest(".aa-hero-row");
+        if (row) {
+          row.style.minHeight = "0";
+          if (row.getBoundingClientRect().height > innerHeight) el.dataset.walk = "tap";
+          row.style.minHeight = "";
+        }
+      }
+      if (el.dataset.walk === "tap") for (const d of el.querySelectorAll(".aa-walk-list details")) d.open = d.dataset.stepItem === "1";
+    })();
+  </script>
 </div>
 
 <section id="ledger" class="aa-exhibit-ledger" aria-labelledby="aa-ledger-title">
@@ -266,13 +296,13 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     const leader = wrap.querySelector<HTMLElement>(".aa-leader");
     const caps = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-cap")];
     const dots = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-dot")];
-    const prev = wrap.querySelector<HTMLButtonElement>("[data-walk-prev]");
-    const next = wrap.querySelector<HTMLButtonElement>("[data-walk-next]");
-    const replay = wrap.querySelector<HTMLButtonElement>("[data-walk-replay]");
-    const pause = wrap.querySelector<HTMLButtonElement>("[data-walk-pause]");
+    // The scroll track the pinned exhibit stays over (index.astro): one sentinel per step.
+    const sentinels = [...document.querySelectorAll<HTMLElement>("[data-walk-sentinel]")];
     const stepIds = JSON.parse(wrap.dataset.steps ?? "[]") as string[];
     const n = stepIds.length;
-    const live = wrap.dataset.walk === "live";
+    // The mode was chosen before first paint (the inline scripts): "pin", "tap", or none (reduced motion).
+    const motion = Boolean(wrap.dataset.walk);
+    const pinned = () => wrap.dataset.walk === "pin";
     // The notes sit beside the exhibit when the exhibit is at least 48rem wide: a container query on .aa-walk, since its
     // width follows the hero's columns, not the screen (site v4: beside at 1440 in the hero's right column and from
     // about 840px where the hero stacks; below it in between).
@@ -286,9 +316,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
 
     // ── Notes ─────────────────────────────────────────────────────────────────────────────────────────────────
     let open: { chip: HTMLAnchorElement; note: HTMLElement } | undefined;
-    let pinned = false;
+    let held = false; // a note opened by a click (touch): it stays until the reader lets go
     let returning = false; // focus going back to a chip after Esc: don't reopen its note
-    let autoScroll = false; // the page is scrolling a pinned note into view
+    let autoScroll = false; // the page is scrolling a held note into view
     let hideTimer = 0;
     let current = 0; // 0: the verification; 1..n: the walkthrough's steps
     const place = () => {
@@ -296,12 +326,22 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const { chip, note } = open;
       if (!beside.matches) {
         note.style.top = "";
+        note.style.translate = "";
         leader.hidden = true;
         return;
       }
       const c = chip.getBoundingClientRect();
       const box = col.getBoundingClientRect();
-      note.style.top = `${Math.max(0, c.top - box.top - 10)}px`;
+      const level = Math.max(0, c.top - box.top - 10);
+      if (pinned()) {
+        // Pinned, every note shares one grid cell as tall as the tallest (so the exhibit's height is known before
+        // first paint): the note sits level with its figure, raised only as far as it must be to end inside the cell.
+        note.style.top = "";
+        note.style.translate = `0 ${Math.min(level, Math.max(0, box.height - note.offsetHeight))}px`;
+      } else {
+        note.style.translate = "";
+        note.style.top = `${level}px`;
+      }
       // The leader runs from the exhibit's edge, level with the figure, to the note: it never crosses the text.
       const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page")?.getBoundingClientRect();
       const from = page ? page.right : c.right;
@@ -315,7 +355,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       open.note.classList.remove("is-open");
       open.chip.setAttribute("aria-expanded", "false");
       open = undefined;
-      pinned = false;
+      held = false;
       if (leader) leader.hidden = true;
     };
     const show = (chip: HTMLAnchorElement) => {
@@ -328,19 +368,20 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       chip.setAttribute("aria-expanded", "true");
       place();
     };
-    // Back to the walkthrough's note once a hovered or pinned note lets go. Before the first step (and without the
-    // walkthrough) that is step 1's note, so the margin is never an empty box.
+    // Back to the walkthrough's note once a hovered or held note lets go: pinned, the current step's (step 1's before
+    // the first step), and beside the exhibit step 1's, so the margin is never an empty box. Below the exhibit and
+    // unpinned the steps are their own list, so nothing opens by itself there.
     const settle = () => {
-      pinned = false;
+      held = false;
       const id = stepIds[Math.max(current, 1) - 1];
-      const chip = id ? chipFor(id) : undefined;
+      const chip = id && (pinned() || beside.matches) ? chipFor(id) : undefined;
       if (chip) show(chip);
       else close();
     };
     const later = () => {
       clearTimeout(hideTimer);
       hideTimer = window.setTimeout(() => {
-        if (!pinned) settle();
+        if (!held) settle();
       }, 220);
     };
     for (const chip of chips) {
@@ -359,11 +400,11 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       });
       chip.addEventListener("click", (e) => {
         e.preventDefault();
-        if (pinned && open?.chip === chip) return settle();
+        if (held && open?.chip === chip) return settle();
         show(chip);
-        pinned = true;
-        if (!beside.matches && open) {
-          // Bringing the pinned note into view (smooth scrolling) carries other figures under a resting pointer:
+        held = true;
+        if (!beside.matches && !pinned() && open) {
+          // Bringing the held note into view (smooth scrolling) carries other figures under a resting pointer:
           // their mouseenter must not take the note away while the page moves by itself.
           // (A scrollend left over from an earlier scroll can arrive first: only one after the page moved counts.)
           autoScroll = true;
@@ -398,18 +439,18 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     });
     document.addEventListener("click", (e) => {
       const t = e.target as Node;
-      if (pinned && open && !open.note.contains(t) && !chips.some((c) => c.contains(t))) settle();
+      if (held && open && !open.note.contains(t) && !chips.some((c) => c.contains(t))) settle();
     });
     // "Show SQL": open beside the exhibit, folded below it (where the tallest note would otherwise be a long column).
     const folds = [...wrap.querySelectorAll<HTMLDetailsElement>(".aa-notes details[data-fold]")];
-    // The notes column keeps the room of its tallest note, measured once its contents are final, so stepping from a
-    // short note to a long one never moves the page. Beside the exhibit a note sits level with its figure, so its room
-    // is its figure's offset plus its height; below the exhibit (one grid cell) the cell already holds the tallest.
-    // It only grows: a smaller measure later (fonts in, a wider window) never pulls the page up under the reader.
+    // Unpinned beside the exhibit, the notes column keeps the room of its tallest note, measured once its contents are
+    // final, so stepping from a short note to a long one never moves the page: a note sits level with its figure, so
+    // its room is its figure's offset plus its height. (Pinned, or below the exhibit, one grid cell already holds the
+    // tallest.) It only grows: a smaller measure later (fonts in, a wider window) never pulls the page up under the reader.
     let reserved = 0;
     const reserve = () => {
       if (!col) return;
-      if (!beside.matches) {
+      if (!beside.matches || pinned()) {
         reserved = 0;
         col.style.minHeight = "";
         return;
@@ -429,9 +470,32 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       col.style.minHeight = `${reserved}px`;
     };
     const fold = () => {
-      for (const d of folds) d.open = beside.matches;
+      const roomy = !pinned() || window.innerHeight >= 900;
+      for (const d of folds) d.open = beside.matches && roomy;
       reserve();
       place();
+    };
+    // From 1100px and 680px of height the hero pins when its content fits the screen; otherwise the steps are the
+    // tap list. Checked again when the window changes, never per frame.
+    const wide = matchMedia("(min-width: 68.75rem)");
+    const chooseMode = () => {
+      if (!motion) return;
+      const was = wrap.dataset.walk;
+      wrap.dataset.walk = wide.matches && window.innerHeight >= 680 ? "pin" : "tap";
+      const row = wrap.closest<HTMLElement>(".aa-hero-row");
+      if (wrap.dataset.walk === "pin" && row) {
+        for (const d of folds) d.open = beside.matches && window.innerHeight >= 900;
+        row.style.minHeight = "0";
+        if (row.getBoundingClientRect().height > window.innerHeight) wrap.dataset.walk = "tap";
+        row.style.minHeight = "";
+      }
+      fold();
+      if (wrap.dataset.walk !== was) {
+        for (const d of wrap.querySelectorAll<HTMLDetailsElement>(".aa-walk-list details")) d.open = d.dataset.stepItem === String(Math.max(current, 1));
+        reserved = 0;
+        markStep();
+        settle();
+      }
     };
     fold();
     let wasBeside = beside.matches;
@@ -443,11 +507,12 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     // A narrower column makes its notes taller: measure again (once a frame) as the window changes.
     let resizing = 0;
     window.addEventListener("resize", () => {
-      place();
       if (!resizing)
         resizing = requestAnimationFrame(() => {
           resizing = 0;
+          chooseMode();
           reserve();
+          place();
         });
     });
     // The note is placed by its figure's box, and sized by its text: both move a little when the web fonts arrive.
@@ -456,49 +521,39 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       place();
     });
 
-    // ── The walkthrough (only when motion is welcome: data-walk="live", set before first paint) ──────────────
-    if (live && n > 0) {
-      let timers: number[] = []; // the verification's
-      let stepTimer = 0; // the next step
-      let auto = true; // advancing by itself until the reader steps by hand or pauses
-      let notesOnScreen = false; // it advances only while the reader can see the notes
-      let started = false;
-      // The reader is exploring: the pointer on a figure or a note, or focus inside the exhibit. Two flags, so leaving a
-      // chip with the mouse doesn't let it run while focus is still inside.
-      const held = { pointer: false, focus: false };
-      const clearTimers = () => {
-        for (const t of timers) clearTimeout(t);
-        timers = [];
-        clearTimeout(stepTimer);
-      };
-      // Prev and next stay focusable at the ends (aria-disabled), so a keyboard reader never loses focus.
-      const able = (b: HTMLButtonElement | null, on: boolean) => b?.setAttribute("aria-disabled", String(!on));
-      // The button names the action it will take (Pause while running, Play while paused), so its state is visible and
-      // spoken alike; with a changing label it carries no aria-pressed (ARIA Authoring Practices, button pattern).
-      const status = wrap.querySelector<HTMLElement>(".aa-walk-status");
-      const showPause = () => {
-        if (pause) pause.textContent = auto ? "Pause" : "Play";
-        // The caption is announced when the reader moves a step, not every 4.5 s while it advances by itself: the region
-        // stays polite (switching it from off to live can drop the first update) and is busy while autoplaying.
-        status?.setAttribute("aria-busy", String(auto));
-      };
-      const setStep = (k: number) => {
-        current = Math.max(0, Math.min(n, k));
-        caps.forEach((c, i) => {
-          c.hidden = i !== current;
-        });
-        dots.forEach((d, i) => d.classList.toggle("is-on", i < current));
-        chips.forEach((c) => c.classList.toggle("is-step", current > 0 && c.dataset.note === stepIds[current - 1]));
-        able(prev, current > 0);
-        able(next, current < n);
-        if (!pinned) settle();
-      };
+    // ── The walkthrough's steps ──────────────────────────────────────────────────────────────────────────────
+    const progress = wrap.querySelector<HTMLElement>(".aa-walk-progress");
+    function markStep() {
+      caps.forEach((c, i) => {
+        c.hidden = i !== current;
+      });
+      dots.forEach((d, i) => d.classList.toggle("is-on", i < current));
+      const on = pinned() && current > 0;
+      chips.forEach((c) => {
+        const step = on && c.dataset.note === stepIds[current - 1];
+        c.classList.toggle("is-step", step);
+        if (step) c.setAttribute("aria-current", "step");
+        else c.removeAttribute("aria-current");
+      });
+      // Where scroll-driven animations aren't supported the progress rule steps with the walkthrough (CSS reads it).
+      progress?.style.setProperty("--aa-walk-p", String(n ? current / n : 0));
+    }
+    const setStep = (k: number) => {
+      const to = Math.max(0, Math.min(n, k));
+      if (to === current) return;
+      current = to;
+      markStep();
+      if (!held) settle();
+    };
+    markStep();
+    settle();
+
+    if (motion && n > 0) {
       // The count: every figure runs up to its recorded value together (each number in it, from zero, in the figure's
       // own format). It is drawn over the figure (data-count, CSS), whose real text never changes and keeps its place,
       // so nothing reflows; it always ends on the real value, which is what the HTML holds.
       const COUNT = 600;
       const figs = [...wrap.querySelectorAll<HTMLElement>(".aa-exhibit .aa-fig")];
-      let counting = 0;
       const NUM = /\d[\d,]*(?:\.\d+)?/g;
       const at = (text: string, t: number) =>
         text.replace(NUM, (m) => {
@@ -511,7 +566,6 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
           });
         });
       const count = () => {
-        cancelAnimationFrame(counting);
         for (const f of figs) {
           f.classList.remove("is-counted");
           f.dataset.count = at(f.textContent ?? "", 0);
@@ -527,113 +581,60 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
               f.classList.add("is-counted");
             }
           }
-          if (t < 1) counting = requestAnimationFrame(frame);
+          if (t < 1) requestAnimationFrame(frame);
         };
-        counting = requestAnimationFrame(frame);
+        requestAnimationFrame(frame);
       };
-      // The verification: as the count lands, one figure every ≤ 200 ms in reading order; the last check by 2.5 s.
+      // The verification, once: as the count lands, one figure every ≤ 200 ms in reading order; the last check by 2.5 s.
       const verify = () => {
-        wrap.dataset.anim = "pending";
-        for (const c of chips) c.classList.remove("is-verified");
-        void wrap.offsetWidth;
         count();
         const lead = COUNT - 140; // the check fades in 140 ms after its chip is marked: on the count's last frame
         const step = Math.min(200, 1600 / Math.max(chips.length, 1));
         chips.forEach((chip, i) => {
-          timers.push(window.setTimeout(() => chip.classList.add("is-verified"), lead + i * step));
+          window.setTimeout(() => chip.classList.add("is-verified"), lead + i * step);
         });
-        const total = lead + chips.length * step + 300;
-        timers.push(
-          window.setTimeout(() => {
+        window.setTimeout(
+          () => {
             wrap.dataset.anim = "done";
-          }, total),
+          },
+          lead + chips.length * step + 300,
         );
-        return total;
       };
-      // A step every few seconds while the notes are on screen.
-      const DWELL = 4500;
-      const tick = (delay: number) => {
-        clearTimeout(stepTimer);
-        stepTimer = window.setTimeout(() => {
-          if (!auto || held.pointer || held.focus || !notesOnScreen) return;
-          setStep(current + 1);
-          if (current < n) tick(DWELL);
-          else {
-            // The end: nothing advances any more, so the button offers Play (which starts again from step 1).
-            auto = false;
-            showPause();
-          }
-        }, delay);
-      };
-      const start = () => {
-        clearTimers();
-        started = true;
-        const took = verify();
-        setStep(0);
-        tick(took + 600);
-      };
-      setStep(0);
-      showPause();
-      // The verification runs once the report page's top is above the bottom sixth of the screen. In the two-column
-      // hero (from 1100px) the report page is on the first screen, so it plays on load; stacked, it starts as the page
-      // comes into view, then runs on its timer (DESIGN §6). A margin, not a visible ratio: a ratio can't be reached by
-      // a box taller than the screen (a landscape phone).
+      // It runs once the report page's top is above the bottom sixth of the screen: on load in the two-column hero,
+      // as the page comes into view when stacked. A margin, not a visible ratio: a ratio can't be reached by a box
+      // taller than the screen (a landscape phone).
       const page = wrap.querySelector<HTMLElement>(".aa-exhibit-page");
-      new IntersectionObserver(
+      const seen = new IntersectionObserver(
         ([e]) => {
-          if (e?.isIntersecting && !started) start();
+          if (!e?.isIntersecting) return;
+          seen.disconnect();
+          verify();
         },
         { rootMargin: "0px 0px -15% 0px" },
-      ).observe(page ?? wrap);
-      if (col)
-        new IntersectionObserver(
-          ([e]) => {
-            notesOnScreen = Boolean(e?.isIntersecting);
-            if (notesOnScreen && started && auto && current < n) tick(current === 0 ? 1500 : DWELL);
-          },
-          { rootMargin: "-25% 0px -25% 0px" },
-        ).observe(col);
-      // It waits while the reader explores (hover or focus inside the exhibit), and resumes after.
-      const hold = (by: "pointer" | "focus", on: boolean) => {
-        held[by] = on;
-        if (!held.pointer && !held.focus && auto && notesOnScreen && current < n) tick(DWELL);
+      );
+      seen.observe(page ?? wrap);
+
+      // The steps follow the scroll while pinned: the step is the number of sentinels whose top has passed a line 65%
+      // down the screen. The observer's root runs from far above the screen down to that line, so a sentinel's state
+      // changes exactly as its top crosses the line, and a jump past several (the End key, a fling, a link) changes
+      // each of them. Nothing is read from the layout, and there is no scroll listener.
+      const LINE = 0.65;
+      const passed = new Set<Element>();
+      const follow = () => {
+        if (pinned()) setStep(passed.size);
       };
-      // The pointer holds it only on a figure or a note (a pointer resting anywhere over the wide exhibit while the
-      // reader scrolls would stop it before it starts); focus anywhere inside the exhibit holds it. The step bar's own
-      // buttons never do.
-      const grid = wrap.querySelector<HTMLElement>(".aa-walk-grid") ?? wrap;
-      for (const el of [...chips, ...(col ? [col] : [])]) {
-        el.addEventListener("mouseenter", () => hold("pointer", true));
-        el.addEventListener("mouseleave", () => hold("pointer", false));
-      }
-      grid.addEventListener("focusin", () => hold("focus", true));
-      grid.addEventListener("focusout", (e) => {
-        if (!grid.contains(e.relatedTarget as Node | null)) hold("focus", false);
-      });
-      const go = (k: number) => {
-        if (k < 0 || k > n) return;
-        auto = false;
-        clearTimeout(stepTimer);
-        showPause();
-        setStep(k);
-      };
-      prev?.addEventListener("click", () => go(current - 1));
-      next?.addEventListener("click", () => go(current + 1));
-      // Pause and play (WCAG 2.2.2): stepping by hand pauses too.
-      pause?.addEventListener("click", () => {
-        auto = !auto;
-        showPause();
-        if (auto && current >= n) setStep(1);
-        if (auto) tick(DWELL);
-        else clearTimeout(stepTimer);
-      });
-      replay?.addEventListener("click", () => {
-        auto = true;
-        pinned = false;
-        showPause();
-        start();
-      });
-    } else settle();
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) passed.add(e.target);
+            else passed.delete(e.target);
+          }
+          follow();
+        },
+        { rootMargin: `100000px 0px -${Math.round((1 - LINE) * 100)}% 0px` },
+      );
+      for (const s of sentinels) io.observe(s);
+    } else markStep();
   }
 </script>
 
@@ -648,6 +649,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     gap: var(--aa-space-4);
   }
   .aa-walk-bar {
+    position: relative;
     display: none;
     align-items: center;
     justify-content: space-between;
@@ -655,8 +657,45 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     padding-bottom: var(--aa-space-3);
     border-bottom: 1px solid var(--aa-rule);
   }
-  [data-walk="live"] .aa-walk-bar {
+  [data-walk="pin"] .aa-walk-bar {
     display: flex;
+  }
+  /* The progress rule (site v5 PR 2): 2px of ink over the bar's hairline, from the first step to the last. Where
+     scroll-driven animations run it follows the scroll through the hero's track (its view timeline, --aa-walk-track,
+     scoped on the hero row in index.astro); elsewhere it steps with the walkthrough (--aa-walk-p, set by the script).
+     Transform only. */
+  .aa-walk-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .aa-walk-progress > i {
+    display: block;
+    height: 100%;
+    background: var(--aa-ink);
+    transform-origin: 0 50%;
+    transform: scaleX(var(--aa-walk-p, 0));
+  }
+  @supports (animation-timeline: view()) {
+    .aa-walk-progress > i {
+      animation: aa-walk-progress linear both;
+      animation-timeline: --aa-walk-track;
+      /* From the track's top entering the screen (as the pin starts) to the last sentinel's top crossing the step line,
+         65% down the screen: (100% − 65%) of the screen plus three steps of the track (index.astro). */
+      animation-range: cover 0% cover calc(35vh + 3 * var(--aa-walk-step, 45vh));
+    }
+  }
+  @keyframes aa-walk-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
   }
   /* Every caption shares one grid cell, so the bar is as tall as the longest and stepping never moves the page. */
   .aa-walk-status {
@@ -672,6 +711,19 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     display: block;
     visibility: hidden;
   }
+  /* Pinned, the step changes only with the scroll, so it changes softly: the caption, the note and the figure's wash
+     cross-fade (opacity and colour only, nothing moves). */
+  [data-walk="pin"] .aa-walk-cap {
+    transition:
+      opacity 200ms var(--aa-ease),
+      visibility 200ms;
+  }
+  [data-walk="pin"] .aa-walk-cap[hidden] {
+    opacity: 0;
+  }
+  [data-walk="pin"] .aa-walk-dot {
+    transition: background-color 200ms var(--aa-ease);
+  }
   .aa-walk-n {
     font: 500 0.75rem / 1 var(--aa-font-mono);
     letter-spacing: var(--aa-label-tracking);
@@ -680,16 +732,10 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-walk-how {
     color: var(--aa-ink-2);
   }
-  .aa-walk-controls {
-    display: flex;
-    flex: none;
-    align-items: center;
-    gap: var(--aa-space-2);
-  }
   .aa-walk-dots {
     display: flex;
+    flex: none;
     gap: 4px;
-    margin-right: var(--aa-space-2);
   }
   .aa-walk-dot {
     width: 1.25rem;
@@ -699,46 +745,11 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-walk-dot.is-on {
     background: var(--aa-ink);
   }
-  .aa-walk-btn {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0 0.6rem;
-    border: 1px solid var(--aa-rule-strong);
-    border-radius: var(--aa-radius);
-    background: var(--aa-raised);
-    font: 500 0.8125rem / 1 var(--aa-font-mono);
-    color: var(--aa-ink);
-    cursor: pointer;
-    transition: background-color var(--aa-fast) var(--aa-ease);
-  }
-  /* Wide enough for "Pause" and "Play" alike, so Replay never moves when the label flips. */
-  .aa-walk-pause {
-    min-width: 4.5rem;
-  }
-  .aa-walk-btn:hover:not([aria-disabled="true"]) {
-    background: var(--aa-surface);
-  }
-  .aa-walk-btn[aria-disabled="true"] {
-    color: var(--aa-ink-3);
-    border-color: var(--aa-rule);
-    cursor: default;
-  }
   .aa-walk-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(19rem, 1fr);
     gap: var(--aa-space-6);
     align-items: start;
-  }
-  @container aa-walk (width < 48rem) {
-    /* With the notes below the figure (the exhibit under 48rem wide), the step bar stays at the top of the screen
-       while the reader scrolls from the figure to its note. Nothing else is pinned. */
-    [data-walk="live"] .aa-walk-bar {
-      position: sticky;
-      top: 0;
-      z-index: 4;
-      padding-top: var(--aa-space-3);
-      background: var(--aa-page);
-    }
   }
   @media not all and (min-width: 30rem) {
     /* Phones: the step counter ("2/4") already says where the reader is; the controls keep their room. */
@@ -764,37 +775,60 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     }
   }
 
-  /* The static walkthrough (reduced motion, no JS): the same steps as a ruled list, each with its note. */
+  /* The steps as a list (reduced motion and no JS: every note open; the tap list where nothing pins: each opens on tap). */
   .aa-walk-list {
     list-style: none;
     margin: var(--aa-space-6) 0 0;
     padding: 0;
     border-top: 1px solid var(--aa-rule-strong);
   }
-  [data-walk="live"] .aa-walk-list {
+  [data-walk="pin"] .aa-walk-list {
     display: none;
   }
   .aa-walk-item {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-    gap: var(--aa-space-3) var(--aa-space-6);
-    padding: var(--aa-space-4) 0;
     border-bottom: 1px solid var(--aa-rule);
   }
+  /* The step's caption is its disclosure: the whole row is the target (at least 44px), a plus that turns as it opens. */
   .aa-walk-item-head {
+    display: flex;
+    gap: var(--aa-space-3);
+    align-items: baseline;
+    min-height: 2.75rem;
+    padding: var(--aa-space-3) 0;
     font-size: var(--aa-text-small);
     color: var(--aa-ink);
+    cursor: pointer;
+    list-style: none;
+  }
+  .aa-walk-item-head::-webkit-details-marker {
+    display: none;
+  }
+  .aa-walk-item-head::after {
+    content: "+";
+    flex: none;
+    margin-left: auto;
+    font: 500 1rem / 1 var(--aa-font-mono);
+    color: var(--aa-ink-2);
+    transition: transform var(--aa-fast) var(--aa-ease);
+  }
+  .aa-walk-item-fold[open] > .aa-walk-item-head::after {
+    transform: rotate(45deg);
+  }
+  .aa-walk-item-text {
+    flex: 1;
+    min-width: 0;
   }
   .aa-walk-item-note {
     display: grid;
     gap: var(--aa-space-2);
     min-width: 0;
+    padding-bottom: var(--aa-space-4);
     font: 400 var(--aa-text-note) / 1.45 var(--aa-font-sans);
     color: var(--aa-ink-2);
   }
-  @container aa-walk (width < 48rem) {
-    .aa-walk-item {
-      grid-template-columns: minmax(0, 1fr);
+  @media (prefers-reduced-motion: reduce) {
+    .aa-walk-item-head::after {
+      transition: none;
     }
   }
 
@@ -846,6 +880,35 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     color: var(--aa-ink-3);
   }
 
+  /* Pinned on a laptop screen (under 900px of height, site v5 PR 2): the report page sets closer so the whole hero fits
+     one screen (sizes only, chosen before first paint). */
+  @media (min-width: 68.75rem) and (max-height: 56.24rem) {
+    [data-walk="pin"] .aa-walk-body {
+      gap: var(--aa-space-3);
+    }
+    [data-walk="pin"] .aa-walk-bar {
+      padding-bottom: var(--aa-space-2);
+    }
+    [data-walk="pin"] .aa-exhibit-page {
+      gap: var(--aa-space-3);
+      padding: var(--aa-space-4) var(--aa-space-5) var(--aa-space-3);
+    }
+    [data-walk="pin"] .aa-exhibit-title {
+      padding-bottom: var(--aa-space-2);
+    }
+    [data-walk="pin"] .aa-exhibit-line {
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+    [data-walk="pin"] .aa-exhibit-line + .aa-exhibit-line,
+    [data-walk="pin"] .aa-exhibit-foot {
+      padding-top: var(--aa-space-2);
+    }
+    [data-walk="pin"] .aa-exhibit-caption {
+      margin-top: var(--aa-space-2);
+    }
+  }
+
   /* The verification replay. The server renders the final state; [data-anim="pending"] (set before first paint by
      the inline script, never under reduced motion) holds each chip unverified until the script marks it. The chip's
      box is drawn by an outline layer that wipes in; the check then appears in the space it already holds, so nothing
@@ -877,6 +940,11 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   .aa-exhibit .aa-num:has(.aa-chip.is-step) > .aa-fig {
     background: var(--aa-mark);
     box-shadow: 0 0 0 2px var(--aa-mark);
+  }
+  [data-walk="pin"] .aa-exhibit .aa-fig {
+    transition:
+      background-color 200ms var(--aa-ease),
+      box-shadow 200ms var(--aa-ease);
   }
   [data-anim="pending"] .aa-exhibit .aa-chip::before {
     clip-path: inset(0 100% 0 0);
@@ -996,21 +1064,35 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       border-top: 1px solid var(--aa-ink);
       padding: var(--aa-space-3) 0 0;
     }
-    /* The live walkthrough stacks every note in one grid cell and shows one at a time: the column is as tall as the
-       tallest note from the start (with its SQL folded), so stepping never moves the page below it. Each note keeps
-       its own height at the top of the cell, never stretched to the tallest. */
-    [data-walk="live"] .aa-notes {
-      display: grid;
-    }
-    [data-walk="live"] .aa-note {
-      grid-area: 1 / 1;
-      align-self: start;
-      align-content: start;
+  }
+  /* Pinned, every note shares one grid cell and one shows at a time: the column is as tall as the tallest note from
+     the start (its SQL open beside the report page, folded below it), so the pinned exhibit's height is known before
+     first paint and stepping never moves anything. Each note keeps its own height at the top of the cell (beside the
+     report page the script lowers it level with its figure, inside the cell), never stretched to the tallest. */
+  [data-walk="pin"] .aa-notes {
+    display: grid;
+  }
+  [data-walk="pin"] .aa-note {
+    position: relative;
+    grid-area: 1 / 1;
+    align-self: start;
+    align-content: start;
+  }
+  [data-walk="pin"] .aa-note {
+    animation: none;
+    transition:
+      opacity 200ms var(--aa-ease),
+      visibility 200ms;
+  }
+  [data-walk="pin"] .aa-note:not(.is-open) {
+    display: grid;
+    visibility: hidden;
+    opacity: 0;
+  }
+  @container aa-walk (width < 48rem) {
+    [data-walk="pin"] .aa-note {
+      position: static;
       animation: none;
-    }
-    [data-walk="live"] .aa-note:not(.is-open) {
-      display: grid;
-      visibility: hidden;
     }
   }
 

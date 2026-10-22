@@ -103,6 +103,8 @@ const PROOF_ICONS = {
   // A laptop: runs on your own machine.
   local: icon("M3.5 4h9v6h-9zM1.8 12.5h12.4"),
 } as const;
+// The exhibit's walkthrough steps, for the hero's scroll track (one sentinel each).
+const walkSteps = (exhibit as unknown as { walk: { id: string }[] }).walk;
 const binaries = ["aa-linux-x64", "aa-linux-arm64", "aa-macos-arm64", "aa-windows-x64.exe", "SHA256SUMS"];
 const doors = [
   {
@@ -171,8 +173,8 @@ const doors = [
             }
           </ul>
           <div class="aa-hero-cmd-frame">
-            <div class="aa-hero-cmd aa-scroll-x" role="region" aria-label="Install command" tabindex="0">
-              <pre><code>git clone {GITHUB_URL}
+            <div class="aa-hero-cmd">
+              <pre aria-label="Install command"><code>git clone <span class="aa-url">https://github.com/<wbr /><span class="aa-nowrap">{GITHUB_URL.replace("https://github.com/", "")}</span></span>
 cd agentic-analytics && bun install</code></pre>
             </div>
           </div>
@@ -182,6 +184,12 @@ cd agentic-analytics && bun install</code></pre>
           <p class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
           <Exhibit />
         </div>
+      </div>
+      {/* The scroll track the pinned hero stays over (site v5 PR 2; only when the walkthrough is pinned): one sentinel
+          per step, which the exhibit's script observes, and a tail so the last step holds before the whole hero
+          releases into the engine machine below. The pinned row covers it the whole time, so it never shows. */}
+      <div class="aa-hero-track" aria-hidden="true">
+        {walkSteps.map((_, i) => <div class="aa-hero-step" data-walk-sentinel={i + 1} />)}
       </div>
     </section>
 
@@ -203,8 +211,10 @@ cd agentic-analytics && bun install</code></pre>
       <div class="aa-cell aa-split">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={1} text="How it works" />
-          <h2 id="aa-how-title" class="aa-h2 aa-center">Files in, a verified and cited report out.</h2>
-          <p class="aa-lead aa-center">One real run, stage by stage, from the files to a verified report.</p>
+          {/* Site v5 PR 2: the machine above says what each station does, so this head no longer repeats "files in, a
+              checked report out"; it says what these panels add: what one run's stages actually produced. */}
+          <h2 id="aa-how-title" class="aa-h2 aa-center">What one run produced, stop by stop.</h2>
+          <p class="aa-lead aa-center">The files it read, the SQL it ran, the figures and the checks, from the same run.</p>
         </div>
         <div class="aa-how">
           <PipelineStages draw />
@@ -574,9 +584,6 @@ AA_DEMO_MODEL=scripted \
   .aa-statement {
     position: relative;
     isolation: isolate;
-    /* The pause control's own slot under the install line (HeroField.astro): reserved, so showing it moves nothing and
-       it keeps the row's full gap from the exhibit's label below it when stacked. */
-    padding-bottom: calc(1.5rem + var(--aa-space-4));
     container-type: inline-size; /* the field centres its glow on the statement with cqi */
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -779,9 +786,21 @@ AA_DEMO_MODEL=scripted \
     overflow-x: auto;
     text-align: left;
   }
+  /* The install line wraps instead of scrolling (site v5 PR 2: at 390 the clone URL was cut off at the box's edge):
+     the URL only after "github.com/" (the <wbr>), and as an inline block its second line starts under its first, so it
+     reads as one argument. "10ch" is "git clone " only while the span inherits the pre's mono face and size. */
   .aa-hero-cmd pre {
     margin: 0;
-    white-space: pre;
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+  }
+  .aa-hero-cmd .aa-url {
+    display: inline-block;
+    max-width: calc(100% - 10ch);
+    vertical-align: top;
+  }
+  .aa-hero-cmd .aa-nowrap {
+    white-space: nowrap;
   }
   .aa-hero-cmd code {
     font: 400 var(--aa-text-code) / 1.6 var(--aa-font-mono);
@@ -798,6 +817,40 @@ AA_DEMO_MODEL=scripted \
   .aa-exhibit-label {
     margin-bottom: var(--aa-space-4);
   }
+  /* The scroll-driven walkthrough (site v5 PR 2; DESIGN.md §5–§6, overriding D2's "nothing pinned"). From 1100px, when
+     the whole hero fits the screen (Exhibit.astro decides before first paint: data-walk="pin"), the hero's row (the
+     statement, its field and the exhibit, inside the frame's corner marks) is one sticky unit, at least a screen tall
+     with its content centred, over a scroll track below it in the section: each sentinel crossing a line 65% down the
+     screen is the next step. The row covers the track the whole time, and as the track ends the whole hero releases
+     straight into the engine machine's band, with nothing in between. Below that (stacked, or a short window), under
+     reduced motion and without JS there is no track. Position only: nothing animates. */
+  .aa-hero {
+    --aa-walk-step: 45vh;
+    timeline-scope: --aa-walk-track;
+  }
+  .aa-hero-track {
+    display: none;
+  }
+  .aa-hero:has([data-walk="pin"]) > .aa-hero-track {
+    display: block;
+    /* The tail: the last step holds for a while before the pin lets go. */
+    padding-bottom: 20vh;
+    view-timeline: --aa-walk-track block;
+  }
+  .aa-hero-step {
+    height: var(--aa-walk-step);
+  }
+  .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    /* At least a screen tall, so the empty track never shows below it, with the content centred so a tall screen
+       (1920 × 1080) has no empty block at the bottom; the statement's field fades in at its top while pinned
+       (HeroField.astro), so its edge never shows mid-screen. */
+    min-height: 100vh;
+    min-height: 100svh;
+    align-content: center;
+  }
   @media (min-width: 68.75rem) {
     .aa-hero-row {
       gap: var(--aa-space-7);
@@ -813,6 +866,46 @@ AA_DEMO_MODEL=scripted \
     .aa-actions,
     .aa-hero-proof {
       justify-content: flex-start;
+    }
+  }
+  /* The pinned hero on laptop screens (site v5 PR 2): the whole hero must fit one screen, down to 680px of viewport
+     height (below that the walkthrough is the tap list, Exhibit.astro). Pinned, its frame has no bottom padding (the
+     centring already leaves room there), so the release leaves no tall empty strip under the exhibit. From 1280px wide the exhibit column is at least 48rem, so
+     its notes sit beside the report page (stacked below it they would not fit). Under 900px of height the statement
+     goes compact: the headline also follows the screen's height (min(…, 9svh)), the lead a step down, tighter gaps.
+     Sizes only, chosen before first paint with the mode, so nothing shifts; same font faces and weights. */
+  @media (min-width: 68.75rem) {
+    .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+      padding-block: var(--aa-space-6) 0;
+    }
+  }
+  @media (min-width: 80rem) {
+    .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+      grid-template-columns: minmax(0, 1fr) minmax(48rem, 1.9fr);
+    }
+  }
+  @media (min-width: 68.75rem) and (max-height: 56.24rem) {
+    .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+      padding-block: var(--aa-space-5) 0;
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-hero-title {
+      margin-top: var(--aa-space-4);
+      font-size: min(var(--aa-text-hero), 16cqi, 9svh);
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-lead {
+      margin-top: var(--aa-space-4);
+      font-size: 1.0625rem;
+      line-height: 1.5;
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-actions {
+      margin-top: var(--aa-space-5);
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-hero-proof,
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-hero-cmd-frame {
+      margin-top: var(--aa-space-4);
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-exhibit-label {
+      margin-bottom: var(--aa-space-3);
     }
   }
   /* The engine machine's band (DESIGN.md §6): the head above, then the full-width stage (its own component). */

@@ -74,6 +74,34 @@ test.describe("WCAG 2 A/AA (axe)", () => {
   }
 });
 
+test("WCAG 2 A/AA (axe) on the live walkthrough: pinned at 1440 mid-story, the tap list at 390 (site v5 PR 2)", async ({ browser }) => {
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    const ctx = await browser.newContext({ viewport });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    // The verification has run (at 390 it starts as the report page comes into view).
+    await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
+    await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 6_000 });
+    if (viewport.width === 1440) {
+      const y = await page
+        .locator('[data-walk-sentinel="2"]')
+        .evaluate((el) => el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.65 + 40);
+      await page.evaluate((v) => window.scrollTo({ top: v, behavior: "instant" }), y);
+      await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
+      await page.waitForTimeout(1_000);
+    } else {
+      await page.locator('.aa-walk-list details[data-step-item="2"] > summary').click();
+    }
+    const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const found = result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+    expect(found, `${viewport.width}`).toEqual([]);
+    await ctx.close();
+  }
+});
+
 test("light only, even when the reader's system is dark or an old stored theme says dark", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.addInitScript(() => localStorage.setItem("starlight-theme", "dark"));
@@ -161,56 +189,87 @@ test("hero: the verification replays once, figure by figure, within 2.5 s", asyn
   expect(n).toBeGreaterThan(5);
   expect(n).toBeLessThanOrEqual(10);
   await expect(wrap).toHaveAttribute("data-anim", "pending");
-  await expect(wrap).toHaveAttribute("data-walk", "live");
+  await expect(wrap).toHaveAttribute("data-walk", "pin");
   // Mid-replay, some figures are verified and some not yet.
   await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).not.toHaveCount(0);
   await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 3_500 });
   await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).toHaveCount(n);
 });
 
-test("hero: at 1440 the walkthrough advances on a timer, step 1's note open from the start; nothing is pinned to the scroll", async ({
+/** Site v5 PR 2: the step shown in the walkthrough's bar (0 is the verification, 1..n the steps). */
+const shownStep = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".aa-walk-cap")].findIndex((c) => !c.hidden));
+/** Scrolls the window to y and waits for the scroll to land (instant, so a test never races smooth scrolling). */
+const jumpTo = (page: import("@playwright/test").Page, y: number) =>
+  page.evaluate((v) => {
+    window.scrollTo({ top: v, behavior: "instant" });
+  }, y);
+
+test("hero: at 1440 the exhibit pins and each scroll step opens the next figure's note, with a progress rule; then it releases into the engine machine", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(LANDING);
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
   const wrap = page.locator("[data-exhibit]");
+  await expect(wrap).toHaveAttribute("data-walk", "pin");
   const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
   expect(steps.length).toBeGreaterThanOrEqual(3);
   expect(steps.length).toBeLessThanOrEqual(4);
-  const cap = (k: number) => page.locator(`.aa-walk-cap[data-step="${k}"]`);
   const open = page.locator(".aa-note.is-open");
-  // No sticky section and no scroll track: the exhibit section is as tall as its content.
-  expect(await page.locator(".aa-walk-body").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
-  await expect(page.locator(".aa-walk-track")).toHaveCount(0);
-  // The margin is never empty: step 1's note is open before the first step, with no hint text.
-  await expect(cap(0)).toBeVisible();
+  // No timer and no step controls (prev, next, Pause, Replay): nothing advances by itself, only the scroll moves it.
+  await expect(page.locator(".aa-hero-exhibit button")).toHaveCount(0);
+  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  await page.waitForTimeout(5_000);
+  expect(await shownStep(page)).toBe(0);
+  // The margin is never empty: step 1's note is open before the first step.
   await expect(open).toHaveCount(1);
   await expect(open).toHaveAttribute("id", `aa-note-${steps[0]}`);
-  await expect(page.locator(".aa-notes-hint")).toHaveCount(0);
-  await page.locator(".aa-exhibit-page").evaluate((el) => el.scrollIntoView({ block: "center" }));
-  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  // The whole hero row (statement and exhibit) is one sticky unit, a screen tall; one sentinel per step in the track.
+  const row = page.locator(".aa-hero-row");
+  const stage = page.locator(".aa-hero-exhibit");
+  const statement = page.locator(".aa-statement");
+  expect(await row.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+  expect(await row.evaluate((el) => Math.round(el.getBoundingClientRect().height))).toBeGreaterThanOrEqual(900);
+  await expect(page.locator("[data-walk-sentinel]")).toHaveCount(steps.length);
+  // Pinned: the row's top at the screen's top; the exhibit and the statement where they were at step 1.
+  await jumpTo(
+    page,
+    (await page.locator('[data-walk-sentinel="1"]').evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 900 * 0.65 + 40,
+  );
+  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(1);
+  expect(Math.round(await row.evaluate((el) => el.getBoundingClientRect().top))).toBe(0);
+  const pinTop = Math.round(await stage.evaluate((el) => el.getBoundingClientRect().top));
+  const statementTop = Math.round(await statement.evaluate((el) => el.getBoundingClientRect().top));
+  // Everything in the hero is on screen while pinned: the install line and the exhibit's caption.
+  for (const sel of [".aa-hero-cmd-frame", ".aa-exhibit-caption", ".aa-hero-title"])
+    expect(await page.locator(sel).evaluate((el) => el.getBoundingClientRect().bottom), sel).toBeLessThanOrEqual(900);
+  // Each step: scroll until the step's sentinel crosses the line 65% down the screen; the exhibit stays put.
+  const sentinelY = (k: number) =>
+    page.locator(`[data-walk-sentinel="${k}"]`).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+  const progress = () => page.locator(".aa-walk-progress > i").evaluate((el) => el.getBoundingClientRect().width);
+  let lastProgress = await progress();
   for (let k = 1; k <= steps.length; k++) {
-    // Real time: a step every 4.5 s while the notes are on screen.
-    await expect(cap(k)).toBeVisible({ timeout: 7_000 });
-    await expect(cap(k)).toContainText(`${k}/${steps.length}`);
+    await jumpTo(page, (await sentinelY(k)) - 900 * 0.65 + 40);
+    await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(k);
+    expect(Math.round(await stage.evaluate((el) => el.getBoundingClientRect().top)), `step ${k} exhibit pinned`).toBe(pinTop);
+    expect(Math.round(await statement.evaluate((el) => el.getBoundingClientRect().top)), `step ${k} statement pinned`).toBe(statementTop);
+    await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toContainText(`${k}/${steps.length}`);
     await expect(open).toHaveCount(1);
     await expect(open).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
-    await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[k - 1]}"]`)).toHaveAttribute("aria-expanded", "true");
-    if (k === 1) {
-      // Pause stops it and Play resumes (WCAG 2.2.2); the pointer on a figure holds it, and leaving lets it run.
-      const pause = page.locator("[data-walk-pause]");
-      await pause.click();
-      await expect(pause).toHaveText("Play");
-      await page.waitForTimeout(5_000);
-      await expect(cap(1)).toBeVisible();
-      await pause.click();
-      await expect(pause).toHaveText("Pause");
-      await page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[0]}"]`).hover();
-      await page.waitForTimeout(5_000);
-      await expect(cap(1)).toBeVisible();
-      await page.mouse.move(5, 5);
-    }
+    const chip = page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[k - 1]}"]`);
+    await expect(chip).toHaveAttribute("aria-expanded", "true");
+    await expect(chip).toHaveAttribute("aria-current", "step");
+    await expect(page.locator('.aa-exhibit a.aa-chip[aria-current="step"]')).toHaveCount(1);
+    await expect(page.locator(".aa-walk-dot.is-on")).toHaveCount(k);
+    // The open note is inside the screen, beside the report page.
+    const b = await open.boundingBox();
+    expect((b?.y ?? 0) + (b?.height ?? 0), `step ${k} note on screen`).toBeLessThanOrEqual(900);
+    const p = await progress();
+    // (Step 1 is where the pin check above already left the page.)
+    if (k > 1) expect(p, `step ${k} progress grows`).toBeGreaterThan(lastProgress);
+    else expect(p, "step 1 progress has started").toBeGreaterThan(0);
+    lastProgress = p;
     if (k === 2) {
       // The change's SQL input: its SQL (open beside the exhibit) and the sheet rows it read.
       await expect(open.locator(".aa-note-sql")).toBeVisible();
@@ -218,23 +277,116 @@ test("hero: at 1440 the walkthrough advances on a timer, step 1's note open from
       await expect(open.locator("tr.is-cited")).not.toHaveCount(0);
     }
   }
-  // At the end it stops, and the button offers Play.
-  await expect(page.locator("[data-walk-next]")).toHaveAttribute("aria-disabled", "true");
-  await expect(page.locator("[data-walk-pause]")).toHaveText("Play");
-  await page.locator("[data-walk-prev]").click();
-  await expect(cap(steps.length - 1)).toBeVisible();
+  // At the last step the rule is full.
+  const bar = await page.locator(".aa-walk-progress").evaluate((el) => el.getBoundingClientRect().width);
+  expect(Math.abs(lastProgress - bar)).toBeLessThan(2);
+  // Scrolling back steps back.
+  await jumpTo(page, (await sentinelY(2)) - 900 * 0.65 + 40);
+  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(2);
   // Exploring mid-walkthrough: hovering another figure opens its note; leaving returns to the step's note.
-  const stepNote = await open.getAttribute("id");
   await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').hover();
   await expect(page.locator("#aa-note-N12")).toHaveClass(/is-open/);
   await page.mouse.move(5, 5);
-  await expect(open).toHaveAttribute("id", stepNote ?? "");
-  await page.locator("[data-walk-replay]").click();
-  await expect(cap(0)).toBeVisible();
-  await expect(open).toHaveAttribute("id", `aa-note-${steps[0]}`);
-  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
-  await page.locator("[data-walk-next]").click();
-  await expect(cap(1)).toBeVisible();
+  await expect(open).toHaveAttribute("id", `aa-note-${steps[1]}`);
+  // Past the track the whole hero releases straight into the engine machine's band: the row scrolls away together and
+  // the band's top follows its bottom edge directly, with no empty block between them.
+  const engine = page.locator("#engine");
+  await jumpTo(page, (await sentinelY(steps.length)) + 900);
+  expect(await stage.evaluate((el) => el.getBoundingClientRect().top)).toBeLessThan(pinTop);
+  expect(await statement.evaluate((el) => el.getBoundingClientRect().top)).toBeLessThan(statementTop);
+  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(steps.length);
+  const [rowBottom, engineTop, captionBottom] = await Promise.all([
+    row.evaluate((el) => el.getBoundingClientRect().bottom),
+    engine.evaluate((el) => el.getBoundingClientRect().top),
+    page.locator(".aa-exhibit-caption").evaluate((el) => el.getBoundingClientRect().bottom),
+  ]);
+  expect(engineTop).toBeLessThan(900);
+  expect(Math.abs(engineTop - rowBottom), "the band starts where the hero ends").toBeLessThanOrEqual(2);
+  expect(engineTop - captionBottom, "no large empty block under the hero").toBeLessThan(160);
+});
+
+test("hero: on laptop screens the whole hero still pins and steps (1280×720, 1366×768, 1536×730); under 680px of height it is the tap list", async ({
+  browser,
+}) => {
+  for (const [width, height] of [
+    [1280, 720],
+    [1366, 768],
+    [1536, 730],
+  ] as const) {
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    const wrap = page.locator("[data-exhibit]");
+    await expect(wrap, `${width}×${height}`).toHaveAttribute("data-walk", "pin");
+    const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
+    const row = page.locator(".aa-hero-row");
+    expect(await row.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+    for (let k = 1; k <= steps.length; k++) {
+      const y = await page
+        .locator(`[data-walk-sentinel="${k}"]`)
+        .evaluate((el, h) => el.getBoundingClientRect().top + window.scrollY - h * 0.65 + 40, height);
+      await jumpTo(page, y);
+      await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(k);
+      expect(Math.round(await row.evaluate((el) => el.getBoundingClientRect().top)), `${width}×${height} step ${k} pinned`).toBe(0);
+      await expect(page.locator(".aa-note.is-open")).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
+      // Everything that matters is on the short screen: the headline, the install line, the step bar, the report
+      // page's last line and the open note.
+      for (const sel of [".aa-hero-title", ".aa-hero-cmd-frame", ".aa-walk-bar", ".aa-exhibit-foot", ".aa-note.is-open"]) {
+        const r = await page.locator(sel).evaluate((el) => {
+          const b = el.getBoundingClientRect();
+          return { top: b.top, bottom: b.bottom };
+        });
+        expect(r.top, `${width}×${height} step ${k}: ${sel}`).toBeGreaterThanOrEqual(0);
+        expect(r.bottom, `${width}×${height} step ${k}: ${sel}`).toBeLessThanOrEqual(height);
+      }
+    }
+    await ctx.close();
+  }
+  // Below 680px of viewport height the hero doesn't pin: the steps are the tap list.
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 660 } });
+  const page = await ctx.newPage();
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-walk", "tap");
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  await expect(page.locator(".aa-walk-list details")).not.toHaveCount(0);
+  await ctx.close();
+});
+
+test("hero: keyboard scrolling (Page Down, Space) steps the pinned walkthrough, announced; no step control exists", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const wrap = page.locator("[data-exhibit]");
+  await expect(wrap).toHaveAttribute("data-walk", "pin");
+  const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
+  // No controls of its own: no buttons, no focusable group, no key handler to learn.
+  await expect(
+    page.locator(".aa-hero-exhibit button, [data-walk-prev], [data-walk-next], [data-walk-pause], [data-walk-replay]"),
+  ).toHaveCount(0);
+  await expect(page.locator(".aa-walk-body")).not.toHaveAttribute("tabindex", /.*/);
+  // The step is announced politely, and the step's chip says it is current.
+  const status = page.locator(".aa-walk-status");
+  await expect(status).toHaveAttribute("aria-live", "polite");
+  await expect(status).not.toHaveAttribute("aria-busy", /.*/);
+  // The page's own keyboard scrolling drives it: Page Down and Space from the top reach every step, in order.
+  await page.locator("h1").click();
+  const seen: number[] = [];
+  for (let i = 0; i < 12 && (seen.at(-1) ?? 0) < steps.length; i++) {
+    await page.keyboard.press(i % 2 ? "Space" : "PageDown");
+    await page.waitForTimeout(700);
+    const k = await shownStep(page);
+    if (k !== (seen.at(-1) ?? 0)) seen.push(k);
+  }
+  expect(seen.at(-1), "the last step is reached").toBe(steps.length);
+  for (let i = 1; i < seen.length; i++) expect(seen[i] ?? 0).toBeGreaterThan(seen[i - 1] ?? 0);
+  await expect(status).toContainText(`${steps.length}/${steps.length}`);
+  await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[steps.length - 1]}"]`)).toHaveAttribute("aria-current", "step");
+  // Page Up goes back.
+  await page.keyboard.press("PageUp");
+  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBeLessThan(steps.length);
+  // Every figure stays reachable by Tab, and focusing one opens its note.
+  await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').focus();
+  await expect(page.locator("#aa-note-N12")).toHaveClass(/is-open/);
 });
 
 test("chips and the SQL toggle are at least 24 px tall to tap or click, and the hit box reaches above and below the chip", async ({
@@ -288,29 +440,21 @@ test("chips and the SQL toggle are at least 24 px tall to tap or click, and the 
   await expect(summary).toContainText("hide");
 });
 
-test("hero: stepping through the walkthrough never moves the page below it (1440, 390)", async ({ browser }) => {
-  for (const viewport of [
-    { width: 1440, height: 900 },
-    { width: 390, height: 844 },
-  ]) {
-    const ctx = await browser.newContext({ viewport });
-    const page = await ctx.newPage();
-    await page.goto(LANDING, { waitUntil: "networkidle" });
-    await page.evaluate(() => document.fonts.ready);
-    // The report page in view, so the walkthrough has started (on load at 1440, on scrolling to it at 390).
-    await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
-    const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
-    const below = () => page.locator("#how").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
-    // Step by hand (the timer stops); the section after the exhibit stays where it is at every step and back.
-    const y = await below();
-    for (let k = 1; k <= steps.length; k++) {
-      await page.locator("[data-walk-next]").click();
-      await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toBeVisible();
-      expect(await below(), `step ${k} at ${viewport.width}`).toBe(y);
-    }
-    await page.locator("[data-walk-prev]").click();
-    expect(await below()).toBe(y);
-    await ctx.close();
+test("hero: stepping through the walkthrough never moves the page below it (1440)", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
+  const below = () => page.locator("#engine").evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
+  const y = await below();
+  const at = (k: number) =>
+    page
+      .locator(`[data-walk-sentinel="${k}"]`)
+      .evaluate((el) => el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.65 + 40);
+  for (const k of [...steps.keys()].map((i) => i + 1).concat([1])) {
+    await jumpTo(page, await at(k));
+    await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toBeVisible();
+    expect(await below(), `step ${k}`).toBe(y);
   }
 });
 
@@ -322,55 +466,44 @@ test("hero: on a landscape phone (667 × 375) the figures still verify as the ex
   await expect(page.locator(".aa-exhibit a.aa-chip.is-verified")).toHaveCount(await page.locator(".aa-exhibit a.aa-chip").count());
 });
 
-test("hero: under 900 px the walkthrough advances by itself, its notes below the figure, without moving the page", async ({ page }) => {
+test("hero: under 900 px nothing is pinned; the steps stack as a list and each opens on tap", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(LANDING);
-  // The figures verify as the exhibit comes into view; the steps advance once the notes below it are on screen.
-  await page.locator(".aa-walk-body").scrollIntoViewIfNeeded();
-  await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
-  await expect(page.locator('.aa-walk-cap[data-step="0"]')).toBeVisible();
-  await page.locator(".aa-notes").evaluate((el) => el.scrollIntoView({ block: "center" }));
-  // The step bar stays on screen while the reader is at the notes.
-  await page.mouse.wheel(0, 300);
-  await expect(page.locator(".aa-walk-bar")).toBeInViewport({ ratio: 1 });
-  const cap1 = page.locator('.aa-walk-cap[data-step="1"]');
-  await expect(cap1).toBeVisible({ timeout: 6_000 });
-  const open = page.locator(".aa-note.is-open");
-  const [b, e] = await Promise.all([open.boundingBox(), page.locator(".aa-exhibit").boundingBox()]);
-  expect(b?.y ?? 0).toBeGreaterThan((e?.y ?? 0) + (e?.height ?? 0) - 1);
-  // Each note keeps its own height at the top of the shared cell: its last line ends near its bottom, not stretched.
-  const slack = await open.evaluate((el) => el.getBoundingClientRect().bottom - (el.lastElementChild?.getBoundingClientRect().bottom ?? 0));
-  expect(slack).toBeLessThan(24);
-  // Stepping never moves what follows: the notes share one cell as tall as the tallest.
-  const below = async () => (await page.locator("#how").boundingBox())?.y ?? 0;
-  const before = await below();
-  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible({ timeout: 6_000 });
-  expect(await below()).toBe(before);
-  // On a phone the step's SQL is folded behind "Show SQL"; opening it is the reader's own move.
-  const fold = page.locator(".aa-note.is-open details[data-fold]");
-  await expect(fold).toHaveCount(1);
-  await expect(fold).not.toHaveAttribute("open", /.*/);
-  await expect(fold.locator(".aa-note-sql")).toBeHidden();
-  // Pause stops the timer (WCAG 2.2.2), Play resumes it; stepping by hand pauses too.
-  const pause = page.locator("[data-walk-pause]");
-  await pause.click();
-  // The button names what it will do next, so the paused state is visible: Play while paused.
-  await expect(pause).toHaveText("Play");
-  await page.waitForTimeout(5_000);
-  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
-  await pause.click();
-  await expect(pause).toHaveText("Pause");
-  // Exploring holds the timer: while the pointer is inside the exhibit no step passes; leaving lets it run again.
-  await page.locator(".aa-notes").hover();
-  await page.waitForTimeout(5_500);
-  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
-  await page.mouse.move(195, 5);
-  await expect(page.locator('.aa-walk-cap[data-step="3"]')).toBeVisible({ timeout: 6_000 });
-  await page.locator("[data-walk-prev]").click();
-  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
-  await expect(pause).toHaveText("Play");
-  await page.waitForTimeout(5_000);
-  await expect(page.locator('.aa-walk-cap[data-step="2"]')).toBeVisible();
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  const wrap = page.locator("[data-exhibit]");
+  await expect(wrap).toHaveAttribute("data-walk", "tap");
+  const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
+  // No pin, no track, no step bar.
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  await expect(page.locator(".aa-hero-track")).toBeHidden();
+  await expect(page.locator(".aa-walk-bar")).toBeHidden();
+  // The figures still verify as the exhibit comes into view.
+  await page.locator(".aa-exhibit-page").scrollIntoViewIfNeeded();
+  await expect(wrap).toHaveAttribute("data-anim", "done", { timeout: 4_000 });
+  // The list: one item per step, step 1 open, the rest closed until tapped.
+  const items = page.locator(".aa-walk-list details");
+  await expect(items).toHaveCount(steps.length);
+  await expect(items.nth(0)).toHaveAttribute("open", "");
+  for (let k = 1; k < steps.length; k++) await expect(items.nth(k)).not.toHaveAttribute("open", /.*/);
+  await expect(items.nth(1).locator(".aa-walk-item-note")).toBeHidden();
+  const head = items.nth(1).locator("summary");
+  await head.scrollIntoViewIfNeeded();
+  // A full-width tap target, at least 44 px tall.
+  expect((await head.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await head.click();
+  await expect(items.nth(1)).toHaveAttribute("open", "");
+  await expect(items.nth(1).locator(".aa-note-sql")).toContainText("FROM");
+  await head.click();
+  await expect(items.nth(1)).not.toHaveAttribute("open", /.*/);
+  // Scrolling past it changes nothing: no step is driven by the scroll here.
+  await page.mouse.wheel(0, 1500);
+  await page.waitForTimeout(400);
+  await expect(page.locator(".aa-note.is-open")).toHaveCount(0);
+  // The caption reads as one line of text in its row, not split into columns.
+  const parts = await items
+    .nth(2)
+    .locator("summary")
+    .evaluate((el) => el.children.length);
+  expect(parts).toBe(1);
 });
 
 test("landing: the strip, header and install line keep their height while the fonts arrive late (390, 1440 px)", async ({ browser }) => {
@@ -408,11 +541,16 @@ test("landing: the strip, header and install line keep their height while the fo
   }
 });
 
-test("hero: with reduced motion the walkthrough is a static ruled list, every step's note shown", async ({ page }) => {
+test("hero: with reduced motion the walkthrough is a static ruled list, every step's note shown, nothing pinned", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(LANDING, { waitUntil: "networkidle" });
   const steps = JSON.parse((await page.locator("[data-exhibit]").getAttribute("data-steps")) ?? "[]") as string[];
+  await expect(page.locator("[data-exhibit]")).not.toHaveAttribute("data-walk", /.*/);
   await expect(page.locator(".aa-walk-bar")).toBeHidden();
+  await expect(page.locator(".aa-hero-track")).toBeHidden();
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  for (const d of await page.locator(".aa-walk-list details").all()) await expect(d).toHaveAttribute("open", "");
   const items = page.locator(".aa-walk-list > li");
   await expect(items).toHaveCount(steps.length);
   await expect(items.nth(0)).toBeVisible();
@@ -476,6 +614,13 @@ test("without JS the landing page is complete and chips link into the fact ledge
   const href = await chip.getAttribute("href");
   expect(href).toMatch(/^#fact-N\d+$/);
   await expect(page.locator(".aa-walk-list > li").first()).toBeVisible();
+  // The static list: every step's note open, nothing pinned, no track.
+  const items = page.locator(".aa-walk-list details");
+  await expect(items).not.toHaveCount(0);
+  for (const d of await items.all()) await expect(d).toHaveAttribute("open", "");
+  await expect(items.last().locator(".aa-walk-item-note")).toBeVisible();
+  await expect(page.locator(".aa-hero-track")).toBeHidden();
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
   await expect(page.locator(".aa-walk-bar")).toBeHidden();
   await expect(page.locator(".aa-notes")).toBeHidden();
   await expect(page.locator("#ledger")).toBeHidden();
@@ -717,10 +862,41 @@ test("Quickstart and door commands fit their cells at 1440, 390 and 360, never s
   }
 });
 
-test("the status strip and the install line scroll sideways with no scrollbar and a fade where there is more", async ({ page }) => {
+test("the hero's install line wraps after github.com/ at 390 and 360, never clipped, and fits on two lines at 1440", async ({ page }) => {
+  for (const [width, lines] of [
+    [390, 3],
+    [360, 3],
+    [1440, 2],
+  ] as const) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    const box = page.locator(".aa-hero-cmd");
+    // Nothing overflows the box (no clipped text, no inner scroll) and the page doesn't scroll sideways.
+    expect(await box.evaluate((e) => e.scrollWidth - e.clientWidth), `${width}`).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), `${width}`).toBeLessThanOrEqual(0);
+    const code = box.locator("code");
+    const lh = await code.evaluate((e) => Number.parseFloat(getComputedStyle(e).lineHeight));
+    expect(Math.round(((await code.boundingBox())?.height ?? 0) / lh), `${width}: lines`).toBe(lines);
+    // The URL's second line starts under its first, and the break is right after "github.com/".
+    const url = box.locator(".aa-url");
+    await expect(url).toContainText("https://github.com/gfirik/agentic-analytics");
+    if (lines === 3) {
+      const [first, second] = await url.evaluate((e) => {
+        const r = document.createRange();
+        r.selectNodeContents(e);
+        return [...r.getClientRects()].map((q) => Math.round(q.left));
+      });
+      expect(second, `${width}: second line under the first`).toBeGreaterThanOrEqual((first ?? 0) - 1);
+      expect(await box.locator(".aa-nowrap").evaluate((e) => e.getClientRects().length)).toBe(1);
+    }
+  }
+});
+
+test("the status strip scrolls sideways with no scrollbar and a fade where there is more", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
-  for (const sel of [".aa-strip", ".aa-hero-cmd"]) {
+  for (const sel of [".aa-strip"]) {
     const box = page.locator(sel);
     expect(
       await box.evaluate((e: HTMLElement) => e.offsetHeight - e.clientHeight - 2 * Number.parseFloat(getComputedStyle(e).borderTopWidth)),
@@ -795,7 +971,7 @@ test("hero proof chips: every figure is the generated data's, cross-checked agai
   await expect(page.locator(".aa-strip")).toContainText(`real public data: ${expected.real?.figure} checks`);
 });
 
-test("hero type and spacing at 390 and 360: the eyebrow on one line, each headline voice on one line, Pause clear of the exhibit", async ({
+test("hero type and spacing at 390 and 360: the eyebrow on one line, each headline voice on one line, a full gap above the exhibit", async ({
   browser,
 }) => {
   for (const width of [390, 360]) {
@@ -816,15 +992,15 @@ test("hero type and spacing at 390 and 360: the eyebrow on one line, each headli
     expect(lines.serif, `${width}: serif voice`).toBe(1);
     const eyebrowH = await page.locator(".aa-hero-eyebrow").evaluate((el) => el.getBoundingClientRect().height);
     expect(eyebrowH, `${width}: the eyebrow tag is one line tall`).toBeLessThan(32);
-    // The pause control has its own slot: a full row gap (at least 32px) between it and the exhibit's label.
-    const toggle = page.locator("[data-hf-toggle]");
-    await expect(toggle).toBeVisible({ timeout: 5_000 });
+    // No pause control (site v5 PR 2, the maintainer's call): a full row gap (at least 32px) from the install line to the
+    // exhibit's label.
+    await expect(page.locator("[data-hf-toggle], .aa-hero button")).toHaveCount(0);
     const gap = await page.evaluate(() => {
-      const t = (document.querySelector("[data-hf-toggle]") as HTMLElement).getBoundingClientRect();
+      const t = (document.querySelector(".aa-hero-cmd-frame") as HTMLElement).getBoundingClientRect();
       const l = (document.querySelector(".aa-exhibit-label") as HTMLElement).getBoundingClientRect();
       return l.top - t.bottom;
     });
-    expect(gap, `${width}: Pause to the exhibit's label`).toBeGreaterThanOrEqual(32);
+    expect(gap, `${width}: install line to the exhibit's label`).toBeGreaterThanOrEqual(32);
     await ctx.close();
   }
 });
@@ -1730,7 +1906,9 @@ test.describe("motion", () => {
   const frames = (page: import("@playwright/test").Page) =>
     page.locator(NET).evaluate((c) => (c as HTMLCanvasElement & { aaFrames?: number }).aaFrames ?? 0);
 
-  test("hero field: the net drifts while the hero is on screen, and pauses off-screen, in a hidden tab and on Pause", async ({ page }) => {
+  test("hero field: the net drifts while the hero is on screen, and pauses off-screen and in a hidden tab; it has no pause control", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(LANDING, { waitUntil: "networkidle" });
     const net = page.locator(NET);
@@ -1789,15 +1967,8 @@ test.describe("motion", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     await expect(net).toHaveAttribute("data-state", "running");
-    // The Pause control (WCAG 2.2.2) stops it, and Play starts it again.
-    const toggle = page.locator("[data-hf-toggle]");
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect(toggle).toHaveText("Play background");
-    await expect(net).toHaveAttribute("data-state", "paused");
-    await toggle.click();
-    await expect(net).toHaveAttribute("data-state", "running");
+    // No pause control (site v5 PR 2): the maintainer accepts the WCAG 2.2.2 trade-off; reduced motion turns it off.
+    await expect(page.locator("[data-hf-toggle]")).toHaveCount(0);
   });
 
   test("hero field: under reduced motion and without JS the net is absent; the static grid, glow and grain remain", async ({ browser }) => {
@@ -1813,7 +1984,6 @@ test.describe("motion", () => {
         const net = page.locator(NET);
         await expect(net).toHaveAttribute("data-state", "off");
         expect(await frames(page)).toBe(0);
-        await expect(page.locator("[data-hf-toggle]")).toBeHidden();
         if (opts.reducedMotion) expect(await net.evaluate((c) => getComputedStyle(c).display)).toBe("none");
         for (const layer of [".aa-hf-grid", ".aa-hf-glow", ".aa-hf-grain"])
           expect(await page.locator(layer).evaluate((el) => getComputedStyle(el).backgroundImage), layer).not.toBe("none");
@@ -1822,7 +1992,7 @@ test.describe("motion", () => {
     }
   });
 
-  test("hero field: no layout shift as it starts, fades in and shows its control (1440, 390)", async ({ browser }) => {
+  test("hero field: no layout shift as it starts and fades in (1440, 390)", async ({ browser }) => {
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -1851,7 +2021,7 @@ test.describe("motion", () => {
               const el = s.node instanceof Element ? s.node : (s.node?.parentElement ?? null);
               // The field, its control and the corner marks: what this adds to the hero. (The font swap may still nudge
               // a word of the statement by a pixel early on; that is the page's font budget, counted in the total.)
-              return Boolean(el?.closest(".aa-hero-field, .aa-hf-toggle, .aa-hero-corners"));
+              return Boolean(el?.closest(".aa-hero-field, .aa-hero-corners"));
             });
             if (inHero) {
               w.aaHeroShift += e.value;
@@ -1868,21 +2038,20 @@ test.describe("motion", () => {
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
       const before = await page.locator(".aa-statement").boundingBox();
       await expect(page.locator(NET)).toHaveAttribute("data-state", "running", { timeout: 5_000 });
-      await expect(page.locator("[data-hf-toggle]")).toBeVisible();
       await page.waitForTimeout(800); // the fade-in
       expect(await page.locator(".aa-statement").boundingBox(), `${viewport.width}: the statement keeps its box`).toEqual(before);
       const { aaHeroShift, aaShiftTotal } = await page.evaluate(() => {
         const w = window as unknown as { aaHeroShift: number; aaShiftTotal: number };
         return { aaHeroShift: w.aaHeroShift, aaShiftTotal: w.aaShiftTotal };
       });
-      expect(aaHeroShift, `${viewport.width}: shifts in the hero field, its control or the corner marks`).toBe(0);
+      expect(aaHeroShift, `${viewport.width}: shifts in the hero field or the corner marks`).toBe(0);
       expect(aaShiftTotal, `${viewport.width}: CLS on load`).toBeLessThan(0.05);
       await ctx.close();
     }
   });
 
   test("no layout shift from any of it: CLS under 0.05 through the whole landing page (1440, 390)", async ({ browser }) => {
-    type Shift = { value: number; time: number; mine: boolean; sticky: boolean; sources: string[] };
+    type Shift = { value: number; time: number; mine: boolean; sticky: boolean; pinned: boolean; sources: string[] };
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -1908,6 +2077,14 @@ test.describe("motion", () => {
               value: e.value,
               time: e.startTime,
               mine: els.some((el) => Boolean(el?.closest("[data-reveal], .aa-stages, .aa-exhibit"))),
+              // The pinned hero (site v5 PR 2): the whole hero row is sticky over the hero's scroll track
+              // and move with the scroll by design as the pin releases; position, not animation, told apart the same way.
+              pinned:
+                els.length > 0 &&
+                els.every((el) => {
+                  const host = el?.closest(".aa-hero-row");
+                  return Boolean(host) && getComputedStyle(host as Element).position === "sticky";
+                }),
               // A sticky row head (§1, §2 from 1100px) moves with the scroll by design once it reaches the end of
               // its row; that is position, not animation, so those shifts are told apart by identity. Those heads are
               // also reveal parts, so their reveal goes unchecked here at 1440; it is still checked at 390 (nothing is
@@ -1957,7 +2134,7 @@ test.describe("motion", () => {
       for (const s of shifts.filter((x) => x.mine || cls >= 0.05))
         console.log(`shift ${s.value.toFixed(6)} at ${Math.round(s.time)} ms: ${s.sources.join("; ")}`);
       expect(
-        shifts.filter((s) => s.mine && !s.sticky),
+        shifts.filter((s) => s.mine && !s.sticky && !s.pinned),
         `${viewport.width}: shifts in the revealed parts, the stages or the exhibit (sticky heads excepted)`,
       ).toEqual([]);
       expect(cls, `${viewport.width}`).toBeLessThan(0.05);
