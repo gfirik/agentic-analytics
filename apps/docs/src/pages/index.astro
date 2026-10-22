@@ -13,6 +13,7 @@ import Exhibit from "../components/site/Exhibit.astro";
 import { machineStations } from "../components/site/engine-machine.ts";
 import { firstSentence, type LinePart, placeholders } from "../components/site/exhibit.ts";
 import PipelineStages from "../components/site/PipelineStages.astro";
+import Reveal from "../components/site/Reveal.astro";
 import SectionLabel from "../components/site/SectionLabel.astro";
 import StatusStrip from "../components/site/StatusStrip.astro";
 import { DOCS_HOME, GITHUB_URL, RELEASES_URL, withBase } from "../components/site/site.ts";
@@ -155,7 +156,7 @@ cd agentic-analytics && bun install</code></pre>
       </div>
     </section>
 
-    <section id="how" class="aa-sheet" aria-labelledby="aa-how-title">
+    <section id="how" class="aa-sheet" data-reveal aria-labelledby="aa-how-title">
       <div class="aa-cell aa-split">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={1} text="How it works" />
@@ -163,12 +164,12 @@ cd agentic-analytics && bun install</code></pre>
           <p class="aa-lead aa-center">One real run, stage by stage, from the files to a verified report.</p>
         </div>
         <div class="aa-how">
-          <PipelineStages />
+          <PipelineStages draw />
         </div>
       </div>
     </section>
 
-    <section id="why" class="aa-sheet" aria-labelledby="aa-why-title">
+    <section id="why" class="aa-sheet" data-reveal aria-labelledby="aa-why-title">
       <div class="aa-cell aa-split">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={2} text="Why it's different" />
@@ -237,7 +238,7 @@ cd agentic-analytics && bun install</code></pre>
       </div>
     </section>
 
-    <section id="results" class="aa-sheet" aria-labelledby="aa-results-title">
+    <section id="results" class="aa-sheet" data-reveal aria-labelledby="aa-results-title">
       <div class="aa-cell aa-band">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={3} text="Results, as they are" />
@@ -349,7 +350,7 @@ cd agentic-analytics && bun install</code></pre>
       </div>
     </section>
 
-    <section id="quickstart" class="aa-sheet" aria-labelledby="aa-quick-title">
+    <section id="quickstart" class="aa-sheet" data-reveal aria-labelledby="aa-quick-title">
       <div class="aa-cell aa-split aa-quick-row">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={4} text="Quickstart" />
@@ -421,6 +422,7 @@ AA_DEMO_MODEL=scripted \
       </div>
     </section>
   </div>
+  <Reveal />
 </BaseLayout>
 
 <style>
@@ -623,6 +625,17 @@ AA_DEMO_MODEL=scripted \
     }
   }
 
+  /* In a wide row the visual is taller than its head, so the head stays in view beside it while the row scrolls by
+     (site v4 PR 3). Position only: nothing animates. Only §1 and §2, whose heads are alone in their column: a sticky
+     grid item is held within the whole grid, so §4's head would slide over the binaries list below it. A new section joins
+     only if its head is alone in its column (the "sticky row head is alone" browser test checks). */
+  @media (min-width: 68.75rem) {
+    :is(#how, #why) .aa-split > .aa-cell-head {
+      position: sticky;
+      top: var(--aa-space-7);
+    }
+  }
+
   /* §2: three proofs. Stacked under 52rem; three cells side by side to 1100px, their five parts on rows shared across
      the cells (subgrid), so the example boxes line up and match in height (site v3, finding 13); in the wide row, three
      ruled rows, the words on the left and the example on the right. */
@@ -740,8 +753,28 @@ AA_DEMO_MODEL=scripted \
     font-weight: 500;
     font-size: var(--aa-text-small);
   }
+  /* Its arrow steps 3px forward on hover (transform only). */
   .aa-more::after {
-    content: " →";
+    content: "→";
+    display: inline-block;
+    margin-left: 0.3em;
+    transition: transform var(--aa-fast) var(--aa-ease);
+  }
+  .aa-more:hover::after {
+    transform: translateX(3px);
+  }
+
+  /* Rows take the mark wash under the pointer, in 150ms (§3's metric rows, §4's doors), so the eye can follow a row
+     across. A cell spanning every row (a run without rates) stays as it is. */
+  .aa-results tbody th,
+  .aa-results tbody td:not(.aa-span),
+  .aa-doors li {
+    transition: background-color var(--aa-fast) var(--aa-ease);
+  }
+  .aa-results tbody tr:hover > th[scope="row"],
+  .aa-results tbody tr:hover > td:not(.aa-span),
+  .aa-doors li:hover {
+    background-color: var(--aa-mark);
   }
 
   /* §3: metrics as rows, runs as columns; a run without rates gets one cell over all its rows. */
