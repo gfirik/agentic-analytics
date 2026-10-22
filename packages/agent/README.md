@@ -17,8 +17,8 @@ EXPLAIN and DECIDE.
   - Suspicious text, flagged by the model or by `screen()`, is stored, flagged and excluded.
 - **`answerQuestion(model, question, report)`**: follow-up answers as claims with placeholders. Each claim names the report claims it rests on (`F1#0`, `R2#1`), and code copies their citations and the weakest causal grade. The caller verifies the claims (`askJob` in core). Prompt `ask.md`.
 - **`screen(text)` / `screenText(text)`**: the deterministic injection screen (security §3), defined in `@agentic-analytics/schema` and re-exported here; `_` reads as a space. Text is normalised first (NFKC, invisible characters, Latin accents, look-alike letters, spaced-out letters); EN/RU/UZ patterns.
-- **`screenTables(ws)`, `screenDocuments(ws)`, `screenWorkspace(ws)`**: run the screen over table labels and text cells (after PROFILE) and over documents and emails (at INDEX_DOCS). Hits go to the `quarantine` table and are never sent to any model.
-- **`buildTools(ctx, budget)`**: `get_facts`, `drill_down`, `decompose`, `search_documents`, `search_web` (off), `propose_scenario` and `ask_user`.
+- **`screenTables(ws)`, `screenDocuments(ws)`**: run the screen over table labels and text cells (after PROFILE) and over documents and emails (at INDEX_DOCS). Hits go to the `quarantine` table and are never sent to any model.
+- **`buildTools(ctx, budget)`**: `get_facts`, `drill_down`, `decompose`, `search_documents`, `search_web` (off), `compare_benchmark`, `propose_scenario` and `ask_user`.
   - `Budget` allows 25 calls per job and 8 per finding by default.
 - **`explainFindings(...)`**:
   - Code states the observed change and its decomposition (`observedClaim`, `decompositionClaims`).
