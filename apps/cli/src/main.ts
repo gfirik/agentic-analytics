@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand, goldenEvalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
+import { evalCommand, evalMatrix, goldenEvalCommand, realEvalCommand } from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -405,6 +405,10 @@ const evalCmd = defineCommand({
       type: "string",
       description: "With --suite real: a folder of your own answer files (<dataset>.yaml) instead of evals/real/answers",
     },
+    models: {
+      type: "string",
+      description: "Comma-separated models to run the suite with one after another, each its own results row (the model matrix)",
+    },
     data: {
       type: "string",
       description: "With --suite real: the folder holding the files the answer files name (default: the --answers folder)",
@@ -457,6 +461,32 @@ const evalCmd = defineCommand({
         });
       },
     };
+    if (args.models !== undefined) {
+      if (args.suite !== undefined && args.suite !== "smoke" && args.suite !== "full")
+        throw new Error(`--models runs --suite smoke or full, not ${args.suite}`);
+      if (args.model || args.label || args.passes !== undefined || args["replay-drafts"])
+        throw new Error(
+          "--models runs a smoke or full suite per model: drop --model, --label, --passes and --replay-drafts, and use --suite smoke|full",
+        );
+      const runs = await evalMatrix(
+        args.models
+          .split(",")
+          .map((m) => m.trim())
+          .filter(Boolean),
+        {
+          suite: args.suite === "full" ? "full" : "smoke",
+          ...(args["small-model"] ? { smallModel: true } : {}),
+          ...(args["keep-reports"] ? { keepReports: args["keep-reports"] } : {}),
+          ...(args.note ? { note: args.note } : {}),
+          ...(only?.length ? { only } : {}),
+          resultsDir: where.dir,
+          ...(where.page ? { resultsPage: where.page } : {}),
+        },
+        deps,
+      );
+      process.exitCode = runs.every((r) => r.result?.bars.every((b) => b.pass !== false)) ? 0 : 1;
+      return;
+    }
     if (args.suite === "golden") {
       if (args.split !== undefined && args.split !== "dev" && args.split !== "heldout")
         throw new Error(`--split must be dev or heldout, not "${args.split}"`);

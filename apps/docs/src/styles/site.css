@@ -54,6 +54,11 @@ a {
   text-decoration-color: var(--aa-rule-strong);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
+  /* Hover states ease in 150 ms (DESIGN.md §7): links, chips, buttons and rows; never under reduced motion. */
+  transition:
+    color var(--aa-fast) var(--aa-ease),
+    text-decoration-color var(--aa-fast) var(--aa-ease),
+    background-color var(--aa-fast) var(--aa-ease);
 }
 a:hover {
   text-decoration-color: var(--aa-ink);

@@ -1378,3 +1378,312 @@ test.describe("engine machine", () => {
     await ctx.close();
   });
 });
+
+// Site v4 PR 3: motion across the landing page (DESIGN.md §2.5, §7). Sections reveal once, below the fold only; the
+// pipeline's connector draws in; the exhibit's figures count up to their recorded value; hovers ease; nothing of it
+// under reduced motion or without JS, no layout shift, no sideways scroll.
+test.describe("motion", () => {
+  const PARTS = "[data-reveal] > .aa-cell > *";
+  /** Each revealable part: whether it starts below the screen, whether it is held for its reveal, its opacity. */
+  const parts = (page: import("@playwright/test").Page) =>
+    page.locator(PARTS).evaluateAll((els) =>
+      els.map((el) => ({
+        below: el.getBoundingClientRect().top >= window.innerHeight,
+        held: el.classList.contains("aa-rv"),
+        opacity: getComputedStyle(el).opacity,
+      })),
+    );
+  /** Counts every time a part is put back on hold after the page has loaded (a reveal must happen once). */
+  const watchHolds = (page: import("@playwright/test").Page) =>
+    page.evaluate(() => {
+      const w = window as unknown as { aaHolds: number };
+      w.aaHolds = 0;
+      new MutationObserver((ms) => {
+        for (const m of ms)
+          if (m.attributeName === "class" && (m.target as Element).classList.contains("aa-rv") && !m.oldValue?.includes("aa-rv"))
+            w.aaHolds++;
+      }).observe(document.body, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ["class"] });
+    });
+
+  test("sections reveal once, only below the fold, and land in their final state", async ({ browser }) => {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      const ctx = await browser.newContext({ viewport });
+      const page = await ctx.newPage();
+      await page.goto(LANDING, { waitUntil: "networkidle" });
+      const start = await parts(page);
+      expect(start.length, `${viewport.width}`).toBeGreaterThanOrEqual(8);
+      // Held exactly when below the screen at load: what the reader sees on load is final and never animates.
+      for (const p of start) expect(p.held, `${viewport.width}`).toBe(p.below);
+      expect(start.filter((p) => p.held).every((p) => p.opacity === "0")).toBe(true);
+      // The hero and the engine machine's band are never held.
+      await expect(page.locator(".aa-hero .aa-rv, .aa-engine-band .aa-rv")).toHaveCount(0);
+      await watchHolds(page);
+      // Scrolled into view, a part fades and rises into place, then stays.
+      const head = page.locator("#why .aa-cell-head");
+      await head.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await expect(head).not.toHaveClass(/\baa-rv\b/);
+      await expect.poll(() => head.evaluate((el) => getComputedStyle(el).opacity), { timeout: 2_000 }).toBe("1");
+      await expect.poll(() => head.evaluate((el) => getComputedStyle(el).transform), { timeout: 2_000 }).toBe("none");
+      // Scrolling down to the end and back: every part is shown, and nothing is held again.
+      for (let y = 0; y <= (await page.evaluate(() => document.documentElement.scrollHeight)); y += 500) {
+        await page.evaluate((v) => window.scrollTo(0, v), y);
+        await page.waitForTimeout(40);
+        const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        expect(over, `no sideways scroll mid-reveal at ${viewport.width}`).toBeLessThanOrEqual(0);
+      }
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(400);
+      expect((await parts(page)).filter((p) => p.held)).toEqual([]);
+      expect(await page.evaluate(() => (window as unknown as { aaHolds: number }).aaHolds)).toBe(0);
+      await ctx.close();
+    }
+  });
+
+  test("no sideways scroll at 360 while sections reveal; a jump lands on final content", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    for (let y = 0; y <= (await page.evaluate(() => document.documentElement.scrollHeight)); y += 300) {
+      await page.evaluate((v) => window.scrollTo(0, v), y);
+      await page.waitForTimeout(30);
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(over, `at ${y}`).toBeLessThanOrEqual(0);
+    }
+    // Loaded at an anchor, that section is on screen at load: final, never held.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${LANDING}#results`, { waitUntil: "networkidle" });
+    await expect(page.locator("#results .aa-rv")).toHaveCount(0);
+    // An in-page link shows every held part at once, with no fade where it lands.
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    expect((await parts(page)).some((p) => p.held)).toBe(true);
+    await page.locator('#aa-site-menu a[href$="#results"]').first().click();
+    await expect(page.locator(".aa-rv, .aa-rv-go")).toHaveCount(0);
+  });
+
+  test("reduced motion and no JS: nothing is held, nothing counts, the connector is drawn", async ({ browser }) => {
+    for (const opts of [
+      { reducedMotion: "reduce" as const, viewport: { width: 1440, height: 900 } },
+      { reducedMotion: "reduce" as const, viewport: { width: 390, height: 844 } },
+      { javaScriptEnabled: false, viewport: { width: 1440, height: 900 } },
+    ]) {
+      const ctx = await browser.newContext(opts);
+      const page = await ctx.newPage();
+      await page.goto(LANDING, { waitUntil: "networkidle" });
+      const all = await parts(page);
+      expect(all.filter((p) => p.held || p.opacity !== "1")).toEqual([]);
+      await expect(page.locator("[data-exhibit]")).not.toHaveAttribute("data-anim", "pending");
+      await expect(page.locator(".aa-exhibit .aa-fig[data-count]")).toHaveCount(0);
+      const colours = await page.locator(".aa-exhibit .aa-fig").evaluateAll((els) => els.map((e) => getComputedStyle(e).color));
+      expect(new Set(colours)).toEqual(new Set(["rgb(18, 20, 23)"]));
+      await expect(page.locator(".aa-stages.is-undrawn, .aa-stages.is-drawing")).toHaveCount(0);
+      for (let y = 0; y <= (await page.evaluate(() => document.documentElement.scrollHeight)); y += 900)
+        await page.evaluate((v) => window.scrollTo(0, v), y);
+      await page.waitForTimeout(300);
+      expect((await parts(page)).filter((p) => p.held || p.opacity !== "1")).toEqual([]);
+      await ctx.close();
+    }
+  });
+
+  test("the pipeline's connector draws in as the rail comes into view; Play and the stops still step it", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const root = page.locator("#how .aa-stages");
+    /** Each stop's segment, as its horizontal scale (0 undrawn, 1 drawn). */
+    const scales = () =>
+      root.locator(".aa-stages-rail li").evaluateAll((lis) =>
+        lis.map((li) => {
+          const t = getComputedStyle(li, "::after").transform;
+          return t === "none" ? 1 : Number(t.match(/matrix\(([^,]+)/)?.[1] ?? Number.NaN);
+        }),
+      );
+    await expect(root).toHaveClass(/\bis-undrawn\b/);
+    expect(await scales()).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    await root.locator(".aa-stages-rail").evaluate((el) => el.scrollIntoView({ block: "center" }));
+    // Mid-draw: the first stops are drawn while the last are not yet; it runs left to right.
+    const mid = await page.waitForFunction(
+      () => {
+        const lis = [...document.querySelectorAll("#how .aa-stages-rail li")];
+        const s = lis.map((li) => Number(getComputedStyle(li, "::after").transform.match(/matrix\(([^,]+)/)?.[1] ?? 1));
+        return (s[0] ?? 0) > 0.99 && (s[6] ?? 1) < 0.5 ? s : null;
+      },
+      undefined,
+      { polling: "raf", timeout: 3_000 },
+    );
+    const at = (await mid.jsonValue()) as number[];
+    for (let i = 1; i < at.length; i++) expect(at[i] ?? 0).toBeLessThanOrEqual((at[i - 1] ?? 0) + 1e-6);
+    await expect.poll(scales, { timeout: 3_000 }).toEqual([1, 1, 1, 1, 1, 1, 1]);
+    await expect(root).not.toHaveClass(/\bis-(undrawn|drawing)\b/);
+    // A stop still opens its panel, and the connector follows it.
+    await root.getByRole("button", { name: "Files", exact: true }).click();
+    await expect.poll(scales, { timeout: 2_000 }).toEqual([1, 0, 0, 0, 0, 0, 0]);
+    await root.getByRole("button", { name: "SQL", exact: true }).click();
+    await expect.poll(scales, { timeout: 2_000 }).toEqual([1, 1, 1, 1, 0, 0, 0]);
+    // Docs pages don't draw in: the rail is drawn from the start.
+    await page.goto(`${BASE}/learn/`, { waitUntil: "networkidle" });
+    await expect(page.locator(".aa-stages.is-undrawn")).toHaveCount(0);
+    // Loaded with the rail on screen: drawn from the start.
+    await page.goto(`${LANDING}#how`, { waitUntil: "networkidle" });
+    await expect(page.locator(".aa-stages.is-undrawn")).toHaveCount(0);
+  });
+
+  test("the exhibit's figures count up to their recorded value, then verify; the HTML holds the real value", async ({ page, request }) => {
+    const exhibit = JSON.parse(readFileSync(join(import.meta.dirname, "../../../apps/docs/src/data/exhibit.json"), "utf8")) as {
+      lines: { fact?: string }[][];
+      notes: Record<string, { value: string }>;
+    };
+    const values = exhibit.lines.flat().flatMap((p) => (p.fact ? [exhibit.notes[p.fact]?.value ?? ""] : []));
+    expect(values.length).toBeGreaterThan(5);
+    // The static HTML already holds every recorded value.
+    const html = await (await request.get(LANDING)).text();
+    for (const v of values) expect(html, v).toContain(v);
+    const num = (s: string) => Number(s.replace(/[^\d.]/g, "")) || 0;
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING);
+    // Mid-count: a running value drawn over the figure, never past the recorded one, the real text underneath unchanged.
+    const mid = await page.waitForFunction(
+      () => {
+        const f = [...document.querySelectorAll<HTMLElement>(".aa-exhibit .aa-fig[data-count]")].find(
+          (e) => e.dataset.count !== e.textContent && Number((e.dataset.count ?? "").replace(/[^\d.]/g, "")) > 0,
+        );
+        return f ? { count: f.dataset.count ?? "", text: f.textContent ?? "", colour: getComputedStyle(f).color } : null;
+      },
+      undefined,
+      { polling: "raf", timeout: 3_000 },
+    );
+    const m = (await mid.jsonValue()) as { count: string; text: string; colour: string };
+    expect(values).toContain(m.text);
+    expect(num(m.count)).toBeLessThan(num(m.text));
+    expect(m.colour).toBe("rgba(0, 0, 0, 0)");
+    // Then the checks; at the end every figure is its recorded value, in ink, with nothing drawn over it.
+    await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-anim", "done", { timeout: 3_500 });
+    await expect(page.locator(".aa-exhibit .aa-fig[data-count]")).toHaveCount(0);
+    const end = await page
+      .locator(".aa-exhibit .aa-exhibit-line .aa-fig")
+      .evaluateAll((els) => els.map((e) => ({ text: e.textContent, colour: getComputedStyle(e).color })));
+    expect(end.map((e) => e.text)).toEqual(values);
+    expect(new Set(end.map((e) => e.colour))).toEqual(new Set(["rgb(18, 20, 23)"]));
+  });
+
+  test("hover states ease in 150 ms on links, chips, buttons and rows", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    for (const sel of [".aa-more", ".aa-exhibit a.aa-chip", ".aa-button-primary", "#results tbody th[scope='row']", ".aa-doors li"]) {
+      const durations = await page
+        .locator(sel)
+        .first()
+        .evaluate((el) =>
+          getComputedStyle(el)
+            .transitionDuration.split(",")
+            .map((d) => Number.parseFloat(d) * (d.includes("ms") ? 1 : 1000)),
+        );
+      for (const d of durations) {
+        expect(d, sel).toBeGreaterThanOrEqual(150);
+        expect(d, sel).toBeLessThanOrEqual(200);
+      }
+    }
+  });
+
+  test("no layout shift from any of it: CLS under 0.05 through the whole landing page (1440, 390)", async ({ browser }) => {
+    type Shift = { value: number; time: number; mine: boolean };
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      const ctx = await browser.newContext({ viewport });
+      const page = await ctx.newPage();
+      // Every unexpected shift, and whether any node it moved sits in what this motion touches: the revealed parts, the
+      // pipeline stages or the exhibit.
+      await page.addInitScript(() => {
+        const w = window as unknown as { aaShifts: Shift[] };
+        w.aaShifts = [];
+        type Entry = PerformanceEntry & { value: number; hadRecentInput: boolean; sources: { node?: Node | null }[] };
+        new PerformanceObserver((list) => {
+          for (const e of list.getEntries() as Entry[])
+            if (!e.hadRecentInput)
+              w.aaShifts.push({
+                value: e.value,
+                time: e.startTime,
+                mine: e.sources.some((s) => {
+                  const el = s.node instanceof Element ? s.node : (s.node?.parentElement ?? null);
+                  return Boolean(el?.closest("[data-reveal], .aa-stages, .aa-exhibit"));
+                }),
+              });
+        }).observe({ type: "layout-shift", buffered: true });
+      });
+      await page.goto(LANDING, { waitUntil: "networkidle" });
+      await page.waitForTimeout(3_000); // the replay
+      for (let y = 0; y <= (await page.evaluate(() => document.documentElement.scrollHeight)); y += 400) {
+        await page.evaluate((v) => window.scrollTo(0, v), y);
+        await page.waitForTimeout(120);
+      }
+      await page.waitForTimeout(800);
+      const shifts = await page.evaluate(() => (window as unknown as { aaShifts: Shift[] }).aaShifts);
+      // CLS as browsers report it: the largest session window (shifts under 1 s apart, at most 5 s long).
+      let cls = 0;
+      let win = 0;
+      let first = 0;
+      let last = Number.NEGATIVE_INFINITY;
+      for (const s of shifts) {
+        if (s.time - last > 1000 || s.time - first > 5000) {
+          win = 0;
+          first = s.time;
+        }
+        win += s.value;
+        last = s.time;
+        cls = Math.max(cls, win);
+      }
+      const total = shifts.reduce((t, s) => t + s.value, 0);
+      console.log(`CLS through the landing page at ${viewport.width}: ${cls.toFixed(4)} (all shifts summed ${total.toFixed(4)})`);
+      expect(
+        shifts.filter((s) => s.mine),
+        `${viewport.width}: shifts in the revealed parts, the stages or the exhibit`,
+      ).toEqual([]);
+      expect(cls, `${viewport.width}`).toBeLessThan(0.05);
+      await ctx.close();
+    }
+  });
+});
+
+test("a sticky row head is alone in its grid column, so it never slides over a neighbour (1100, 1440)", async ({ page }) => {
+  for (const width of [1100, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const clashes = await page.locator(".aa-split > .aa-cell-head").evaluateAll((heads) =>
+      heads.flatMap((head) => {
+        if (getComputedStyle(head).position !== "sticky") return [];
+        const h = head.getBoundingClientRect();
+        // Any sibling whose box shares the head's columns: the sticky head would move over it.
+        return [...(head.parentElement?.children ?? [])]
+          .filter((el) => el !== head)
+          .filter((el) => {
+            const r = el.getBoundingClientRect();
+            return r.width > 0 && r.left < h.right - 1 && r.right > h.left + 1;
+          })
+          .map((el) => `${head.closest("section")?.id}: ${el.className}`);
+      }),
+    );
+    expect(clashes, `width ${width}`).toEqual([]);
+    // §1 and §2 keep their sticky heads; §4's isn't sticky.
+    expect(
+      await page
+        .locator("#how .aa-cell-head")
+        .first()
+        .evaluate((el) => getComputedStyle(el).position),
+    ).toBe("sticky");
+    expect(
+      await page
+        .locator("#why .aa-cell-head")
+        .first()
+        .evaluate((el) => getComputedStyle(el).position),
+    ).toBe("sticky");
+    expect(
+      await page
+        .locator("#quickstart .aa-cell-head")
+        .first()
+        .evaluate((el) => getComputedStyle(el).position),
+    ).not.toBe("sticky");
+  }
+});

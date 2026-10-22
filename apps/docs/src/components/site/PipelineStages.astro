@@ -3,7 +3,10 @@
 // stops above one ledger panel per stop, at the site's own type sizes. The server renders every panel; without JS,
 // under 40rem, the panels are a stacked ruled list. With JS the rail selects a panel (the finished report first), and
 // Play steps through the stops once, stopping at Report, with a 150ms crossfade of the panel only (none under reduced
-// motion, where Play isn't offered). The README GIF keeps its own renderer (pipeline-scene.ts); the site doesn't use it.
+// motion, where Play isn't offered). The rail is a connector line with a node at each stop, drawn with transforms only;
+// on the landing page (`draw`, site v4 PR 3) it draws itself in, stop by stop, as it first scrolls into view (never
+// when it is already on screen at load, never under reduced motion). The README GIF keeps its own renderer
+// (pipeline-scene.ts); the site doesn't use it.
 import pipeline from "../../../../../docs/assets/readme/pipeline.json";
 import exhibit from "../../data/exhibit.json";
 import type { PipelineData } from "../pipeline-scene.ts";
@@ -14,8 +17,10 @@ import "../islands.css";
 interface Props {
   /** The element id, and the prefix of each panel's id (one instance per page). */
   id?: string;
+  /** Draw the connector in as the rail first scrolls into view (the landing page only; DESIGN.md §7). */
+  draw?: boolean;
 }
-const { id = "aa-stages" } = Astro.props;
+const { id = "aa-stages", draw = false } = Astro.props;
 
 const run = pipeline as unknown as PipelineData;
 const rail = stops(run);
@@ -29,13 +34,13 @@ const v = run.verification;
 const a = run.action;
 ---
 
-<section class="aa-stages not-content" id={id} data-stages aria-label="The pipeline, stage by stage, on one real run">
+<section class="aa-stages not-content" id={id} data-stages data-draw={draw ? "" : undefined} aria-label="The pipeline, stage by stage, on one real run">
   <p class="aa-stages-label">One real run · {run.run.example} · {run.run.model.replace(/ \(.*?\)/, "")}</p>
   <div class="aa-stages-bar">
     <ol class="aa-stages-rail">
       {
         rail.map((s, i) => (
-          <li class:list={[{ "is-done": i <= last, "is-current": i === last }]}>
+          <li class:list={[{ "is-done": i <= last, "is-current": i === last }]} style={`--aa-i: ${i}`}>
             <button type="button" data-stage={i} aria-controls={key(s.node)} aria-pressed={i === last ? "true" : "false"} title={s.stages.join(" · ")}>
               {s.node}
             </button>
@@ -219,6 +224,7 @@ const a = run.action;
 
     const show = (k: number) => {
       current = k;
+      root.classList.remove("is-drawing");
       panels.forEach((p, i) => p.classList.toggle("is-current", i === k));
       buttons.forEach((b, i) => b.setAttribute("aria-pressed", String(i === k)));
       items.forEach((li, i) => {
@@ -241,6 +247,38 @@ const a = run.action;
       }, DWELL);
     };
     requestAnimationFrame(() => root.classList.add("is-ready"));
+    // The connector draws in, stop by stop, the first time the rail scrolls into view (landing page only). Only when
+    // the rail is shown and still below the screen when the script runs: what the reader already sees never moves.
+    // A rail the reader scrolled past (a jump to a later section) is simply drawn.
+    const rail = root.querySelector<HTMLElement>(".aa-stages-rail");
+    if (
+      rail &&
+      root.hasAttribute("data-draw") &&
+      !reduced.matches &&
+      typeof IntersectionObserver !== "undefined" &&
+      rail.getClientRects().length > 0 &&
+      rail.getBoundingClientRect().top >= window.innerHeight
+    ) {
+      root.classList.add("is-undrawn");
+      const end = items[items.length - 1];
+      const io = new IntersectionObserver(
+        ([e]) => {
+          if (!e || !(e.isIntersecting || e.boundingClientRect.bottom < 0)) return;
+          io.disconnect();
+          if (e.isIntersecting) {
+            root.classList.add("is-drawing");
+            end?.addEventListener("transitionend", function done(ev: TransitionEvent) {
+              if (ev.pseudoElement !== "::after") return;
+              root.classList.remove("is-drawing");
+              end.removeEventListener("transitionend", done);
+            });
+          }
+          root.classList.remove("is-undrawn");
+        },
+        { rootMargin: "0px 0px -15% 0px" },
+      );
+      io.observe(rail);
+    }
     reduced.addEventListener("change", () => {
       if (reduced.matches) stop();
     });
@@ -298,12 +336,62 @@ const a = run.action;
     list-style: none;
   }
   .aa-stages .aa-stages-rail li {
+    position: relative;
     margin: 0;
     border-bottom: 1px solid var(--aa-rule);
   }
-  .aa-stages .aa-stages-rail li.is-done {
-    border-bottom: 2px solid var(--aa-ink);
-    margin-bottom: -1px;
+  /* The connector (site v4 PR 3): a 2px ink segment over the rule under every stop up to the current one, and a square
+     node where each stop starts, ink once reached. Both change by transform and colour only (the segment scales from
+     its left end), so stepping and the draw-in never move the layout. */
+  .aa-stages .aa-stages-rail li::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 2px;
+    background: var(--aa-ink);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 180ms var(--aa-ease);
+    pointer-events: none;
+  }
+  .aa-stages .aa-stages-rail li::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    bottom: -4px;
+    width: 6px;
+    height: 6px;
+    box-sizing: border-box;
+    border: 1px solid var(--aa-rule-strong);
+    background: var(--aa-raised);
+    transition:
+      transform 180ms var(--aa-ease),
+      background-color 180ms var(--aa-ease),
+      border-color 180ms var(--aa-ease);
+    pointer-events: none;
+  }
+  .aa-stages .aa-stages-rail li.is-done::after {
+    transform: scaleX(1);
+  }
+  .aa-stages .aa-stages-rail li.is-done::before {
+    background: var(--aa-ink);
+    border-color: var(--aa-ink);
+  }
+  /* The draw-in: held undrawn until the rail scrolls into view, then one continuous line, stop after stop. */
+  .aa-stages.is-undrawn .aa-stages-rail li::after {
+    transform: scaleX(0);
+  }
+  .aa-stages.is-undrawn .aa-stages-rail li::before {
+    transform: scale(0);
+  }
+  .aa-stages.is-drawing .aa-stages-rail li::after {
+    transition: transform 90ms linear calc(var(--aa-i) * 90ms);
+  }
+  .aa-stages.is-drawing .aa-stages-rail li::before {
+    transition: transform 120ms var(--aa-ease) calc(var(--aa-i) * 90ms);
   }
   .aa-stages .aa-stages-rail button {
     display: block;
@@ -379,7 +467,9 @@ const a = run.action;
       display: none;
     }
     .aa-stages .aa-stage,
-    .aa-stages .aa-stages-rail button {
+    .aa-stages .aa-stages-rail button,
+    .aa-stages .aa-stages-rail li::before,
+    .aa-stages .aa-stages-rail li::after {
       transition: none !important;
     }
   }
