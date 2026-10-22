@@ -65,7 +65,7 @@
   - Per job: 200 MB.
   - Decompressed size of zip-based Office files: 300 MB.
   - XLSX: 2M cells per sheet.
-- **Sandboxing:** each parse has a timeout (60s per file by default). Docling runs in its own container with no network. Not yet true: parsing in worker threads that can be killed — SheetJS parses synchronously, so the timeout can't stop a pathological xlsx (known gap M13b).
+- **Sandboxing:** each parse has a timeout (60s per file by default). Docling runs in its own container with no network. Not yet true: parsing in worker threads that can be killed. The timeout fires only while a parse is waiting on something, and the spreadsheet (SheetJS), CSV/TSV (with table detection) and TXT/Markdown parsers never wait, so it can't stop a pathological xlsx or CSV (known gap M13b).
 - **Never executed:** spreadsheet formulas, and macros in `.xlsm` (macros are ignored).
 
 ## 6. Model providers and privacy

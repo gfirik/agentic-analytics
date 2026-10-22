@@ -1,11 +1,11 @@
 // Metric → parameterized SQL (docs/specs/metric-layer.md §4): metric(id, period_range, dimension_filters?,
 // group_by?). Every number a report shows comes through this compiler, so it is tied to a metric id and its SQL.
-import type { MetricDef } from "@agentic-analytics/schema";
+import type { Grain, MetricDef, RatioTerm } from "@agentic-analytics/schema";
 import { ident, type Sql, type Workspace } from "@agentic-analytics/store";
 import { type Catalog, NUMERIC_TYPES } from "./catalog.ts";
 import { builder, compileExpr, compileFilter, exprColumns, parseExpression, parseFilter, type SqlBuilder } from "./lang.ts";
 
-export type Grain = "day" | "week" | "month" | "quarter" | "year";
+export type { Grain };
 
 export interface MetricQuery {
   /** Inclusive period range at the grain, e.g. "2026-01" … "2026-06" for months. */
@@ -37,6 +37,13 @@ export class MetricCompileError extends Error {
 }
 
 const q = (name: string) => ident(name).quoted;
+
+/** A ratio's two sides. The type leaves them optional; a def that skipped validation may lack one. */
+export function ratioTerms(def: MetricDef): readonly [RatioTerm, RatioTerm] {
+  if (!def.numerator || !def.denominator)
+    throw new MetricCompileError("UNSUPPORTED_TYPE", `ratio ${def.id} needs a numerator and a denominator`);
+  return [def.numerator, def.denominator];
+}
 
 /** Period key at the job grain (lexically ordered, so BETWEEN works). */
 export function periodExpr(column: string, grain: Grain): string {
@@ -139,8 +146,7 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
   let name: string;
   switch (def.type) {
     case "ratio": {
-      const term = (t: unknown, side: string): string => {
-        const term = t as { metric: string } | { table: string; expression: string; filters?: string[] };
+      const term = (term: RatioTerm, side: string): string => {
         if ("metric" in term) {
           const ref = ctx.defs.get(term.metric);
           if (!ref) throw new MetricCompileError("UNKNOWN_METRIC", `${side} metric ${term.metric} is not defined`);
@@ -158,8 +164,9 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
           term.filters ?? [],
         );
       };
-      const n = term(def.numerator, "numerator");
-      const d = term(def.denominator, "denominator");
+      const [numerator, denominator] = ratioTerms(def);
+      const n = term(numerator, "numerator");
+      const d = term(denominator, "denominator");
       // Spec §2.3: ratios never divide by a sum that could be zero without a guard.
       const scale = def.unit === "percent" ? " * 100" : "";
       // No numerator rows in a period means 0 (e.g. no refunds that month); no denominator means unknown.
@@ -309,8 +316,7 @@ export function compileMetricRows(
   const walk = (def: MetricDef, depth: number) => {
     if (depth > 20) throw new MetricCompileError("UNSUPPORTED_TYPE", "metric references are too deep");
     if (def.type === "ratio") {
-      for (const t of [def.numerator, def.denominator] as unknown[]) {
-        const x = t as { metric: string } | { table: string; expression: string; filters?: string[] };
+      for (const x of ratioTerms(def)) {
         if ("metric" in x) {
           const ref = byId.get(x.metric);
           if (!ref) throw new MetricCompileError("UNKNOWN_METRIC", `unknown metric ${x.metric}`);

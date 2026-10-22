@@ -178,7 +178,6 @@
       "name": "@agentic-analytics/eval-real",
       "version": "0.0.0",
       "dependencies": {
-        "@agentic-analytics/schema": "workspace:*",
         "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
         "yaml": "^2.9.1",
         "zod": "^4.6.7",
@@ -307,6 +306,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@agentic-analytics/ingest": "workspace:*",
+        "@agentic-analytics/schema": "workspace:*",
         "@agentic-analytics/store": "workspace:*",
       },
       "devDependencies": {

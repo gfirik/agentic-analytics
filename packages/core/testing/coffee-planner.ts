@@ -336,9 +336,8 @@ function answer(r: FakeRequest): unknown {
   };
 }
 
-/** The scripted model for a full coffee-roaster job (normal or small-model mode). */
 /**
- * `sloppyDecide` answers DECIDE as the nightly runs' real planner often did (M14a): a numeral sentence in one
+ * The scripted model for a full coffee-roaster job (normal or small-model mode). `sloppyDecide` answers DECIDE as the nightly runs' real planner often did (M14a): a numeral sentence in one
  * candidate's risk, an empty not_advised, and one extra candidate whose rationale carries a free numeral.
  */
 export function coffeePlanner(options: { small?: boolean; web?: boolean; sloppyDecide?: boolean } = {}): FakeModel {

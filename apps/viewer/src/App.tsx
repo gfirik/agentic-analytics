@@ -1,11 +1,11 @@
 // The viewer (interfaces §5): upload → live progress (stages light up as they run) → metric confirmation →
 // the embedded report. Hash routes keep it a static bundle that `aa serve` can host at `/`.
-import type { JobEvent } from "@agentic-analytics/schema";
+import type { JobEvent, Stage } from "@agentic-analytics/schema";
 import { type FormEvent, useEffect, useMemo, useReducer, useState } from "react";
 import { type Api, ApiError, createApi, errorText } from "./api.ts";
 import { initialView, type JobView, reduce, STAGES } from "./state.ts";
 
-const LABELS: Record<string, string> = {
+const LABELS: Record<Stage, string> = {
   INGEST: "Read files",
   PROFILE: "Profile",
   METRICS_DRAFT: "Draft metrics",

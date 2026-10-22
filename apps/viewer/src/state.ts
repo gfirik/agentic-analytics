@@ -1,21 +1,8 @@
 // The live job view's state, folded from job events (interfaces §1 SSE). Pure, so it is tested without a browser.
 import type { JobEvent, Stage } from "@agentic-analytics/schema";
+import { STAGES } from "@agentic-analytics/schema/stages";
 
-export const STAGES: readonly Stage[] = [
-  "INGEST",
-  "PROFILE",
-  "METRICS_DRAFT",
-  "AWAIT_CONFIRM",
-  "MEASURE",
-  "DETECT",
-  "DECOMPOSE",
-  "INDEX_DOCS",
-  "WEB_CONTEXT",
-  "EXPLAIN",
-  "DECIDE",
-  "VERIFY",
-  "RENDER",
-];
+export { STAGES };
 
 export type StageState = "pending" | "running" | "done" | "waiting" | "failed";
 

@@ -1,6 +1,6 @@
 # Spec: retrieval (`packages/retrieval`): the RAG lane
 
-Retrieval covers documents, emails and fetched web pages only. Tables are never retrieved as text: numbers come from SQL.
+Retrieval covers documents and emails only. Tables are never retrieved as text: numbers come from SQL. Fetched web pages are not indexed: the agent's web lane chunks each page with `chunkSpans` (300 tokens) and sends its first three chunks straight to the quarantined extractor (agent-and-verifier §4).
 
 ## 1. Chunking
 

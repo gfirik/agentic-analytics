@@ -34,7 +34,7 @@ export class Workspace {
     try {
       await this.connection.run(q.text, q.params as DuckDBValue[]);
     } catch (err) {
-      throw new StoreError("QUERY", `${err instanceof Error ? err.message : String(err)}\n  in: ${q.text.slice(0, 200)}`, { cause: err });
+      throw queryError(err, q);
     }
   }
 
@@ -45,7 +45,7 @@ export class Workspace {
       const reader = await this.connection.runAndReadAll(q.text, q.params as DuckDBValue[]);
       return reader.getRowObjectsJS().map((r) => normalizeRow(r) as T);
     } catch (err) {
-      throw new StoreError("QUERY", `${err instanceof Error ? err.message : String(err)}\n  in: ${q.text.slice(0, 200)}`, { cause: err });
+      throw queryError(err, q);
     }
   }
 
@@ -53,7 +53,10 @@ export class Workspace {
     return (await this.all<T>(q))[0];
   }
 
-  /** Bulk insert through DuckDB's appender; values are cast by DuckDB from their text form. */
+  /**
+   * Bulk insert through DuckDB's appender. Numbers go in as doubles whatever the column type, and DuckDB casts them
+   * on insert, so a fraction reaching a BIGINT (`integer`) column is rounded, not refused. Strings go in as text.
+   */
   async append(table: string, rows: readonly (readonly (string | number | boolean | null)[])[]): Promise<void> {
     this.check();
     const appender = await this.connection.createAppender(table);
@@ -116,6 +119,11 @@ export class Workspace {
   private check(): void {
     if (this.closed) throw new StoreError("CLOSED", "workspace is closed");
   }
+}
+
+/** A failed query, with the start of its SQL text so the failing statement can be found. */
+function queryError(err: unknown, q: Sql): StoreError {
+  return new StoreError("QUERY", `${err instanceof Error ? err.message : String(err)}\n  in: ${q.text.slice(0, 200)}`, { cause: err });
 }
 
 function normalizeRow(row: Record<string, unknown>): Row {

@@ -31,4 +31,5 @@ export {
   WebLocator,
 } from "./report.ts";
 export { screen, screenText } from "./screen.ts";
+export { STAGES } from "./stages.ts";
 export { type ReportValidation, validateReport } from "./validate.ts";

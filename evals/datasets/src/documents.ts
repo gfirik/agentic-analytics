@@ -1,6 +1,6 @@
 // Text of the coffee-roaster documents. The quotes cited by the golden report are substrings of these,
 // so a test can check every citation quote and char span against the source text.
-import { zipStored } from "./zip.ts";
+import { docx, emlText } from "./writers.ts";
 
 export const PRICE_LIST_PAGES: readonly (readonly string[])[] = [
   [
@@ -30,18 +30,16 @@ export function pageText(page: number): string {
 export const EMAIL_BODY =
   "Hello,\n\nAfter the new price list we are pausing our standing order while we compare suppliers.\nWe will let you know about May.\n\nPurchasing team\nHotel Group\n";
 
-export const EMAIL_EML = [
-  'From: "Purchasing, Hotel Group" <purchasing@hotelgroup.example>',
-  "To: orders@roaster.example",
-  "Subject: Standing order",
-  "Date: Sun, 12 Apr 2026 09:14:00 +0500",
-  "Message-ID: <0412@hotelgroup.example>",
-  "MIME-Version: 1.0",
-  "Content-Type: text/plain; charset=utf-8",
-  "Content-Transfer-Encoding: 8bit",
-  "",
+export const EMAIL_EML = emlText(
+  {
+    from: '"Purchasing, Hotel Group" <purchasing@hotelgroup.example>',
+    to: "orders@roaster.example",
+    subject: "Standing order",
+    date: "Sun, 12 Apr 2026 09:14:00 +0500",
+    id: "0412@hotelgroup.example",
+  },
   EMAIL_BODY,
-].join("\r\n");
+);
 
 /** ops-notes.docx: numbered sections; §3 carries the packaging-supplier switch (planted P2 cause). */
 export const OPS_NOTES: readonly { heading: string; paragraphs: readonly string[] }[] = [
@@ -59,19 +57,6 @@ export function opsNotesText(): string {
   return OPS_NOTES.flatMap((s) => [s.heading, ...s.paragraphs]).join("\n");
 }
 
-const xmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
 export function opsNotesDocx(): Uint8Array {
-  const enc = new TextEncoder();
-  const para = (text: string, style?: string) =>
-    `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ""}<w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
-  const body = OPS_NOTES.flatMap((s) => [para(s.heading, "Heading1"), ...s.paragraphs.map((p) => para(p))]).join("");
-  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`;
-  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
-  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
-  return zipStored([
-    { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
-    { name: "_rels/.rels", data: enc.encode(rels) },
-    { name: "word/document.xml", data: enc.encode(document) },
-  ]);
+  return docx(OPS_NOTES);
 }

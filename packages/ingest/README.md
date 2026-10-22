@@ -15,7 +15,8 @@ Files in, clean tables and document sections out, with provenance on everything.
 | `readWorkbookGrids(bytes)` | SheetJS grid read: values, types, formulas (never evaluated), number formats, merges, hidden sheets. |
 | `parseDelimited`, `delimitedToGrid` | CSV/TSV with RFC 4180 quoting and delimiter sniffing. |
 | `createDoclingClient(baseUrl, fetch?)` | Optional docling-serve client for PDFs without a text layer. |
-| `DEFAULT_LIMITS` | 50 files and 200 MB per job; 50 MB per file; 300 MB decompressed per ZIP; 60 s per file; 2M cells per sheet. |
+| `DEFAULT_LIMITS` | 50 files and 200 MB per job; 50 MB per file; 300 MB decompressed per ZIP; 60 s per file. The per-file timeout only fires while a parse awaits something: the spreadsheet, CSV/TSV and text parsers run synchronously, so it can't stop them (known gap M13b, docs/specs/security.md §5). |
+| `MAX_CELLS_PER_SHEET` | 2M cells per spreadsheet sheet; a larger sheet is skipped with `too_many_cells`. A separate constant: `limits` can't override it, and it doesn't apply to CSV. |
 
 Provenance:
 

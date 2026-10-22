@@ -63,7 +63,7 @@ export {
 } from "./extractor.ts";
 export { buildFactSheet, type FactSheet, type SheetFact, sheetFact } from "./factsheet.ts";
 export { data, PromptError, type PromptName, promptVersion, renderPrompt } from "./prompts.ts";
-export { type ScreenSummary, screenDocuments, screenTables, screenWorkspace } from "./quarantine.ts";
+export { type ScreenSummary, screenDocuments, screenTables } from "./quarantine.ts";
 export { writeHeadline } from "./summary.ts";
 export { Budget, buildTools, type OpenQuestionDraft, type ToolContext } from "./tools.ts";
 export { privateTerms, searchAndStore, type WebLane } from "./web.ts";

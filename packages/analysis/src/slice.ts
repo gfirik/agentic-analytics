@@ -6,15 +6,12 @@ import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import { runMetric } from "@agentic-analytics/metrics";
 import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
-import { beyondKeys } from "./decompose.ts";
 import { AnalysisError, FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { impactRange, type Scenario } from "./impact.ts";
-import { otherFilter, persistFacts, type StoredDecomposition, type StoredInsight } from "./runner.ts";
+import { contributionFacts, memberFilter, otherFilter, unitOf } from "./members.ts";
+import { persistFacts, type StoredDecomposition, type StoredInsight } from "./runner.ts";
 import { benchmarkGap, topContributors } from "./templates.ts";
 import { factRef, OTHER, type Series, type Unit } from "./types.ts";
-
-const UNITS: Record<string, Unit> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
-const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
 
 /** Every fact stored in the job, in id order. */
 export async function readFacts(ws: Workspace): Promise<Fact[]> {
@@ -110,7 +107,7 @@ export async function drillDown(ws: Workspace, defs: readonly MetricDef[], catal
   if (at < 0 || !before) throw new AnalysisError("BAD_SLICE", `${q.period} has no previous period in ${q.range.from}…${q.range.to}`);
   const window = { from: before, to: q.period, grain: q.range.grain };
   const grouped = await runMetric(ws, def.id, defs, catalog, { ...window, groupBy: [q.dimension] });
-  const unit = UNITS[def.unit] ?? "other";
+  const unit = unitOf(def);
   const byMember = new Map<string | null, Map<string, number>>();
   for (const r of grouped) {
     const key = (r[q.dimension] as string | null) ?? null;
@@ -122,7 +119,6 @@ export async function drillDown(ws: Workspace, defs: readonly MetricDef[], catal
   const ranked = [...byMember.entries()].sort((a, b) => change(b[1]) - change(a[1]) || String(a[0]).localeCompare(String(b[0])));
   const keep = ranked.slice(0, q.maxMembers ?? 20);
   const series = new Map<string, SeriesInfo>();
-  const filter = (v: string | null) => (v === null ? `${q.dimension} IS NULL` : `${q.dimension} = ${quote(v)}`);
   const members = keep.map(([value, m]) => {
     const s: Series = {
       id: `drill:${def.id}|${q.dimension}=${value ?? "(none)"}`,
@@ -131,7 +127,7 @@ export async function drillDown(ws: Workspace, defs: readonly MetricDef[], catal
       member: { dimension: q.dimension, value },
       points: [before, q.period].map((p) => ({ period: p, value: m.get(p) ?? 0 })),
     };
-    series.set(s.id, { series: s, def, where: filter(value) });
+    series.set(s.id, { series: s, def, where: memberFilter(q.dimension, value) });
     return s;
   });
   if (ranked.length > keep.length) {
@@ -173,12 +169,7 @@ export async function drillDown(ws: Workspace, defs: readonly MetricDef[], catal
   );
   const book = new FactBook(ws, defs, catalog, q.range.grain, series, new Set(defs.map((d) => d.id)), await nextFactNumber(ws));
   const scope = await book.calcs(insight.calcs, `drill_down ${def.id} ${q.period} by ${q.dimension}`, def.id);
-  const facts: Record<string, string> = { total: factOf(scope, "delta:total") };
-  for (const c of insight.contribution?.contributors ?? []) {
-    facts[`change:${c.key}`] = factOf(scope, c.delta.name);
-    facts[`share:${c.key}`] = factOf(scope, c.share.name);
-  }
-  for (const [key, name] of insight.contribution ? beyondKeys(insight.contribution) : []) facts[key] = factOf(scope, name);
+  const facts: Record<string, string> = { total: factOf(scope, "delta:total"), ...contributionFacts(insight.contribution, scope) };
   await persistFacts(ws, book.facts);
   return { metric: def.id, dimension: q.dimension, before, after: q.period, facts, newFacts: book.facts };
 }
