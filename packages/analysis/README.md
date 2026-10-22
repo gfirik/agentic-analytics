@@ -3,7 +3,7 @@
 The engine's deterministic numbers core. It measures metrics, detects changes, decomposes them into drivers, computes impact ranges and ranks findings. Everything is SQL (through the metric compiler) or a pure TypeScript function with a hand-computed test. The model never replaces any of it (DECISIONS D9).
 
 - **Spec:** docs/specs/analysis-library.md
-- **Status:** M5, with the code-quality fixes of Oct 2026:
+- **Status:** M5, extended through M14a (seasonality, rate and member stories, the beyond-100% calcs), with the code-quality fixes of Oct 2026:
   - every series has a point for each job period inside its metric's own span (0 for additive metrics, NaN otherwise), so the time-series tests never skip a missing period;
   - a percent change is stated only from a positive base;
   - a derived value that isn't finite throws `NO_VALUE`, and a calc with no fact throws `CALC_UNDEFINED`; a level shift whose edge points are equal is not split by member.
@@ -15,7 +15,7 @@ The engine's deterministic numbers core. It measures metrics, detects changes, d
 | Statistics | `mean`, `median`, `mad`, `robustZ`, `theilSen`, `mannKendall` (tie-corrected, normal approximation), `normalCdf`, `twoProportionZ`, `hhi`, `sse` |
 | Baselines and noise (§2) | `chooseBaseline` (last year → previous → trailing mean of 3), `noiseBand` (2 × 1.4826 × MAD of the other changes, 6+ periods), `materiality` (band, ≥ 5%, ≥ 1% of mean), `MIN_PERIODS` |
 | Insight templates (§3) | `periodChange`, `trend`, `trendBreak`, `anomalies`, `topContributors`, `concentration`, `newLost`, `mixShift`, `ratioShift`, `benchmarkGap`. Each returns an `Insight`: calcs with their inputs, roles, materiality, confidence and notes. Skipped tests become open questions. |
-| Decomposers (§4) | `contribution` (contribution.v1; shares can exceed 100%, and then `beyond` holds the top member's `abs` magnitude, the largest offsetting member's and the `abs_exceeds` comparison as calcs; `contributionCalcs` lists every calc a contribution records and `beyondKeys` the decomposition fact keys for the beyond calcs), `pvm` (pvm.v1; exact identity plus new and lost), `rateMix` (ratemix.v1 plus the Simpson guard), `diff` (diff.v1; support and risk ratio over 1–2 attribute combinations) |
+| Decomposers (§4) | `contribution` (contribution.v1; shares can exceed 100%, and then `beyond` holds the top member's `abs` magnitude, the largest offsetting member's and the `abs_exceeds` comparison as calcs; `contributionCalcs` lists every calc a contribution records and `beyondKeys` the decomposition fact keys for the beyond calcs), `pvm` (pvm.v1; exact identity plus new and lost), `rateMix` (ratemix.v1 plus the Simpson guard), `diff` (diff.v1; support and risk ratio over 1–2 attribute combinations; not yet wired into the pipeline, spec §4.4) |
 | Impact (§5) | `impactRange(scenario)`: `recover_share`, `price_change`, `remove_excess_rate`, `retain_at_risk`. Parameters are bounded, results are net of cost, and each is labelled "scenario estimate" with its formula. |
 | Ranking (§6) | `rankInsights` (impact share × confidence × recency) and `topForExplain` (one finding per event, top 7) |
 | Runner | `analyzeJob(ws, defs, catalog, { from, to, grain? })` runs MEASURE → DETECT → DECOMPOSE → RANK. Every number becomes a fact: SQL with params plus cited `_row`s, or a function with input fact ids. Facts, insights and decompositions are written to the workspace. |

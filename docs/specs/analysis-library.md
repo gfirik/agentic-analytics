@@ -125,6 +125,8 @@ Used for anomalies in counts or rates. Compare the anomalous period A against th
 
 Report combinations with support ≥ 5% and risk ratio ≥ 2, with at most 5 combinations ranked by support × log(RR).
 
+**Not wired yet.** `diff` is implemented and tested, but no stage calls it, and it returns bare numbers (support, risk ratio) without `Calc` records. It needs those records, inputs and facts before a finding may use it (rule 1).
+
 ### 4.5 Shapley attribution (`shapley.v1`)
 
 For non-additive formulas such as ratios of sums or products of 6 factors or fewer, use exact Shapley values over the factor changes. This is P1 and may ship after v0.1.
