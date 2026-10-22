@@ -1769,37 +1769,37 @@
     {
       "metric": "Planted recall@5",
       "value": 0.68,
-      "bar": "\u2265 80%",
+      "bar": "≥ 80%",
       "pass": false
     },
     {
       "metric": "Driver accuracy",
       "value": 1,
-      "bar": "\u2265 90%",
+      "bar": "≥ 90%",
       "pass": true
     },
     {
       "metric": "Cause grade accuracy",
       "value": 0.6764705882352942,
-      "bar": "\u2265 80%",
+      "bar": "≥ 80%",
       "pass": false
     },
     {
       "metric": "Distractor FP rate",
       "value": 0,
-      "bar": "\u2264 10%",
+      "bar": "≤ 10%",
       "pass": true
     },
     {
       "metric": "Quality-issue recall",
       "value": 1,
-      "bar": "\u2265 90%",
+      "bar": "≥ 90%",
       "pass": true
     },
     {
       "metric": "Citation precision",
       "value": 1,
-      "bar": "\u2265 95%",
+      "bar": "≥ 95%",
       "pass": true
     },
     {
@@ -1817,7 +1817,7 @@
     {
       "metric": "Recommendation relevance",
       "value": 0.3,
-      "bar": "\u2265 70%",
+      "bar": "≥ 70%",
       "pass": false
     }
   ],
@@ -1856,5 +1856,5 @@
     ],
     "of": 2
   },
-  "note": "The before of the M14a real-model before/after: run over two nights (2026-10-20 and 2026-10-21) on the engine before the M14a fixes (#44\u2013#49), and scored with the scoring of that time (before code-quality fix 9). The next nightly runs measure the merged fixes."
+  "note": "The before of the M14a real-model before/after: run over two nights (2026-10-20 and 2026-10-21) on the engine before the M14a fixes (#44–#49), and scored with the scoring of that time (before code-quality fix 9). The next nightly runs measure the merged fixes."
 }

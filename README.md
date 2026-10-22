@@ -206,7 +206,7 @@ Free models on generated businesses with planted events, distractors and data-qu
 | groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30) | 100% | 68% | 100% | 0 | 100% | 28 min, 1008k tokens | Groq free tier (hosted) | 2026-10-21 |
 <!-- table:evals:end -->
 
-Only the "planner, extractor, judge" rows and the 2026-10-19 "configured" row (the same Groq roles; kept as history, partial) ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
+The 2026-10-21 full row is the *before* of M14a: the engine before its fixes (#44–#49), scored before code-quality fix 9; the after run (the nightly on the fixed engine) is pending. The "planner, extractor, judge" smoke row and the 2026-10-19 "configured" row (the same Groq roles; kept as history, partial) ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
 
 ## Stack
 
