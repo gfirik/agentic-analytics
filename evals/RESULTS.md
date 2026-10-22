@@ -323,18 +323,18 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (54 calls, 5
 
 Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.
 
-### baseline · real public data · 2026-10-17
+### baseline · real public data · 2026-10-22
 
 Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.
 
 #### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
 
-This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 5.6 s · 5/5 checks pass.
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 6.1 s · 5/5 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | yes | report with 4 findings, 1 data-quality item |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 380 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 380 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
 | C3: The December peak: December is the top month of 2023, 2024 and 2025 (G1) | yes | 2023 peak 2023-12; 2024 peak 2024-12; 2025 peak 2025-12; 3/3 values equal SQL |
 | C4: The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | yes | none |
 | C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value: 264 rows (N403), SQL 264; cites rows 2, 3, 4… |
@@ -343,12 +343,12 @@ Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.1 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.8 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on a real 105,797-line file | yes | report with 2 findings, 3 data-quality items |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 31 numbers checked, 0 mismatched, 0 re-derivation mismatches, 0 definition violations |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 31 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
 | C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id: 2089 rows (N120), SQL 2089; cites rows 58, 117, 118… |
 | C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity: 2431 rows (N121), SQL 2431; cites rows 58, 117, 118… |
 | C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id: 21051 rows (N122), SQL 21051; cites rows 156, 157, 158… |
