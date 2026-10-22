@@ -29,7 +29,13 @@ The product's promise is that every number can be traced, so the site shows numb
    - passed eval checks;
    - the "verified" badge.
    It is never used for links, buttons, decoration or emphasis.
-5. **Few moments of motion.** The hero exhibit's verification replay and its guided walkthrough, and the engine machine's slow camera drift (site v4), are the only motion that starts by itself; the machine's camera otherwise follows the reader's scroll through its band. The pipeline stages move only after the reader presses Play. Everything else is still, apart from 150ms hover and focus changes (§7).
+5. **Motion that shows the work, never in the way of it (site v4).** The landing page moves where the movement says something true: the sections below the fold reveal as they scroll in, the pipeline's connector draws from stage to stage, the exhibit's figures count up to their recorded value and then verify, and hovers ease in. The rules (§7):
+   - **Nothing animates under the reader's eye.** Whatever is on screen at load renders final and never re-animates; a reveal happens once, as a part first enters from below. The exhibit's replay is the one motion on the first screen, because it is the demonstration.
+   - **Nothing blocks reading or input.** A reveal is 240ms; a jump (an anchor, the End key, keyboard focus) lands on final content.
+   - **No layout shift.** Only `transform` and `opacity` animate (and colour on hover); CLS stays under 0.05.
+   - **Every number stays the recorded fact.** A count runs toward the real value and ends on it; the HTML holds the real value, and the count is drawn over it.
+   - **All off under `prefers-reduced-motion`**, and the final state renders without JS.
+   The engine machine's drift and scroll-linked camera (§6) keep their own rules.
 6. **Premium through restraint:** exact alignment, hairlines, generous space, real data. No gradients, glow, blobs, 3D, stock illustration or emoji. One written exception: the engine machine (§6), the real pipeline as lit 3D models in its own band; nothing else on the site is 3D.
 7. **Every number is real.**
    - Figures on the site come from generated data: real engine runs and `evals/results/*.json`, through `scripts/generate.ts`. That includes the status strip, the exhibit and the Learn sidenotes.
@@ -128,7 +134,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - a small `+` tick in `rule-strong` where the lines cross.
 
   This is the "working paper" structure, and it replaces cards. Under 720px only the hairlines remain. The paper clips anything outside the screen (`overflow-x: clip`), so the ticks and the graph paper never scroll the page sideways (the graph paper is sized with `vw`, which includes a classic scrollbar's width; the clip hides that excess).
-- **Wide rows (site v4).** From 1100px a section is one row of two columns, about 2:3: the text on the left (label, `h2`, lead, at the 56ch measure) and a large visual on the right. A visual that needs the room (the results table) gets a full-width band instead, with the head above it. Below 1100px the columns stack, the head centred above its visual.
+- **Wide rows (site v4).** From 1100px a section is one row of two columns, about 2:3: the text on the left (label, `h2`, lead, at the 56ch measure) and a large visual on the right. The head is sticky (`--aa-space-7` from the top), so it stays beside a taller visual while the row scrolls by (site v4 PR 3). A visual that needs the room (the results table) gets a full-width band instead, with the head above it. Below 1100px the columns stack, the head centred above its visual.
 - **Graph-paper field.** A 24px grid in `--aa-grid`, behind the hero statement and the section heads only. It is full-bleed: stacked, a head's field spans the screen's width over the head's height; in a wide row it runs from the screen's left edge to the middle of the gap before the visual. It fades to the plain page at its edges through a CSS mask (no image) and is never behind a visual or long text.
 - **Status strip.** One quiet mono line above the header, on `surface`, not a scrolling marquee. On narrow screens it stays one line and scrolls sideways instead of wrapping (a horizontal scroll box, §6: keyboard-focusable, no scrollbar, a fade at the edge with more), so the font swap can't move the page. Proven results lead: the release, the real public data checks, the real-model smoke run, the test files and the verifier. The generated-business suite comes last as the nightly regression check, a link to §3's results, never a headline figure (a partial pass reads as failure next to proven results). Its values come from generated data (`statusStrip()` in `scripts/landing-data.ts`).
 - **Section heads:** every landing section opens with the same three lines, `--aa-space-4` apart: the bracketed label, the `h2` (at most a 48ch measure) and a one-sentence lead. Stacked, they are centred on the graph paper with the label's hairline on both sides; in a wide row or band (from 1100px) they sit on the left, and the label's hairline runs only after it. Caveats go next to what they qualify (§3's under its table), not in the lead.
@@ -191,7 +197,10 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - **What it is.** A `raised` panel with a hairline, styled like a report page and titled in mono (`REPORT · COFFEE-ROASTER · APRIL`).
     - It shows the recorded run's first finding (`src/data/exhibit.json`): its two headline claims, the document-supported cause with its source chip, and the top recommendation with its impact range.
     - This is the report's own text, with every figure a fact's stored value.
-  - **The verification replay.** As the exhibit comes into view (its report page's top above the bottom sixth of the screen: on load in the two-column hero), and only without `prefers-reduced-motion`, the figures are verified one by one, top to bottom: each chip's box draws in, then the green check appears in the space it already holds (~250ms per figure, ≤ 2.5s in all). An inline script holds the figures unverified before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
+  - **The verification replay.** As the exhibit comes into view (its report page's top above the bottom sixth of the screen: on load in the two-column hero), and only without `prefers-reduced-motion`:
+    - **the figures count up** (site v4 PR 3): every number in every figure runs from zero to its recorded value together, in the figure's own format, over 600ms (ease-out). The running value is drawn over the figure (`data-count`, a CSS overlay) while the real text stays in place, transparent, so the line never reflows; it always ends on the real value, which is what the HTML holds;
+    - **then they verify** one by one, top to bottom, as the count lands: each chip's box draws in, then the green check appears in the space it already holds (≤ 200ms per figure, ≤ 2.5s in all, count included).
+    An inline script holds the figures unverified (and unseen, in their place) before first paint. With reduced motion or no JS, the server-rendered verified state is all there is.
   - **The guided walkthrough.** The exhibit demonstrates itself, with no hover needed. After the verification it steps through the story's key figures, opening each one's margin note under a step indicator (`1/4 Revenue fell −17.9% → how it was computed`), with a progress rule and previous, next and replay buttons.
     - The steps are chosen from the run's data by role (`walkthrough()` in `scripts/landing-data.ts`), never by typed id: the headline change and how it was computed; its current-period SQL input with the SQL and the sheet rows it read; the driver's share of the change; the quoted document.
     - **One behaviour at every size (site v3), nothing pinned to the scroll.** The figures verify as the exhibit comes into view; then the steps advance every 4.5 seconds while the notes are on screen (beside the report page when the exhibit is at least 48rem wide, below it otherwise, where the step bar stays at the top of the screen).
@@ -232,7 +241,8 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - The pipeline scene (`pipeline-scene.ts`) draws the README GIF only. The site never uses it: its fixed 640×480 canvas scaled its type past the h2 on desktop and below reading size on phones.
 - **Pipeline stages** (`components/site/PipelineStages.astro`), on the landing page (§1), Learn, What it is and Pipeline overview:
   - **The run:** one real run of the example (`docs/assets/readme/pipeline.json`, the same data as the README GIF), told as a **rail** of seven stops above **one ledger panel per stop**, at the site's own sizes. Every figure is the run's fact with its chip (`pipeline-stages.ts` only picks rows; it computes nothing).
-  - **The rail:** mono labels at `--aa-text-label` on a 1px `rule`, a 2px ink rule under the stops up to the current one. Each stop is a button (`aria-pressed`, `aria-controls` its panel); its title lists the engine stages behind it, from the run's event log.
+  - **The rail:** mono labels at `--aa-text-label` on a 1px `rule`: a connector line with a small square node where each stop starts, and a 2px ink segment and an ink node under every stop up to the current one (both drawn with transforms only, so stepping never moves the layout). Each stop is a button (`aria-pressed`, `aria-controls` its panel); its title lists the engine stages behind it, from the run's event log.
+  - **The draw-in (landing page only, `draw`; site v4 PR 3):** when the rail is still below the screen as the page loads, it is held undrawn and, the first time it scrolls into view, the connector draws itself left to right, stop after stop (90ms a stop, about 0.6s), each node appearing as the line reaches it. A rail on screen at load, or one the reader jumped past, is simply drawn; none of it under reduced motion. On docs pages the rail is drawn from the start.
   - **The panels:**
     - Files is a ledger of name, kind and how it's read.
     - Profile gives the three counts.
@@ -280,12 +290,21 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ## 7. Motion
 
-- **Landing:** the hero verification replay and its walkthrough (timed at every size, never scroll-linked) and the engine machine's drift are the only motion that starts by itself; the machine's camera is the one thing tied to the scroll, inside its own band. The pipeline stages move only after Play. Plus 150ms hover and focus transitions (and the margin note's 150ms slide in).
-- **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow stepping.
-- **The pipeline stages** never play by themselves: Play steps through the stops once while on screen and stops at Report, with a 150ms crossfade of the panel content only and no moving parts. Without JS every panel is in the HTML as a stacked list.
+Site v4 PR 3 brought tasteful motion to the whole landing page under the rules of §2.5. What moves, and how:
+
+- **Section reveals** (`Reveal.astro`, landing only): the head and the visual of §1–§4 (the children of a `data-reveal` section's cell) fade and rise 12px into place, 240ms with `--aa-ease`, the visual 60ms after its head, **once**, as each first comes into view (IntersectionObserver, 6% inside the bottom edge).
+  - Only what is **below the screen when the script runs** is held (opacity 0), so the first screen, and anything the reader has already reached, renders final and never animates. The hero and the engine machine's band are never held.
+  - A part the reader scrolls past without stopping (the End key, a fling) is shown at once, as is one that takes keyboard focus; an in-page link, a hash change or printing shows every held part at once, so a jump never lands on a fade.
+  - The server renders every part final: without JS, without IntersectionObserver and under reduced motion nothing is held.
+- **The pipeline's connector** (§6) draws in, stop by stop, the first time its rail scrolls into view on the landing page. Play still steps through the stops once while on screen and stops at Report; each step moves the connector by one segment (180ms) and crossfades the panel content (150ms), with no moving parts. The stages never play by themselves. Without JS every panel is in the HTML as a stacked list.
+- **The exhibit:** its replay (§6), where the figures count up to their recorded values and then verify, and its walkthrough (timed at every size, never scroll-linked), the one motion on the first screen.
+- **Hover and focus:** 150ms (`--aa-fast`) on links (underline and colour), chips, buttons, the rail's stops, the walkthrough's buttons, and rows (§3's metric rows and §4's doors take the `mark` wash; a "more" link's arrow steps 3px forward). The margin note slides in over 150ms.
+- **Docs:** none beyond hover and focus, the TOC stepping aside, and the user-triggered StageFlow and pipeline stepping (the connector is drawn from the start there).
 - **The engine machine** (§6): a slow camera drift (±3.4° about the vertical over 26 seconds, desktop only) while its band is on screen, and the camera moving from station to station as the reader scrolls through the band (eased, never ahead of the scroll). Nothing in it blocks the page's own scrolling, and nothing moves text the reader is on. Under reduced motion it is the still frame with the station list: no drift, no scroll-linked camera and no canvas.
-- **No other motion:** no entrance animations, no parallax, no looping decoration.
-- **Reduced motion** turns off the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
+- **The engine machine keeps its own rules** (§6, site v4 PR 2): it is not revealed, and its drift and scroll-linked camera are described above.
+- **No other motion:** no parallax, no looping decoration, nothing that moves text the reader is on, nothing that animates layout (width, height, position): only `transform` and `opacity`, and colour on hover.
+- **Reduced motion** turns off the reveals, the connector's draw-in, the count, the replay, the walkthrough (its steps become a static list), smooth scrolling and every transition. Everything renders its final state without JS.
+- **Tested** in `site.spec.ts` ("motion"): reveals happen once and only below the fold, nothing is held or counts under reduced motion or without JS, the figures end on their recorded values, the connector draws left to right, no layout shift is attributable to any of it (CLS under 0.05 through the whole page at 1440 and 390), and nothing scrolls sideways at 360 mid-reveal.
 
 ## 8. Accessibility
 
@@ -319,6 +338,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 10. Are the engine machine's labels and card HTML (never canvas text); does its still frame show before any script, does three start only on idle (on phones only near the band), and is it absent under reduced motion?
 11. Width (site v4): does a new landing section use the 1440px frame as a wide row (text left, visual right) or a full-width band, with backgrounds and the graph paper full-bleed, and stack below 1100px? Is long reading text (docs, Learn) still at its reading measure, never stretched to the frame?
 12. Is it checked at 1920, 1440, 1100, 1000, 390 and 360px (screenshots at 1920, 1440 and 390 in the PR), with no horizontal scroll at any of them and CLS under 0.05?
+13. Motion (site v4 PR 3): does anything new animate only `transform` and `opacity` (colour on hover), stay still while on the first screen, run once, end on the real value, and render its final state with reduced motion and without JS (§2.5, §7)? A new landing section opts into the reveal with `data-reveal`.
 
 ## 11. Site v3 (October 2026): what the review found, and what it settled
 
