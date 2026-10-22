@@ -1,0 +1,135 @@
+{
+  "suite": "smoke",
+  "model": "baseline",
+  "date": "2026-10-22",
+  "repeat": 5,
+  "cache": "n/a",
+  "datasets": [
+    "coffee_roaster-v1",
+    "restaurant-v3",
+    "saas-v2",
+    "tool_hire-v1"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "finished": 4,
+      "of": 4,
+      "calls": 0,
+      "cached": 0
+    },
+    {
+      "run": 2,
+      "finished": 4,
+      "of": 4,
+      "calls": 0,
+      "cached": 0
+    },
+    {
+      "run": 3,
+      "finished": 4,
+      "of": 4,
+      "calls": 0,
+      "cached": 0
+    },
+    {
+      "run": 4,
+      "finished": 4,
+      "of": 4,
+      "calls": 0,
+      "cached": 0
+    },
+    {
+      "run": 5,
+      "finished": 4,
+      "of": 4,
+      "calls": 0,
+      "cached": 0
+    }
+  ],
+  "jobs": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "agree": {
+        "numbers": true,
+        "findings": true,
+        "driver": true,
+        "grade": true,
+        "action": true
+      }
+    },
+    {
+      "dataset": "restaurant-v3",
+      "agree": {
+        "numbers": true,
+        "findings": true,
+        "driver": true,
+        "grade": true,
+        "action": true
+      }
+    },
+    {
+      "dataset": "saas-v2",
+      "agree": {
+        "numbers": true,
+        "findings": true,
+        "driver": true,
+        "grade": true,
+        "action": true
+      }
+    },
+    {
+      "dataset": "tool_hire-v1",
+      "agree": {
+        "numbers": true,
+        "findings": true,
+        "driver": true,
+        "grade": true,
+        "action": true
+      }
+    }
+  ],
+  "measures": [
+    {
+      "measure": "numbers",
+      "agreeing": 4,
+      "of": 4,
+      "share": 1,
+      "pass": true,
+      "bar": 1
+    },
+    {
+      "measure": "findings",
+      "agreeing": 4,
+      "of": 4,
+      "share": 1,
+      "pass": true,
+      "bar": 0.95
+    },
+    {
+      "measure": "driver",
+      "agreeing": 4,
+      "of": 4,
+      "share": 1,
+      "pass": true,
+      "bar": 0.95
+    },
+    {
+      "measure": "grade",
+      "agreeing": 4,
+      "of": 4,
+      "share": 1,
+      "pass": true,
+      "bar": 0.9
+    },
+    {
+      "measure": "action",
+      "agreeing": 4,
+      "of": 4,
+      "share": 1,
+      "pass": true,
+      "bar": 0.9
+    }
+  ],
+  "disagreements": []
+}

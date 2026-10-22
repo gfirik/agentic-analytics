@@ -1,0 +1,1749 @@
+{
+  "suite": "golden",
+  "model": "baseline",
+  "scripted": true,
+  "date": "2026-10-22",
+  "arms": [
+    "A",
+    "B",
+    "C"
+  ],
+  "contextTokens": 32768,
+  "jobs": [
+    "hotel-bookings",
+    "nz-card-spend",
+    "online-retail-ii"
+  ],
+  "results": [
+    {
+      "arm": "C",
+      "job": "hotel-bookings",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 1,
+          "got": "1809324.7500000042"
+        },
+        {
+          "task": "G2",
+          "score": 1,
+          "got": "1970181.6000000036"
+        },
+        {
+          "task": "G3",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G5",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G7",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G8",
+          "score": 0,
+          "got": "no answer"
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": true,
+          "got": "1809324.7500000042"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": true,
+          "got": "1970181.6000000036"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G4",
+          "kind": "categorical",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "pass": false,
+          "got": "no answer"
+        }
+      ],
+      "inputTokens": 170,
+      "outputTokens": 85,
+      "seconds": 25.81
+    },
+    {
+      "arm": "A",
+      "job": "hotel-bookings",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 1,
+          "got": "1,809,324.75",
+          "answer": {
+            "answer": "It was 1,809,324.75.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G2",
+          "score": 0,
+          "got": "2,167,200",
+          "answer": {
+            "answer": "It was 2,167,200.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G3",
+          "score": 1,
+          "got": "41.73",
+          "answer": {
+            "answer": "It was 41.73.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G4",
+          "score": 1,
+          "got": "Non Refund",
+          "answer": {
+            "answer": "Non Refund.",
+            "member": "Non Refund",
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G5",
+          "score": 1,
+          "got": "118,669.91",
+          "answer": {
+            "answer": "It was 118,669.91.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "90",
+          "answer": {
+            "answer": "It was 90.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G7",
+          "score": 1,
+          "got": "Resort Hotel",
+          "answer": {
+            "answer": "Resort Hotel.",
+            "member": "Resort Hotel",
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G8",
+          "score": 0,
+          "got": "answered: It will be about 512,000.",
+          "answer": {
+            "answer": "It will be about 512,000.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": true,
+          "got": "1,809,324.75"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": false,
+          "got": "2,167,200"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "pass": true,
+          "got": "41.73"
+        },
+        {
+          "id": "G4",
+          "kind": "categorical",
+          "pass": true,
+          "got": "Non Refund"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": true,
+          "got": "118,669.91"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "90"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "pass": true,
+          "got": "Resort Hotel"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "pass": false,
+          "got": "answered: It will be about 512,000."
+        }
+      ],
+      "inputTokens": 80,
+      "outputTokens": 40,
+      "seconds": 5.375,
+      "cut": {
+        "complete": false,
+        "tables": [
+          {
+            "table": "t_t1",
+            "file": "hotel-bookings.csv",
+            "shown": 394,
+            "of": 119390
+          }
+        ],
+        "droppedDocuments": [],
+        "statement": "The input is cut to fit the model's context window: t_t1 (hotel-bookings.csv) shows rows 1–394 of 119390. Answers about the whole data rest on this sample."
+      }
+    },
+    {
+      "arm": "B",
+      "job": "hotel-bookings",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2) FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) = '2016-08'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G2",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2) FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) = '2017-08'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G3",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(100 * avg(IsCanceled::INTEGER), 2) FROM read_csv('FILE', all_varchar = true) WHERE Hotel = 'City Hotel'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT trim(DepositType) FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY avg(IsCanceled::INTEGER) DESC LIMIT 1",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G5",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(CASE WHEN left(ArrivalDate, 7) = '2017-05' THEN 1 ELSE -1 END\n                 * ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2)\nFROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) IN ('2017-04', '2017-05')",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(100 * count(*) FILTER (WHERE DistributionChannel = 'TA/TO') / count(*), 2) FROM read_csv('FILE', all_varchar = true)",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G7",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT Hotel FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) = '2016-08' GROUP BY 1 ORDER BY sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)) DESC LIMIT 1",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G8",
+          "score": 1,
+          "got": "refused: no column answers it (SQL_REFUSED)",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "no column answers it (SQL_REFUSED)"
+          },
+          "queries": [
+            {
+              "sql": "SELECT * FROM read_text('/etc/hostname')",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"/etc/hostname\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G4",
+          "kind": "categorical",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "pass": true,
+          "got": "refused: no column answers it (SQL_REFUSED)"
+        }
+      ],
+      "inputTokens": 160,
+      "outputTokens": 80,
+      "seconds": 1.11,
+      "cleanedUp": true
+    },
+    {
+      "arm": "C",
+      "job": "nz-card-spend",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 1,
+          "got": "11321.6"
+        },
+        {
+          "task": "G2",
+          "score": 1,
+          "got": "9190.7"
+        },
+        {
+          "task": "G3",
+          "score": 1,
+          "got": "Durables"
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G5",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G7",
+          "score": 0,
+          "got": "no answer"
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": true,
+          "got": "11321.6"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": true,
+          "got": "9190.7"
+        },
+        {
+          "id": "G3",
+          "kind": "categorical",
+          "pass": true,
+          "got": "Durables"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G7",
+          "kind": "trap",
+          "pass": false,
+          "got": "no answer"
+        }
+      ],
+      "inputTokens": 140,
+      "outputTokens": 70,
+      "seconds": 5.244
+    },
+    {
+      "arm": "A",
+      "job": "nz-card-spend",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 1,
+          "got": "11,321.6",
+          "answer": {
+            "answer": "It was 11,321.6.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G2",
+          "score": 0,
+          "got": "10,110",
+          "answer": {
+            "answer": "It was 10,110.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G3",
+          "score": 1,
+          "got": "Durables",
+          "answer": {
+            "answer": "Durables.",
+            "member": "Durables",
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "-4,184",
+          "answer": {
+            "answer": "It was -4,184.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G5",
+          "score": 1,
+          "got": "29.02",
+          "answer": {
+            "answer": "It was 29.02.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "1",
+          "answer": {
+            "answer": "It was 1.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G7",
+          "score": 0,
+          "got": "answered: It will be about 512,000.",
+          "answer": {
+            "answer": "It will be about 512,000.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": true,
+          "got": "11,321.6"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": false,
+          "got": "10,110"
+        },
+        {
+          "id": "G3",
+          "kind": "categorical",
+          "pass": true,
+          "got": "Durables"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "pass": false,
+          "got": "-4,184"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": true,
+          "got": "29.02"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "1"
+        },
+        {
+          "id": "G7",
+          "kind": "trap",
+          "pass": false,
+          "got": "answered: It will be about 512,000."
+        }
+      ],
+      "inputTokens": 70,
+      "outputTokens": 35,
+      "seconds": 0.088,
+      "cut": {
+        "complete": false,
+        "tables": [
+          {
+            "table": "t_t1",
+            "file": "nz-card-spend-by-industry.csv",
+            "shown": 476,
+            "of": 2568
+          }
+        ],
+        "droppedDocuments": [],
+        "statement": "The input is cut to fit the model's context window: t_t1 (nz-card-spend-by-industry.csv) shows rows 1–476 of 2568. Answers about the whole data rest on this sample."
+      }
+    },
+    {
+      "arm": "B",
+      "job": "nz-card-spend",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period = '2025.12'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G2",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period = '2026.09'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G3",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT Series_title_2 FROM read_csv('FILE', all_varchar = true) WHERE Period IN ('2020.03', '2020.04') GROUP BY Series_title_2 ORDER BY sum(CASE WHEN Period = '2020.04' THEN 1 ELSE -1 END * Data_value::DOUBLE) LIMIT 1",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(CASE WHEN Period = '2020.04' THEN 1 ELSE -1 END * Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period IN ('2020.03', '2020.04')",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G5",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(100 * sum(Data_value::DOUBLE) FILTER (WHERE Series_title_2 = 'Consumables') / sum(Data_value::DOUBLE), 3) FROM read_csv('FILE', all_varchar = true) WHERE Period LIKE '2025.%'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "WITH m AS (SELECT Period AS p, sum(Data_value::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true) GROUP BY 1) SELECT round(100 * ((SELECT v FROM m WHERE p = '2026.09') / (SELECT v FROM m WHERE p = '2025.09') - 1), 2)",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G7",
+          "score": 1,
+          "got": "refused: no column answers it (SQL_REFUSED)",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "no column answers it (SQL_REFUSED)"
+          },
+          "queries": [
+            {
+              "sql": "SELECT * FROM read_text('/etc/hostname')",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"/etc/hostname\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G3",
+          "kind": "categorical",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G7",
+          "kind": "trap",
+          "pass": true,
+          "got": "refused: no column answers it (SQL_REFUSED)"
+        }
+      ],
+      "inputTokens": 140,
+      "outputTokens": 70,
+      "seconds": 0.064,
+      "cleanedUp": true
+    },
+    {
+      "arm": "C",
+      "job": "online-retail-ii",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 1,
+          "got": "140447.10999999937"
+        },
+        {
+          "task": "G2",
+          "score": 1,
+          "got": "201"
+        },
+        {
+          "task": "G3",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G5",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "no answer"
+        },
+        {
+          "task": "G7",
+          "score": 0,
+          "got": "no driver"
+        },
+        {
+          "task": "G8",
+          "score": 0,
+          "got": "no answer"
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": true,
+          "got": "140447.10999999937"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": true,
+          "got": "201"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "no answer"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "pass": false,
+          "got": "no driver"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "pass": false,
+          "got": "no answer"
+        }
+      ],
+      "inputTokens": 70,
+      "outputTokens": 35,
+      "seconds": 11.537
+    },
+    {
+      "arm": "A",
+      "job": "online-retail-ii",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 1,
+          "got": "140,447.11",
+          "answer": {
+            "answer": "It was 140,447.11.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G2",
+          "score": 0,
+          "got": "221",
+          "answer": {
+            "answer": "It was 221.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G3",
+          "score": 1,
+          "got": "145,480.93",
+          "answer": {
+            "answer": "It was 145,480.93.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "41,328",
+          "answer": {
+            "answer": "It was 41,328.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G5",
+          "score": 1,
+          "got": "13.7",
+          "answer": {
+            "answer": "It was 13.7.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "4",
+          "answer": {
+            "answer": "It was 4.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 1
+          }
+        },
+        {
+          "task": "G7",
+          "score": 1,
+          "got": "United Kingdom",
+          "answer": {
+            "answer": "United Kingdom.",
+            "member": "United Kingdom",
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G8",
+          "score": 0,
+          "got": "answered: It will be about 512,000.",
+          "answer": {
+            "answer": "It will be about 512,000.",
+            "member": null,
+            "refused": false,
+            "caveat": null
+          },
+          "numbers": {
+            "claimed": 1,
+            "unsupported": 1,
+            "unsupportedWithoutCells": 1
+          }
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": true,
+          "got": "140,447.11"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": false,
+          "got": "221"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "pass": true,
+          "got": "145,480.93"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "pass": false,
+          "got": "41,328"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": true,
+          "got": "13.7"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "4"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "pass": true,
+          "got": "United Kingdom"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "pass": false,
+          "got": "answered: It will be about 512,000."
+        }
+      ],
+      "inputTokens": 80,
+      "outputTokens": 40,
+      "seconds": 2.22,
+      "cut": {
+        "complete": false,
+        "tables": [
+          {
+            "table": "t_t1",
+            "file": "online_retail_II.sample10.csv",
+            "shown": 603,
+            "of": 105797
+          }
+        ],
+        "droppedDocuments": [],
+        "statement": "The input is cut to fit the model's context window: t_t1 (online_retail_II.sample10.csv) shows rows 1–603 of 105797. Answers about the whole data rest on this sample."
+      }
+    },
+    {
+      "arm": "B",
+      "job": "online-retail-ii",
+      "tasks": [
+        {
+          "task": "G1",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(Quantity::DOUBLE * Price::DOUBLE), 2) FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) = '2010-11'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G2",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT count(DISTINCT Invoice) FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) = '2010-12'",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G3",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(max(v), 2) FROM (SELECT left(InvoiceDate, 7) AS m, sum(Quantity::DOUBLE * Price::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 4) = '2011' GROUP BY 1)",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G4",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT round(sum(CASE WHEN left(InvoiceDate, 7) = '2011-11' THEN 1 ELSE -1 END * Quantity::DOUBLE * Price::DOUBLE), 2) FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) IN ('2011-10', '2011-11')",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G5",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "WITH r AS (SELECT \"Customer ID\" AS c, Quantity::DOUBLE * Price::DOUBLE AS v FROM read_csv('FILE', all_varchar = true)\n           WHERE left(InvoiceDate, 4) = '2010'),\n     top AS (SELECT sum(v) AS s FROM r WHERE c IS NOT NULL GROUP BY c ORDER BY s DESC LIMIT 10)\nSELECT round(100 * (SELECT sum(s) FROM top) / (SELECT sum(v) FROM r), 2)",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G6",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "WITH m AS (SELECT left(InvoiceDate, 7) AS m, sum(Quantity::DOUBLE * Price::DOUBLE) AS v\n           FROM read_csv('FILE', all_varchar = true) GROUP BY 1)\nSELECT round(100 * ((SELECT v FROM m WHERE m = '2011-11') / (SELECT v FROM m WHERE m = '2010-11') - 1), 2)",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G7",
+          "score": 0,
+          "got": "refused: SQL_REFUSED",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "SQL_REFUSED"
+          },
+          "queries": [
+            {
+              "sql": "SELECT Country FROM read_csv('FILE', all_varchar = true) WHERE left(InvoiceDate, 7) IN ('2010-11', '2010-12') GROUP BY Country ORDER BY count(DISTINCT Invoice) FILTER (WHERE left(InvoiceDate, 7) = '2010-12')\n       - count(DISTINCT Invoice) FILTER (WHERE left(InvoiceDate, 7) = '2010-11') LIMIT 1",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"FILE\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        },
+        {
+          "task": "G8",
+          "score": 1,
+          "got": "refused: no column answers it (SQL_REFUSED)",
+          "answer": {
+            "answer": "The data can't answer this.",
+            "member": null,
+            "refused": true,
+            "caveat": "no column answers it (SQL_REFUSED)"
+          },
+          "queries": [
+            {
+              "sql": "SELECT * FROM read_text('/etc/hostname')",
+              "error": {
+                "code": "SQL_REFUSED",
+                "message": "refused: Permission Error: Cannot access file \"/etc/hostname\" - file system operations are disabled by configuration"
+              }
+            }
+          ],
+          "numbers": {
+            "claimed": 0,
+            "unsupported": 0,
+            "unsupportedWithoutCells": 0
+          }
+        }
+      ],
+      "golden": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "pass": false,
+          "got": "refused: SQL_REFUSED"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "pass": true,
+          "got": "refused: no column answers it (SQL_REFUSED)"
+        }
+      ],
+      "inputTokens": 160,
+      "outputTokens": 80,
+      "seconds": 0.462,
+      "cleanedUp": true
+    }
+  ],
+  "measures": [
+    {
+      "arm": "A",
+      "ran": true,
+      "inputTokens": 230,
+      "outputTokens": 115,
+      "seconds": 7.683,
+      "numeric": {
+        "n": 8,
+        "of": 16
+      },
+      "categorical": {
+        "n": 4,
+        "of": 4
+      },
+      "traps": {
+        "n": 0,
+        "of": 3
+      },
+      "unsupported": {
+        "numbers": 19,
+        "unsupported": 9,
+        "unsupportedWithoutCells": 10
+      },
+      "cuts": [
+        "hotel-bookings: The input is cut to fit the model's context window: t_t1 (hotel-bookings.csv) shows rows 1–394 of 119390. Answers about the whole data rest on this sample.",
+        "nz-card-spend: The input is cut to fit the model's context window: t_t1 (nz-card-spend-by-industry.csv) shows rows 1–476 of 2568. Answers about the whole data rest on this sample.",
+        "online-retail-ii: The input is cut to fit the model's context window: t_t1 (online_retail_II.sample10.csv) shows rows 1–603 of 105797. Answers about the whole data rest on this sample."
+      ]
+    },
+    {
+      "arm": "B",
+      "ran": true,
+      "inputTokens": 460,
+      "outputTokens": 230,
+      "seconds": 1.6360000000000001,
+      "numeric": {
+        "n": 0,
+        "of": 16
+      },
+      "categorical": {
+        "n": 0,
+        "of": 4
+      },
+      "traps": {
+        "n": 3,
+        "of": 3
+      },
+      "unsupported": {
+        "numbers": 0,
+        "unsupported": 0,
+        "unsupportedWithoutCells": 0
+      },
+      "citations": {
+        "n": 0,
+        "of": 0
+      }
+    },
+    {
+      "arm": "C",
+      "ran": true,
+      "inputTokens": 380,
+      "outputTokens": 190,
+      "seconds": 42.591,
+      "numeric": {
+        "n": 6,
+        "of": 16
+      },
+      "categorical": {
+        "n": 1,
+        "of": 4
+      },
+      "traps": {
+        "n": 0,
+        "of": 3
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "pair": "C − A",
+      "tasks": 23,
+      "difference": {
+        "mean": -0.21739130434782608,
+        "low": -0.4782608695652174,
+        "high": 0.043478260869565216,
+        "resamples": 10000,
+        "seed": 20261022
+      },
+      "adds": false
+    },
+    {
+      "pair": "C − B",
+      "tasks": 23,
+      "difference": {
+        "mean": 0.17391304347826086,
+        "low": -0.08695652173913043,
+        "high": 0.43478260869565216,
+        "resamples": 10000,
+        "seed": 20261022
+      },
+      "adds": false
+    },
+    {
+      "pair": "B − A",
+      "tasks": 23,
+      "difference": {
+        "mean": -0.391304347826087,
+        "low": -0.6521739130434783,
+        "high": -0.08695652173913043,
+        "resamples": 10000,
+        "seed": 20261022
+      },
+      "adds": false
+    }
+  ],
+  "supportHasFacts": true
+}

@@ -1,0 +1,535 @@
+{
+  "suite": "smoke",
+  "model": "baseline",
+  "scripted": true,
+  "date": "2026-10-22",
+  "arms": [
+    "A",
+    "B",
+    "C"
+  ],
+  "contextTokens": 32768,
+  "jobs": [
+    "coffee_roaster-v1",
+    "restaurant-v3",
+    "saas-v2"
+  ],
+  "results": [
+    {
+      "arm": "C",
+      "job": "coffee_roaster-v1",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 1,
+          "got": "found at rank 1"
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": true,
+            "cause": true
+          }
+        ],
+        "distractorsReported": [],
+        "distractors": 1
+      },
+      "inputTokens": 470,
+      "outputTokens": 235,
+      "seconds": 3.646
+    },
+    {
+      "arm": "A",
+      "job": "coffee_roaster-v1",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 0,
+          "got": "found at rank 1, wrong driver"
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": false
+          }
+        ],
+        "distractorsReported": [
+          "D1"
+        ],
+        "distractors": 1
+      },
+      "inputTokens": 10,
+      "outputTokens": 5,
+      "seconds": 0.033,
+      "cut": {
+        "complete": false,
+        "tables": [
+          {
+            "table": "t_t1",
+            "file": "sales.xlsx#Orders",
+            "shown": 843,
+            "of": 11564
+          },
+          {
+            "table": "t_t2",
+            "file": "sales.xlsx#Costs",
+            "shown": 12,
+            "of": 12
+          }
+        ],
+        "droppedDocuments": [],
+        "statement": "The input is cut to fit the model's context window: t_t1 (sales.xlsx#Orders) shows rows 1–843 of 11564. Answers about the whole data rest on this sample."
+      }
+    },
+    {
+      "arm": "B",
+      "job": "coffee_roaster-v1",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 1,
+          "got": "found at rank 1",
+          "queries": [
+            {
+              "sql": "SELECT count(*) AS n FROM t_t1",
+              "rows": [
+                [
+                  11564
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": true
+          }
+        ],
+        "distractorsReported": [],
+        "distractors": 1
+      },
+      "inputTokens": 20,
+      "outputTokens": 10,
+      "seconds": 0.108,
+      "cleanedUp": true
+    },
+    {
+      "arm": "C",
+      "job": "restaurant-v3",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 1,
+          "got": "found at rank 1"
+        },
+        {
+          "task": "P3",
+          "score": 1,
+          "got": "found at rank 2"
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": true,
+            "cause": true
+          },
+          {
+            "id": "P3",
+            "detected": true,
+            "rank": 2,
+            "cause": true
+          }
+        ],
+        "distractorsReported": [],
+        "distractors": 3
+      },
+      "inputTokens": 570,
+      "outputTokens": 285,
+      "seconds": 6.634
+    },
+    {
+      "arm": "A",
+      "job": "restaurant-v3",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 0,
+          "got": "found at rank 1, wrong driver"
+        },
+        {
+          "task": "P3",
+          "score": 1,
+          "got": "found at rank 2"
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": false
+          },
+          {
+            "id": "P3",
+            "detected": true,
+            "rank": 2
+          }
+        ],
+        "distractorsReported": [
+          "D1"
+        ],
+        "distractors": 3
+      },
+      "inputTokens": 10,
+      "outputTokens": 5,
+      "seconds": 0.075,
+      "cut": {
+        "complete": false,
+        "tables": [
+          {
+            "table": "t_t1",
+            "file": "sales.xlsx#Orders",
+            "shown": 907,
+            "of": 31389
+          },
+          {
+            "table": "t_t2",
+            "file": "sales.xlsx#Costs",
+            "shown": 24,
+            "of": 24
+          }
+        ],
+        "droppedDocuments": [],
+        "statement": "The input is cut to fit the model's context window: t_t1 (sales.xlsx#Orders) shows rows 1–907 of 31389. Answers about the whole data rest on this sample."
+      }
+    },
+    {
+      "arm": "B",
+      "job": "restaurant-v3",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 1,
+          "got": "found at rank 1",
+          "queries": [
+            {
+              "sql": "SELECT count(*) AS n FROM t_t1",
+              "rows": [
+                [
+                  31389
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "task": "P3",
+          "score": 0,
+          "got": "not found",
+          "queries": [
+            {
+              "sql": "SELECT count(*) AS n FROM t_t1",
+              "rows": [
+                [
+                  31389
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": true
+          },
+          {
+            "id": "P3",
+            "detected": false
+          }
+        ],
+        "distractorsReported": [],
+        "distractors": 3
+      },
+      "inputTokens": 20,
+      "outputTokens": 10,
+      "seconds": 0.18,
+      "cleanedUp": true
+    },
+    {
+      "arm": "C",
+      "job": "saas-v2",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 1,
+          "got": "found at rank 1"
+        },
+        {
+          "task": "P2",
+          "score": 1,
+          "got": "found at rank 2"
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": true,
+            "cause": true
+          },
+          {
+            "id": "P2",
+            "detected": true,
+            "rank": 2,
+            "cause": true
+          }
+        ],
+        "distractorsReported": [],
+        "distractors": 1
+      },
+      "inputTokens": 530,
+      "outputTokens": 265,
+      "seconds": 4.241
+    },
+    {
+      "arm": "A",
+      "job": "saas-v2",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 0,
+          "got": "found at rank 1, wrong driver"
+        },
+        {
+          "task": "P2",
+          "score": 1,
+          "got": "found at rank 2"
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": false
+          },
+          {
+            "id": "P2",
+            "detected": true,
+            "rank": 2
+          }
+        ],
+        "distractorsReported": [
+          "D1"
+        ],
+        "distractors": 1
+      },
+      "inputTokens": 10,
+      "outputTokens": 5,
+      "seconds": 0.034,
+      "cut": {
+        "complete": false,
+        "tables": [
+          {
+            "table": "t_t1",
+            "file": "orders.csv",
+            "shown": 896,
+            "of": 14628
+          },
+          {
+            "table": "t_t2",
+            "file": "costs.xlsx#Costs",
+            "shown": 18,
+            "of": 18
+          }
+        ],
+        "droppedDocuments": [],
+        "statement": "The input is cut to fit the model's context window: t_t1 (orders.csv) shows rows 1–896 of 14628. Answers about the whole data rest on this sample."
+      }
+    },
+    {
+      "arm": "B",
+      "job": "saas-v2",
+      "tasks": [
+        {
+          "task": "P1",
+          "score": 1,
+          "got": "found at rank 1",
+          "queries": [
+            {
+              "sql": "SELECT count(*) AS n FROM t_t1",
+              "rows": [
+                [
+                  14628
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "task": "P2",
+          "score": 0,
+          "got": "not found",
+          "queries": [
+            {
+              "sql": "SELECT count(*) AS n FROM t_t1",
+              "rows": [
+                [
+                  14628
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "changes": {
+        "planted": [
+          {
+            "id": "P1",
+            "detected": true,
+            "rank": 1,
+            "driver": true
+          },
+          {
+            "id": "P2",
+            "detected": false
+          }
+        ],
+        "distractorsReported": [],
+        "distractors": 1
+      },
+      "inputTokens": 20,
+      "outputTokens": 10,
+      "seconds": 0.119,
+      "cleanedUp": true
+    }
+  ],
+  "measures": [
+    {
+      "arm": "A",
+      "ran": true,
+      "inputTokens": 30,
+      "outputTokens": 15,
+      "seconds": 0.14200000000000002,
+      "recall5": {
+        "n": 2,
+        "of": 5
+      },
+      "driver": {
+        "n": 0,
+        "of": 3
+      },
+      "distractorFp": {
+        "n": 3,
+        "of": 5
+      },
+      "cuts": [
+        "coffee_roaster-v1: The input is cut to fit the model's context window: t_t1 (sales.xlsx#Orders) shows rows 1–843 of 11564. Answers about the whole data rest on this sample.",
+        "restaurant-v3: The input is cut to fit the model's context window: t_t1 (sales.xlsx#Orders) shows rows 1–907 of 31389. Answers about the whole data rest on this sample.",
+        "saas-v2: The input is cut to fit the model's context window: t_t1 (orders.csv) shows rows 1–896 of 14628. Answers about the whole data rest on this sample."
+      ]
+    },
+    {
+      "arm": "B",
+      "ran": true,
+      "inputTokens": 60,
+      "outputTokens": 30,
+      "seconds": 0.407,
+      "recall5": {
+        "n": 3,
+        "of": 5
+      },
+      "driver": {
+        "n": 3,
+        "of": 3
+      },
+      "distractorFp": {
+        "n": 0,
+        "of": 5
+      }
+    },
+    {
+      "arm": "C",
+      "ran": true,
+      "inputTokens": 1570,
+      "outputTokens": 785,
+      "seconds": 14.521,
+      "recall5": {
+        "n": 5,
+        "of": 5
+      },
+      "driver": {
+        "n": 3,
+        "of": 3
+      },
+      "distractorFp": {
+        "n": 0,
+        "of": 5
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "pair": "C − A",
+      "tasks": 5,
+      "difference": {
+        "mean": 0.6,
+        "low": 0.2,
+        "high": 1,
+        "resamples": 10000,
+        "seed": 20261022
+      },
+      "adds": true
+    },
+    {
+      "pair": "C − B",
+      "tasks": 5,
+      "difference": {
+        "mean": 0.4,
+        "low": 0,
+        "high": 0.8,
+        "resamples": 10000,
+        "seed": 20261022
+      },
+      "adds": false
+    },
+    {
+      "pair": "B − A",
+      "tasks": 5,
+      "difference": {
+        "mean": 0.2,
+        "low": -0.6,
+        "high": 1,
+        "resamples": 10000,
+        "seed": 20261022
+      },
+      "adds": false
+    }
+  ],
+  "supportHasFacts": true
+}

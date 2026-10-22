@@ -1,0 +1,18 @@
+# The runs
+
+Today's engine on the M14 measuring tools (docs/plans/m14.md PR 8), published as it is, gaps included. Every run here is offline and scripted (2026-10-22, no language model), each run through `scripts/heavy.sh`: the scripted baseline for the engine, and canned FakeModel answers built from the answer keys for ablation arms A and B. So these are **harness checks**: they show the tools measure what they should, not what a model does, and nothing here says the engine adds accuracy. The real-model runs are DEFERRED to the nightly runs (below).
+
+Golden v1 is the **dev split** of three real datasets' golden sets (Online Retail II, NZ card spend, hotel bookings; 23 items, 3 traps). EIA-861M is DEFERRED (its host doesn't answer from this machine), so golden v1 has three datasets until it runs. Held-out golden items are scored only in release runs (M21), and the held-out generated set is not part of this report. Golden items are agent-reviewed, not maintainer-reviewed.
+
+| Run | Command | Result |
+|---|---|---|
+| Golden v1, scripted (dev split) | `bun run eval -- --suite golden --model baseline` (`bun run eval:golden` is the same run: the model defaults to baseline) | 7/23 items pass: hotel bookings 2/8, NZ card spend 3/7, Online Retail II 2/8. Counted toward the bars: 7/20 numeric and categorical, 0/3 traps. 7 of the 8 items read from the report (facts and drivers) pass; the baseline answers no follow-up question, so all 15 `ask` items (traps included) are misses |
+| Consistency on smoke, scripted | `bun run eval -- --suite smoke --repeat 5 --model baseline` | 4/4 jobs agree in all 5 runs on every measure (numbers, findings, driver, cause grade, action), 0 disagreements; the cache is n/a (no provider calls). It checks the repeat harness: the scripted engine is deterministic |
+| Ablation on smoke, scripted | `bun run eval:ablation -- --arms A,B,C --suite smoke` | Planted recall@5: A 40%, B 60%, C 100% (5 tasks over 3 datasets). C − A 0.600 [0.200, 1.000]; C − B 0.400 [0.000, 0.800]; B − A 0.200 [−0.600, 1.000] |
+| Ablation on golden v1, scripted | `bun run eval:ablation -- --arms A,B,C --suite golden` | Numeric accuracy: A 8/16, B 0/16, C 6/16; traps: A 0/3, B 3/3, C 0/3 (23 tasks). C − A −0.217 [−0.478, 0.043]; C − B 0.174 [−0.087, 0.435]; B − A −0.391 [−0.652, −0.087] |
+
+Each difference is paired by task, with its 95% interval from the paired bootstrap (10,000 resamples, fixed seed 20261022, docs/specs/accuracy.md §5). The canned answers decide these numbers: arm A answers every other numeric item right by design, and arm B replays each item's answer SQL, which reads the raw file with `read_csv`, so the locked sandbox refuses every one (`SQL_REFUSED`: the containment working) and arm B ends in a refusal. Arm A saw a sample of each file (the cut is stated below with its numbers).
+
+**Not run here (DEFERRED to the nightly runs, docs/progress/STATE.md "Deferred checks"):** golden v1 on the configured Groq routes (`bun run eval:real:fetch && bun run eval -- --suite golden --model configured`); consistency over 5 runs on smoke with the configured model, cache off (`bun run eval -- --suite smoke --repeat 5 --model configured`); the ablation on a free model (`bun run eval:ablation -- --arms A,B,C --suite smoke --model openai-compatible:groq:openai/gpt-oss-120b` and the same with `--suite golden`); EIA-861M's pinning and golden set.
+
+**Gaps** (docs/progress/STATE.md "Known gaps carried forward"): hotel bookings C4 and C6 in the real tier; retail golden item G7 (no driver on anomaly findings); the held-out generated set's drop (recall@5 75.0% against 96.0% on the development 30); the post-ship citation judge, deferred to M21.
