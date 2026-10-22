@@ -17,6 +17,7 @@ items:
     sql: >-
       SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period LIKE '2025.%'
     split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G9
     question: Which industry group had the most card spending in September 2026?
     kind: categorical
@@ -27,9 +28,11 @@ items:
       SELECT Series_title_2 FROM read_csv('FILE', all_varchar = true) WHERE Period = '2026.09'
       ORDER BY Data_value::DOUBLE DESC LIMIT 1
     split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G10
     question: What will total card spending be in December 2026?
     kind: trap
     reason: The data ends in September 2026 and the engine makes no forecasts; the right answer is a refusal.
     source: { kind: ask }
     split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }

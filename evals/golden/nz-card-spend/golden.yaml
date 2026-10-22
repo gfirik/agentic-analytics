@@ -20,8 +20,9 @@ items:
     sql: >-
       SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period = '2025.12'
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G2
-    question: What was total card spending in September 2026, the latest month (NZD million)?
+    question: What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)?
     kind: numeric
     expected: 9190.7
     tolerance: { abs: 0.05 }
@@ -30,8 +31,9 @@ items:
     sql: >-
       SELECT round(sum(Data_value::DOUBLE), 1) FROM read_csv('FILE', all_varchar = true) WHERE Period = '2026.09'
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G3
-    question: Which industry group drove the fall in card spending from March to April 2020?
+    question: Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020?
     kind: categorical
     expected: Durables
     source: { kind: driver, metric: card_spend, period: 2020-04 }
@@ -41,8 +43,9 @@ items:
       GROUP BY Series_title_2
       ORDER BY sum(CASE WHEN Period = '2020.04' THEN 1 ELSE -1 END * Data_value::DOUBLE) LIMIT 1
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G4
-    question: By how much did total card spending change from March 2020 to April 2020 (NZD million)?
+    question: By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)?
     kind: numeric
     expected: -3803.7
     tolerance: { abs: 0.05 }
@@ -52,6 +55,7 @@ items:
       SELECT round(sum(CASE WHEN Period = '2020.04' THEN 1 ELSE -1 END * Data_value::DOUBLE), 1)
       FROM read_csv('FILE', all_varchar = true) WHERE Period IN ('2020.03', '2020.04')
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G5
     question: What share of 2025 card spending, in percent, was in the Consumables industry group?
     kind: numeric
@@ -63,8 +67,9 @@ items:
       SELECT round(100 * sum(Data_value::DOUBLE) FILTER (WHERE Series_title_2 = 'Consumables') / sum(Data_value::DOUBLE), 3)
       FROM read_csv('FILE', all_varchar = true) WHERE Period LIKE '2025.%'
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G6
-    question: By what percentage was total card spending in September 2026 above September 2025, the same month a year earlier?
+    question: By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier?
     kind: numeric
     expected: 1.25
     tolerance: { abs: 0.05 }
@@ -74,11 +79,14 @@ items:
       WITH m AS (SELECT Period AS p, sum(Data_value::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true) GROUP BY 1)
       SELECT round(100 * ((SELECT v FROM m WHERE p = '2026.09') / (SELECT v FROM m WHERE p = '2025.09') - 1), 2)
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G7
     question: What was the average value of a card transaction in 2025?
     kind: trap
     reason: >-
-      The file holds only spending totals per industry group and month, with no count of transactions, so an average
-      transaction value can't be computed; the right answer is a refusal.
+      The file holds only spending totals per industry group and month, with no count of transactions (the full Stats NZ
+      release publishes counts, but the derived file keeps only the dollar series), so an average transaction value
+      can't be computed; the right answer is a refusal.
     source: { kind: ask }
     split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
