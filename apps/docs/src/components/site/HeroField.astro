@@ -78,15 +78,16 @@
     };
 
     // The pulse's halo: a radial gradient drawn once to a small canvas, then stamped with drawImage (no shadowBlur).
-    const HALO = 28;
+    // In graphite a halo darkens rather than lights, so it stays small and faint: a soft point, not a smudge.
+    const HALO = 14;
     const halo = document.createElement("canvas");
     halo.width = halo.height = HALO * 2;
     {
       const g = halo.getContext("2d");
       if (g) {
         const r = g.createRadialGradient(HALO, HALO, 0, HALO, HALO, HALO);
-        r.addColorStop(0, rgba(accent, 0.55));
-        r.addColorStop(0.35, rgba(accent, 0.22));
+        r.addColorStop(0, rgba(accent, 0.28));
+        r.addColorStop(0.35, rgba(accent, 0.1));
         r.addColorStop(1, rgba(accent, 0));
         g.fillStyle = r;
         g.fillRect(0, 0, HALO * 2, HALO * 2);
