@@ -9,7 +9,7 @@ import { checkInputBudget, schemaInstruction } from "./budget.ts";
 import type { ResponseCache } from "./cache.ts";
 import type { Env } from "./config.ts";
 import { ModelError } from "./errors.ts";
-import { type CallRecord, maskSecrets, providerFetch } from "./fetch.ts";
+import { type CallRecord, DEFAULT_MAX_RETRIES, DEFAULT_MAX_WAIT_MS, maskSecrets, providerFetch } from "./fetch.ts";
 import { generateValidated } from "./retry.ts";
 import { type RouteLease, Router } from "./router.ts";
 import {
@@ -98,8 +98,8 @@ export function createModelClient(config: Config, deps: ProviderDeps): ModelClie
   const secrets = secretsOf(config, deps.env);
   const providerError = (err: unknown) => toProviderError(err, secrets);
   // The longest a call may take: each request's timeout, plus the most rate-limit waiting providerFetch allows
-  // (4 waits of at most 90 s) per request.
-  const callCap = (requests: number) => requests * (timeoutMs + 4 * 90_000);
+  // (its default retries, each a wait of at most its default longest wait) per request.
+  const callCap = (requests: number) => requests * (timeoutMs + DEFAULT_MAX_RETRIES * DEFAULT_MAX_WAIT_MS);
   const router = deps.router ?? new Router();
   /** Runs one call on a route of the role's model, chosen by the router (same model, any of its providers). */
   const onRoute = <T>(role: Role, f: (lm: LanguageModel, route: RouteModel) => Promise<T>) =>

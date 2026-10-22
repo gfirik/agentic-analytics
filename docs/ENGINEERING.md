@@ -35,13 +35,11 @@ docker compose --profile docling up -d   # docling-serve on :5001
 
 | Script | Does |
 |---|---|
-| `bun run check` | biome check + tsc --noEmit + vitest run + schema drift. Must pass before every push. |
+| `bun run check` | biome check + typecheck + vitest run (the FakeModel smoke suite and the injection suite included) + schema drift + prompts and README checks. Must pass before every push. |
 | `bun run test` / `bun run test:watch` | unit tests |
-| `bun run dev` | server + viewer in watch mode |
-| `bun run build` | build all packages and apps |
-| `bun run eval:smoke` | end-to-end smoke suite with FakeModel |
-| `bun run eval:full --model <profile>` | full eval with a real model (manual) |
-| `bun run docs:dev` | docs site locally (from M12) |
+| `bun run aa serve` | the HTTP API on :8080 (`bun run --filter @agentic-analytics/viewer dev` runs the viewer in watch mode) |
+| `bun run eval -- --suite smoke\|full --model <name>` | the eval suites through `aa eval`; `--model baseline` needs no model, a real model runs only on this explicit command |
+| `bun run --filter @agentic-analytics/docs dev` | docs site locally (from M12) |
 | `bun run readme:pipeline` | regenerate the README pipeline GIFs: rerun the engine into `docs/assets/readme/pipeline.json`, then record light/dark GIFs and PNGs from the shared scene. Needs Chrome (`PW_CHANNEL=chrome`, or `bunx playwright install chromium`) and `ffmpeg` on PATH; the frame PNGs (a few hundred MB) go to `AA_FRAMES_DIR` (default: the system temp dir; set it outside a small `/tmp`). Then `bun run readme:assets` and `bun run readme:check` |
 
 ## 3. Git workflow
@@ -75,7 +73,7 @@ docker compose --profile docling up -d   # docling-serve on :5001
 
 | Workflow | Trigger | Steps |
 |---|---|---|
-| `ci.yml` | PR, push to main | install (`oven-sh/setup-bun`, Bun cache; Node 22 for the runtime) → biome → typecheck → unit tests → schema drift → `eval:smoke` (FakeModel) → injection suite |
+| `ci.yml` | PR, push to main | install (`oven-sh/setup-bun`, Bun cache; Node 22 for the runtime) → `bun run check` (biome, typecheck, unit tests with the FakeModel smoke and injection suites, schema drift) → `aa doctor` → `docker compose config`; separate jobs run the README and docs-site browser checks |
 | `docs.yml` | PR (build only); push to main and `workflow_dispatch` on main (build + deploy) | build Starlight → deploy GitHub Pages (skipped while the repo is private) |
 | `release.yml` | tag `v*` | build → test → Docker image → push to GHCR → GitHub Release with notes |
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
     "@agentic-analytics/store": "workspace:*"
   },
   "devDependencies": {

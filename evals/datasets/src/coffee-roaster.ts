@@ -2,9 +2,11 @@
 // The monthly table below is the ground truth (typed from the blueprint). Transactions are generated
 // deterministically so that they aggregate *exactly* to it; all money is integer cents.
 
+export type DatasetErrorCode = "MISSING_COST_ROW" | "MISSING_HASH" | "PDF_NON_ASCII" | "QUOTE_NOT_FOUND" | "UNKNOWN_MONTH";
+
 export class DatasetError extends Error {
   constructor(
-    readonly code: string,
+    readonly code: DatasetErrorCode,
     message: string,
   ) {
     super(message);

@@ -2,8 +2,9 @@ export * from "./coffee-roaster.ts";
 export { EMAIL_BODY, EMAIL_EML, OPS_NOTES, opsNotesDocx, opsNotesText, PRICE_LIST_PAGES, pageText } from "./documents.ts";
 export { type InjectionFixture, injectionFixtures } from "./injection.ts";
 export { textPdf } from "./pdf.ts";
-export { DELIVERY_TERMS, type DocxSection, docx, eml, HR_NOTES, MARKETING_PLAN, printingShopFiles } from "./printing-shop.ts";
+export { DELIVERY_TERMS, HR_NOTES, MARKETING_PLAN, printingShopFiles } from "./printing-shop.ts";
 export { salesWorkbook, salesXlsx } from "./workbook.ts";
+export { type DocxSection, docx, type EmlHeaders, eml, emlText } from "./writers.ts";
 export { crc32, zipStored } from "./zip.ts";
 
 import { EMAIL_EML, opsNotesDocx, PRICE_LIST_PAGES } from "./documents.ts";

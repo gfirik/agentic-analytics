@@ -96,7 +96,7 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | Table | Contents |
 |---|---|
 | `files` | id, name, sha256, mime, size, status |
-| `sources` | every detected table or document section, with provenance (file, sheet, A1 range, page, char span); `meta` holds email headers |
+| `sources` | every detected table or document section, with provenance (file, sheet, A1 range, page, char span); `section` is a document section's heading path (`VARCHAR[]`, the same list `chunks.heading_path` holds), not one name; `meta` holds email headers |
 | `t_<id>` | one physical table per detected source table, with normalized columns plus `_row` (original row number) |
 | `profile_columns`, `profile_tables` | profiling results |
 | `quality_issues` | data-quality findings with provenance |

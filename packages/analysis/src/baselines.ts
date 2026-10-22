@@ -1,8 +1,9 @@
 // Baselines, noise band and materiality (docs/specs/analysis-library.md §2).
+import type { Grain } from "@agentic-analytics/metrics";
 import { MAD_SCALE, mad, mean } from "./stats.ts";
 import type { Point } from "./types.ts";
 
-export type Grain = "day" | "week" | "month" | "quarter" | "year";
+export type { Grain };
 export type BaselineMethod = "same_period_last_year" | "previous_period" | "trailing_mean_3";
 
 export interface Baseline {
@@ -12,7 +13,9 @@ export interface Baseline {
   readonly periods: readonly string[];
 }
 
-const YEAR_LAG: Partial<Record<Grain, number>> = { month: 12, quarter: 4, week: 52 };
+// Year-over-year is a monthly baseline only (spec §2: 13+ months of history); other grains go straight to the previous
+// period.
+const YEAR_LAG: Partial<Record<Grain, number>> = { month: 12 };
 
 /** Minimum periods per test (spec §2 table). */
 export const MIN_PERIODS = { trend: 4, anomaly: 6, yoy_months: 13, break_side: 3, mad_band: 6 } as const;
@@ -24,7 +27,7 @@ export const MIN_PERIODS = { trend: 4, anomaly: 6, yoy_months: 13, break_side: 3
 export function chooseBaseline(points: readonly Point[], i: number, grain: Grain = "month"): Baseline | undefined {
   const lag = YEAR_LAG[grain];
   const yearAgo = lag !== undefined ? points[i - lag] : undefined;
-  if (lag !== undefined && grain === "month" && points.length >= MIN_PERIODS.yoy_months && yearAgo && Number.isFinite(yearAgo.value)) {
+  if (lag !== undefined && points.length >= MIN_PERIODS.yoy_months && yearAgo && Number.isFinite(yearAgo.value)) {
     return { method: "same_period_last_year", value: yearAgo.value, periods: [yearAgo.period] };
   }
   const prev = points[i - 1];

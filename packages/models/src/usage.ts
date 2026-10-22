@@ -156,17 +156,17 @@ export interface DayUsage {
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Usage per UTC day, newest first, each with its roles and routes (sorted by name). `day` keeps that one day (an
- * empty list when it has no calls). The limit of a route is the provider's quota on that model: it counts every
- * role the route served, so it is shown per route, not per role.
- */
 /** A real calendar date: `Date.parse` rolls "2026-02-30" over to March 2 instead of refusing it. */
 const realDay = (d: string) => {
   const t = Date.parse(d);
   return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
 };
 
+/**
+ * Usage per UTC day, newest first, each with its roles and routes (sorted by name). `day` keeps that one day (an
+ * empty list when it has no calls). The limit of a route is the provider's quota on that model: it counts every
+ * role the route served, so it is shown per route, not per role.
+ */
 export function dailyUsage(
   calls: readonly LoggedCall[],
   o: { readonly day?: string; readonly limitOf?: (route: Pick<CallRecord, "provider" | "endpoint" | "model">) => number | undefined } = {},

@@ -1,5 +1,5 @@
 export { StoreError } from "./errors.ts";
-export { dataColumns, insertIssues, loadJob, loadTable } from "./load.ts";
+export { insertIssues, loadJob, loadTable } from "./load.ts";
 export { MIGRATIONS, type Migration } from "./migrations.sql.ts";
 export { fragment, ident, idents, type Sql, type SqlValue, sql } from "./sql.ts";
 export {

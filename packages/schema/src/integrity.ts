@@ -157,12 +157,12 @@ export function checkReportIntegrity(report: Report): IntegrityIssue[] {
     const p = `findings[${i}]`;
     text(`${p}.title`, f.title);
     for (const [j, c] of f.claims.entries()) claim(`${p}.claims[${j}]`, c);
-    f.drivers?.forEach((d, j) => {
+    for (const [j, r] of f.confidence_reasons.entries()) text(`${p}.confidence_reasons[${j}]`, r);
+    for (const [j, d] of (f.drivers ?? []).entries()) {
       fact(`${p}.drivers[${j}].fact`, d.fact);
       fact(`${p}.drivers[${j}].share_of_change`, d.share_of_change);
-    });
-    for (const [j, r] of f.confidence_reasons.entries()) text(`${p}.confidence_reasons[${j}]`, r);
-    for (const [j, d] of (f.drivers ?? []).entries()) text(`${p}.drivers[${j}].label`, d.label);
+      text(`${p}.drivers[${j}].label`, d.label);
+    }
     f.assumptions.forEach((a, j) => {
       if (!assumptionIds.has(a)) add(`${p}.assumptions[${j}]`, `unknown assumption ${a}`);
     });

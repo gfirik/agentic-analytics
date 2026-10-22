@@ -21,10 +21,6 @@ const MIME: Record<FileKind, string> = {
 const startsWith = (b: Uint8Array, sig: readonly number[], at = 0) => sig.every((x, i) => b[at + i] === x);
 const ext = (name: string) => /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase() ?? "";
 
-export function mimeOf(kind: FileKind): string {
-  return MIME[kind];
-}
-
 export function sniff(bytes: Uint8Array, name: string): Sniffed {
   const e = ext(name);
   const known = (kind: FileKind): Sniffed => ({ kind, mime: MIME[kind] });

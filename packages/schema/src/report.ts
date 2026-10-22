@@ -1,7 +1,7 @@
 // Report v1: the product's contract (docs/specs/report-schema.md). Fields may be added within v1,
 // never removed or renamed.
 import { z } from "zod";
-import { MetricDef } from "./metric.ts";
+import { Grain, MetricDef, MetricUnit } from "./metric.ts";
 
 export const REPORT_SCHEMA_ID = "agentic-analytics.report/v1";
 
@@ -44,7 +44,7 @@ export const Citation = z.object({
 });
 
 // §3 Facts
-export const FactUnit = z.enum(["currency", "percent", "count", "ratio", "days", "other"]);
+export const FactUnit = MetricUnit;
 export const Computation = z.object({
   kind: z.enum(["sql", "function"]),
   sql: z.string().optional(),
@@ -166,7 +166,7 @@ export const Report = z.object({
     version: z.string(),
     models: z.array(z.object({ role: ModelRole, provider: z.string(), model: z.string() })),
   }),
-  period: z.object({ from: periodBound, to: periodBound, grain: z.enum(["day", "week", "month", "quarter", "year"]) }),
+  period: z.object({ from: periodBound, to: periodBound, grain: Grain }),
   objective: z.object({ text: z.string(), source: z.enum(["user", "default"]) }),
   sources: z.array(Source),
   metrics: z.array(ReportMetric),

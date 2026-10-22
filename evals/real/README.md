@@ -55,7 +55,7 @@ bun run aa eval --suite real --answers examples/my-evals --data examples/coffee-
 ## Public API
 
 - `REAL_DATASETS`: each dataset's URLs, licence (with the publisher's own wording), citation and checksums.
-- `fetchDataset(dataset, { fetch, read, write, print })`: download, verify and derive, with every side effect injected (the tests use no network). Throws `RealDataError` (`DOWNLOAD_FAILED`, `CHECKSUM_MISMATCH`, `ENTRY_MISSING`).
+- `fetchDataset(dataset, { fetch, read, write, print })`: download, verify and derive, with every side effect injected (the tests use no network). Throws `RealDataError` (`DOWNLOAD_FAILED`, `CHECKSUM_MISMATCH`, `ENTRY_MISSING`, and `UNEXPECTED_LAYOUT` when a source file isn't laid out as the derivation expects).
 - `verifySha256`, `sha256`, `zipEntry`, `deriveOnlineRetailSample`, `deriveCardSpendByIndustry`, `keepInvoice`, `serialToIso`.
 - `parseRealAnswers(yaml)` and the `RealAnswers` / `RealCheck` schema.
 

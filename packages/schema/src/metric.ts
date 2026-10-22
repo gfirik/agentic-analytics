@@ -6,12 +6,14 @@ const ident = z.string().regex(/^[a-z][a-z0-9_]*$/, "snake_case identifier");
 export const MetricType = z.enum(["sum", "count", "count_distinct", "avg", "ratio", "derived"]);
 export const MetricUnit = z.enum(["currency", "percent", "count", "ratio", "days", "other"]);
 export const Grain = z.enum(["day", "week", "month", "quarter", "year"]);
+export type Grain = z.infer<typeof Grain>;
 
 /** One side of a ratio: an inline aggregate over a table, or a reference to another metric. */
 export const RatioTerm = z.union([
   z.object({ table: z.string(), expression: z.string(), filters: z.array(z.string()).optional() }).strict(),
   z.object({ metric: ident }).strict(),
 ]);
+export type RatioTerm = z.infer<typeof RatioTerm>;
 
 export const MetricDef = z
   .object({

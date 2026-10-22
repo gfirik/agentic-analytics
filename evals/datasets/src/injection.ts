@@ -3,7 +3,7 @@
 // Deterministic: built from code, so a fixture never drifts from its expectation.
 import * as XLSX from "xlsx";
 import { textPdf } from "./pdf.ts";
-import { docx, eml } from "./printing-shop.ts";
+import { docx, eml } from "./writers.ts";
 
 export interface InjectionFixture {
   readonly id: string;

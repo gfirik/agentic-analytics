@@ -1,0 +1,65 @@
+# The CI mini golden set (docs/specs/accuracy.md §3): six items over the committed coffee-roaster dataset, so the
+# golden harness runs offline in CI with the scripted planner. A fixture, not reviewed: it carries no `review`, so
+# nothing here counts toward the bars. Its SQL runs on the job's own workspace in evals/runner/test/golden.test.ts
+# (the orders table is t_t1), which checks the fixture's expected values; it shares the engine's ingest, so it is
+# not an independent re-derivation.
+dataset: coffee-roaster-v1
+items:
+  - id: G1
+    question: What was revenue in April 2026?
+    kind: numeric
+    expected: 36200
+    tolerance: { abs: 0.5 }
+    source: { kind: fact, label: revenue_2026-04 }
+    columns: [amount, date, status]
+    sql: >-
+      SELECT sum(amount) FROM t_t1 WHERE NOT _is_total AND strftime("date", '%Y-%m') = '2026-04'
+      AND (status IS NULL OR status <> 'refunded')
+    split: dev
+  - id: G2
+    question: What was revenue in March 2026?
+    kind: numeric
+    expected: 44100
+    tolerance: { abs: 0.5 }
+    source: { kind: fact, label: revenue_2026-03 }
+    columns: [amount, date, status]
+    sql: >-
+      SELECT sum(amount) FROM t_t1 WHERE NOT _is_total AND strftime("date", '%Y-%m') = '2026-03'
+      AND (status IS NULL OR status <> 'refunded')
+    split: dev
+  - id: G3
+    question: Which channel drove the April revenue drop?
+    kind: categorical
+    expected: wholesale
+    source: { kind: driver, metric: revenue, period: 2026-04 }
+    columns: [channel, amount, date]
+    sql: >-
+      SELECT channel FROM t_t1 WHERE NOT _is_total AND (status IS NULL OR status <> 'refunded')
+      AND strftime("date", '%Y-%m') IN ('2026-03', '2026-04') GROUP BY channel
+      ORDER BY sum(CASE WHEN strftime("date", '%Y-%m') = '2026-04' THEN amount ELSE -amount END) LIMIT 1
+    split: dev
+  - id: G4
+    question: By how much did revenue fall from March to April 2026?
+    kind: numeric
+    expected: -7900
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [amount, date, status]
+    sql: >-
+      SELECT sum(CASE WHEN strftime("date", '%Y-%m') = '2026-04' THEN amount ELSE -amount END) FROM t_t1
+      WHERE NOT _is_total AND (status IS NULL OR status <> 'refunded') AND strftime("date", '%Y-%m') IN ('2026-03', '2026-04')
+    split: dev
+  - id: G5
+    question: What will revenue be next year?
+    kind: trap
+    reason: The data ends in June 2026 and the engine makes no forecasts; the right answer is a refusal.
+    source: { kind: ask }
+    split: dev
+  - id: G6
+    question: What was revenue in May 2026?
+    kind: numeric
+    expected: 35800
+    tolerance: { abs: 0.5 }
+    source: { kind: fact, label: revenue_2026-05 }
+    columns: [amount, date, status]
+    split: dev

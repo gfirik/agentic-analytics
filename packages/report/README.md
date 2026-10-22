@@ -3,7 +3,7 @@
 Renders a report v1 (`report.json`) to one self-contained `report.html`: React server-side rendering, inline CSS and a small inline script, no external requests.
 
 - **Spec:** docs/specs/report-schema.md §6. Visual reference: docs/assets/blueprint.html §02.
-- **Status:** M1 renderer. Final polish lands with the doors in M10.
+- **Status:** shipped (M1 renderer, finished with the doors in M10).
 
 ## Public API
 
@@ -14,6 +14,8 @@ Renders a report v1 (`report.json`) to one self-contained `report.html`: React s
 | `renderReportHtml(report)` | Full HTML document as a string |
 | `formatValue(value, unit)`, `formatFact(fact)` | Display formatting (rounding for reading only; exact values stay in the computation panel) |
 | `formatPeriod(from, to)` | `2026-01`..`2026-06` → `Jan–Jun 2026` |
+| `formatCell(value, header)` | A spreadsheet cell for the evidence viewer, as the owner typed it: a fraction under a rate or `%` header shows as a percentage |
+| `citationLabel(citation, ctx)` | A citation's short label: `file · Sheet r12–r20`, `file p.3`, `file § Heading` or `web · host` |
 
 What the page does:
 

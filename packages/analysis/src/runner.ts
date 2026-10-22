@@ -5,8 +5,9 @@ import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics"
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
-import { beyondKeys, cancelsOut, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
+import { cancelsOut, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
+import { contributionFacts, memberFilter, otherFilter, unitOf } from "./members.ts";
 import { fillPeriods } from "./periods.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
@@ -23,7 +24,7 @@ import {
   trend,
   trendBreak,
 } from "./templates.ts";
-import { OTHER, type Point, point, type Series, type Unit } from "./types.ts";
+import { OTHER, type Point, point, type Series } from "./types.ts";
 
 export interface AnalyzeOptions {
   readonly from: string;
@@ -75,17 +76,6 @@ export interface AnalysisResult {
   readonly openQuestions: string[];
 }
 
-const DIM_UNIT: Record<string, Unit> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
-const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
-const memberFilter = (dimension: string, value: string | null) =>
-  value === null ? `${dimension} IS NULL` : `${dimension} = ${quote(value)}`;
-export const otherFilter = (dimension: string, kept: readonly (string | null)[]): string => {
-  const values = kept.filter((v): v is string => v !== null);
-  const notIn = values.length ? `${dimension} NOT IN (${values.map(quote).join(", ")})` : undefined;
-  // SQL NOT IN never matches NULL: NULL belongs to "other" only when it isn't one of the kept members.
-  if (kept.includes(null)) return notIn ? `${dimension} IS NOT NULL AND ${notIn}` : `${dimension} IS NOT NULL`;
-  return notIn ? `(${dimension} IS NULL OR ${notIn})` : `${dimension} IS NULL`;
-};
 const QTY = /qty|quantity|units|pcs|pieces|количество|шт|soni|dona/i;
 const ITEM = /product|item|sku|товар|продукт|mahsulot/i;
 
@@ -128,7 +118,7 @@ export async function analyzeJob(
   const fill = (points: readonly Point[], additive: boolean, span: readonly { period: string }[]) =>
     fillPeriods(points, jobPeriods, additive, span);
   for (const def of defs) {
-    const unit = DIM_UNIT[def.unit] ?? "other";
+    const unit = unitOf(def);
     const additive = def.type === "sum" || def.type === "count";
     const own = measured.get(def.id) ?? [];
     const total: Series = { id: def.id, metric: def.id, unit, points: fill(own, additive || def.type === "count_distinct", own) };
@@ -384,12 +374,7 @@ export async function analyzeJob(
     let details: Record<string, unknown> = {};
     if (d.contribution) {
       const scope = await book.calcs(d.contribution.calcs, context, d.insight.metric);
-      for (const c of d.contribution.contribution?.contributors ?? []) {
-        facts[`change:${c.key}`] = factOf(scope, c.delta.name);
-        facts[`share:${c.key}`] = factOf(scope, c.share.name);
-      }
-      for (const [key, name] of d.contribution.contribution ? beyondKeys(d.contribution.contribution) : [])
-        facts[key] = factOf(scope, name);
+      Object.assign(facts, contributionFacts(d.contribution.contribution, scope));
       facts.total = factOf(scope, "delta:total");
       details = { ...d.contribution.details };
     } else if (d.pvm) {

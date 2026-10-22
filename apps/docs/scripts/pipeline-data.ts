@@ -75,6 +75,8 @@ export function extractPipelineData(run: RunRecord): PipelineData {
       `the headline ${fn} fact`,
     );
   const sqlFacts = head.facts.map((id) => fact(id, id)).filter((f) => f.computation.kind === "sql");
+  const baseFact = need(sqlFacts[0], "the headline base fact");
+  const laterFact = need(sqlFacts[1], "the headline fact");
   const metric = need(
     report.metrics.find((m) => m.id === sqlFacts[0]?.metric_id),
     "the headline metric",
@@ -155,12 +157,13 @@ export function extractPipelineData(run: RunRecord): PipelineData {
     },
     change: {
       metric: metric.label,
-      fromPeriod: need(/(\d{4}-\d{2})$/.exec(sqlFacts[0]?.label ?? "")?.[1], "the headline base period"),
-      from: shown(sqlFacts[0] ?? byFn("delta")),
-      to: shown(sqlFacts[1] ?? byFn("delta")),
+      // The claim cites the base period's measured fact first, then the later one.
+      fromPeriod: need(/(\d{4}-\d{2})$/.exec(baseFact.label)?.[1], "the headline base period"),
+      from: shown(baseFact),
+      to: shown(laterFact),
       delta: shown(byFn("delta")),
       pct: shown(byFn("pct_change")),
-      period: need(/(\d{4}-\d{2})$/.exec(sqlFacts[1]?.label ?? "")?.[1], "the headline period"),
+      period: need(/(\d{4}-\d{2})$/.exec(laterFact.label)?.[1], "the headline period"),
     },
     driver: { dimension: need(by[1], "dimension"), member: need(by[2], "member"), delta: shown(driverDelta), share: shown(share) },
     docs: docQuotes,

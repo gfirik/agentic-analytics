@@ -55,9 +55,3 @@ export async function screenTables(ws: Workspace): Promise<ScreenSummary> {
   }
   return { screened, quarantined: flagged };
 }
-
-export async function screenWorkspace(ws: Workspace): Promise<ScreenSummary> {
-  const t = await screenTables(ws);
-  const d = await screenDocuments(ws);
-  return { screened: t.screened + d.screened, quarantined: [...t.quarantined, ...d.quarantined] };
-}

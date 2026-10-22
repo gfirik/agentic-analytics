@@ -1,21 +1,9 @@
 // Job events: the SSE stream (docs/specs/interfaces.md §1) and the `events` table (ARCHITECTURE §3).
 import { z } from "zod";
+import { ModelRole } from "./report.ts";
+import { STAGES } from "./stages.ts";
 
-export const Stage = z.enum([
-  "INGEST",
-  "PROFILE",
-  "METRICS_DRAFT",
-  "AWAIT_CONFIRM",
-  "MEASURE",
-  "DETECT",
-  "DECOMPOSE",
-  "INDEX_DOCS",
-  "WEB_CONTEXT",
-  "EXPLAIN",
-  "DECIDE",
-  "VERIFY",
-  "RENDER",
-]);
+export const Stage = z.enum(STAGES);
 
 // seq −1 marks the one event that isn't from the job's log: the server's `failed` when a stream's job vanished
 // mid-request (interfaces §1).
@@ -31,7 +19,7 @@ export const JobEvent = z.discriminatedUnion("type", [
     ...base,
     type: z.literal("model_usage"),
     stage: Stage,
-    role: z.enum(["planner", "extractor", "judge", "embedder", "reranker"]),
+    role: ModelRole,
     provider: z.string(),
     model: z.string(),
     input_tokens: z.number().int().nonnegative(),

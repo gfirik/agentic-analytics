@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs the TypeScript CLI directly on Node via tsx; a bundled build replaces this in M10.
+// Runs the TypeScript CLI directly on Node via tsx (no bundled build yet).
 import { register } from "tsx/esm/api";
 
 register();
