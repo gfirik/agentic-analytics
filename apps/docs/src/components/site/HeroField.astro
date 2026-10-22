@@ -2,11 +2,11 @@
 // The hero's background system (DESIGN.md §5 "Hero field", §7; site v5 PR 1, made bold in PR 1b). Rendered inside the
 // hero statement, it runs full-bleed behind it and never behind the exhibit:
 // - graph paper (24px minor lines, 96px major lines, a dot on every crossing) fading out radially from the statement;
-// - the accent glow (`--aa-accent`): a cobalt bloom over the headline, a deeper one on the side the exhibit is on, and
-//   a soft wash between them; never stronger than 22% of the accent behind text, so the lead keeps AA;
+// - the glow (`--aa-glow`, a warm grey): a bloom over the headline, a deeper one on the side the exhibit is on, and a
+//   soft wash between them; light enough behind text that the lead keeps AA;
 // - a fine grain (an inline SVG noise in a data URI: no image request);
 // - the ledger network on a canvas: square nodes drifting, joined by elbowed connectors that draw themselves in, and
-//   pulses of the accent running along them toward the exhibit (rightward in the wide row, downward when stacked),
+//   pulses of ink running along them toward the exhibit (rightward in the wide row, downward when stacked),
 //   hopping node to node and lighting each node they reach.
 // The first three are CSS and static. The canvas is the only motion, and it is cheap and polite:
 // - it starts on idle after load and fades in (opacity only), so it costs nothing on the first paint and never shifts
@@ -42,8 +42,9 @@
     type Pulse = { a: number; b: number; t: number; hops: number };
     type Debug = HTMLCanvasElement & { aaFrames?: number; aaLinks?: number; aaPulses?: number; aaDrawn?: number };
     const css = getComputedStyle(document.documentElement);
-    const accent = css.getPropertyValue("--aa-accent").trim() || "#2f3fe8";
-    const deep = css.getPropertyValue("--aa-accent-deep").trim() || "#2433c4";
+    // The net is graphite: ink-2 for nodes and connectors, ink for the pulses' heads (no brand hue, DESIGN.md §3).
+    const accent = css.getPropertyValue("--aa-ink-2").trim() || "#4a4f57";
+    const deep = css.getPropertyValue("--aa-ink").trim() || "#121417";
     const page = css.getPropertyValue("--aa-page").trim() || "#f8f8f6";
     /** A token's hex colour at an alpha, for canvas gradients (which take plain colours). */
     const rgba = (hex: string, a: number) => {
@@ -456,23 +457,23 @@
     position: absolute;
     inset: 0;
   }
-  /* The glow (site v5 PR 1b): the accent, plainly visible. A cobalt bloom above and behind the headline, a deeper one
-     low on the side toward the exhibit, and a wash joining them. Behind text it stays at or under 22% of the accent
-     on the page (the lead's ink-2 keeps 6.4:1); it is strongest where there is no text, at the field's edges. */
+  /* The glow: a warm grey, plainly visible but neutral. A bloom above and behind the headline, a deeper one low on
+     the side toward the exhibit, and a wash joining them; it is strongest where there is no text, at the field's
+     edges, and the lead and headline keep AA over its darkest pixel behind them (a browser test measures it). */
   .aa-hf-glow {
     background:
-      radial-gradient(ellipse 34% 30% at calc(var(--hf-x) - 22%) calc(var(--hf-y) - 26%), color-mix(in srgb, var(--aa-accent) 34%, transparent) 0%, transparent 100%),
-      radial-gradient(ellipse 40% 36% at calc(var(--hf-x) + 30%) calc(var(--hf-y) + 30%), color-mix(in srgb, var(--aa-accent-deep) 30%, transparent) 0%, transparent 100%),
-      radial-gradient(ellipse 58% 52% at var(--hf-x) var(--hf-y), color-mix(in srgb, var(--aa-accent) 18%, transparent) 0%, color-mix(in srgb, var(--aa-accent) 8%, transparent) 55%, transparent 100%);
+      radial-gradient(ellipse 34% 30% at calc(var(--hf-x) - 22%) calc(var(--hf-y) - 26%), color-mix(in srgb, var(--aa-glow) 34%, transparent) 0%, transparent 100%),
+      radial-gradient(ellipse 40% 36% at calc(var(--hf-x) + 30%) calc(var(--hf-y) + 30%), color-mix(in srgb, var(--aa-glow-deep) 30%, transparent) 0%, transparent 100%),
+      radial-gradient(ellipse 58% 52% at var(--hf-x) var(--hf-y), color-mix(in srgb, var(--aa-glow) 18%, transparent) 0%, color-mix(in srgb, var(--aa-glow) 8%, transparent) 55%, transparent 100%);
   }
   @media (max-width: 68.6875rem) {
     .aa-hf-glow {
       /* Stacked, the bloom sits behind the headline's top and the deeper light below the statement, toward the
          exhibit; both reach past the screen's sides. */
       background:
-        radial-gradient(ellipse 70% 26% at 18% 12%, color-mix(in srgb, var(--aa-accent) 32%, transparent) 0%, transparent 100%),
-        radial-gradient(ellipse 80% 24% at 86% 92%, color-mix(in srgb, var(--aa-accent-deep) 28%, transparent) 0%, transparent 100%),
-        radial-gradient(ellipse 90% 60% at 50% 45%, color-mix(in srgb, var(--aa-accent) 14%, transparent) 0%, transparent 100%);
+        radial-gradient(ellipse 70% 26% at 18% 12%, color-mix(in srgb, var(--aa-glow) 32%, transparent) 0%, transparent 100%),
+        radial-gradient(ellipse 80% 24% at 86% 92%, color-mix(in srgb, var(--aa-glow-deep) 28%, transparent) 0%, transparent 100%),
+        radial-gradient(ellipse 90% 60% at 50% 45%, color-mix(in srgb, var(--aa-glow) 14%, transparent) 0%, transparent 100%);
     }
   }
   /* Graph paper: 24px minor lines, every fourth line a little stronger, and a dot on each crossing. The lines are

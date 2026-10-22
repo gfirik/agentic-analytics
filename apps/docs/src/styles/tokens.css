@@ -2,16 +2,15 @@
    Light only: there is no dark theme, no theme control and no colour-scheme media query. */
 
 :root {
-  /* Colour: neutral off-white and ink; green only for "verified"; one brand accent, cobalt, in the hero only (site v5
-     PR 1b): its glow, its net and its primary action. */
+  /* Colour: neutral off-white and ink; green only for "verified"; no brand hue (the cobalt of site v5 PR 1b was taken
+     out at the maintainer's call): the hero's glow is a warm grey, its net, icons and primary action are ink. */
   --aa-page: #f8f8f6;
   --aa-grid: #ecece8;
   --aa-raised: #ffffff;
   --aa-surface: #f1f2f0;
   --aa-mark: #e8ecef;
-  --aa-accent: #2f3fe8; /* the brand accent: the hero's glow, net, proof-chip icons and primary button (7.0:1 on white) */
-  --aa-accent-deep: #2433c4; /* the accent pressed or hovered, and the far stop of its gradient (9.0:1 on white) */
-  --aa-accent-wash: #e4e7fd; /* the accent at a whisper: the proof chips' icon wells; never behind body text alone */
+  --aa-glow: #d3ccc0; /* the hero's glow, a warm grey: mixed at 34% or less onto the page, never a surface */
+  --aa-glow-deep: #bdb4a6; /* the glow's deeper light, low on the side toward the exhibit, away from text */
   --aa-rule: #dcdcd6;
   --aa-rule-strong: #8b8f94;
   --aa-ink: #121417;
