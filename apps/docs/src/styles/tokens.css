@@ -2,13 +2,16 @@
    Light only: there is no dark theme, no theme control and no colour-scheme media query. */
 
 :root {
-  /* Colour: neutral off-white and ink; green only for "verified". */
+  /* Colour: neutral off-white and ink; green only for "verified"; one brand accent, cobalt, in the hero only (site v5
+     PR 1b): its glow, its net and its primary action. */
   --aa-page: #f8f8f6;
   --aa-grid: #ecece8;
   --aa-raised: #ffffff;
   --aa-surface: #f1f2f0;
   --aa-mark: #e8ecef;
-  --aa-glow: #e3eaf0; /* the hero's soft tint behind the headline only (site v5) */
+  --aa-accent: #2f3fe8; /* the brand accent: the hero's glow, net, proof-chip icons and primary button (7.0:1 on white) */
+  --aa-accent-deep: #2433c4; /* the accent pressed or hovered, and the far stop of its gradient (9.0:1 on white) */
+  --aa-accent-wash: #e4e7fd; /* the accent at a whisper: the proof chips' icon wells; never behind body text alone */
   --aa-rule: #dcdcd6;
   --aa-rule-strong: #8b8f94;
   --aa-ink: #121417;
@@ -22,7 +25,13 @@
   --aa-font-display: "Source Serif 4 Variable", "Source Serif 4", "Source Serif 4 Fallback", Georgia, "Times New Roman", serif;
   --aa-font-sans: "IBM Plex Sans", "IBM Plex Sans Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --aa-font-mono: "IBM Plex Mono", "IBM Plex Mono Fallback", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --aa-text-display: clamp(2.5rem, 1.25rem + 3.4vw, 4.25rem); /* the hero statement: 40px on phones to 68px (site v5) */
+  --aa-text-display: clamp(2.5rem, 1.25rem + 3.4vw, 4.25rem); /* the 404's statement: 40px on phones to 68px (site v5) */
+  --aa-text-hero: clamp(
+    2.75rem,
+    0.9rem +
+    4.6vw,
+    5.25rem
+  ); /* the hero's two-voice headline: 44px on phones, 81px at 1440, 84px from 1500 (site v5 PR 1b) */
   --aa-text-h2: 2.25rem;
   --aa-text-h3: 1.125rem;
   --aa-text-lead: 1.1875rem;

@@ -10,6 +10,7 @@ import { JobManager, runJob } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { type DatasetScore, type Passes, type RealSuiteResult, summarize } from "@agentic-analytics/eval-runner";
+import { resolveModelConfig } from "@agentic-analytics/models";
 import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
 import type { JobEvent } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
@@ -24,6 +25,7 @@ import {
   globToRegExp,
   LandingDataError,
   landingData,
+  proofChips,
   statusStrip,
   suiteRunLabels,
 } from "./landing-data.ts";
@@ -245,10 +247,24 @@ for (const d of ["architecture", "pipeline"])
     },
     full,
   });
+  // The hero's proof chips (site v5 PR 1b): the same runs as the strip, the verifier's check table from the recorded
+  // run, and the routes a fresh install resolves to (no env, no config file).
+  const proof = proofChips({
+    real: { file: `evals/results/${real.name}`, datasets: r.datasets },
+    smoke: {
+      file: smoke.file,
+      completed: smoke.completed,
+      datasets: smoke.datasets,
+      mismatches: smoke.bars.find((b) => b.metric === "Number mismatches")?.value ?? null,
+    },
+    checks: (JSON.parse(readFileSync(PIPELINE_JSON, "utf8")) as PipelineData).checks,
+    defaults: resolveModelConfig({}).models,
+  });
   writeFileSync(
     join(DATA, "evals.json"),
     JSON.stringify({
       strip,
+      proof,
       synthetic: suite("-baseline-full.json"),
       smoke,
       full,

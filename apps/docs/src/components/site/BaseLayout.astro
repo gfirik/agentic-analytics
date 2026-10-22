@@ -16,8 +16,10 @@ interface Props {
   description?: string;
   /** False for the 404: no canonical URL, not indexed. */
   index?: boolean;
+  /** The landing page: preload the hero headline's faces (FontPreloads.astro). */
+  hero?: boolean;
 }
-const { title, description = SITE_DESCRIPTION, index = true } = Astro.props;
+const { title, description = SITE_DESCRIPTION, index = true, hero = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
 
@@ -27,7 +29,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
-    <FontPreloads />
+    <FontPreloads hero={hero} />
     <meta name="description" content={description} />
     {index ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
     <link rel="icon" href={withBase("favicon.ico")} sizes="32x32" />
