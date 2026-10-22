@@ -34,32 +34,43 @@ It also generates the documents that mention those events, plus **distractors**:
 9. Construction supplier
 10. Agency
 
-There are at least 3 variants each with different seeds and planted events: **30+ datasets** in total. The golden set (hand-reviewed) is 10 of them.
+There are at least 3 variants each with different seeds and planted events: **30+ datasets** in total. A hand-reviewed golden set of 10 is planned (M14); none exists yet.
 
 **v0.1 generator (M11):** 10 archetypes × 3 variants = 30 generated datasets (evals/generator/README.md), plus the two hand-built ones (coffee-roaster-v1, printing-shop-v1). The planted events are a key client lost after a price rise (all variants), a supplier switch that raises refunds (v2), and a new product cannibalizing an old one (v3). Each dataset also has a ×1000 typo, date ambiguity (v1), a noise blip inside the band, a seasonal December peak (v3) as a distractor, and coincidental and irrelevant documents. The Simpson's-paradox and concentration-risk setups are not generated yet.
 
-**`answers.yaml` example:**
+**`answers.yaml` example** (from `evals/datasets/generated/agency-v2`, shortened; the full shape is `AnswerKey` in evals/generator/src/generate.ts):
 
 ```yaml
+dataset: agency-v2
+period: { from: 2025-01, to: 2026-06, grain: month }
+currency: EUR
+today: 2026-07-01
 planted:
   - id: P1
     type: regression
     metric: revenue
     period: 2026-04
-    expected_change_pct: -17.9
-    tolerance_pct: 0.1
-    driver: { dimension: channel, member: wholesale, min_share: 1.0 }
-    cause: { doc: email-0412.eml, grade_at_least: document_supported }
-    good_actions: [volume_discount_key_client, renegotiate_price]
+    driver: { dimension: customer, member: Lumen Cosmetics }
+    driver_alternatives: [{ dimension: channel, member: retainers }]
+    persists: true
+    cause: { doc: email-lumen-cosmetics.eml, grade_at_least: document_supported }
+    good_actions: [recover_share]
+    description: Lumen Cosmetics paused its standing order after the retainers price rise
 distractors:
   - id: D1
-    description: "March spike within noise band"
+    description: a 3% blip for Workshops, inside the noise band
+    metric: revenue
+    period: 2025-12
+    member: { dimension: customer, member: Workshops }
     must_not_appear_as_finding: true
 quality:
   - id: Q1
     kind: unit_error
-    location: "sales.xlsx#Monthly!D17"
+    file: costs.xlsx
+    location: costs.xlsx#Costs!D12
 ```
+
+A key states no expected change size: a planted event matches on its metric, period, member and direction (evals/runner/README.md). `type` and `persists` are recorded for readers and are not scored; a quality key matches on its file and the sheet in `location` (its column only when a citation names cells).
 
 ## 2. Metrics
 

@@ -1,12 +1,13 @@
 // Column type inference and normalization (docs/specs/ingestion-and-profiling.md §5–6): ingestion's raw
 // cells become typed values (ISO dates, numbers, booleans, trimmed text) plus a `_period` at the job grain.
 import type { Cell, TableRegion } from "@agentic-analytics/ingest";
+import type { Grain } from "@agentic-analytics/schema";
 import type { ColumnType, NormalizedColumn, NormalizedRow, NormalizedTable, NormalizedValue } from "@agentic-analytics/store";
 import { type DateOrderDecision, dateOrderEvidence, detectDateOrder, parseDate, serialToDate } from "./dates.ts";
 import { columnNames } from "./names.ts";
 import { type DecimalSeparator, detectCurrency, detectDecimal, parseNumber } from "./numbers.ts";
 
-export type Grain = "day" | "week" | "month" | "quarter" | "year";
+export type { Grain };
 
 export interface ColumnIssue {
   readonly kind: "date_format_ambiguity" | "date_format_conflict" | "mixed_currency" | "unparseable_value";
@@ -293,7 +294,10 @@ export function normalizeTable(t: TableRegion, grain: Grain = "month"): Normaliz
       const inf = inferred[i];
       const v = inf ? normalizeCell(cell, inf) : null;
       if (v === undefined) {
-        unparseable.set(i, [...(unparseable.get(i) ?? []), r.row]);
+        // Push in place: copying the list per bad cell is quadratic in the number of bad cells.
+        const bad = unparseable.get(i);
+        if (bad) bad.push(r.row);
+        else unparseable.set(i, [r.row]);
         return null;
       }
       return v;

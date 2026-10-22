@@ -18,7 +18,8 @@ import { ARCHETYPES, type Archetype } from "./archetypes.ts";
 export const GENERATOR_VERSION = 1;
 const END = { year: 2026, month: 6 };
 const LENGTHS = [12, 18, 24] as const;
-const FIXED = new Date(Date.UTC(2026, 6, 1));
+/** The jobs' "today": the first day after the series ends (END.month is 1-based, so it is next month's index). */
+const TODAY = new Date(Date.UTC(END.year, END.month, 1));
 
 export interface Member {
   readonly dimension: string;
@@ -237,7 +238,7 @@ export function generateDataset(a: Archetype, variant: 0 | 1 | 2, seed?: number)
   const files: Record<string, Uint8Array> = {};
   const workbook = (sheets: [string, (string | number)[][]][]) => {
     const wb = XLSX.utils.book_new();
-    wb.Props = { Title: a.business, Author: a.business, CreatedDate: FIXED, ModifiedDate: FIXED };
+    wb.Props = { Title: a.business, Author: a.business, CreatedDate: TODAY, ModifiedDate: TODAY };
     for (const [name, data] of sheets) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), name);
     return XLSX.write(wb, { type: "buffer", bookType: "xlsx", compression: true }) as Uint8Array;
   };
@@ -382,7 +383,7 @@ export function generateDataset(a: Archetype, variant: 0 | 1 | 2, seed?: number)
     variant: variant + 1,
     period: { from: ms[0] as string, to: ms.at(-1) as string, grain: "month" },
     currency: a.currency,
-    today: "2026-07-01",
+    today: TODAY.toISOString().slice(0, 10),
     files: Object.keys(files).sort(),
     planted,
     distractors,

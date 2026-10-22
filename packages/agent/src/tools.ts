@@ -20,7 +20,8 @@ import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
 import { type Extract, extractFromHits } from "./extractor.ts";
 import { type SheetFact, sheetFact } from "./factsheet.ts";
-import { searchAndStore, type WebLane } from "./web.ts";
+import { ScenarioInput } from "./scenario.ts";
+import { searchAndStore, siteOf, type WebLane } from "./web.ts";
 import { withheld, withheldKeys } from "./withhold.ts";
 
 export class Budget {
@@ -111,28 +112,6 @@ function tool<I>(
 }
 
 const facts = (list: readonly Fact[]): SheetFact[] => list.map(sheetFact);
-
-const ScenarioInput = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("recover_share"), lost: z.string(), low: z.number(), high: z.number(), discount: z.number().optional() }),
-  z.object({ type: z.literal("price_change"), revenue: z.string(), low: z.number(), high: z.number() }),
-  z.object({
-    type: z.literal("remove_excess_rate"),
-    current: z.string(),
-    baseline: z.string(),
-    base: z.string(),
-    low: z.number(),
-    high: z.number(),
-  }),
-  z.object({ type: z.literal("retain_at_risk"), atRisk: z.string(), low: z.number(), high: z.number(), cost: z.number().optional() }),
-]);
-
-const hostOf = (url: string): string => {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "";
-  }
-};
 
 export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
   const get_facts = tool(
@@ -252,7 +231,7 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
         query_sent: result.query,
         external: true,
         // The site only: a result URL's path is attacker-controlled text (security §2).
-        extracts: x.extracts.map((e) => ({ id: e.id, kind: e.kind, site: hostOf(e.file), text: e.text, quote: e.quote, external: true })),
+        extracts: x.extracts.map((e) => ({ id: e.id, kind: e.kind, site: siteOf(e.file), text: e.text, quote: e.quote, external: true })),
         ...(result.skipped.length ? { skipped: result.skipped.map((s) => s.code) } : {}),
       };
     },

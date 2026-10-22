@@ -53,7 +53,11 @@ export async function runRules(ws: Workspace, t: NormalizedTable, profile: Table
       const hits =
         far <= isolated ? await ws.all<{ _row: number; value: number; k: 1 | 2 | 3 }>(powerOfTenJumps(name, c.name, median)) : [];
       const byK = new Map<number, typeof hits>();
-      for (const h of hits) byK.set(h.k, [...(byK.get(h.k) ?? []), h]);
+      for (const h of hits) {
+        const same = byK.get(h.k);
+        if (same) same.push(h);
+        else byK.set(h.k, [h]);
+      }
       for (const [k, rows] of byK) {
         if (rows.length > isolated) continue;
         for (const h of rows) {

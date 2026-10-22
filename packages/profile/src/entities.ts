@@ -133,8 +133,11 @@ export async function matchEntities(ws: Workspace, tables: readonly NormalizedTa
       if (!kind || (c.type !== "category" && c.type !== "text")) continue;
       for (const v of await ws.all<{ raw: string; n: number }>(distinctValues(tableName(t.id), c.name))) {
         const normalized = normalizeEntity(v.raw);
-        if (normalized)
-          byKind.set(kind, [...(byKind.get(kind) ?? []), { source_id: t.id, column: c.name, raw: v.raw, n: v.n, normalized }]);
+        if (!normalized) continue;
+        const raw = { source_id: t.id, column: c.name, raw: v.raw, n: v.n, normalized };
+        const list = byKind.get(kind);
+        if (list) list.push(raw);
+        else byKind.set(kind, [raw]);
       }
     }
   }
@@ -156,7 +159,12 @@ export async function matchEntities(ws: Workspace, tables: readonly NormalizedTa
       parent.set(find(pair.a), find(pair.b));
     }
     const groups = new Map<string, Raw[]>();
-    for (const r of raws) groups.set(find(r.normalized), [...(groups.get(find(r.normalized)) ?? []), r]);
+    for (const r of raws) {
+      const root = find(r.normalized);
+      const group = groups.get(root);
+      if (group) group.push(r);
+      else groups.set(root, [r]);
+    }
 
     for (const members of [...groups.values()].sort((a, b) => (a[0]?.normalized ?? "").localeCompare(b[0]?.normalized ?? ""))) {
       // Canonical name: the most frequent raw spelling (ties: the longer, then alphabetical).

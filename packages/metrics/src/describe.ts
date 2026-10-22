@@ -1,6 +1,7 @@
 // Plain-language rendering of a metric for the confirmation step (docs/specs/metric-layer.md §3):
 // "Revenue = sum of amount where status is not refunded, per month, in USD".
-import type { MetricDef } from "@agentic-analytics/schema";
+import type { MetricDef, RatioTerm } from "@agentic-analytics/schema";
+import { ratioTerms } from "./compile.ts";
 import { describeExpr, describeFilter, parseExpression, parseFilter } from "./lang.ts";
 
 const safe = <T>(fn: () => T, fallback: T): T => {
@@ -53,11 +54,9 @@ export function describeMetric(def: MetricDef, all: readonly MetricDef[] = [], g
         : "";
   let body: string;
   if (def.type === "ratio") {
-    const term = (t: unknown) => {
-      const x = t as { metric: string } | { expression: string; filters?: string[] };
-      return "metric" in x ? label(x.metric) : `${aggregate("sum", x.expression)}${where(x.filters)}`;
-    };
-    body = `${term(def.numerator)} ÷ ${term(def.denominator)}`;
+    const term = (x: RatioTerm) => ("metric" in x ? label(x.metric) : `${aggregate("sum", x.expression)}${where(x.filters)}`);
+    const [numerator, denominator] = ratioTerms(def);
+    body = `${term(numerator)} ÷ ${term(denominator)}`;
   } else if (def.type === "derived") {
     body = safe(() => describeExpr(parseExpression(def.expression ?? "")), def.expression ?? "");
   } else {

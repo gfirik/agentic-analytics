@@ -1,6 +1,6 @@
 // Code validates every metric proposal (docs/specs/metric-layer.md §2.3). The model is never trusted to be
 // right: each proposal is accepted (normalized, with defaults filled) or rejected with the reasons why.
-import { MetricDef, screen } from "@agentic-analytics/schema";
+import { MetricDef, type RatioTerm, screen } from "@agentic-analytics/schema";
 import { type Catalog, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
 import { describeExpr, type Expr, exprColumns, filterColumns, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 
@@ -23,8 +23,6 @@ export interface ValidateOptions {
   /** Keep each definition's `status` (loading a saved metrics file); otherwise every proposal is `assumed`. */
   readonly keepStatus?: boolean;
 }
-
-type Term = { table: string; expression: string; filters?: string[] } | { metric: string };
 
 const parseOr = <T>(fn: () => T, reasons: string[], what: string): T | undefined => {
   try {
@@ -146,11 +144,10 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
   const byId = new Map(accepted.map((m) => [m.id, m]));
 
   if (def.type === "ratio") {
-    for (const [side, term] of [
+    for (const [side, t] of [
       ["numerator", def.numerator],
       ["denominator", def.denominator],
     ] as const) {
-      const t = term as Term | undefined;
       if (!t) continue;
       if ("metric" in t) {
         if (!byId.has(t.metric)) reasons.push(`${side} metric "${t.metric}" is not a valid metric in this set`);
@@ -161,7 +158,7 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
       }
     }
     if (!reasons.length) {
-      const same = selfRatio(def.numerator as Term, def.denominator as Term, byId, catalog);
+      const same = selfRatio(def.numerator, def.denominator, byId, catalog);
       if (same) reasons.push(`ratio "${def.id}" divides "${same}" by itself (always 1)`);
     }
     if (def.unit !== "percent" && def.unit !== "ratio") reasons.push(`a ratio's unit must be percent or ratio, not ${def.unit}`);
@@ -225,7 +222,7 @@ const canonical = (text: string, parse: (t: string) => unknown): string => {
  * sum over its table's date column (exactly what a table term compiles to), so `{table, expression, filters}` equal to
  * `{metric: revenue}` is caught too.
  */
-function termKey(t: Term, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
+function termKey(t: RatioTerm, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
   let table: string;
   let expression: string;
   let filters: readonly string[];
@@ -253,11 +250,16 @@ function termKey(t: Term, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog
  * A ratio whose numerator and denominator are the same quantity is always 1 (or unknown): a drafting mistake, never a
  * metric (construction_supplier-v1, M13h). Returns how to name that quantity, or undefined when the sides differ.
  */
-function selfRatio(n: Term | undefined, d: Term | undefined, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string | undefined {
+function selfRatio(
+  n: RatioTerm | undefined,
+  d: RatioTerm | undefined,
+  byId: ReadonlyMap<string, MetricDef>,
+  catalog: Catalog,
+): string | undefined {
   if (!n || !d || termKey(n, byId, catalog) !== termKey(d, byId, catalog)) return undefined;
   const side = "metric" in n ? n : "metric" in d ? d : undefined;
   if (side) return side.metric;
-  const t = n as Exclude<Term, { metric: string }>;
+  const t = n as Exclude<RatioTerm, { metric: string }>;
   const where = t.filters?.length ? ` where ${t.filters.map((f) => f.trim()).join(" and ")}` : "";
   return `sum(${t.expression}) of ${t.table}${where}`;
 }

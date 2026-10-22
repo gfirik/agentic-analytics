@@ -621,23 +621,30 @@ export async function checkFactRows(
   grain: Grain = "month",
 ): Promise<CheckRow[]> {
   const out: CheckRow[] = [];
+  // A metric's input rows for one period and filter, per source: facts of the same metric, period and member share
+  // them, so each set is read once per call.
+  const inputs = new Map<string, Map<string, Set<number>>>();
+  const inputRows = async (def: MetricDef, period: string, where: string | undefined, cat: Catalog) => {
+    const key = JSON.stringify([def.id, period, where]);
+    const cached = inputs.get(key);
+    if (cached) return cached;
+    const allowed = new Map<string, Set<number>>();
+    for (const q of compileMetricRows(def.id, defs, cat, { period, grain, ...(where ? { where } : {}), limit: 10_000_000 })) {
+      const id = cat.get(q.table)?.id ?? q.table;
+      const set = allowed.get(id) ?? new Set<number>();
+      for (const r of await ws.all<{ _row: number }>(q.rows)) set.add(r._row);
+      allowed.set(id, set);
+    }
+    inputs.set(key, allowed);
+    return allowed;
+  };
   for (const f of facts) {
     const cited = f.citations.filter((c) => c.rows?.length);
     if (!cited.length) continue;
     const m = parseMeasured(f.label);
     const def = m ? defs.find((d) => d.id === m.metric) : undefined;
     if (m && def && catalog && m.where !== null) {
-      const allowed = new Map<string, Set<number>>();
-      for (const q of compileMetricRows(def.id, defs, catalog, {
-        period: m.period,
-        grain,
-        ...(m.where ? { where: m.where } : {}),
-        limit: 10_000_000,
-      })) {
-        const id = catalog.get(q.table)?.id ?? q.table;
-        const rows = (await ws.all<{ _row: number }>(q.rows)).map((r) => r._row);
-        allowed.set(id, new Set([...(allowed.get(id) ?? []), ...rows]));
-      }
+      const allowed = await inputRows(def, m.period, m.where, catalog);
       for (const c of cited) {
         const set = allowed.get(c.source_id);
         const stray = (c.rows ?? []).filter((r) => !set?.has(r));

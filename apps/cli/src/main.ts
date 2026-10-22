@@ -12,6 +12,7 @@ import {
   type CallRecord,
   createModelClient,
   dailyTokenLimit,
+  describeRoleModel,
   fileCache,
   type ModelClient,
   ModelError,
@@ -85,7 +86,6 @@ function logCall(c: CallRecord): void {
   if (process.env.AA_LOG_CALLS) process.stderr.write(line);
 }
 
-/** Models, embedder and web lane from the environment and config file, as every door uses them. */
 /** The embedder for a run: see embedderChoice (standalone.ts) for the binary's default. */
 function pickEmbedder(arg: string | undefined, configured: string, cacheDir: string) {
   const choice = embedderChoice(arg, process.env);
@@ -96,6 +96,17 @@ function pickEmbedder(arg: string | undefined, configured: string, cacheDir: str
   return transformersEmbedder({ model: choice.model ?? configured, cacheDir });
 }
 
+/** Where transformers models are cached (AA_MODELS_DIR, else the user cache). */
+const modelsDir = () => process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+
+/** The self-hosted SearXNG search provider (docker compose --profile web up -d searxng). */
+const searxng = () =>
+  searxngProvider({
+    baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888",
+    ...(process.env.SEARXNG_ENGINES ? { engines: process.env.SEARXNG_ENGINES } : {}),
+  });
+
+/** Models, embedder and web lane from the environment and config file, as every door uses them. */
 function runtime(embedderArg?: string) {
   const config = resolveModelConfig(process.env, configFile());
   // AA_DEMO_MODEL=scripted: the scripted coffee-roaster planner (no LLM), for the deterministic README demo only.
@@ -108,14 +119,8 @@ function runtime(embedderArg?: string) {
         onCall: logCall,
         ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
       });
-  const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-  const embedder = pickEmbedder(embedderArg, config.models.embedder.model, cacheDir);
-  const planner = config.models.planner;
-  const plannerProfile = profileFor(
-    planner.provider === "openai-compatible"
-      ? `openai-compatible:${planner.endpoint}:${planner.model}`
-      : `${planner.provider}:${planner.model}`,
-  );
+  const embedder = pickEmbedder(embedderArg, config.models.embedder.model, modelsDir());
+  const plannerProfile = profileFor(describeRoleModel(config.models.planner));
   const engine = {
     version: ENGINE_VERSION,
     // The report's provenance names the scripted planner when it ran, never a model that wasn't called.
@@ -125,12 +130,7 @@ function runtime(embedderArg?: string) {
         : { role, provider: config.models[role].provider, model: config.models[role].model },
     ),
   };
-  const web = () => ({
-    provider: searxngProvider({
-      baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888",
-      ...(process.env.SEARXNG_ENGINES ? { engines: process.env.SEARXNG_ENGINES } : {}),
-    }),
-  });
+  const web = () => ({ provider: searxng() });
   const deps = (o: JobOptions, log?: boolean): JobDeps => ({
     model,
     embedder,
@@ -425,7 +425,7 @@ const evalCmd = defineCommand({
       replayProblem(args["replay-drafts"], args["results-dir"], process.cwd(), checkoutResults);
     if (refused) throw new Error(refused);
     const only = args.only === undefined ? undefined : onlyIds(args.only);
-    const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
+    const cacheDir = modelsDir();
     const where = resultsLocation(args["results-dir"], process.env, process.cwd(), checkoutResults, Boolean(args.answers));
     const evalRouter = new Router();
     const evalCache = fileCache(process.env.AA_MODEL_CACHE ?? fileURLToPath(new URL("../../../evals/.cache", import.meta.url)));
@@ -593,19 +593,13 @@ const run = defineCommand({
     const paths = collectPaths(args._ as string[]);
     if (!resume && !paths.length) throw new Error("give files or folders (aa run <paths…>), or --resume <job folder>");
     const config = resolveModelConfig(process.env, configFile());
-    const planner = config.models.planner;
-    const plannerProfile = profileFor(
-      planner.provider === "openai-compatible"
-        ? `openai-compatible:${planner.endpoint}:${planner.model}`
-        : `${planner.provider}:${planner.model}`,
-    );
+    const plannerProfile = profileFor(describeRoleModel(config.models.planner));
     const model = createModelClient(config, {
       env: process.env,
       onCall: logCall,
       ...(process.env.AA_MODEL_CACHE ? { cache: fileCache(process.env.AA_MODEL_CACHE) } : {}),
     });
-    const cacheDir = process.env.AA_MODELS_DIR ?? join(homedir(), ".cache", "agentic-analytics", "models");
-    const embedder = pickEmbedder(args.embedder, config.models.embedder.model, cacheDir);
+    const embedder = pickEmbedder(args.embedder, config.models.embedder.model, modelsDir());
     const dir =
       resume ??
       args.dir ??
@@ -638,18 +632,9 @@ const run = defineCommand({
         model,
         embedder,
         // The web lane uses the self-hosted SearXNG (docker compose --profile web up -d searxng).
-        ...(args.web
-          ? {
-              web: {
-                provider: searxngProvider({
-                  baseUrl: process.env.SEARXNG_URL ?? "http://localhost:8888",
-                  ...(process.env.SEARXNG_ENGINES ? { engines: process.env.SEARXNG_ENGINES } : {}),
-                }),
-              },
-            }
-          : {}),
+        ...(args.web ? { web: { provider: searxng() } } : {}),
         engine: {
-          version: "0.0.0",
+          version: ENGINE_VERSION,
           models: (["planner", "extractor", "judge"] as const).map((role) => ({
             role,
             provider: config.models[role].provider,

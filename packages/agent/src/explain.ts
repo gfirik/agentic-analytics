@@ -12,6 +12,7 @@ import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
 import type { Budget, OpenQuestionDraft, ToolContext } from "./tools.ts";
+import { siteOf } from "./web.ts";
 import { withheld, withheldMember } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -75,14 +76,6 @@ export interface ExplainOptions {
   /** Called after each finding (done, total), e.g. to emit stage progress. */
   readonly onFinding?: (done: number, total: number) => Promise<void>;
 }
-
-const siteOf = (url: string): string => {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "";
-  }
-};
 
 const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
 

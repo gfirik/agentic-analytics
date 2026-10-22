@@ -42,7 +42,7 @@ const ROLES: readonly Role[] = ["planner", "extractor", "judge"];
 const MIN_NODE_MAJOR = 22;
 
 export async function runDoctor(deps: DoctorDeps): Promise<CheckResult[]> {
-  // 5 s: OpenRouter's /models answers with every model it serves (hundreds), which takes about 4 s.
+  // 10 s: OpenRouter's /models answers with every model it serves (hundreds), which takes about 4 s.
   const timeoutMs = deps.timeoutMs ?? 10_000;
   const probe: Probe = (url, headers) => probeUrl(deps.fetch, url, timeoutMs, headers);
   const searxngUrl = trimSlash(deps.env.SEARXNG_URL ?? "http://localhost:8888");

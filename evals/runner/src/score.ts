@@ -20,11 +20,6 @@ const PERIOD = String.raw`(\d{4}-\d{2}(?:-\d{2})?|\d{4}-[QW]\d{1,2})`;
 const MEASURED = new RegExp(String.raw`^([a-z][a-z0-9_]*)(?:\[([^=\]]+)=(.+)\])?_${PERIOD}$`);
 const DERIVED = new RegExp(String.raw`^I\d+ \S+ ([a-z][a-z0-9_]*)(?:\|([^=]+)=(.+))? ${PERIOD}:`);
 
-/**
- * What a finding is about, from the facts of its first claim (written by code, not the model): the metric, the
- * member, and the compared periods. The change's own fact gives the "after" period; the measured points give the
- * "before" side.
- */
 /** A label's period at the key's grain: a day counts as its month; weeks and quarters stay whole ("2026-W12"). */
 export const keyPeriod = (p: string) => (/^\d{4}-\d{2}-\d{2}$/.test(p) ? p.slice(0, 7) : p);
 
@@ -35,6 +30,11 @@ export function parseMeasured(label: string): { metric: string; dimension?: stri
   return { metric: m[1] as string, ...(m[2] && m[3] ? { dimension: m[2], member: m[3] } : {}), period: m[4] as string };
 }
 
+/**
+ * What a finding is about, from the facts of its first claim (written by code, not the model): the metric, the
+ * member, and the compared periods. The change's own fact gives the "after" period; the measured points give the
+ * "before" side.
+ */
 export function subjectOf(f: Finding, report: Report): Subject | undefined {
   const labels = new Map(report.facts.map((x) => [x.id, x.label]));
   const values = new Map(report.facts.map((x) => [x.id, x.value]));

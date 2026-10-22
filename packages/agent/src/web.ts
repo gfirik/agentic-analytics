@@ -18,6 +18,15 @@ const PERSONAL =
   /customer|client|supplier|vendor|buyer|account|contact|name|person|manager|employee|staff|email|phone|company|organi[sz]ation|\borg\b|partner|firm|brand|store|shop|клиент|покупател|поставщик|контрагент|менеджер|сотрудник|имя|компани|фирм|организаци|партнер|магазин|mijoz|xaridor|yetkazib|ism|korxona|tashkilot|hamkor|do'kon/i;
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu;
 
+/** The host of a fetched page's URL, as the report and the planner name a web source ("" for a bad URL). */
+export const siteOf = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+};
+
 /**
  * Everything in this job that must never leave the machine through a search query or a URL: matched entities and
  * their raw spellings, every value of columns that name people or organisations, the names and addresses in email

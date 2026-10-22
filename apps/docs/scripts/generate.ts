@@ -200,7 +200,7 @@ for (const d of ["architecture", "pipeline"])
       .filter((f) => f.endsWith(suffix))
       .sort()
       .at(-1);
-    if (!name) throw new Error(`docs: no evals/results/*${suffix}`);
+    if (!name) throw new LandingDataError(`no evals/results/*${suffix}`);
     return { name, data: JSON.parse(readFileSync(join(RESULTS, name), "utf8")) as unknown };
   };
   type SuiteFile = { suite: string; model: string; note?: string; date: string; datasets: number; scores: DatasetScore[]; passes?: Passes };

@@ -34,8 +34,8 @@ export interface Ranked {
 
 /**
  * Impact on the objective as a share of its period total. Money changes divide by the objective's total for
- * the period; rate changes in percentage points are already a share of the base (2.2 pp → 0.022); other
- * metrics fall back to their relative change.
+ * the period; rate changes in percentage points are already a share of the base (2.2 pp → 0.022); every other
+ * unit (counts included) scores 0 (spec §6).
  */
 export function impactShare(i: Insight, ctx: RankContext): number {
   const change = ctx.changeOf(i);

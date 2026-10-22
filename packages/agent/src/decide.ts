@@ -13,6 +13,7 @@ import type { Dropped } from "./explain.ts";
 import type { Extract } from "./extractor.ts";
 import type { FactSheet } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
+import { ScenarioInput } from "./scenario.ts";
 import { withheld } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -22,25 +23,11 @@ const Text = z.string().min(3).max(400).refine(noNumerals, NUMERALS);
 /** Actions, risks, horizons, not_advised: plain words only; numbers belong in the rationale, where they're checked. */
 const Plain = Text.refine((t) => placeholders(t).length === 0, "no {{N…}} placeholders here; numbers belong in the rationale");
 
-const Scenario = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("recover_share"), lost: z.string(), low: z.number(), high: z.number(), discount: z.number().optional() }),
-  z.object({ type: z.literal("price_change"), revenue: z.string(), low: z.number(), high: z.number() }),
-  z.object({
-    type: z.literal("remove_excess_rate"),
-    current: z.string(),
-    baseline: z.string(),
-    base: z.string(),
-    low: z.number(),
-    high: z.number(),
-  }),
-  z.object({ type: z.literal("retain_at_risk"), atRisk: z.string(), low: z.number(), high: z.number(), cost: z.number().optional() }),
-]);
-
 /** A candidate action as DECIDE keeps it: every prose rule holds (§6). */
 const Candidate = z.object({
   action: Plain,
   because: z.array(z.string()).min(1).max(5),
-  scenario: Scenario,
+  scenario: ScenarioInput,
   justified_by: z.array(z.string()).max(5),
   rationale: z.object({ text: Text, facts: z.array(z.string()).max(8), extract_ids: z.array(z.string()).max(4) }),
   effort: z.enum(["low", "medium", "high"]),
@@ -354,6 +341,6 @@ export async function decide(
   return { recommendations, dropped, request };
 }
 
-function scenarioBase(s: z.infer<typeof Scenario>): string {
+function scenarioBase(s: z.infer<typeof ScenarioInput>): string {
   return s.type === "recover_share" ? s.lost : s.type === "price_change" ? s.revenue : s.type === "remove_excess_rate" ? s.base : s.atRisk;
 }

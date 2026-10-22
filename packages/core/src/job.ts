@@ -442,12 +442,8 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const quality = await ws.all<{ id: string; kind: string; severity: string }>(
             sql`SELECT id, kind, severity FROM quality_issues ORDER BY id`,
           );
-          const ranked = measured.top
-            .map((i) => analysis.insights.find((x) => x.id === i))
-            .filter((x): x is StoredInsight => x !== undefined);
-          // The ranking's order (analysis-library §6): each metric family's best whole-metric change, then the
-          // strongest single-member change, then the rest. Rates keep their slot through the family rule.
-          const top = ranked;
+          // Kept in MEASURE's ranking order (analysis-library §6).
+          const top = measured.top.map((i) => analysis.insights.find((x) => x.id === i)).filter((x): x is StoredInsight => x !== undefined);
           const sheet = buildFactSheet({
             objective: objectiveText(opts),
             period: m.range,
