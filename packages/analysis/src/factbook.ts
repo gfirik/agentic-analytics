@@ -37,6 +37,13 @@ export interface SeriesInfo {
   readonly where?: string;
 }
 
+/** The fact id a calc name resolved to in `scope`; a missing one is an error, never a silent "" (AGENTS.md §4). */
+export function factOf(scope: ReadonlyMap<string, string>, name: string): string {
+  const id = scope.get(name);
+  if (id === undefined) throw new AnalysisError("CALC_UNDEFINED", `no fact for calc ${name}`);
+  return id;
+}
+
 export class FactBook {
   readonly facts: Fact[] = [];
   private readonly byKey = new Map<string, string>();
@@ -116,6 +123,8 @@ export class FactBook {
       scope.set(c.name, known);
       return known;
     }
+    // Like point(): a derived number that isn't finite (a ratio over 0) can't become a fact.
+    if (!Number.isFinite(c.value)) throw new AnalysisError("NO_VALUE", `no finite value for ${context}:${c.name}`);
     const id = this.nextId();
     const def = metricId ? this.defs.find((d) => d.id === metricId) : undefined;
     this.facts.push({
@@ -149,7 +158,8 @@ export class FactBook {
     const scope = new Map<string, string>();
     const pending = [...list];
     // Calcs may reference later ones; resolve in dependency order.
-    for (let guard = 0; pending.length && guard < 1000; guard++) {
+    // Each pass resolves one calc or throws, so the loop ends.
+    while (pending.length) {
       const i = pending.findIndex((c) => c.inputs.every((r) => r.kind !== "calc" || scope.has(r.name)));
       if (i < 0) throw new AnalysisError("CIRCULAR_CALCS", `circular calcs in ${context}`);
       const [c] = pending.splice(i, 1);

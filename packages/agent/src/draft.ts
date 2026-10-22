@@ -295,8 +295,10 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     const oq = reportQuestion(s, input.defs);
     if (oq) add(oq);
   }
-  for (const a of input.askedQuestions)
-    if (noNumerals(a.question) && noNumerals(a.why_it_matters)) add({ ...a, would_change: findings.map((f) => f.id).slice(0, 1) });
+  for (const { finding, ...a } of input.askedQuestions)
+    if (noNumerals(a.question) && noNumerals(a.why_it_matters))
+      // The finding it was asked about, when that finding made it into the draft; otherwise the top one.
+      add({ ...a, would_change: finding && findings.some((f) => f.id === finding) ? [finding] : findings.map((f) => f.id).slice(0, 1) });
 
   const bullets = findings.flatMap((f) => f.claims.slice(0, 1)).slice(0, 5);
   const referenced = [

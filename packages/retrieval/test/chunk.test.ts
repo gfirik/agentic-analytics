@@ -52,6 +52,16 @@ describe("chunkSpans (spec §1)", () => {
     expect(tableSpans).toHaveLength(1);
     expect(text.slice(tableSpans[0]?.start, tableSpans[0]?.end)).toBe(table);
   });
+
+  it("tab-indented prose is prose, not one oversize table; tab-separated rows are still a table", () => {
+    const prose = Array.from({ length: 40 }, (_, i) => `\tLine ${i} of a tab-indented email. It says something.`).join("\n");
+    const spans = chunkSpans(prose, { maxTokens: 60 });
+    expect(spans.length).toBeGreaterThan(1);
+    const rows = ["Zone\tFee", ...Array.from({ length: 40 }, (_, i) => `Z${i}\t${i}.50 USD`)].join("\n");
+    const tsv = `Fees:\n\n${rows}\n\nThat's all.`;
+    const tableSpans = chunkSpans(tsv, { maxTokens: 60 }).filter((s) => tsv.slice(s.start, s.end).includes("Zone\tFee"));
+    expect(tsv.slice(tableSpans[0]?.start, tableSpans[0]?.end)).toBe(rows);
+  });
 });
 
 describe("chunkSections", () => {

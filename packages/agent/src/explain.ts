@@ -11,7 +11,7 @@ import { contributionDrivers, decompositionClaims, findingType, observedClaim, q
 import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
-import type { Budget, ToolContext } from "./tools.ts";
+import type { Budget, OpenQuestionDraft, ToolContext } from "./tools.ts";
 import { withheld, withheldMember } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -152,6 +152,20 @@ export function smallModeQuery(
   return words.join(" ").slice(0, 200);
 }
 
+/**
+ * Questions keep pointing at their finding after renumbering (`kept` is the surviving findings' old ids, in their new
+ * order); a question whose finding was dropped loses its link and falls back to the top finding in the draft.
+ */
+export function relinkQuestions(questions: OpenQuestionDraft[], kept: readonly string[]): void {
+  const newId = new Map(kept.map((id, i) => [id, `F${i + 1}`]));
+  for (const [k, q] of questions.entries()) {
+    if (!q.finding) continue;
+    const { finding, ...rest } = q;
+    const to = newId.get(finding);
+    questions[k] = to ? { ...rest, finding: to } : rest;
+  }
+}
+
 export async function explainFindings(
   ctx: ToolContext,
   tools: ToolSet,
@@ -192,6 +206,7 @@ export async function explainFindings(
     });
     // By id, not by position: a source quarantined during this finding removes earlier extracts from the list.
     const known = new Set(ctx.found.extracts.map((e) => e.id));
+    const askedBefore = ctx.found.questions.length;
 
     if (!options.small) {
       const run = await model.generateWithTools({
@@ -215,6 +230,11 @@ export async function explainFindings(
       // Small models call tools unreliably (§8): code runs the one search that matters.
       const query = smallModeQuery(def ?? { id: insight.metric }, topDrivers(ds, before), insight.period);
       await (tools.search_documents as { execute(i: unknown): Promise<unknown> }).execute({ query });
+    }
+    // Questions asked while investigating this finding are about it.
+    for (let k = askedBefore; k < ctx.found.questions.length; k++) {
+      const q = ctx.found.questions[k];
+      if (q && !q.finding) ctx.found.questions[k] = { ...q, finding: id };
     }
     const evidence = ctx.found.extracts.filter((e) => !known.has(e.id));
     const extracts = new Map(evidence.map((e) => [e.id, e]));
@@ -303,6 +323,10 @@ export async function explainFindings(
   const clean = withoutQuarantined(findings, ctx.found.quarantined);
   // Keep ids gap-free (F1, F2, …) and the finding → insight map in step when a finding was dropped.
   const renumbered = clean.findings.map((f, i) => ({ ...f, id: `F${i + 1}` }));
+  relinkQuestions(
+    ctx.found.questions,
+    clean.findings.map((f) => f.id),
+  );
   const kept: Record<string, string> = {};
   clean.findings.forEach((f, i) => {
     const insight = insightOf[f.id];
