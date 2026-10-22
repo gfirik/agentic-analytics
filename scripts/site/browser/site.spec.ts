@@ -1091,10 +1091,10 @@ test("site files are served", async ({ request }) => {
     ["favicon.svg", "image/svg+xml"],
     ["favicon.ico", "image/"],
     ["og.png", "image/png"],
-    ["machine-strip.webp", "image/webp"],
-    ["machine-strip.png", "image/png"],
-    ["machine-full.webp", "image/webp"],
-    ["machine-full.png", "image/png"],
+    ["machine-wide.webp", "image/webp"],
+    ["machine-wide.png", "image/png"],
+    ["machine-tall.webp", "image/webp"],
+    ["machine-tall.png", "image/png"],
     ["sitemap.xml", "xml"],
     ["sitemap-index.xml", "xml"],
   ] as const) {
@@ -1120,8 +1120,8 @@ test("head: favicons, absolute OG image and canonical on the landing page and th
   }
 });
 
-// The engine machine (apps/docs/DESIGN.md §6 "Engine machine", §7). WebGL runs on SwiftShader (playwright.config.ts);
-// the device is made a capable one, except in the weak-device test.
+// The engine machine (apps/docs/DESIGN.md §6 "Engine machine", §7): a live band under the hero. WebGL runs on
+// SwiftShader (playwright.config.ts); the device is made a capable one, except in the weak-device test.
 test.describe("engine machine", () => {
   const CHUNK = /\/_astro\/machine-3d\.[^/]*\.js$/;
   /** An init script: the device's cores and memory as the page sees them. */
@@ -1161,160 +1161,217 @@ test.describe("engine machine", () => {
       },
       [png.toString("base64"), token] as const,
     );
+  /** The band's geometry: where its track starts on the page, and how far it scrolls per stop. */
+  const band = (page: import("@playwright/test").Page) =>
+    page.evaluate(() => {
+      const track = document.querySelector<HTMLElement>("[data-track]");
+      const stage = document.querySelector<HTMLElement>("[data-engine-stage]");
+      if (!track || !stage) throw new Error("no band");
+      const stops = Number(getComputedStyle(track.closest("[data-machine]") as Element).getPropertyValue("--aa-engine-stops")) - 1;
+      const top = track.getBoundingClientRect().top + scrollY - (Number.parseFloat(getComputedStyle(stage).top) || 0);
+      return { top, per: (track.offsetHeight - stage.offsetHeight) / stops, stops, tall: track.offsetHeight > stage.offsetHeight + 10 };
+    });
+  const scrollToY = (page: import("@playwright/test").Page, y: number) => page.evaluate((v) => window.scrollTo(0, v), Math.round(y));
 
-  test("loads nothing until asked, fetches on hover, opens on click, tabs through the stations, stays on the site", async ({ page }) => {
+  test("live from load: the still frame first, three on idle with no input, hover shows a station's card, all on the site", async ({
+    page,
+  }) => {
     await page.addInitScript(device, [8, 8]);
     const requests: string[] = [];
     page.on("request", (r) => requests.push(r.url()));
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(LANDING, { waitUntil: "networkidle" });
-    await page.mouse.wheel(0, 40_000);
-    await page.waitForLoadState("networkidle");
-    await page.mouse.wheel(0, -40_000);
-    // The machine's row sits under the hero; the exhibit's report page stays on the first screen (DESIGN.md §5).
-    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.goto(LANDING);
+    const root = page.locator("[data-machine]");
+    await expect(root).toHaveAttribute("data-mode", "live");
+    // The still frame is in the HTML with its own size; the band is tall, set before first paint.
+    const still = page.locator(".aa-engine-still img");
+    await expect(still).toHaveAttribute("width", /\d+/);
+    expect((await band(page)).tall).toBe(true);
+    // The exhibit's report page stays on the first screen, and the band follows the hero.
     expect(await page.locator(".aa-exhibit-page").evaluate((e) => e.getBoundingClientRect().top)).toBeLessThan((900 * 5) / 6);
+    // three starts on idle after the page's load event, once the band is near: not while the first screen is in use.
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(2500);
     expect(requests.filter((u) => CHUNK.test(u))).toEqual([]);
+    await scrollToY(page, (await band(page)).top - 900);
+    await expect(root).toHaveAttribute("data-gl", "on", { timeout: 20_000 });
+    const timing = await page.evaluate(() => {
+      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
+      const chunk = performance.getEntriesByType("resource").find((r) => /machine-3d\./.test(r.name));
+      return { load: nav.loadEventEnd, chunk: chunk?.startTime ?? -1 };
+    });
+    expect(timing.chunk).toBeGreaterThanOrEqual(timing.load);
+    await expect(page.locator(".aa-engine-view canvas")).toBeVisible();
 
-    const open = page.locator("[data-machine-open]");
-    await open.hover();
-    await expect.poll(() => requests.some((u) => CHUNK.test(u))).toBe(true);
-    await expect(page.locator(".aa-machine-stage")).toBeHidden();
-    await open.click();
-    await expect(page.locator("[data-machine]")).toHaveAttribute("data-open", "3d");
-    await expect(open).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator(".aa-machine-strip")).toBeHidden();
-    await expect(page.locator("canvas[data-canvas]")).toHaveAttribute("role", "img");
-    await expect(page.locator(".aa-machine-sheet [data-sheet-title]")).not.toBeEmpty();
-
-    // The labels are buttons, in station order, and the keyboard reaches each one.
-    const tags = page.locator("[data-tag]");
-    await expect(tags.first()).toBeVisible();
-    const ids = await tags.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.id ?? ""));
-    expect(ids.slice(0, 11)).toEqual(
-      await page
-        .locator(".aa-stations li[data-station]")
-        .evaluateAll((els) => els.slice(0, 11).map((e) => (e as HTMLElement).dataset.station ?? "")),
-    );
-    await tags.first().focus();
-    const seen = [ids[0]];
-    for (let i = 1; i < ids.length; i++) {
-      await page.keyboard.press("Tab");
-      seen.push(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.id ?? ""));
-    }
-    expect(seen).toEqual(ids);
+    // Hovering a station's label shows its card (the list's own entry) and presses it; the card links its Learn page.
+    const { top } = await band(page);
+    await scrollToY(page, top);
     const analysis = page.locator('[data-tag][data-id="analysis"]');
-    await analysis.focus();
-    await page.keyboard.press("Enter");
+    await expect(analysis).toBeVisible();
+    await analysis.hover();
     await expect(analysis).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator('[data-tag][aria-pressed="true"]')).toHaveCount(1);
-    const sheet = page.locator(".aa-machine-sheet");
-    await expect(sheet.locator("[data-sheet-title]")).toHaveText(
+    const card = page.locator("[data-card]");
+    await expect(card.locator("[data-card-title]")).toHaveText(
       (await page.locator('.aa-stations li[data-station="analysis"] .aa-station-title').textContent()) ?? "?",
     );
-    await expect(sheet.locator('a[href$="/learn/stages/analysis/"]')).toHaveCount(1);
+    await expect(card.locator('a[href$="/learn/stages/analysis/"]')).toHaveCount(1);
+    // The labels are buttons in station order, so the keyboard meets them in line order.
+    const ids = await page.locator("[data-tag]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.id ?? ""));
+    expect(ids.slice(0, 11)).toEqual(
+      await page
+        .locator("ol.aa-stations > li[data-station]")
+        .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.station ?? "")),
+    );
 
-    // "Follow" walks its steps from the generated data; the label is the headline fact's value.
-    const follow = page.locator('[data-guide="follow"]');
-    await follow.click();
-    await expect(follow).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("[data-step-count]")).toHaveText(/^1 \/ \d+$/);
-    await page.locator("[data-step-next]").click();
-    await expect(page.locator("[data-step-count]")).toHaveText(/^2 \/ \d+$/);
-
-    const axe = await new AxeBuilder({ page }).include(".aa-machine").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const axe = await new AxeBuilder({ page }).include(".aa-engine").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
     expect(requests.filter(offOrigin)).toEqual([]);
   });
 
-  test("the canvas draws the tokens: the page and the --aa-surface sides, unshifted by colour management", async ({ page }) => {
+  test("scrolling through the band moves the camera from stop to stop; the stage stays put, then the page goes on", async ({ page }) => {
     await page.addInitScript(device, [8, 8]);
-    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(LANDING, { waitUntil: "networkidle" });
-    await page.locator("[data-machine-open]").click();
-    await expect(page.locator('[data-tag][data-id="analysis"]')).toBeVisible();
-    await page.locator('[data-tag][data-id="analysis"]').click();
-    const png = await page.locator("canvas[data-canvas]").screenshot();
-    expect(await share(page, png, "--aa-page")).toBeGreaterThan(0.2);
-    expect(await share(page, png, "--aa-surface")).toBeGreaterThan(0.01);
-  });
+    await page.goto(LANDING);
+    const root = page.locator("[data-machine]");
+    const { top, per, stops } = await band(page);
+    await scrollToY(page, top);
+    await expect(root).toHaveAttribute("data-gl", "on", { timeout: 20_000 });
+    const kicker = page.locator("[data-card-kicker]");
+    const canvas = page.locator(".aa-engine-view canvas");
+    const stageTop = () => page.locator("[data-engine-stage]").evaluate((e) => Math.round(e.getBoundingClientRect().top));
 
-  test("nothing moves by itself; under reduced motion Run the line and the guided modes show their end state, still", async ({ page }) => {
-    await page.addInitScript(device, [8, 8]);
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(LANDING, { waitUntil: "networkidle" });
-    await page.locator("[data-machine-open]").click();
-    const canvas = page.locator("canvas[data-canvas]");
-    await expect(page.locator("[data-tag]").first()).toBeVisible();
+    await scrollToY(page, top);
+    await expect(kicker).toHaveText("How to read the machine");
+    const pinned = await stageTop();
     await page.waitForTimeout(500);
-    const a = await canvas.screenshot();
-    await page.waitForTimeout(1000);
-    expect((await canvas.screenshot()).equals(a)).toBe(true);
-
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.reload({ waitUntil: "networkidle" });
-    await page.locator("[data-machine-open]").click();
-    await expect(page.locator("[data-tag]").first()).toBeVisible();
-    await page.waitForTimeout(300);
-    const before = await canvas.screenshot();
-    await page.locator('[data-guide="flow"]').click();
-    await page.waitForTimeout(300);
-    const run = await canvas.screenshot();
-    expect(run.equals(before)).toBe(false);
+    const home = await canvas.screenshot();
+    // Halfway through the stops: the card names that stop, and the camera has moved.
+    const mid = Math.floor(stops / 2);
+    await scrollToY(page, top + per * mid);
+    await expect(kicker).toHaveText(new RegExp(`^Stop ${mid} of ${stops} · `));
+    expect(await stageTop()).toBe(pinned);
     await page.waitForTimeout(800);
-    expect((await canvas.screenshot()).equals(run)).toBe(true);
-    // The tour and "Follow" open at their last stop.
-    await page.locator('[data-guide="follow"]').click();
-    const count = (await page.locator("[data-step-count]").textContent()) ?? "";
-    const [at, of] = count.split(" / ");
-    expect(at).toBe(of);
+    expect((await canvas.screenshot()).equals(home)).toBe(false);
+    await expect(page.locator('[data-tag][aria-pressed="true"]')).toHaveCount(1);
+    // The last stop, then past the band: the stage scrolls away with the page and §1 follows.
+    await scrollToY(page, top + per * stops);
+    await expect(kicker).toHaveText(new RegExp(`^Stop ${stops} of ${stops} · `));
+    await scrollToY(page, top + per * stops + 900);
+    expect(await stageTop()).toBeLessThan(pinned);
+    expect(await page.locator("#how").evaluate((e) => e.getBoundingClientRect().top)).toBeLessThan(900);
+    // A label pressed scrolls the page to its stop.
+    await scrollToY(page, top);
+    await page.locator('[data-tag][data-id="verify"]').click();
+    await expect(kicker).toHaveText(/^Stop \d+ of \d+ · Station \d+ · Verify/, { timeout: 5_000 });
   });
 
-  test("phones: the label and the button only, no strip fetched; open, nothing scrolls sideways at 360", async ({ page }) => {
+  test("the canvas draws the tokens: the page unshifted by colour management, green only on the verifier's gate", async ({ page }) => {
     await page.addInitScript(device, [8, 8]);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING);
+    const { top, per } = await band(page);
+    await scrollToY(page, top);
+    await expect(page.locator("[data-machine]")).toHaveAttribute("data-gl", "on", { timeout: 20_000 });
+    await page.waitForTimeout(600);
+    const canvas = page.locator(".aa-engine-view canvas");
+    const home = await canvas.screenshot({ animations: "disabled" });
+    expect(await share(page, home, "--aa-page")).toBeGreaterThan(0.2);
+    // At the verifier's stop its passed checks' lights are the verified token; at the doors there is no green at all.
+    const tour = await page.evaluate(
+      () => (JSON.parse(document.querySelector("[data-machine-data]")?.textContent ?? "{}") as { tour: string[] }).tour,
+    );
+    await scrollToY(page, top + per * (tour.indexOf("verify") + 1));
+    await page.waitForTimeout(1500);
+    expect(await share(page, await canvas.screenshot(), "--aa-verified")).toBeGreaterThan(0);
+    await scrollToY(page, top + per * (tour.indexOf("doors") + 1));
+    await page.waitForTimeout(1500);
+    expect(await share(page, await canvas.screenshot(), "--aa-verified")).toBe(0);
+  });
+
+  test("reduced motion: the still frame with the station list, a short band, and three never loads", async ({ page }) => {
+    await page.addInitScript(device, [8, 8]);
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const requests: string[] = [];
     page.on("request", (r) => requests.push(r.url()));
-    for (const width of [390, 360]) {
-      await page.setViewportSize({ width, height: 800 });
-      await page.goto(LANDING, { waitUntil: "networkidle" });
-      await expect(page.locator(".aa-machine-strip")).toBeHidden();
-      await expect(page.locator("[data-machine-open]")).toBeVisible();
-      await page.locator("[data-machine-open]").click();
-      await expect(page.locator("[data-tag]").first()).toBeVisible();
-      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(over, `${width}`).toBeLessThanOrEqual(0);
-    }
-    expect(requests.filter((u) => /machine-strip/.test(u))).toEqual([]);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-machine]")).toHaveAttribute("data-mode", "still");
+    expect((await band(page)).tall).toBe(false);
+    await expect(page.locator(".aa-engine-list")).toHaveAttribute("open", "");
+    await page.locator(".aa-engine-still img").scrollIntoViewIfNeeded();
+    await expect(page.locator(".aa-engine-still img")).toBeVisible();
+    await expect(page.locator("ol.aa-stations > li[data-station]")).toHaveCount(11);
+    await expect(page.locator("[data-tag]").first()).toBeHidden();
+    await page.waitForTimeout(2500);
+    expect(requests.filter((u) => CHUNK.test(u))).toEqual([]);
   });
 
-  test("a weak device gets the station list over the still image, and three never loads", async ({ page }) => {
+  test("a weak device gets the still frame and the list, and three never loads", async ({ page }) => {
     await page.addInitScript(device, [2, 8]);
     const requests: string[] = [];
     page.on("request", (r) => requests.push(r.url()));
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(LANDING, { waitUntil: "networkidle" });
-    const open = page.locator("[data-machine-open]");
-    await open.hover();
-    await open.click();
-    await expect(page.locator("[data-machine]")).toHaveAttribute("data-open", "static");
-    await expect(page.locator(".aa-machine-list")).toHaveAttribute("open", "");
-    await expect(page.locator(".aa-machine-still img")).toBeVisible();
-    await expect(page.locator("ol.aa-stations > li[data-station]")).toHaveCount(11);
-    await expect(page.locator(".aa-machine-stage")).toBeHidden();
-    await page.waitForLoadState("networkidle");
+    await expect(page.locator("[data-machine]")).toHaveAttribute("data-mode", "still");
+    await expect(page.locator(".aa-engine-list")).toHaveAttribute("open", "");
+    await page.waitForTimeout(2500);
     expect(requests.filter((u) => CHUNK.test(u))).toEqual([]);
   });
 
-  test("without JS the button opens the station list with the image, each station linking its Learn page", async ({ browser }) => {
+  test("phones: the tall still, the lighter scene only once the band is near, tap to select, nothing scrolls sideways at 360", async ({
+    page,
+  }) => {
+    await page.addInitScript(device, [8, 8]);
+    const requests: string[] = [];
+    page.on("request", (r) => requests.push(r.url()));
+    for (const width of [390, 360]) {
+      requests.length = 0;
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(LANDING, { waitUntil: "networkidle" });
+      await page.waitForTimeout(2500);
+      // Not near yet (the band is under the stacked hero): nothing fetched.
+      expect(
+        requests.filter((u) => CHUNK.test(u)),
+        `${width}`,
+      ).toEqual([]);
+      const { top, per } = await band(page);
+      await scrollToY(page, top);
+      await expect(page.locator("[data-machine]")).toHaveAttribute("data-gl", "on", { timeout: 20_000 });
+      expect(requests.some((u) => /machine-tall\.webp/.test(u))).toBe(true);
+      expect(requests.some((u) => /machine-wide/.test(u))).toBe(false);
+      // A tap on the view's centre at a stop picks the piece there; a tap on a label scrolls to its stop.
+      const tour = await page.evaluate(
+        () => (JSON.parse(document.querySelector("[data-machine-data]")?.textContent ?? "{}") as { tour: string[] }).tour,
+      );
+      await scrollToY(page, top + per * (tour.indexOf("analysis") + 1));
+      await page.waitForTimeout(1200);
+      await expect(page.locator('[data-tag][data-id="analysis"]')).toHaveAttribute("aria-pressed", "true");
+      // A tap on another station (under its label, which sits above it) selects that one: its label and its card.
+      const box = await page.locator('[data-tag][data-id="index"]').boundingBox();
+      if (!box) throw new Error("no label");
+      for (let dy = 20; dy <= 160; dy += 15) {
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height + dy);
+        if ((await page.locator('[data-tag][data-id="index"]').getAttribute("aria-pressed")) === "true") break;
+      }
+      await expect(page.locator('[data-tag][data-id="index"]')).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator("[data-card-title]")).toHaveText(
+        (await page.locator('.aa-stations li[data-station="index"] .aa-station-title').textContent()) ?? "?",
+      );
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(over, `${width}`).toBeLessThanOrEqual(0);
+    }
+  });
+
+  test("without JS: the still frame and every station in the list, each linking its Learn page", async ({ browser }) => {
     const ctx = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
     const page = await ctx.newPage();
     await page.goto(LANDING);
-    const summary = page.locator(".aa-machine-list > summary");
-    await expect(summary).toHaveText("Open the machine", { useInnerText: true });
-    await expect(page.locator("[data-machine-open]")).toBeHidden();
-    await summary.click();
-    await expect(page.locator(".aa-machine-still img")).toBeVisible();
+    await expect(page.locator("[data-machine]")).not.toHaveAttribute("data-mode", /./);
+    await expect(page.locator(".aa-engine-list")).toHaveAttribute("open", "");
+    await page.locator(".aa-engine-still img").scrollIntoViewIfNeeded();
+    await expect(page.locator(".aa-engine-still img")).toBeVisible();
+    await expect(page.locator("[data-tag]").first()).toBeHidden();
     const stations = page.locator(".aa-stations li[data-station]");
     await expect(stations).toHaveCount(13);
     for (const li of await stations.all()) await expect(li.locator('a[href*="/learn/stages/"]').first()).toBeVisible();

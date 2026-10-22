@@ -39,15 +39,16 @@ describe("site assets", () => {
 
   it("the engine machine's stills are a WebP and a PNG each, at the width and height the page gives them", () => {
     expect(MACHINE_STILLS).toHaveLength(4);
-    for (const name of ["strip", "full"] as const) {
+    for (const name of ["wide", "tall"] as const) {
       const [w, h] = STILLS[name];
       const png = readFileSync(join(DOCS_DIR, "public", `machine-${name}.png`));
       expect(png.subarray(1, 4).toString("latin1")).toBe("PNG");
       expect([png.readUInt32BE(16), png.readUInt32BE(20)], name).toEqual([w, h]);
       const webp = readFileSync(join(DOCS_DIR, "public", `machine-${name}.webp`));
       expect(webpSize(webp), name).toEqual([w, h]);
-      // The WebP is what browsers fetch; it stays near the plan's ~30 KB (the PNG is the fallback for the rest).
-      expect(webp.length, name).toBeLessThan(45_000);
+      // The WebP is what browsers fetch; shaded faces cost more than the old line drawing, so the budget is 80 KB (the
+      // PNG is the fallback for the rest).
+      expect(webp.length, name).toBeLessThan(80_000);
     }
   });
 });
