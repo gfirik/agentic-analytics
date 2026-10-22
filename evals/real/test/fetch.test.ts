@@ -5,12 +5,19 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import {
+  checkLicence,
   deriveCardSpendByIndustry,
+  deriveHotelBookings,
   deriveOnlineRetailSample,
   type FetchDeps,
   fetchDataset,
+  HOTEL_COLUMNS,
   keepInvoice,
+  PENDING_DATASETS,
+  type PendingDataset,
   parseRealAnswers,
+  plainText,
+  probePending,
   REAL_DATASETS,
   type RealDataset,
   serialToIso,
@@ -43,15 +50,14 @@ function dataset(over: Partial<RealDataset["download"]> = {}, derivedSha = sha25
       url: "https://example.org/toy.zip",
       sha256: sha256(ARCHIVE),
       bytes: ARCHIVE.length,
-      entry: "table.csv",
-      entrySha256: sha256(ENTRY),
+      entries: [{ name: "table.csv", sha256: sha256(ENTRY) }],
       ...over,
     },
     derived: {
       file: "toy.csv",
       sha256: derivedSha,
       how: "the last row",
-      derive: (e) => utf8(new TextDecoder().decode(e).replace("1,2\n", "")),
+      derive: ([e]) => utf8(new TextDecoder().decode(e).replace("1,2\n", "")),
     },
   };
 }
@@ -98,7 +104,9 @@ describe("fetchDataset", () => {
   });
 
   it("fails on a changed archive entry or derived file", async () => {
-    await expect(fetchDataset(dataset({ entrySha256: "0".repeat(64) }), deps(ARCHIVE).d)).rejects.toMatchObject({
+    await expect(
+      fetchDataset(dataset({ entries: [{ name: "table.csv", sha256: "0".repeat(64) }] }), deps(ARCHIVE).d),
+    ).rejects.toMatchObject({
       code: "CHECKSUM_MISMATCH",
     });
     const { d, files } = deps(ARCHIVE);
@@ -108,7 +116,11 @@ describe("fetchDataset", () => {
 
   it("fails on an HTTP error and on a missing entry", async () => {
     await expect(fetchDataset(dataset(), deps(undefined, 404).d)).rejects.toMatchObject({ code: "DOWNLOAD_FAILED" });
-    await expect(fetchDataset(dataset({ entry: "other.csv" }), deps(ARCHIVE).d)).rejects.toMatchObject({ code: "ENTRY_MISSING" });
+    await expect(fetchDataset(dataset({ entries: [{ name: "other.csv", sha256: sha256(ENTRY) }] }), deps(ARCHIVE).d)).rejects.toMatchObject(
+      {
+        code: "ENTRY_MISSING",
+      },
+    );
   });
 
   it("reuses verified files without downloading, and says how it repairs a corrupted cache", async () => {
@@ -218,9 +230,157 @@ describe("manifest and answer files", () => {
 
   it("pins every checksum and credits every licence", () => {
     for (const d of REAL_DATASETS) {
-      for (const h of [d.download.sha256, d.download.entrySha256, d.derived.sha256]) expect(h).toMatch(/^[0-9a-f]{64}$/);
+      for (const h of [d.download.sha256, ...d.download.entries.map((e) => e.sha256), d.derived.sha256])
+        expect(h).toMatch(/^[0-9a-f]{64}$/);
       expect(d.licence.name).toBe("CC BY 4.0");
+      // Every download re-reads the licence: the wording checked is the evidence recorded in DATASETS.md.
+      expect(d.licence.evidence).toContain(d.licence.check?.text ?? "no check");
       expect(d.citation.length).toBeGreaterThan(20);
     }
+  });
+});
+
+describe("the licence, re-read before every download", () => {
+  const LICENCE = "This is an open access article under the CC BY license (http://creativecommons.org/licenses/by/4.0/).";
+  const withCheck = (): RealDataset => {
+    const d = dataset();
+    return { ...d, licence: { ...d.licence, check: { url: "https://example.org/licence", text: LICENCE } } };
+  };
+  /** Answers the licence page with `page` and the archive URL with the toy archive; records every URL asked for. */
+  function routed(page: string | undefined) {
+    const { d, files, calls } = deps(ARCHIVE);
+    const lines: string[] = [];
+    const fetch: FetchDeps["fetch"] = async (url) => {
+      // The archive goes through the plain helper, which records it; the licence page is recorded here.
+      if (url !== "https://example.org/licence") return d.fetch(url);
+      calls.push(url);
+      return { ok: page !== undefined, status: page === undefined ? 403 : 200, arrayBuffer: async () => utf8(page ?? "").slice().buffer };
+    };
+    return { d: { ...d, fetch, print: (l: string) => lines.push(l) }, files, calls, lines };
+  }
+
+  it("reads the page as plain text: tags, entities, escaped slashes and line breaks don't hide the words", () => {
+    expect(plainText('<license-p>Open &amp; free <a href="x">CC BY</a>\n  licence: http:\\/\\/x.org\\/</license-p>')).toBe(
+      "Open & free CC BY licence: http://x.org/",
+    );
+  });
+
+  it("downloads only after the page still states the licence, and says it checked", async () => {
+    const r = routed(
+      `<p>This is an open access article under the <b>CC BY</b> license\n(http://creativecommons.org/licenses/by/4.0/).</p>`,
+    );
+    await fetchDataset(withCheck(), r.d);
+    expect(r.calls).toEqual(["https://example.org/licence", "https://example.org/toy.zip"]);
+    expect(r.lines[0]).toBe("toy: licence re-checked at https://example.org/licence");
+  });
+
+  it("stops with LICENCE_CHANGED when the wording is gone, and downloads nothing", async () => {
+    const r = routed("<p>All rights reserved.</p>");
+    await expect(fetchDataset(withCheck(), r.d)).rejects.toMatchObject({ code: "LICENCE_CHANGED" });
+    expect(r.calls).toEqual(["https://example.org/licence"]);
+    expect(r.files.size).toBe(0);
+  });
+
+  it("stops when the licence page can't be read", async () => {
+    const r = routed(undefined);
+    await expect(fetchDataset(withCheck(), r.d)).rejects.toMatchObject({ code: "DOWNLOAD_FAILED" });
+    expect(r.calls).toEqual(["https://example.org/licence"]);
+  });
+
+  it("is not re-read when the verified files are already there (no download, no network)", async () => {
+    const r = routed("<p>All rights reserved.</p>");
+    r.files.set("toy.csv", DERIVED);
+    expect((await fetchDataset(withCheck(), r.d)).cached).toBe(true);
+    expect(r.calls).toEqual([]);
+  });
+
+  it("checkLicence compares the recorded wording, not the page's markup", async () => {
+    const r = routed("<div>This is an open access article under the CC BY license (http://creativecommons.org/licenses/by/4.0/).</div>");
+    await expect(checkLicence("toy", { url: "https://example.org/licence", text: LICENCE }, r.d)).resolves.toBeUndefined();
+  });
+});
+
+describe("a pending dataset (no pinned file yet)", () => {
+  const pending: PendingDataset = {
+    id: "later",
+    title: "Later",
+    publisher: "Test",
+    page: "https://example.org/data/",
+    licence: {
+      name: "Public domain",
+      url: "https://example.org/copyright",
+      evidence: "in the public domain",
+      check: { url: "https://example.org/copyright", text: "in the public domain" },
+    },
+    citation: "Later (2026).",
+    deferred: "not reachable",
+  };
+  const probe = (respond: (url: string) => Promise<{ ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer> }>) => {
+    const lines: string[] = [];
+    const calls: string[] = [];
+    return {
+      lines,
+      calls,
+      run: () =>
+        probePending(pending, {
+          fetch: (url) => {
+            calls.push(url);
+            return respond(url);
+          },
+          print: (l) => lines.push(l),
+        }),
+    };
+  };
+  const page = (text: string) => async () => ({ ok: true, status: 200, arrayBuffer: async () => utf8(text).slice().buffer });
+
+  it("an unreachable host is DEFERRED, printed, and not an error", async () => {
+    const p = probe(() => Promise.reject(new TypeError("fetch failed")));
+    expect(await p.run()).toBe("deferred");
+    expect(p.lines).toEqual(['later: DEFERRED, not reachable (fetch failed); see evals/real/DATASETS.md "Pending"']);
+  });
+
+  it("a reachable one re-checks the licence, probes the page and asks to be pinned; it downloads nothing else", async () => {
+    const p = probe(page("<p>Works are in the public domain.</p>"));
+    expect(await p.run()).toBe("reachable");
+    expect(p.calls).toEqual(["https://example.org/copyright", "https://example.org/data/"]);
+    expect(p.lines.at(-1)).toMatch(/^later: reachable and the licence still reads as recorded: pin it now/);
+  });
+
+  it("a changed licence is news, not a network problem: it throws LICENCE_CHANGED", async () => {
+    await expect(probe(page("<p>Copyright, all rights reserved.</p>")).run()).rejects.toMatchObject({ code: "LICENCE_CHANGED" });
+  });
+
+  it("EIA-861M is pending with its licence recorded, and its draft answer file is not where the tier reads", () => {
+    const eia = PENDING_DATASETS.find((d) => d.id === "eia-861m");
+    expect(eia?.licence.check.text).toBe(
+      "U.S. government publications are in the public domain and are not subject to copyright protection.",
+    );
+    expect(REAL_DATASETS.map((d) => d.id)).not.toContain("eia-861m");
+    const draft = parseRealAnswers(readFileSync(join(import.meta.dirname, "..", "answers", "pending", "eia-861m.yaml"), "utf8"));
+    expect(draft.dataset).toBe("eia-861m");
+    expect(existsSync(join(import.meta.dirname, "..", "answers", "eia-861m.yaml"))).toBe(false);
+  });
+});
+
+describe("the hotel bookings derivation", () => {
+  const head = HOTEL_COLUMNS.join(",");
+  // One booking per file in the published layout: padded text fields and "NULL" agents, LF line ends.
+  const h1Line =
+    "0,342,2015,July,27,1,0,0,2,0,0,BB       ,PRT,Direct,Direct,              0,0,0,C               ,C               ,3,No Deposit     ,       NULL,       NULL,0,Transient,0,0,0,Check-Out,2015-07-01";
+  const h2Line =
+    "1,88,2017,August,35,31,2,5,2,NA,0,BB       ,PRT,Online TA,TA/TO,              0,0,0,A               ,A               ,0,Non Refund     ,          9,       NULL,0,Transient,5400,0,0,Canceled,2017-06-01";
+
+  it("puts both hotels in one file with Hotel and an ISO ArrivalDate in front, each line otherwise unchanged", () => {
+    expect(deriveHotelBookings(`${head}\n${h1Line}\n`, `${head}\n${h2Line}\n`)).toBe(
+      [`Hotel,ArrivalDate,${head}`, `Resort Hotel,2015-07-01,${h1Line}`, `City Hotel,2017-08-31,${h2Line}`, ""].join("\n"),
+    );
+  });
+
+  it("refuses another header, a quoted field, a short line or a month it can't read", () => {
+    const fails = (h1: string) => () => deriveHotelBookings(h1, `${head}\n`);
+    expect(fails(`Hotel,${head}\n`)).toThrow(expect.objectContaining({ code: "UNEXPECTED_LAYOUT" }));
+    expect(fails(`${head}\n"0",${h1Line.slice(2)}\n`)).toThrow(/line 2: expected 31 unquoted fields/);
+    expect(fails(`${head}\n0,342\n`)).toThrow(/expected 31 unquoted fields/);
+    expect(fails(`${head}\n${h1Line.replace("July", "Juillet")}\n`)).toThrow(/no arrival date/);
   });
 });

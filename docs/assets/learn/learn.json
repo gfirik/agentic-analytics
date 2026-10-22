@@ -1582,6 +1582,38 @@
     ],
     "real": [
       {
+        "dataset": "hotel-bookings",
+        "title": "Hotel booking demand datasets",
+        "check": "C3",
+        "about": "The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2)",
+        "pass": true,
+        "detail": "2015 peak 2015-08; 2016 peak 2016-08; 2017 peak 2017-08; 3/3 values equal SQL"
+      },
+      {
+        "dataset": "hotel-bookings",
+        "title": "Hotel booking demand datasets",
+        "check": "C4",
+        "about": "The autumn fall is not reported as news: bookings in November are below October in both years (G2)",
+        "pass": false,
+        "detail": "1 of 5 findings: F2 2015-10→2015-11 (contribution.v1)"
+      },
+      {
+        "dataset": "hotel-bookings",
+        "title": "Hotel booking demand datasets",
+        "check": "C5",
+        "about": "Missing values: Children is NA in 4 bookings (G1)",
+        "pass": true,
+        "detail": "Q3 missing_value: 4 rows (N624), SQL 4; cites rows 40602, 40669, 40681…"
+      },
+      {
+        "dataset": "hotel-bookings",
+        "title": "Hotel booking demand datasets",
+        "check": "C6",
+        "about": "The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip",
+        "pass": false,
+        "detail": "not reported (kinds reported: unparseable_value, unit_error, missing_value)"
+      },
+      {
         "dataset": "nz-card-spend",
         "title": "Electronic card transactions, September 2026",
         "check": "C3",

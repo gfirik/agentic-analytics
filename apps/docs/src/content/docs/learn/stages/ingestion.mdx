@@ -63,7 +63,7 @@ A language model reads a spreadsheet pasted as text one token at a time. It has 
 
 ### On real public data
 
-The same checks run on two public datasets in the [real-data evals](../../../quality/evals/). From the latest committed results (<code>{learn.analysis.realFile}</code>, in [`evals/results/`](https://github.com/gfirik/agentic-analytics/tree/main/evals/results)):
+The same checks run on three public datasets in the [real-data evals](../../../quality/evals/). From the latest committed results (<code>{learn.analysis.realFile}</code>, in [`evals/results/`](https://github.com/gfirik/agentic-analytics/tree/main/evals/results)):
 
 <ul>
 {realQuality.map((c) => <li><strong>{c.title}</strong>: {c.about}. <span class="aa-mono-wrap">{c.detail}</span> {c.pass ? "(pass)" : "(fail)"}</li>)}

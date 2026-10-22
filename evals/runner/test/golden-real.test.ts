@@ -10,7 +10,16 @@ import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { Workspace } from "@agentic-analytics/store";
 import { describe, expect, it } from "vitest";
-import { baselineModel, GOLDEN_DIR, type GoldenSplit, goldenEvalCommand, goldenFile, loadGoldenSet, runGoldenSet } from "../src/index.ts";
+import {
+  baselineModel,
+  GOLDEN_DIR,
+  type GoldenSplit,
+  goldenDatasets,
+  goldenEvalCommand,
+  goldenFile,
+  loadGoldenSet,
+  runGoldenSet,
+} from "../src/index.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 const REAL = join(ROOT, "evals", "real");
@@ -19,6 +28,7 @@ const ANSWERS = join(REAL, "answers");
 const FILES: Record<string, string> = {
   "online-retail-ii": "online_retail_II.sample10.csv",
   "nz-card-spend": "nz-card-spend-by-industry.csv",
+  "hotel-bookings": "hotel-bookings.csv",
 };
 const DATASETS = Object.keys(FILES);
 const SPLITS: GoldenSplit[] = ["dev", "heldout"];
@@ -40,6 +50,12 @@ describe("the real datasets' golden sets", () => {
         expect(i.columns.length, `${dataset} ${i.id}`).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("golden v1 runs on the pinned datasets only: EIA-861M's draft (no file pinned yet) is never loaded", () => {
+    for (const split of SPLITS) expect(goldenDatasets(GOLDEN_DIR, ANSWERS, split).sort(), split).toEqual([...DATASETS].sort());
+    expect(existsSync(join(GOLDEN_DIR, "eia-861m", "draft.yaml"))).toBe(true);
+    for (const split of SPLITS) expect(existsSync(goldenFile(GOLDEN_DIR, "eia-861m", split)), split).toBe(false);
   });
 
   it.skipIf(!DATASETS.every(hasData))(

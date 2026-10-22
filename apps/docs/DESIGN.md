@@ -153,7 +153,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
      - **Columns:** real public data, the real-model smoke run, the nightly regression, then the offline baseline. Each head gives the run, a one-line note, its jobs and its date.
      - **Cells:** a figure plus the check, or an underlined "below bar" in ink; "meets the bar" is screen-reader text only.
      - **A run without rates gets one cell spanning every metric row:**
-       - the real public data, scored by its own checks (12/12);
+       - the real public data, scored by its own checks (passed of total from the latest real results: 16/18 since hotel bookings joined);
        - a run with jobs missing: partial after its last pass, in progress between passes, labelled from the generated status, with its jobs-finished count.
        - Each spanning cell names its column head (`headers`), so a screen reader reads it under its run, not under the first metric.
      - **Sources:** the result files sit in a `<details>` under the table, with the RESULTS.md link.
