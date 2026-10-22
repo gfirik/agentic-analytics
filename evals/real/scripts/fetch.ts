@@ -11,7 +11,6 @@ mkdirSync(dir, { recursive: true });
 const print = (line: string) => process.stdout.write(`${line}\n`);
 const get = (url: string) =>
   fetch(url, { headers: { "user-agent": "agentic-analytics-evals (+https://github.com/gfirik/agentic-analytics)" } });
-/** An error with its cause's code: Node's fetch says only "fetch failed", the cause says why (ETIMEDOUT, ENOTFOUND…). */
 let failed = false;
 for (const d of REAL_DATASETS) {
   try {
