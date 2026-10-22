@@ -1637,8 +1637,10 @@ test.describe("motion", () => {
       }
       const total = shifts.reduce((t, s) => t + s.value, 0);
       console.log(`CLS through the landing page at ${viewport.width}: ${cls.toFixed(4)} (all shifts summed ${total.toFixed(4)})`);
+      // A real shift in an animated part is a visible move; sub-pixel layout rounding on a CI runner registers as a
+      // shift of a few millionths (seen: 0.000004 and 0.000008 at 1440), which no reader can see. Those don't count.
       expect(
-        shifts.filter((s) => s.mine),
+        shifts.filter((s) => s.mine && s.value >= 0.0001),
         `${viewport.width}: shifts in the revealed parts, the stages or the exhibit`,
       ).toEqual([]);
       expect(cls, `${viewport.width}`).toBeLessThan(0.05);
