@@ -328,11 +328,14 @@ export async function evalMatrix(
     d.print(`== model ${i + 1} of ${models.length}: ${model}`);
     try {
       // Each model keeps its reports in its own subfolder: one shared folder would let the next model overwrite them.
-      const keepReports = a.keepReports ? join(a.keepReports, (slugs[i] as string).slice(1)) : undefined;
+      // evalSlug("", …) is "-<model>[-small]-<suite>": the folder is that name without its leading dash.
+      const keepReports = a.keepReports ? join(a.keepReports, (slugs[i] as string).replace(/^-/, "")) : undefined;
       runs.push({ model, result: await evalCommand({ ...a, model, ...(keepReports ? { keepReports } : {}) }, d) });
     } catch (err) {
-      if (!(err instanceof Error)) throw err;
-      runs.push({ model, error: "code" in err ? `${String(err.code)}: ${err.message}` : err.message });
+      // A model's own failure (no client, a provider error, a refused run) is reported and the next model runs; anything
+      // else is an engine or filesystem bug that would fail every model the same way, so it stops the matrix.
+      if (!(err instanceof Error) || !(err instanceof EvalRunError || err.name === "ModelError")) throw err;
+      runs.push({ model, error: `${String((err as Error & { code?: string }).code ?? "ERROR")}: ${err.message}` });
       d.print(`${model}: ${err.message}`);
     }
   }

@@ -453,7 +453,9 @@ const evalCmd = defineCommand({
       },
     };
     if (args.models !== undefined) {
-      if (args.model || args.label || args.passes !== undefined || args["replay-drafts"] || args.suite === "real")
+      if (args.suite !== undefined && args.suite !== "smoke" && args.suite !== "full")
+        throw new Error(`--models runs --suite smoke or full, not ${args.suite}`);
+      if (args.model || args.label || args.passes !== undefined || args["replay-drafts"])
         throw new Error(
           "--models runs a smoke or full suite per model: drop --model, --label, --passes and --replay-drafts, and use --suite smoke|full",
         );
