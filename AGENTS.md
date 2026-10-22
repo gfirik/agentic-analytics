@@ -79,8 +79,8 @@ Do not add LangChain, LlamaIndex, LangGraph, NestJS, Prisma, any vector database
   - Never force-push shared branches. Never push directly to `main`: every change lands through a PR.
 - **Autopilot merge policy.** See `docs/AUTOPILOT.md`. An agent may squash-merge its own PR only when all of these are true:
   1. `scripts/gate.sh` passes locally.
-  2. The `spec-reviewer` subagent returns PASS.
-  3. The `qa` subagent has run every acceptance demo and pasted the output in the PR.
+  2. For engine, numeric or security changes: the `spec-reviewer` subagent returns PASS (docs, site, test-only and eval-tooling PRs skip it; §9 "Token budget").
+  3. For the same changes: the `qa` subagent has run every acceptance demo and pasted the output in the PR. Otherwise the PR description carries the demo output.
   4. CI is green (`gh pr checks` with all checks passing).
   5. The milestone is not a human gate in `docs/progress/STATE.md`.
   If the milestone is a human gate, set it to `AWAITING_REVIEW` and stop.
@@ -130,7 +130,7 @@ bun run dev                     # API on :8080
 
 The maintainer's laptop runs out of RAM when agents work in parallel. These rules apply to every agent and session:
 
-- **Agents:** at most two background agents at a time besides the main session. Queue the rest: nothing is skipped, only serialized.
+- **Agents:** at most one background agent at a time besides the main session (§9 "Token budget"). Queue the rest: nothing is skipped, only serialized.
 - **Heavy jobs one at a time** across all agents and worktrees: `scripts/gate.sh`, full test runs, builds (including the docs build), evals and Playwright.
   - `gate.sh` takes a machine-wide lock by itself.
   - Run other heavy commands through it too, e.g. `bash scripts/heavy.sh bun run eval -- --suite smoke` or `bash scripts/heavy.sh bun run site:check:browser`.
@@ -143,3 +143,14 @@ The maintainer's laptop runs out of RAM when agents work in parallel. These rule
 - **The Stop hook** runs `bun run check` through `heavy.sh --if-free`: when another heavy job holds the lock or RAM is short, it skips that turn's check instead of piling on.
 - **Clean up after every job:** make sure its processes are gone (dev and preview servers, watchers, test workers, Chrome/Playwright) and kill leftovers you started. A leftover process can keep holding the heavy lock; `heavy.sh` names the holders' PIDs when it waits.
 - **Worktrees:** remove each one as soon as its PR merges (§5).
+
+### Token budget (set by the maintainer, 2026-10-22)
+
+These limits keep model spend down. Where they are tighter than a rule above, they win. There is no daily merge cap and no quiet hours: a PR merges as soon as it is ready.
+
+1. **One background agent** at a time besides the main session.
+2. **One PR at a time, end to end.** Don't start the next PR until the current one is merged.
+3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. Reviewer and QA subagents run on a smaller model (Sonnet), not the largest.
+4. **No real-model runs** (Groq or any hosted endpoint) except the nightly eval. A targeted check is allowed only when a PR can't be judged otherwise, and the PR says why.
+
+The daily Telegram summary continues.
