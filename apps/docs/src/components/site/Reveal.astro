@@ -1,0 +1,87 @@
+---
+// Section reveals on the landing page (DESIGN.md §2.5, §7; site v4 PR 3). The parts of a section marked `data-reveal`
+// (its head and its visual: the children of its .aa-cell) fade and rise into place, once, as they first scroll into
+// view: 240 ms, opacity and transform only (no layout shift), the visual 60 ms after its head.
+// - The server renders the final state; only the script hides anything, and only what is still below the screen when
+//   it runs, so content above the fold (and whatever the reader has already reached) is never re-animated.
+// - Nothing under prefers-reduced-motion, without IntersectionObserver, or in print.
+// - A part the reader jumps past (an anchor, the End key) is shown at once, and so is one that takes keyboard focus
+//   or holds the target of an in-page link: nothing waits on the animation to be read or used.
+// The engine machine's band keeps its own rules (DESIGN.md §6) and is not marked.
+---
+
+<script>
+  const parts = [...document.querySelectorAll<HTMLElement>("[data-reveal] > .aa-cell > *")];
+  const motion = !matchMedia("(prefers-reduced-motion: reduce)").matches && typeof IntersectionObserver !== "undefined";
+  if (motion && parts.length > 0) {
+    const fold = window.innerHeight;
+    const pending = new Set(parts.filter((el) => el.getBoundingClientRect().top >= fold));
+    const show = (el: HTMLElement, animate: boolean) => {
+      if (!pending.delete(el)) return;
+      io.unobserve(el);
+      if (animate) {
+        el.classList.add("aa-rv-go");
+        el.addEventListener("transitionend", function done(e: TransitionEvent) {
+          if (e.target !== el || e.propertyName !== "transform") return;
+          el.classList.remove("aa-rv-go");
+          el.removeEventListener("transitionend", done);
+        });
+      }
+      el.classList.remove("aa-rv");
+    };
+    const showAll = () => {
+      for (const el of [...pending]) show(el, false);
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const el = e.target as HTMLElement;
+          if (e.isIntersecting) show(el, true);
+          else if (e.boundingClientRect.bottom <= 0) show(el, false);
+        }
+      },
+      { rootMargin: "0px 0px -6% 0px" },
+    );
+    for (const el of pending) {
+      const i = [...(el.parentElement?.children ?? [])].indexOf(el);
+      el.style.setProperty("--aa-rv-delay", `${Math.min(i, 1) * 60}ms`);
+      el.classList.add("aa-rv");
+      io.observe(el);
+    }
+    document.addEventListener("focusin", (e) => {
+      const el = (e.target as Element | null)?.closest<HTMLElement>(".aa-rv");
+      if (el) show(el, false);
+    });
+    // An in-page jump lands on content in its final state, never on a fade.
+    document.addEventListener("click", (e) => {
+      const a = (e.target as Element | null)?.closest<HTMLAnchorElement>('a[href^="#"]');
+      if (a) showAll();
+    });
+    window.addEventListener("hashchange", showAll);
+    window.addEventListener("beforeprint", showAll);
+  }
+</script>
+
+<style is:global>
+  .aa-rv {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  .aa-rv-go {
+    transition:
+      opacity 240ms var(--aa-ease) var(--aa-rv-delay, 0ms),
+      transform 240ms var(--aa-ease) var(--aa-rv-delay, 0ms);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aa-rv {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media print {
+    .aa-rv {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>

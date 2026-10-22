@@ -2,8 +2,9 @@
 // The hero exhibit (DESIGN.md §5–§6): a real report page from the recorded run (src/data/exhibit.json, written by
 // scripts/generate.ts from the same run as the pipeline scene), rendered by the server in its final, verified state,
 // in the hero's right column from 1100px and below the statement under it (site v4). It demonstrates itself, with no hover needed:
-//   1. As it comes into view (only without prefers-reduced-motion) the figures verify one by one: each chip's box
-//      draws in, then its check appears (~250 ms per figure, ≤ 2.5 s in all).
+//   1. As it comes into view (only without prefers-reduced-motion) the figures count up to their recorded value
+//      (600 ms, drawn over the real text, which keeps its place), then verify one by one: each chip's box draws in,
+//      then its check appears (≤ 200 ms per figure, ≤ 2.5 s in all).
 //   2. A guided walkthrough then steps through the story's key figures (walkthrough() in scripts/landing-data.ts),
 //      opening each figure's margin note (its SQL or function, the sheet rows it read, or the quoted source) under a
 //      step indicator. One behaviour at every size (site v3, D2): a step every few seconds while the notes are on
@@ -287,6 +288,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     let open: { chip: HTMLAnchorElement; note: HTMLElement } | undefined;
     let pinned = false;
     let returning = false; // focus going back to a chip after Esc: don't reopen its note
+    let autoScroll = false; // the page is scrolling a pinned note into view
     let hideTimer = 0;
     let current = 0; // 0: the verification; 1..n: the walkthrough's steps
     const place = () => {
@@ -344,7 +346,9 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     for (const chip of chips) {
       chip.setAttribute("aria-expanded", "false");
       chip.setAttribute("aria-controls", `aa-note-${chip.dataset.note}`);
-      chip.addEventListener("mouseenter", () => show(chip));
+      chip.addEventListener("mouseenter", () => {
+        if (!autoScroll) show(chip);
+      });
       chip.addEventListener("mouseleave", later);
       chip.addEventListener("focus", () => {
         if (!returning) show(chip);
@@ -358,7 +362,21 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         if (pinned && open?.chip === chip) return settle();
         show(chip);
         pinned = true;
-        if (!beside.matches) open?.note.scrollIntoView({ block: "nearest" });
+        if (!beside.matches && open) {
+          // Bringing the pinned note into view (smooth scrolling) carries other figures under a resting pointer:
+          // their mouseenter must not take the note away while the page moves by itself.
+          // (A scrollend left over from an earlier scroll can arrive first: only one after the page moved counts.)
+          autoScroll = true;
+          const from = window.scrollY;
+          const settled = (e?: Event) => {
+            if (e && window.scrollY === from) return;
+            autoScroll = false;
+            window.removeEventListener("scrollend", settled);
+          };
+          window.addEventListener("scrollend", settled);
+          window.setTimeout(settled, 1200);
+          open.note.scrollIntoView({ block: "nearest" });
+        }
       });
     }
     col?.addEventListener("mouseenter", () => clearTimeout(hideTimer));
@@ -475,16 +493,56 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
         able(next, current < n);
         if (!pinned) settle();
       };
-      // The verification: one figure every ~250 ms in reading order; the last check lands by 2.5 s.
+      // The count: every figure runs up to its recorded value together (each number in it, from zero, in the figure's
+      // own format). It is drawn over the figure (data-count, CSS), whose real text never changes and keeps its place,
+      // so nothing reflows; it always ends on the real value, which is what the HTML holds.
+      const COUNT = 600;
+      const figs = [...wrap.querySelectorAll<HTMLElement>(".aa-exhibit .aa-fig")];
+      let counting = 0;
+      const NUM = /\d[\d,]*(?:\.\d+)?/g;
+      const at = (text: string, t: number) =>
+        text.replace(NUM, (m) => {
+          const decimals = m.split(".")[1]?.length ?? 0;
+          const value = Number(m.replace(/,/g, "")) * t;
+          return value.toLocaleString("en-US", {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+            useGrouping: m.includes(","),
+          });
+        });
+      const count = () => {
+        cancelAnimationFrame(counting);
+        for (const f of figs) {
+          f.classList.remove("is-counted");
+          f.dataset.count = at(f.textContent ?? "", 0);
+        }
+        const t0 = performance.now();
+        const frame = (now: number) => {
+          const t = Math.min(1, (now - t0) / COUNT);
+          const eased = 1 - (1 - t) ** 3;
+          for (const f of figs) {
+            if (t < 1) f.dataset.count = at(f.textContent ?? "", eased);
+            else {
+              delete f.dataset.count;
+              f.classList.add("is-counted");
+            }
+          }
+          if (t < 1) counting = requestAnimationFrame(frame);
+        };
+        counting = requestAnimationFrame(frame);
+      };
+      // The verification: as the count lands, one figure every ≤ 200 ms in reading order; the last check by 2.5 s.
       const verify = () => {
         wrap.dataset.anim = "pending";
         for (const c of chips) c.classList.remove("is-verified");
         void wrap.offsetWidth;
-        const step = Math.min(250, 2200 / Math.max(chips.length, 1));
+        count();
+        const lead = COUNT - 140; // the check fades in 140 ms after its chip is marked: on the count's last frame
+        const step = Math.min(200, 1600 / Math.max(chips.length, 1));
         chips.forEach((chip, i) => {
-          timers.push(window.setTimeout(() => chip.classList.add("is-verified"), i * step));
+          timers.push(window.setTimeout(() => chip.classList.add("is-verified"), lead + i * step));
         });
-        const total = chips.length * step + 300;
+        const total = lead + chips.length * step + 300;
         timers.push(
           window.setTimeout(() => {
             wrap.dataset.anim = "done";
@@ -839,6 +897,25 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
   }
   [data-anim="pending"] .aa-exhibit-foot {
     opacity: 0;
+  }
+  /* The count (site v4 PR 3): until it starts the figures hold their place unseen; while it runs the running value
+     is drawn over the figure's real text (transparent, so the line never reflows); it ends on the real value. */
+  .aa-exhibit .aa-fig {
+    position: relative;
+  }
+  [data-anim="pending"] .aa-exhibit .aa-fig:not(.is-counted),
+  .aa-exhibit .aa-fig[data-count] {
+    color: transparent;
+  }
+  .aa-exhibit .aa-fig[data-count]::after {
+    /* The running value is visual only: screen readers keep reading the real figure underneath. */
+    content: attr(data-count) / "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--aa-ink);
+    white-space: nowrap;
+    pointer-events: none;
   }
   .aa-exhibit-foot {
     transition: opacity 200ms var(--aa-ease);

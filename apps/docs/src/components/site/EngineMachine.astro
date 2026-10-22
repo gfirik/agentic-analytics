@@ -529,6 +529,16 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     .aa-engine[data-mode="live"] .aa-engine-card {
       padding: var(--aa-space-3) var(--aa-space-4);
     }
+    /* The kicker on one line and the title holding two, so the card's text keeps its place as the scroll moves from
+       stop to stop: a kicker or title that wrapped differently moved the lines under it (layout shifts, site v4 PR 3). */
+    .aa-engine[data-mode="live"] .aa-engine-card-kicker {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .aa-engine[data-mode="live"] .aa-engine-card-title {
+      min-height: calc(2 * 1.4em);
+    }
     .aa-engine[data-mode="live"] .aa-engine-card :is(.aa-station-more, .aa-station-model, .aa-station-run, [data-overview] p:not(.aa-engine-live-only)) {
       display: none;
     }
