@@ -83,7 +83,6 @@ Do not add LangChain, LlamaIndex, LangGraph, NestJS, Prisma, any vector database
   3. For the same changes: the `qa` subagent has run every acceptance demo and pasted the output in the PR. Otherwise the PR description carries the demo output.
   4. CI is green (`gh pr checks` with all checks passing).
   5. The milestone is not a human gate in `docs/progress/STATE.md`.
-  6. Fewer than 4 PRs have merged today (§9 "Token budget").
   If the milestone is a human gate, set it to `AWAITING_REVIEW` and stop.
 - **Remote:** `github.com/gfirik/agentic-analytics`. The repo stays private until the launch milestone.
 
@@ -147,13 +146,11 @@ The maintainer's laptop runs out of RAM when agents work in parallel. These rule
 
 ### Token budget (set by the maintainer, 2026-10-22)
 
-These limits keep model spend down. Where they are tighter than a rule above, they win.
+These limits keep model spend down. Where they are tighter than a rule above, they win. There is no daily merge cap and no quiet hours: a PR merges as soon as it is ready.
 
 1. **One background agent** at a time besides the main session.
 2. **One PR at a time, end to end.** Don't start the next PR until the current one is merged.
 3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. Reviewer and QA subagents run on a smaller model (Sonnet), not the largest.
-4. **At most 4 merged PRs per day** (Tashkent time). At 4, stop and wait for the next day.
-5. **No work between 00:00 and 08:00 Tashkent time (UTC+5)**, except the scheduled nightly eval (cron).
-6. **No real-model runs** (Groq or any hosted endpoint) except the nightly eval. A targeted check is allowed only when a PR can't be judged otherwise, and the PR says why.
+4. **No real-model runs** (Groq or any hosted endpoint) except the nightly eval. A targeted check is allowed only when a PR can't be judged otherwise, and the PR says why.
 
 The daily Telegram summary continues.
