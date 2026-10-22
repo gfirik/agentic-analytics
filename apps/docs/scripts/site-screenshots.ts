@@ -9,8 +9,9 @@
 //                                                set to light and to dark (the site is light only, so both must
 //                                                match), named hero-<width>-<scheme>.png (site v5)
 //   tsx scripts/site-screenshots.ts --story --out dir → the scroll-driven walkthrough (site v5 PR 2): at 1920 and 1440
-//                                                the pinned exhibit at each step and the release into the engine
-//                                                machine, at 390 the stacked tap list (pr2-<width>-<what>.png)
+//                                                the pinned hero at each step and the release into the engine
+//                                                machine, also at 1366×768 and 1280×720; at 390 the stacked tap
+//                                                list (pr2-<width>[x<height>]-<what>.png)
 //   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification on load, then the walkthrough
 //                                                stepped by scrolling through the pinned exhibit, and a hover
 //                                                (needs ffmpeg; without it hero.webm is kept)
@@ -167,7 +168,11 @@ try {
     for (const [width, height] of [
       [1920, 1080],
       [1440, 900],
+      [1366, 768],
+      [1280, 720],
     ] as const) {
+      // Laptop sizes are named with their height (the pin must fit a short screen).
+      const tag = height === 1080 || height === 900 ? `${width}` : `${width}x${height}`;
       const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
       const page = await ctx.newPage();
       await page.goto(`${base}/`, { waitUntil: "networkidle" });
@@ -179,12 +184,12 @@ try {
       for (let k = 1; k <= n; k++) {
         await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), await stepAt(page, k));
         await page.waitForTimeout(500);
-        await page.screenshot({ path: join(out, `pr2-${width}-step${k}.png`) });
+        await page.screenshot({ path: join(out, `pr2-${tag}-step${k}.png`) });
       }
       // Past the track: the pin has let go and the engine machine's band follows.
       await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), (await stepAt(page, n)) + Math.round(height * 0.9));
       await page.waitForTimeout(800);
-      await page.screenshot({ path: join(out, `pr2-${width}-release.png`) });
+      await page.screenshot({ path: join(out, `pr2-${tag}-release.png`) });
       await ctx.close();
     }
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });

@@ -868,6 +868,46 @@ AA_DEMO_MODEL=scripted \
       justify-content: flex-start;
     }
   }
+  /* The pinned hero on laptop screens (site v5 PR 2): the whole hero must fit one screen, down to 680px of viewport
+     height (below that the walkthrough is the tap list, Exhibit.astro). Pinned, its frame has no bottom padding (the
+     centring already leaves room there), so the release leaves no tall empty strip under the exhibit. From 1280px wide the exhibit column is at least 48rem, so
+     its notes sit beside the report page (stacked below it they would not fit). Under 900px of height the statement
+     goes compact: the headline also follows the screen's height (min(…, 9svh)), the lead a step down, tighter gaps.
+     Sizes only, chosen before first paint with the mode, so nothing shifts; same font faces and weights. */
+  @media (min-width: 68.75rem) {
+    .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+      padding-block: var(--aa-space-6) 0;
+    }
+  }
+  @media (min-width: 80rem) {
+    .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+      grid-template-columns: minmax(0, 1fr) minmax(48rem, 1.9fr);
+    }
+  }
+  @media (min-width: 68.75rem) and (max-height: 56.24rem) {
+    .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
+      padding-block: var(--aa-space-5) 0;
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-hero-title {
+      margin-top: var(--aa-space-4);
+      font-size: min(var(--aa-text-hero), 16cqi, 9svh);
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-lead {
+      margin-top: var(--aa-space-4);
+      font-size: 1.0625rem;
+      line-height: 1.5;
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-actions {
+      margin-top: var(--aa-space-5);
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-hero-proof,
+    .aa-hero:has([data-walk="pin"]) .aa-statement > .aa-hero-cmd-frame {
+      margin-top: var(--aa-space-4);
+    }
+    .aa-hero:has([data-walk="pin"]) .aa-exhibit-label {
+      margin-bottom: var(--aa-space-3);
+    }
+  }
   /* The engine machine's band (DESIGN.md §6): the head above, then the full-width stage (its own component). */
   .aa-engine-head {
     margin-bottom: var(--aa-space-7);

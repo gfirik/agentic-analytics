@@ -305,6 +305,54 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
   expect(engineTop - captionBottom, "no large empty block under the hero").toBeLessThan(160);
 });
 
+test("hero: on laptop screens the whole hero still pins and steps (1280×720, 1366×768, 1536×730); under 680px of height it is the tap list", async ({
+  browser,
+}) => {
+  for (const [width, height] of [
+    [1280, 720],
+    [1366, 768],
+    [1536, 730],
+  ] as const) {
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    const page = await ctx.newPage();
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    const wrap = page.locator("[data-exhibit]");
+    await expect(wrap, `${width}×${height}`).toHaveAttribute("data-walk", "pin");
+    const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
+    const row = page.locator(".aa-hero-row");
+    expect(await row.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+    for (let k = 1; k <= steps.length; k++) {
+      const y = await page
+        .locator(`[data-walk-sentinel="${k}"]`)
+        .evaluate((el, h) => el.getBoundingClientRect().top + window.scrollY - h * 0.65 + 40, height);
+      await jumpTo(page, y);
+      await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(k);
+      expect(Math.round(await row.evaluate((el) => el.getBoundingClientRect().top)), `${width}×${height} step ${k} pinned`).toBe(0);
+      await expect(page.locator(".aa-note.is-open")).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
+      // Everything that matters is on the short screen: the headline, the install line, the step bar, the report
+      // page's last line and the open note.
+      for (const sel of [".aa-hero-title", ".aa-hero-cmd-frame", ".aa-walk-bar", ".aa-exhibit-foot", ".aa-note.is-open"]) {
+        const r = await page.locator(sel).evaluate((el) => {
+          const b = el.getBoundingClientRect();
+          return { top: b.top, bottom: b.bottom };
+        });
+        expect(r.top, `${width}×${height} step ${k}: ${sel}`).toBeGreaterThanOrEqual(0);
+        expect(r.bottom, `${width}×${height} step ${k}: ${sel}`).toBeLessThanOrEqual(height);
+      }
+    }
+    await ctx.close();
+  }
+  // Below 680px of viewport height the hero doesn't pin: the steps are the tap list.
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 660 } });
+  const page = await ctx.newPage();
+  await page.goto(LANDING, { waitUntil: "networkidle" });
+  await expect(page.locator("[data-exhibit]")).toHaveAttribute("data-walk", "tap");
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  await expect(page.locator(".aa-walk-list details")).not.toHaveCount(0);
+  await ctx.close();
+});
+
 test("hero: keyboard scrolling (Page Down, Space) steps the pinned walkthrough, announced; no step control exists", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });

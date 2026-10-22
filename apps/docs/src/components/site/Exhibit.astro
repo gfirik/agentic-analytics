@@ -205,7 +205,11 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       if (!el?.dataset.walk) return;
       const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const beside = el.clientWidth >= 48 * rem;
-      for (const d of el.querySelectorAll(".aa-notes details[data-fold]")) d.open = beside;
+      // Pinned on a laptop screen (under 900px of height) the SQL stays folded too, so the tallest note fits.
+      const roomy = el.dataset.walk !== "pin" || innerHeight >= 900;
+      for (const d of el.querySelectorAll(".aa-notes details[data-fold]")) d.open = beside && roomy;
+      // The whole hero pins down to 680px of viewport height; below that the walkthrough is the tap list.
+      if (el.dataset.walk === "pin" && innerHeight < 680) el.dataset.walk = "tap";
       if (el.dataset.walk === "pin") {
         // The whole hero row pins: its content (without the screen-tall minimum it takes when pinned) must fit.
         const row = el.closest(".aa-hero-row");
@@ -466,23 +470,26 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       col.style.minHeight = `${reserved}px`;
     };
     const fold = () => {
-      for (const d of folds) d.open = beside.matches;
+      const roomy = !pinned() || window.innerHeight >= 900;
+      for (const d of folds) d.open = beside.matches && roomy;
       reserve();
       place();
     };
-    // From 1100px the hero pins only when its content fits the screen; otherwise (a short window) the
-    // steps are the tap list. Checked again when the window changes, never per frame.
+    // From 1100px and 680px of height the hero pins when its content fits the screen; otherwise the steps are the
+    // tap list. Checked again when the window changes, never per frame.
     const wide = matchMedia("(min-width: 68.75rem)");
     const chooseMode = () => {
       if (!motion) return;
       const was = wrap.dataset.walk;
-      wrap.dataset.walk = wide.matches ? "pin" : "tap";
+      wrap.dataset.walk = wide.matches && window.innerHeight >= 680 ? "pin" : "tap";
       const row = wrap.closest<HTMLElement>(".aa-hero-row");
       if (wrap.dataset.walk === "pin" && row) {
+        for (const d of folds) d.open = beside.matches && window.innerHeight >= 900;
         row.style.minHeight = "0";
         if (row.getBoundingClientRect().height > window.innerHeight) wrap.dataset.walk = "tap";
         row.style.minHeight = "";
       }
+      fold();
       if (wrap.dataset.walk !== was) {
         for (const d of wrap.querySelectorAll<HTMLDetailsElement>(".aa-walk-list details")) d.open = d.dataset.stepItem === String(Math.max(current, 1));
         reserved = 0;
@@ -871,6 +878,35 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     margin-top: var(--aa-space-3);
     font: 400 var(--aa-text-note) / 1.5 var(--aa-font-mono);
     color: var(--aa-ink-3);
+  }
+
+  /* Pinned on a laptop screen (under 900px of height, site v5 PR 2): the report page sets closer so the whole hero fits
+     one screen (sizes only, chosen before first paint). */
+  @media (min-width: 68.75rem) and (max-height: 56.24rem) {
+    [data-walk="pin"] .aa-walk-body {
+      gap: var(--aa-space-3);
+    }
+    [data-walk="pin"] .aa-walk-bar {
+      padding-bottom: var(--aa-space-2);
+    }
+    [data-walk="pin"] .aa-exhibit-page {
+      gap: var(--aa-space-3);
+      padding: var(--aa-space-4) var(--aa-space-5) var(--aa-space-3);
+    }
+    [data-walk="pin"] .aa-exhibit-title {
+      padding-bottom: var(--aa-space-2);
+    }
+    [data-walk="pin"] .aa-exhibit-line {
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+    [data-walk="pin"] .aa-exhibit-line + .aa-exhibit-line,
+    [data-walk="pin"] .aa-exhibit-foot {
+      padding-top: var(--aa-space-2);
+    }
+    [data-walk="pin"] .aa-exhibit-caption {
+      margin-top: var(--aa-space-2);
+    }
   }
 
   /* The verification replay. The server renders the final state; [data-anim="pending"] (set before first paint by
