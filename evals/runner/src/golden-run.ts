@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Answer, askJob } from "@agentic-analytics/core";
-import type { ModelClient } from "@agentic-analytics/models";
+import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { baselineModel } from "./baseline.ts";
 import { EvalRunError } from "./errors.ts";
@@ -118,6 +118,8 @@ export async function runGoldenSet(o: GoldenRunOptions): Promise<GoldenRunResult
       let askError: string | undefined;
       if (item.source.kind === "ask")
         answer = await askJob(dir, item.question, o.model()).catch((err: unknown) => {
+          // A model or provider failure is that item's miss; anything else is a bug and stops the run.
+          if (!fromModel(err)) throw err;
           askError = (err instanceof Error ? err.message : String(err)).split("\n")[0]?.slice(0, 160);
           return undefined;
         });
@@ -199,4 +201,10 @@ export async function goldenEvalCommand(
     out.push(r);
   }
   return out;
+}
+
+/** Whether an error is a model failure: a ModelError, or one the agent wrapped (its `cause` chain). */
+function fromModel(err: unknown): boolean {
+  for (let e: unknown = err, depth = 0; e instanceof Error && depth < 5; e = e.cause, depth++) if (e instanceof ModelError) return true;
+  return false;
 }

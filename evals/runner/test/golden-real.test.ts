@@ -48,7 +48,9 @@ describe("the real datasets' golden sets", () => {
       try {
         for (const dataset of DATASETS) {
           const file = join(DATA, FILES[dataset] as string);
-          const header = readFileSync(file, "utf8").slice(0, 2000).split("\n")[0]?.split(",") ?? [];
+          const header = (
+            await ws.all<{ column_name: string }>({ text: `DESCRIBE SELECT * FROM read_csv('${file}', all_varchar = true)`, params: [] })
+          ).map((r) => r.column_name);
           for (const split of SPLITS)
             for (const item of loadGoldenSet(GOLDEN_DIR, dataset, split).items) {
               for (const c of item.columns) expect(header, `${dataset} ${item.id} column ${c}`).toContain(c);
@@ -83,6 +85,11 @@ describe("the real datasets' golden sets", () => {
           r.items.filter((i) => i.source === "fact" && !i.pass).map((i) => `${i.id}: ${i.got}`),
           dataset,
         ).toEqual([]);
+        // The driver items, pinned so a change shows: NZ's April 2020 change carries its drivers; retail's December
+        // 2010 orders finding is an anomaly.v1 finding, which attaches none (a known engine gap, STATE).
+        const drivers = Object.fromEntries(r.items.filter((i) => i.source === "driver").map((i) => [i.id, i]));
+        if (dataset === "nz-card-spend") expect(drivers.G3?.pass, "nz G3").toBe(true);
+        if (dataset === "online-retail-ii") expect(drivers.G7?.got, "retail G7").toMatch(/no driver/);
         // The scripted baseline answers no follow-up question: its ask items are misses, never n/a.
         expect(
           r.items.filter((i) => i.source === "ask").every((i) => !i.pass && i.got.startsWith("no answer")),
@@ -168,7 +175,8 @@ items:
 
 describe("held-out honesty (accuracy.md §4)", () => {
   // Release runs alone read heldout.yaml, through evals/runner. The engine must never see the golden questions or
-  // answers: no source, config or docs file under packages/ or apps/ may name the held-out file or the golden folder.
+  // answers: nothing under packages/ imports the eval runner, no file under packages/ or apps/ names the held-out file
+  // or the golden folder, and under apps/ only the CLI's eval command (the release-run entry) touches the golden API.
   const SKIP = new Set(["node_modules", "dist", ".astro", ".turbo", "coverage", "test-results", "playwright-report"]);
   const TEXT = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx|json|ya?ml|md|mdx|astro|sql|html|css)$/;
   function walk(d: string, out: string[]): string[] {
@@ -182,10 +190,27 @@ describe("held-out honesty (accuracy.md §4)", () => {
     return out;
   }
 
-  it("no file under packages/ or apps/ reads heldout.yaml or the evals/golden folder", () => {
-    const files = [...walk(join(ROOT, "packages"), []), ...walk(join(ROOT, "apps"), [])];
+  // `aa eval --suite golden --split heldout` is how a release run reads the held-out split.
+  const RELEASE_ENTRY = new Set(["apps/cli/src/main.ts"]);
+  const GOLDEN_API = /\b(GOLDEN_DIR|goldenFile|loadGoldenSet|runGoldenSet|goldenEvalCommand|goldenDatasets)\b|["'`]heldout["'`]/;
+  const PATHS = /heldout\.ya?ml|evals[\\/]golden|["'`]evals["'`]\s*,\s*["'`]golden["'`]/;
+  const rel = (f: string) => relative(ROOT, f).split("\\").join("/");
+
+  it("nothing under packages/ imports the eval runner", () => {
+    const files = walk(join(ROOT, "packages"), []);
     expect(files.length).toBeGreaterThan(50);
-    const hits = files.filter((f) => /heldout\.ya?ml|evals[\\/]golden/.test(readFileSync(f, "utf8"))).map((f) => relative(ROOT, f));
-    expect(hits).toEqual([]);
+    expect(files.filter((f) => readFileSync(f, "utf8").includes("@agentic-analytics/eval-runner")).map(rel)).toEqual([]);
+  });
+
+  it("no file under packages/ or apps/ names heldout.yaml or the evals/golden folder", () => {
+    const files = [...walk(join(ROOT, "packages"), []), ...walk(join(ROOT, "apps"), [])];
+    expect(files.filter((f) => PATHS.test(readFileSync(f, "utf8"))).map(rel)).toEqual([]);
+  });
+
+  it("under apps/, only the CLI's eval command uses the golden API or the held-out split", () => {
+    const files = walk(join(ROOT, "apps"), []);
+    expect(files.filter((f) => !RELEASE_ENTRY.has(rel(f)) && GOLDEN_API.test(readFileSync(f, "utf8"))).map(rel)).toEqual([]);
+    // The allow-list stays true: the entry really is where the split is chosen.
+    expect(readFileSync(join(ROOT, "apps/cli/src/main.ts"), "utf8")).toMatch(GOLDEN_API);
   });
 });

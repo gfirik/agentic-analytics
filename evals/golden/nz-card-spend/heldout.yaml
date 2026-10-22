@@ -3,8 +3,8 @@
 # may read it (a test checks). FILE in each `sql` stands for evals/real/data/nz-card-spend-by-industry.csv, read raw
 # as in golden.yaml.
 #
-# Unreviewed: no item carries a `review` yet, so none counts toward the bars until an independent session re-derives
-# it (accuracy.md §3).
+# Agent-reviewed (2026-10-22): a separate subagent re-derived every answer with its own SQL and agrees, so every item
+# counts toward the bars; not yet maintainer-reviewed (accuracy.md §3).
 dataset: nz-card-spend
 items:
   - id: G8

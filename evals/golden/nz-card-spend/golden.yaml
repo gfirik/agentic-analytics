@@ -6,8 +6,8 @@
 # evals/real/data/nz-card-spend-by-industry.csv, read with all_varchar, so Period stays as published (2020.04).
 # evals/runner/test/golden-real.test.ts runs each query and checks it returns `expected` (skipped without the data).
 #
-# Unreviewed: no item carries a `review` yet, so none counts toward the bars until an independent session re-derives
-# it (accuracy.md §3). The held-out items are in heldout.yaml, read only by release runs.
+# Agent-reviewed (2026-10-22): a separate subagent re-derived every answer with its own SQL and agrees, so every item
+# counts toward the bars; not yet maintainer-reviewed (accuracy.md §3). The held-out items are in heldout.yaml, read only by release runs.
 dataset: nz-card-spend
 items:
   - id: G1

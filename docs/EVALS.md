@@ -140,5 +140,5 @@ It never switches models. A second route for the same model adds quota on the fi
 
 - Datasets and answer keys are versioned. Changing an answer key requires a note in the PR.
 - No tuning prompts on the golden set without re-running the full suite.
-- The held-out golden items (`evals/golden/<dataset>/heldout.yaml`) are read only by release runs (`bun run eval:golden -- --split heldout`), never while building. No file under `packages/` or `apps/` may name `heldout.yaml` or the `evals/golden` folder; a test fails on any (docs/specs/accuracy.md §4).
+- The held-out golden items (`evals/golden/<dataset>/heldout.yaml`) are read only by release runs (`bun run eval:golden -- --split heldout`), never while building. A static test keeps them away from the engine: nothing under `packages/` imports the eval runner, no file under `packages/` or `apps/` names `heldout.yaml` or the `evals/golden` folder, and under `apps/` only the CLI's eval command uses the golden API (docs/specs/accuracy.md §4).
 - A regression of any bar blocks release.
