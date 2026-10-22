@@ -1,6 +1,8 @@
-# The CI mini golden set (docs/specs/accuracy.md §1): six items over the committed coffee-roaster dataset, so the
-# golden harness runs offline in CI with the scripted planner. Not part of the reviewed golden set the bars count.
-# The SQL runs on the job's own workspace in evals/runner/test/golden.test.ts (the orders table is t_t1).
+# The CI mini golden set (docs/specs/accuracy.md §3): six items over the committed coffee-roaster dataset, so the
+# golden harness runs offline in CI with the scripted planner. A fixture, not reviewed: it carries no `review`, so
+# nothing here counts toward the bars. Its SQL runs on the job's own workspace in evals/runner/test/golden.test.ts
+# (the orders table is t_t1), which checks the fixture's expected values; it shares the engine's ingest, so it is
+# not an independent re-derivation.
 dataset: coffee-roaster-v1
 items:
   - id: G1
@@ -14,7 +16,6 @@ items:
       SELECT sum(amount) FROM t_t1 WHERE NOT _is_total AND strftime("date", '%Y-%m') = '2026-04'
       AND (status IS NULL OR status <> 'refunded')
     split: dev
-    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G2
     question: What was revenue in March 2026?
     kind: numeric
@@ -26,7 +27,6 @@ items:
       SELECT sum(amount) FROM t_t1 WHERE NOT _is_total AND strftime("date", '%Y-%m') = '2026-03'
       AND (status IS NULL OR status <> 'refunded')
     split: dev
-    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G3
     question: Which channel drove the April revenue drop?
     kind: categorical
@@ -38,7 +38,6 @@ items:
       AND strftime("date", '%Y-%m') IN ('2026-03', '2026-04') GROUP BY channel
       ORDER BY sum(CASE WHEN strftime("date", '%Y-%m') = '2026-04' THEN amount ELSE -amount END) LIMIT 1
     split: dev
-    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G4
     question: By how much did revenue fall from March to April 2026?
     kind: numeric
@@ -46,15 +45,16 @@ items:
     tolerance: { abs: 0.5 }
     source: { kind: ask }
     columns: [amount, date, status]
+    sql: >-
+      SELECT sum(CASE WHEN strftime("date", '%Y-%m') = '2026-04' THEN amount ELSE -amount END) FROM t_t1
+      WHERE NOT _is_total AND (status IS NULL OR status <> 'refunded') AND strftime("date", '%Y-%m') IN ('2026-03', '2026-04')
     split: dev
-    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G5
     question: What will revenue be next year?
     kind: trap
     reason: The data ends in June 2026 and the engine makes no forecasts; the right answer is a refusal.
     source: { kind: ask }
     split: dev
-    review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G6
     question: What was revenue in May 2026?
     kind: numeric

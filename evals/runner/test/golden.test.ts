@@ -64,8 +64,9 @@ describe("golden scorer", () => {
     const facts = [fact("N1", "x", -7900), fact("N2", "y", 36200)];
     expect(scoreGoldenItem(numeric({ kind: "ask" }, -7900), report([]), answer(facts, ["N1"])).pass).toBe(true);
     expect(scoreGoldenItem(numeric({ kind: "ask" }, -7900), report([]), answer(facts, ["N2"])).pass).toBe(false);
-    // A refusal is a miss for an answerable question.
+    // A refusal is a miss for an answerable question; a caveat beside the right cited fact is still a pass.
     expect(scoreGoldenItem(numeric({ kind: "ask" }, -7900), report([]), answer([], [], "no forecast")).pass).toBe(false);
+    expect(scoreGoldenItem(numeric({ kind: "ask" }, -7900), report([]), answer(facts, ["N1"], "the May data is partial")).pass).toBe(true);
   });
 
   it("a trap passes only on a structured refusal (notCovered or no verified claim), never on free text", () => {
@@ -81,8 +82,77 @@ describe("golden scorer", () => {
     };
     expect(scoreGoldenItem(trap, report([]), answer([], [], "The data has no cost column.")).pass).toBe(true);
     expect(scoreGoldenItem(trap, report([]), answer([], [])).pass).toBe(true);
+    // A caveat beside verified claims is not a refusal: the trap is missed.
+    expect(scoreGoldenItem(trap, report([]), answer([fact("N1", "x", 1)], ["N1"], "partly covered")).pass).toBe(false);
     expect(scoreGoldenItem(trap, report([]), answer([fact("N1", "x", 1)], ["N1"])).pass).toBe(false);
     expect(scoreGoldenItem(trap, report([])).pass).toBe(false);
+  });
+
+  it("a driver item reads the finding whose change is at that period, not one that only cites the period", () => {
+    // F1: revenue March → April (its first claim cites both points and the change), top driver wholesale.
+    const facts = [
+      fact("N1", "revenue_2026-03", 44100),
+      fact("N2", "revenue_2026-04", 36200),
+      fact("N3", "I1 period_change revenue 2026-04:change", -7900),
+    ];
+    const f1 = {
+      id: "F1",
+      claims: [{ text: "x", facts: ["N1", "N2", "N3"], citations: [], verified: true }],
+      drivers: [{ label: "“wholesale”", fact: "N3", share_of_change: "N3" }],
+    } as unknown as Report["findings"][number];
+    const r = report(facts, [f1]);
+    const driver = (period: string, expected: string): GoldenItem => ({
+      id: "G2",
+      question: "Which channel drove it?",
+      kind: "categorical",
+      expected,
+      source: { kind: "driver", metric: "revenue", period },
+      columns: [],
+      split: "dev",
+      review: reviewed,
+    });
+    expect(scoreGoldenItem(driver("2026-04", "wholesale"), r)).toMatchObject({ pass: true, got: "wholesale" });
+    // March is only the before side of F1: no finding is at March.
+    expect(scoreGoldenItem(driver("2026-03", "wholesale"), r)).toMatchObject({ pass: false, got: "no finding on revenue at 2026-03" });
+    expect(scoreGoldenItem(driver("2026-04", "retail"), r).pass).toBe(false);
+  });
+
+  it("a categorical ask item needs exactly one member among the first claim's facts", () => {
+    const cat: GoldenItem = {
+      id: "G3",
+      question: "Which channel?",
+      kind: "categorical",
+      expected: "wholesale",
+      source: { kind: "ask" },
+      columns: [],
+      split: "dev",
+      review: reviewed,
+    };
+    const w = fact("N1", "revenue[channel=wholesale]_2026-04", 7400);
+    const rt = fact("N2", "revenue[channel=retail]_2026-04", 28800);
+    const total = fact("N3", "revenue_2026-04", 36200);
+    expect(scoreGoldenItem(cat, report([]), answer([w, total], ["N1", "N3"])).pass).toBe(true);
+    expect(scoreGoldenItem(cat, report([]), answer([rt, total], ["N2", "N3"])).pass).toBe(false);
+    // Citing every channel names no single answer.
+    expect(scoreGoldenItem(cat, report([]), answer([w, rt], ["N1", "N2"]))).toMatchObject({
+      pass: false,
+      got: "several members: wholesale, retail",
+    });
+    expect(scoreGoldenItem(cat, report([]), answer([total], ["N3"]))).toMatchObject({ pass: false, got: "no member cited" });
+  });
+
+  it("summarizes one split at a time when asked", () => {
+    const s = (split: GoldenScore["split"], pass: boolean): GoldenScore => ({
+      id: "G",
+      kind: "numeric",
+      split,
+      pass,
+      got: "",
+      counts: true,
+    });
+    const scores = [s("dev", true), s("heldout", false), s("heldout", true)];
+    expect(summarizeGolden(scores, "heldout").numericCategorical).toEqual({ passed: 1, of: 2 });
+    expect(summarizeGolden(scores, "dev").numericCategorical).toEqual({ passed: 1, of: 1 });
   });
 
   it("counts only reviewed items whose re-derivation agrees", () => {
@@ -114,6 +184,11 @@ describe("golden scorer", () => {
         "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, kind: numeric, expected: 1, source: { kind: ask }, split: dev }\n  - { id: G1, question: Revenue in May?, kind: numeric, expected: 2, source: { kind: ask }, split: dev }",
       ),
     ).toThrowError(/duplicate id G1/);
+    expect(() =>
+      parseGoldenSet(
+        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, kind: numeric, expected: 1, source: { kind: driver, metric: r, period: p }, split: dev }",
+      ),
+    ).toThrowError(/a driver answers categorical items only/);
   });
 });
 
@@ -134,22 +209,32 @@ describe("paired bootstrap", () => {
     expect(r.high).toBeGreaterThanOrEqual(0.75);
   });
 
-  it("is deterministic for a seed, and an interval that excludes 0 needs a consistent gain", () => {
+  it("a hand-computable case: b − a = [0, 1] resamples to means 0, 0.5, 1 (¼, ½, ¼), so the interval is [0, 1]", () => {
+    expect(pairedBootstrap([0, 0], [0, 1])).toMatchObject({ mean: 0.5, low: 0, high: 1 });
+  });
+
+  it("is deterministic for a seed; an interval excludes 0 only for a consistent gain", () => {
     const a = Array.from({ length: 40 }, (_, i) => (i % 3 === 0 ? 1 : 0));
     const b = Array.from({ length: 40 }, (_, i) => (i % 3 === 0 || i % 2 === 0 ? 1 : 0));
+    // b − a is 1 where i is even and not a multiple of 3: i ∈ {2, 4, 8, 10, …, 38}, 13 tasks → mean 13/40 = 0.325.
+    expect(pairedBootstrap(a, b).mean).toBe(0.325);
     expect(pairedBootstrap(a, b)).toEqual(pairedBootstrap(a, b));
     expect(pairedBootstrap(a, b).low).toBeGreaterThan(0);
-    // A gain on one task of forty in each direction: the interval straddles 0.
-    const c = [...a];
-    c[1] = 1;
+    // One gain and one loss over forty tasks (differences +1 and −1, the rest 0): the interval straddles 0.
     const d = [...a];
+    d[1] = 1;
     d[0] = 0;
-    expect(pairedBootstrap(c, d).low).toBeLessThan(0);
+    const r = pairedBootstrap(a, d);
+    expect(r.mean).toBe(0);
+    expect(r.low).toBeLessThan(0);
+    expect(r.high).toBeGreaterThan(0);
   });
 
   it("refuses unpaired or empty inputs", () => {
     expect(() => pairedBootstrap([1], [1, 2])).toThrowError(/paired/);
     expect(() => pairedBootstrap([], [])).toThrowError(/at least one/);
+    expect(() => pairedBootstrap([1], [1], { resamples: 0 })).toThrowError(/resamples/);
+    expect(() => pairedBootstrap([Number.NaN], [1])).toThrowError(/finite/);
   });
 });
 
@@ -165,7 +250,7 @@ describe("the CI mini golden set on coffee-roaster (scripted planner)", () => {
     ).report;
   }, 180_000);
 
-  it("each item's SQL gives its expected answer on the job's own tables (the independent re-derivation)", async () => {
+  it("each item's SQL gives its expected answer on the job's own tables (a fixture check, sharing the engine's ingest)", async () => {
     const ws = await Workspace.open(join(dir, "job.duckdb"));
     try {
       for (const item of set.items) {
@@ -180,13 +265,15 @@ describe("the CI mini golden set on coffee-roaster (scripted planner)", () => {
     }
   });
 
-  it("scores every reviewed item as passing, and the unreviewed one is not counted", async () => {
+  it("scores the fixture's items with the scripted run, and none of them counts toward the bars", async () => {
     const scores: GoldenScore[] = [];
     for (const item of set.items) {
       const a = item.source.kind === "ask" ? await askJob(dir, item.question, coffeePlanner()) : undefined;
       scores.push(scoreGoldenItem(item, r, a));
     }
-    for (const s of scores.filter((x) => x.counts)) expect(s.pass, `${s.id}: ${s.got}`).toBe(true);
-    expect(summarizeGolden(scores)).toMatchObject({ numericCategorical: { passed: 4, of: 4 }, traps: { passed: 1, of: 1 }, notCounted: 1 });
+    // Every item the scripted run can answer passes (G6 asks for a fact the report doesn't carry).
+    expect(scores.filter((x) => !x.pass).map((x) => x.id)).toEqual(["G6"]);
+    // A fixture, not reviewed: nothing here counts toward the bars.
+    expect(summarizeGolden(scores)).toMatchObject({ numericCategorical: { passed: 0, of: 0 }, traps: { passed: 0, of: 0 }, notCounted: 6 });
   }, 120_000);
 });

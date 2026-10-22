@@ -6,6 +6,7 @@ import type { Report } from "@agentic-analytics/schema";
 import { parse } from "yaml";
 import { z } from "zod";
 import { EvalRunError } from "./errors.ts";
+import { subjectOf } from "./score.ts";
 
 /** Where an item's answer is read from. Only that place is compared: a matching but unrelated fact scores nothing. */
 const Source = z.discriminatedUnion("kind", [
@@ -59,6 +60,11 @@ export const GoldenSet = z.object({ dataset: z.string().min(1), items: z.array(G
     ids.add(item.id);
     if (item.kind === "trap" && item.source.kind !== "ask")
       ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "a trap is answered through ask (a refusal)" });
+    // Combinations that could never pass are authoring slips: refused at load, not reported as engine misses.
+    if (item.kind === "numeric" && item.source.kind === "driver")
+      ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "a driver answers categorical items only" });
+    if (item.kind === "categorical" && item.source.kind === "fact")
+      ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "a fact answers numeric items only" });
   }
 });
 export type GoldenSet = z.infer<typeof GoldenSet>;
@@ -91,8 +97,11 @@ export function withinTolerance(got: number, expected: number, tol: { abs: numbe
 }
 
 /**
- * Scores one item against the report and, for `ask` items, the answer to its question. A numeric `ask` item passes when
- * a fact the answer cites is within tolerance; a categorical one when a cited fact's member is the expected value.
+ * Scores one item against the report and, for `ask` items, the answer to its question (accuracy.md §2).
+ * - A refusal is an answer with no verified claim; `notCovered` alongside claims is a caveat, not a refusal.
+ * - A numeric `ask` item passes when a fact the answer's first claim cites is within tolerance.
+ * - A categorical `ask` item passes when the facts the first claim cites name exactly one member, and it is the
+ *   expected one; an answer that cites several members (every channel's change) names no single answer.
  */
 export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answer): GoldenScore {
   const counts = item.review?.agrees === true;
@@ -100,7 +109,7 @@ export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answe
   const src = item.source;
   if (item.kind === "trap") {
     if (!answer) return out(false, "no answer");
-    const refused = answer.notCovered !== undefined || answer.claims.length === 0;
+    const refused = answer.claims.length === 0;
     return out(
       refused,
       refused ? `refused: ${answer.notCovered ?? "no verified claim"}` : `answered with ${answer.claims.length} claim(s)`,
@@ -109,35 +118,38 @@ export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answe
   if (src.kind === "fact") {
     const fact = report.facts.find((f) => f.label === src.label);
     if (!fact) return out(false, `no fact ${src.label}`);
-    if (item.kind === "numeric") return out(withinTolerance(fact.value, item.expected, item.tolerance), String(fact.value));
-    return out(false, "a fact source answers numeric items only");
+    return item.kind === "numeric"
+      ? out(withinTolerance(fact.value, item.expected, item.tolerance), String(fact.value))
+      : out(false, "unreachable");
   }
   if (src.kind === "driver") {
-    const finding = report.findings.find((f) => findingSubject(f, report, src.metric, src.period));
+    // The finding about that change: its subject (metric, no member, the period it is at), as the planted matcher reads it.
+    const finding = report.findings.find((f) => {
+      const s = subjectOf(f, report);
+      return s !== undefined && s.metric === src.metric && s.member === undefined && s.period === src.period;
+    });
     const top = finding?.drivers?.[0]?.label.replace(/[“”"]/g, "").trim();
     if (!top) return out(false, finding ? "no driver" : `no finding on ${src.metric} at ${src.period}`);
-    if (item.kind === "categorical") return out(top.toLowerCase() === item.expected.toLowerCase(), top);
-    return out(false, "a driver source answers categorical items only");
+    return item.kind === "categorical" ? out(top.toLowerCase() === item.expected.toLowerCase(), top) : out(false, "unreachable");
   }
   // ask
   if (!answer) return out(false, "no answer");
-  if (answer.notCovered !== undefined || answer.claims.length === 0)
-    return out(false, `refused: ${answer.notCovered ?? "no verified claim"}`);
-  const cited = new Set(answer.claims.flatMap((c) => c.facts));
+  if (answer.claims.length === 0) return out(false, `refused: ${answer.notCovered ?? "no verified claim"}`);
+  const cited = new Set(answer.claims[0]?.facts ?? []);
   const facts = answer.facts.filter((f) => cited.has(f.id));
   if (item.kind === "numeric") {
     const hit = facts.find((f) => withinTolerance(f.value, item.expected, item.tolerance));
     return out(hit !== undefined, hit ? `${hit.id} = ${hit.value}` : facts.map((f) => `${f.id} = ${f.value}`).join(", ") || "no facts");
   }
-  const members = facts.flatMap((f) => [...f.label.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] as string));
-  const hit = members.find((m) => m.toLowerCase() === item.expected.toLowerCase());
-  return out(hit !== undefined, hit ?? (members.join(", ") || "no member cited"));
+  const members = [...new Set(facts.flatMap((f) => memberOf(f.label) ?? []).map((m) => m.toLowerCase()))];
+  if (members.length !== 1) return out(false, members.length ? `several members: ${members.join(", ")}` : "no member cited");
+  return out(members[0] === item.expected.toLowerCase(), members[0] as string);
 }
 
-/** Whether a finding is about `metric` at `period`: one of its first claim's facts is that metric's point in that period. */
-function findingSubject(f: Report["findings"][number], report: Report, metric: string, period: string): boolean {
-  const labels = new Map(report.facts.map((x) => [x.id, x.label]));
-  return (f.claims[0]?.facts ?? []).some((id) => labels.get(id) === `${metric}_${period}`);
+/** The member of a measured fact's label (`revenue[channel=wholesale]_2026-04` → wholesale); one filter only. */
+function memberOf(label: string): string | undefined {
+  const m = /\[([^=\],]+)=([^\],]+)\]/.exec(label);
+  return m?.[2];
 }
 
 export interface GoldenSummary {
@@ -148,7 +160,9 @@ export interface GoldenSummary {
   readonly notCounted: number;
 }
 
-export function summarizeGolden(scores: readonly GoldenScore[]): GoldenSummary {
+/** The bars' counts for one split (the §4.7 numeric bar is on the held-out split), or both when none is given. */
+export function summarizeGolden(all: readonly GoldenScore[], split?: GoldenItem["split"]): GoldenSummary {
+  const scores = split ? all.filter((s) => s.split === split) : all;
   const counted = scores.filter((s) => s.counts);
   const answers = counted.filter((s) => s.kind !== "trap");
   const traps = counted.filter((s) => s.kind === "trap");
@@ -183,8 +197,8 @@ export interface PairedDifference {
 
 /**
  * The paired bootstrap (accuracy.md §5): per-task differences b − a, resampled with replacement `resamples` times
- * with a fixed seed, and the 2.5th and 97.5th percentiles of the resampled means. "b adds accuracy" is claimed only
- * when `low > 0`.
+ * with a fixed seed, and the 2.5th and 97.5th percentiles of the resampled means (the sorted means at indices
+ * ⌊0.025·R⌋ and ⌊0.975·R⌋). "b adds accuracy" is claimed only when `low > 0`.
  */
 export function pairedBootstrap(
   a: readonly number[],
@@ -193,6 +207,9 @@ export function pairedBootstrap(
 ): PairedDifference {
   if (a.length !== b.length) throw new EvalRunError("USAGE", `paired bootstrap needs paired tasks (${a.length} vs ${b.length})`);
   if (!a.length) throw new EvalRunError("USAGE", "paired bootstrap needs at least one task");
+  if (!Number.isInteger(resamples) || resamples < 1)
+    throw new EvalRunError("USAGE", `resamples must be a whole number above 0, not ${resamples}`);
+  if (![...a, ...b].every(Number.isFinite)) throw new EvalRunError("USAGE", "paired bootstrap scores must be finite numbers");
   const d = b.map((v, i) => v - (a[i] as number));
   const n = d.length;
   const mean = d.reduce((s, v) => s + v, 0) / n;
