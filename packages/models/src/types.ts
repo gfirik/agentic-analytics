@@ -1,8 +1,11 @@
 // The engine-facing model contract (docs/specs/models.md §2). These types are ours, not the AI SDK's,
 // so the SDK can be swapped without touching the engine (DECISIONS D4).
-import type { ZodType } from "zod";
+import { ModelRole } from "@agentic-analytics/schema";
+import type { ZodType, z } from "zod";
 
-export type Role = "planner" | "extractor" | "judge";
+// The roles a ModelClient serves: the report's ModelRole minus embedder and reranker, which don't generate text.
+const ClientRole = ModelRole.extract(["planner", "extractor", "judge"]);
+export type Role = z.infer<typeof ClientRole>;
 
 export interface Usage {
   readonly inputTokens: number;

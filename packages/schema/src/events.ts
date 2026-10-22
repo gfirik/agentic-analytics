@@ -1,5 +1,6 @@
 // Job events: the SSE stream (docs/specs/interfaces.md §1) and the `events` table (ARCHITECTURE §3).
 import { z } from "zod";
+import { ModelRole } from "./report.ts";
 
 export const Stage = z.enum([
   "INGEST",
@@ -31,7 +32,7 @@ export const JobEvent = z.discriminatedUnion("type", [
     ...base,
     type: z.literal("model_usage"),
     stage: Stage,
-    role: z.enum(["planner", "extractor", "judge", "embedder", "reranker"]),
+    role: ModelRole,
     provider: z.string(),
     model: z.string(),
     input_tokens: z.number().int().nonnegative(),
