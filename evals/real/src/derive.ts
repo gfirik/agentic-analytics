@@ -68,3 +68,74 @@ export function deriveCardSpendByIndustry(csv: string): string {
   for (const l of lines.slice(1)) if (/^ECTM\.S1GA[1-8],/.test(l)) out.push(l);
   return `${out.join("\n")}\n`;
 }
+
+/** The 31 columns of both hotel files (H1.csv and H2.csv), in the published order. */
+export const HOTEL_COLUMNS = [
+  "IsCanceled",
+  "LeadTime",
+  "ArrivalDateYear",
+  "ArrivalDateMonth",
+  "ArrivalDateWeekNumber",
+  "ArrivalDateDayOfMonth",
+  "StaysInWeekendNights",
+  "StaysInWeekNights",
+  "Adults",
+  "Children",
+  "Babies",
+  "Meal",
+  "Country",
+  "MarketSegment",
+  "DistributionChannel",
+  "IsRepeatedGuest",
+  "PreviousCancellations",
+  "PreviousBookingsNotCanceled",
+  "ReservedRoomType",
+  "AssignedRoomType",
+  "BookingChanges",
+  "DepositType",
+  "Agent",
+  "Company",
+  "DaysInWaitingList",
+  "CustomerType",
+  "ADR",
+  "RequiredCarParkingSpaces",
+  "TotalOfSpecialRequests",
+  "ReservationStatus",
+  "ReservationStatusDate",
+];
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * Hotel booking demand (Antonio, de Almeida & Nunes 2019) → one CSV of both hotels' bookings: H1.csv (the resort
+ * hotel) then H2.csv (the city hotel), each line unchanged behind two added fields, `Hotel` and `ArrivalDate`
+ * (ISO, from the year, month name and day columns). The engine reads one file per job, and the files carry no
+ * single date column: the only ISO date, ReservationStatusDate, is when the booking was cancelled or checked out,
+ * which would put every cancellation in the wrong month. The published padding ("BB       ", "       NULL") is
+ * kept: it is part of the real mess the engine has to handle.
+ */
+export function deriveHotelBookings(h1: string, h2: string): string {
+  const out = [["Hotel", "ArrivalDate", ...HOTEL_COLUMNS].join(",")];
+  for (const [hotel, csv] of [
+    ["Resort Hotel", h1],
+    ["City Hotel", h2],
+  ] as const) {
+    const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
+    if (lines[0] !== HOTEL_COLUMNS.join(","))
+      throw new RealDataError("UNEXPECTED_LAYOUT", `unexpected header in the ${hotel} file: ${(lines[0] ?? "").slice(0, 120)}`);
+    for (const [i, line] of lines.slice(1).entries()) {
+      if (line === "") continue;
+      // The published files have no quoted fields; a quote would mean a comma could sit inside a field.
+      const f = line.split(",");
+      if (line.includes('"') || f.length !== HOTEL_COLUMNS.length)
+        throw new RealDataError("UNEXPECTED_LAYOUT", `${hotel} line ${i + 2}: expected ${HOTEL_COLUMNS.length} unquoted fields`);
+      const month = MONTHS.indexOf((f[3] ?? "").trim()) + 1;
+      const year = Number(f[2]);
+      const day = Number(f[5]);
+      if (!month || !Number.isInteger(year) || !Number.isInteger(day) || day < 1 || day > 31)
+        throw new RealDataError("UNEXPECTED_LAYOUT", `${hotel} line ${i + 2}: no arrival date in ${f[2]}, ${f[3]}, ${f[5]}`);
+      out.push(`${hotel},${year}-${pad(month)}-${pad(day)},${line}`);
+    }
+  }
+  return `${out.join("\n")}\n`;
+}

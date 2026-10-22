@@ -1,0 +1,85 @@
+# Hotel booking demand (Antonio, de Almeida & Nunes, Data in Brief 22, 2019; CC BY 4.0): every booking due to arrive
+# at a resort hotel (H1) and a city hotel (H2) in Portugal from 1 July 2015 to 31 August 2017, cancellations
+# included. Ground truth: DuckDB over the derived file, FILE = evals/real/data/hotel-bookings.csv, read with
+# all_varchar so the published padding ("No Deposit     ", "       NULL") stays as it is. No expected number comes
+# from the engine. Room revenue = ADR × (weekend + week nights) over the bookings not cancelled, by arrival month.
+dataset: hotel-bookings
+file: hotel-bookings.csv
+options:
+  today: "2026-10-16"
+  currency: EUR
+confirmed_metrics: hotel-bookings.metrics.yaml
+
+ground_truth:
+  - id: G1
+    about: Bookings, cancellations and the file's known mess
+    sql: >-
+      SELECT count(*) AS bookings, count(*) FILTER (WHERE IsCanceled = '1') AS cancelled,
+             count(*) FILTER (WHERE (IsCanceled = '1') <> (ReservationStatus <> 'Check-Out')) AS status_disagrees,
+             count(*) FILTER (WHERE trim(Agent) = 'NULL') AS agent_null, count(*) FILTER (WHERE Children = 'NA') AS children_na,
+             count(*) FILTER (WHERE ADR::DOUBLE < 0) AS negative_adr, max(ADR::DOUBLE) AS max_adr,
+             median(ADR::DOUBLE) FILTER (WHERE Hotel = 'City Hotel') AS city_median_adr
+      FROM read_csv('FILE', all_varchar = true)
+    result: >-
+      bookings 119390 (40060 resort + 79330 city, as the article states); cancelled 44224; status_disagrees 0
+      (ReservationStatus is Canceled or No-Show exactly when IsCanceled is 1: it leaks the outcome); agent_null 16340;
+      children_na 4; negative_adr 1 (-6.38); max_adr 5400 (city hotel, whose median ADR is 99.9: 54 × 100, a
+      decimal-point slip); city_median_adr 99.9
+  - id: G2
+    about: Monthly room revenue (EUR), bookings and room nights by arrival month
+    sql: >-
+      SELECT left(ArrivalDate, 7) AS month,
+             round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)) FILTER (WHERE IsCanceled = '0'), 2) AS room_revenue,
+             count(*) AS bookings
+      FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY 1
+    result: >-
+      2015-07 758339.79 (2776); 2015-08 1137652.71 (3889); 2015-09 1054620.67 (5114); 2015-10 784714.88 (4957);
+      2015-11 346709.49 (2340); 2015-12 429521.57 (2920); 2016-01 264521.38 (2248); 2016-02 484170.72 (3891);
+      2016-03 767337.42 (4824); 2016-04 896591.38 (5428); 2016-05 1073277.63 (5478); 2016-06 1144800.38 (5292);
+      2016-07 1525019.05 (4572); 2016-08 1809324.75 (5063); 2016-09 1289642.69 (5394); 2016-10 1072101.84 (6203);
+      2016-11 688843.47 (4454); 2016-12 657870.72 (3860); 2017-01 512155.46 (3681); 2017-02 663370.76 (4177);
+      2017-03 884761.17 (4970); 2017-04 1203266.10 (5661); 2017-05 1321936.01 (6313); 2017-06 1438490.54 (5647);
+      2017-07 1817038.23 (5313); 2017-08 1970181.60 (4925). August is the top month of 2015, 2016 and 2017; November
+      is below October in both years that have them (revenue and bookings), and January below December in both.
+  - id: G3
+    about: Cancellation rate by deposit type
+    sql: >-
+      SELECT trim(DepositType) AS deposit, count(*) AS bookings, round(100 * avg(IsCanceled::INTEGER), 2) AS cancelled_pct
+      FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY 1
+    result: "No Deposit 104641, 28.38%; Non Refund 14587, 99.36%; Refundable 162, 22.22%"
+# Not a check: the data ends 2017-08-31, a complete month, so there is no partial last month to stay silent about.
+
+checks:
+  - id: C1
+    kind: completes
+    about: The job completes on 119,390 bookings with the published padding and "NULL" text left in
+  - id: C2
+    kind: verified
+    about: Every number re-computes (no mismatch, re-derivation mismatch or definition violation)
+  - id: C3
+    kind: seasonal_peak
+    about: "The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2)"
+    metric: room_revenue
+    years: [2015, 2016, 2017]
+    months: [8]
+    values:
+      "2015-08": 1137652.71
+      "2016-08": 1809324.75
+      "2017-08": 1970181.60
+    tolerance: 0.01
+  - id: C4
+    kind: seasonal_not_flagged
+    about: "The autumn fall is not reported as news: bookings in November are below October in both years (G2)"
+    metric: bookings
+    months: [11]
+  - id: C5
+    kind: quality_issue
+    about: "Missing values: Children is NA in 4 bookings (G1)"
+    issue: missing_value
+    column: children
+    count: 4
+  - id: C6
+    kind: quality_issue
+    about: "The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip"
+    issue: unit_error
+    column: adr

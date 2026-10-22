@@ -1,0 +1,43 @@
+# Confirmed before the analysis, as a person would in the metric review: the files have no money-named column (the
+# rate is ADR, the average daily rate in EUR), so the offline drafter proposes nothing. Room revenue counts only the
+# bookings that were not cancelled, at ADR × nights, by arrival date (the derived ArrivalDate column).
+version: 1
+grain: month
+metrics:
+  - id: room_revenue
+    label: Room revenue (EUR)
+    type: sum
+    table: t_t1
+    expression: adr * (staysinweekendnights + staysinweeknights)
+    filters: ["iscanceled = 0"]
+    time_column: arrivaldate
+    unit: currency
+    currency: EUR
+    dimensions: [hotel, marketsegment, distributionchannel, customertype, deposittype]
+    status: confirmed
+  - id: room_nights
+    label: Room nights
+    type: sum
+    table: t_t1
+    expression: staysinweekendnights + staysinweeknights
+    filters: ["iscanceled = 0"]
+    time_column: arrivaldate
+    unit: count
+    dimensions: [hotel, marketsegment, distributionchannel, customertype, deposittype]
+    status: confirmed
+  - id: bookings
+    label: Bookings (cancelled included)
+    type: count
+    table: t_t1
+    time_column: arrivaldate
+    unit: count
+    dimensions: [hotel, marketsegment, distributionchannel, customertype, deposittype]
+    status: confirmed
+  - id: cancellation_rate
+    label: Cancellation rate
+    type: ratio
+    numerator: { table: t_t1, expression: iscanceled }
+    denominator: { metric: bookings }
+    time_column: arrivaldate
+    unit: ratio
+    status: confirmed
