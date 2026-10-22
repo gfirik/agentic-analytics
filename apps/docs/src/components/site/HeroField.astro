@@ -441,6 +441,16 @@
       -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 10rem), transparent);
       mask-image: linear-gradient(to right, #000 calc(100% - 10rem), transparent);
     }
+    /* While the whole hero is pinned (site v5 PR 2) its content is centred in the screen, so the field's top no longer
+       meets the header's hairline: it fades in over its first 6rem instead of ending in an edge. */
+    :global(.aa-hero:has([data-walk="pin"])) .aa-hero-field {
+      -webkit-mask-image:
+        linear-gradient(to right, #000 calc(100% - 10rem), transparent), linear-gradient(to bottom, transparent, #000 6rem);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(to right, #000 calc(100% - 10rem), transparent), linear-gradient(to bottom, transparent, #000 6rem);
+      mask-composite: intersect;
+    }
   }
   .aa-hero-field > * {
     position: absolute;

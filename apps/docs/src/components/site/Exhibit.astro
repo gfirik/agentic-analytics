@@ -5,15 +5,15 @@
 //   1. As it comes into view (only without prefers-reduced-motion) the figures count up to their recorded value
 //      (600 ms, drawn over the real text, which keeps its place), then verify one by one: each chip's box draws in,
 //      then its check appears (≤ 200 ms per figure, ≤ 2.5 s in all).
-//   2. A scroll-driven walkthrough (site v5 PR 2, which overrides D2's "nothing pinned"): from 900px, when the exhibit
-//      fits the screen, it pins (position: sticky; the hero row holds a scroll track, index.astro) and each scroll step
+//   2. A scroll-driven walkthrough (site v5 PR 2, which overrides D2's "nothing pinned"): from 1100px, when the whole
+//      hero fits the screen, the hero row pins as one unit (position: sticky over a scroll track, index.astro) and each scroll step
 //      activates the next key figure (walkthrough() in scripts/landing-data.ts) and opens its margin note under a
 //      step indicator, with a progress rule driven by the track's view timeline. Steps are found by an
 //      IntersectionObserver on the track's sentinels: no scroll listener, no layout read per frame. There are no
 //      step controls (the maintainer's call): only the scroll moves it, the keyboard's included (Page Down, Space,
 //      arrows); the step is announced by a polite live region. After the last step the pin releases into the
 //      engine machine's band. Step 1's note is open from the start, so the margin is never empty.
-//   3. Under 900px (or when the pinned exhibit wouldn't fit the screen) nothing is pinned: the steps stack as a list
+//   3. Under 1100px, where the hero stacks and can't fit one screen (or in a short window), nothing is pinned: the steps stack as a list
 //      under the exhibit and each opens on tap.
 //   4. Hovering or focusing any chip still opens its note; a click pins it (touch). Esc closes it.
 // With reduced motion or without JS the steps are a static ruled list under the exhibit, every note open, and every
@@ -70,13 +70,13 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
 <div class="aa-walk" data-exhibit data-steps={JSON.stringify(steps.map((s) => s.id))}>
   <script is:inline>
     // Before first paint: when motion is welcome, hold the figures unverified for the replay and choose the
-    // walkthrough's mode, so nothing shifts once the script runs: "pin" from 900px (checked against the screen's
-    // height at the end of this block), "tap" below. A safety net shows the static list if the script never runs.
+    // walkthrough's mode, so nothing shifts once the script runs: "pin" from 1100px, where the whole hero (statement
+    // and exhibit side by side) can pin (checked against the screen's height at the end of this block), "tap" below. A safety net shows the static list if the script never runs.
     (() => {
       const el = document.currentScript?.parentElement;
       if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       el.dataset.anim = "pending";
-      el.dataset.walk = matchMedia("(min-width: 56.25rem)").matches ? "pin" : "tap";
+      el.dataset.walk = matchMedia("(min-width: 68.75rem)").matches ? "pin" : "tap";
       setTimeout(() => {
         if (!el.dataset.ready) {
           el.dataset.anim = "done";
@@ -207,9 +207,13 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       const beside = el.clientWidth >= 48 * rem;
       for (const d of el.querySelectorAll(".aa-notes details[data-fold]")) d.open = beside;
       if (el.dataset.walk === "pin") {
-        const stage = el.closest(".aa-hero-exhibit") || el;
-        const top = Number.parseFloat(getComputedStyle(stage).top) || 0;
-        if (stage.getBoundingClientRect().height + top > innerHeight) el.dataset.walk = "tap";
+        // The whole hero row pins: its content (without the screen-tall minimum it takes when pinned) must fit.
+        const row = el.closest(".aa-hero-row");
+        if (row) {
+          row.style.minHeight = "0";
+          if (row.getBoundingClientRect().height > innerHeight) el.dataset.walk = "tap";
+          row.style.minHeight = "";
+        }
       }
       if (el.dataset.walk === "tap") for (const d of el.querySelectorAll(".aa-walk-list details")) d.open = d.dataset.stepItem === "1";
     })();
@@ -288,7 +292,6 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     const leader = wrap.querySelector<HTMLElement>(".aa-leader");
     const caps = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-cap")];
     const dots = [...wrap.querySelectorAll<HTMLElement>(".aa-walk-dot")];
-    const stage = wrap.closest<HTMLElement>(".aa-hero-exhibit") ?? wrap;
     // The scroll track the pinned exhibit stays over (index.astro): one sentinel per step.
     const sentinels = [...document.querySelectorAll<HTMLElement>("[data-walk-sentinel]")];
     const stepIds = JSON.parse(wrap.dataset.steps ?? "[]") as string[];
@@ -467,16 +470,18 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
       reserve();
       place();
     };
-    // From 900px the exhibit pins only when it fits the screen under its sticky top; otherwise (a short window) the
+    // From 1100px the hero pins only when its content fits the screen; otherwise (a short window) the
     // steps are the tap list. Checked again when the window changes, never per frame.
-    const wide = matchMedia("(min-width: 56.25rem)");
+    const wide = matchMedia("(min-width: 68.75rem)");
     const chooseMode = () => {
       if (!motion) return;
       const was = wrap.dataset.walk;
       wrap.dataset.walk = wide.matches ? "pin" : "tap";
-      if (wrap.dataset.walk === "pin") {
-        const top = Number.parseFloat(getComputedStyle(stage).top) || 0;
-        if (stage.getBoundingClientRect().height + top > window.innerHeight) wrap.dataset.walk = "tap";
+      const row = wrap.closest<HTMLElement>(".aa-hero-row");
+      if (wrap.dataset.walk === "pin" && row) {
+        row.style.minHeight = "0";
+        if (row.getBoundingClientRect().height > window.innerHeight) wrap.dataset.walk = "tap";
+        row.style.minHeight = "";
       }
       if (wrap.dataset.walk !== was) {
         for (const d of wrap.querySelectorAll<HTMLDetailsElement>(".aa-walk-list details")) d.open = d.dataset.stepItem === String(Math.max(current, 1));
@@ -763,7 +768,7 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     }
   }
 
-  /* The steps as a list (reduced motion and no JS: every note open; the tap list under 900px: each opens on tap). */
+  /* The steps as a list (reduced motion and no JS: every note open; the tap list where nothing pins: each opens on tap). */
   .aa-walk-list {
     list-style: none;
     margin: var(--aa-space-6) 0 0;

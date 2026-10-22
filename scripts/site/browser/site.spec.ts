@@ -225,16 +225,25 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
   // The margin is never empty: step 1's note is open before the first step.
   await expect(open).toHaveCount(1);
   await expect(open).toHaveAttribute("id", `aa-note-${steps[0]}`);
-  // The exhibit and the statement are sticky; one sentinel per step in the track.
+  // The whole hero row (statement and exhibit) is one sticky unit, a screen tall; one sentinel per step in the track.
+  const row = page.locator(".aa-hero-row");
   const stage = page.locator(".aa-hero-exhibit");
-  expect(await stage.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
-  expect(await page.locator(".aa-statement").evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+  const statement = page.locator(".aa-statement");
+  expect(await row.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+  expect(await row.evaluate((el) => Math.round(el.getBoundingClientRect().height))).toBeGreaterThanOrEqual(900);
   await expect(page.locator("[data-walk-sentinel]")).toHaveCount(steps.length);
-  const pinTop = await stage.evaluate((el) => Number.parseFloat(getComputedStyle(el).top));
-  // The pinned exhibit fits the screen.
-  expect(await stage.evaluate((el) => el.getBoundingClientRect().height + Number.parseFloat(getComputedStyle(el).top))).toBeLessThanOrEqual(
-    900,
+  // Pinned: the row's top at the screen's top; the exhibit and the statement where they were at step 1.
+  await jumpTo(
+    page,
+    (await page.locator('[data-walk-sentinel="1"]').evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 900 * 0.65 + 40,
   );
+  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(1);
+  expect(Math.round(await row.evaluate((el) => el.getBoundingClientRect().top))).toBe(0);
+  const pinTop = Math.round(await stage.evaluate((el) => el.getBoundingClientRect().top));
+  const statementTop = Math.round(await statement.evaluate((el) => el.getBoundingClientRect().top));
+  // Everything in the hero is on screen while pinned: the install line and the exhibit's caption.
+  for (const sel of [".aa-hero-cmd-frame", ".aa-exhibit-caption", ".aa-hero-title"])
+    expect(await page.locator(sel).evaluate((el) => el.getBoundingClientRect().bottom), sel).toBeLessThanOrEqual(900);
   // Each step: scroll until the step's sentinel crosses the line 65% down the screen; the exhibit stays put.
   const sentinelY = (k: number) =>
     page.locator(`[data-walk-sentinel="${k}"]`).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
@@ -243,7 +252,8 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
   for (let k = 1; k <= steps.length; k++) {
     await jumpTo(page, (await sentinelY(k)) - 900 * 0.65 + 40);
     await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(k);
-    expect(Math.round(await stage.evaluate((el) => el.getBoundingClientRect().top)), `step ${k} pinned`).toBe(pinTop);
+    expect(Math.round(await stage.evaluate((el) => el.getBoundingClientRect().top)), `step ${k} exhibit pinned`).toBe(pinTop);
+    expect(Math.round(await statement.evaluate((el) => el.getBoundingClientRect().top)), `step ${k} statement pinned`).toBe(statementTop);
     await expect(page.locator(`.aa-walk-cap[data-step="${k}"]`)).toContainText(`${k}/${steps.length}`);
     await expect(open).toHaveCount(1);
     await expect(open).toHaveAttribute("id", `aa-note-${steps[k - 1]}`);
@@ -256,7 +266,9 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
     const b = await open.boundingBox();
     expect((b?.y ?? 0) + (b?.height ?? 0), `step ${k} note on screen`).toBeLessThanOrEqual(900);
     const p = await progress();
-    expect(p, `step ${k} progress grows`).toBeGreaterThan(lastProgress);
+    // (Step 1 is where the pin check above already left the page.)
+    if (k > 1) expect(p, `step ${k} progress grows`).toBeGreaterThan(lastProgress);
+    else expect(p, "step 1 progress has started").toBeGreaterThan(0);
     lastProgress = p;
     if (k === 2) {
       // The change's SQL input: its SQL (open beside the exhibit) and the sheet rows it read.
@@ -276,18 +288,21 @@ test("hero: at 1440 the exhibit pins and each scroll step opens the next figure'
   await expect(page.locator("#aa-note-N12")).toHaveClass(/is-open/);
   await page.mouse.move(5, 5);
   await expect(open).toHaveAttribute("id", `aa-note-${steps[1]}`);
-  // Past the track the pin releases straight into the engine machine's band: the exhibit scrolls away and the band's
-  // top follows right behind it.
+  // Past the track the whole hero releases straight into the engine machine's band: the row scrolls away together and
+  // the band's top follows its bottom edge directly, with no empty block between them.
   const engine = page.locator("#engine");
   await jumpTo(page, (await sentinelY(steps.length)) + 900);
   expect(await stage.evaluate((el) => el.getBoundingClientRect().top)).toBeLessThan(pinTop);
+  expect(await statement.evaluate((el) => el.getBoundingClientRect().top)).toBeLessThan(statementTop);
   await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBe(steps.length);
-  const [stageBottom, engineTop] = await Promise.all([
-    stage.evaluate((el) => el.getBoundingClientRect().bottom),
+  const [rowBottom, engineTop, captionBottom] = await Promise.all([
+    row.evaluate((el) => el.getBoundingClientRect().bottom),
     engine.evaluate((el) => el.getBoundingClientRect().top),
+    page.locator(".aa-exhibit-caption").evaluate((el) => el.getBoundingClientRect().bottom),
   ]);
   expect(engineTop).toBeLessThan(900);
-  expect(engineTop - stageBottom, "the band follows the released exhibit").toBeLessThan(200);
+  expect(Math.abs(engineTop - rowBottom), "the band starts where the hero ends").toBeLessThanOrEqual(2);
+  expect(engineTop - captionBottom, "no large empty block under the hero").toBeLessThan(160);
 });
 
 test("hero: keyboard scrolling (Page Down, Space) steps the pinned walkthrough, announced; no step control exists", async ({ page }) => {
@@ -410,7 +425,7 @@ test("hero: under 900 px nothing is pinned; the steps stack as a list and each o
   await expect(wrap).toHaveAttribute("data-walk", "tap");
   const steps = JSON.parse((await wrap.getAttribute("data-steps")) ?? "[]") as string[];
   // No pin, no track, no step bar.
-  expect(await page.locator(".aa-hero-exhibit").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
   await expect(page.locator(".aa-hero-track")).toBeHidden();
   await expect(page.locator(".aa-walk-bar")).toBeHidden();
   // The figures still verify as the exhibit comes into view.
@@ -486,8 +501,7 @@ test("hero: with reduced motion the walkthrough is a static ruled list, every st
   await expect(page.locator("[data-exhibit]")).not.toHaveAttribute("data-walk", /.*/);
   await expect(page.locator(".aa-walk-bar")).toBeHidden();
   await expect(page.locator(".aa-hero-track")).toBeHidden();
-  expect(await page.locator(".aa-hero-exhibit").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
-  expect(await page.locator(".aa-statement").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
   for (const d of await page.locator(".aa-walk-list details").all()) await expect(d).toHaveAttribute("open", "");
   const items = page.locator(".aa-walk-list > li");
   await expect(items).toHaveCount(steps.length);
@@ -558,7 +572,7 @@ test("without JS the landing page is complete and chips link into the fact ledge
   for (const d of await items.all()) await expect(d).toHaveAttribute("open", "");
   await expect(items.last().locator(".aa-walk-item-note")).toBeVisible();
   await expect(page.locator(".aa-hero-track")).toBeHidden();
-  expect(await page.locator(".aa-hero-exhibit").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
+  expect(await page.locator(".aa-hero-row").evaluate((el) => getComputedStyle(el).position)).not.toBe("sticky");
   await expect(page.locator(".aa-walk-bar")).toBeHidden();
   await expect(page.locator(".aa-notes")).toBeHidden();
   await expect(page.locator("#ledger")).toBeHidden();
@@ -2015,12 +2029,12 @@ test.describe("motion", () => {
               value: e.value,
               time: e.startTime,
               mine: els.some((el) => Boolean(el?.closest("[data-reveal], .aa-stages, .aa-exhibit"))),
-              // The pinned hero (site v5 PR 2): the exhibit and the statement are sticky over the hero's scroll track
+              // The pinned hero (site v5 PR 2): the whole hero row is sticky over the hero's scroll track
               // and move with the scroll by design as the pin releases; position, not animation, told apart the same way.
               pinned:
                 els.length > 0 &&
                 els.every((el) => {
-                  const host = el?.closest(".aa-hero-exhibit, .aa-statement");
+                  const host = el?.closest(".aa-hero-row");
                   return Boolean(host) && getComputedStyle(host as Element).position === "sticky";
                 }),
               // A sticky row head (§1, §2 from 1100px) moves with the scroll by design once it reaches the end of

@@ -184,12 +184,12 @@ cd agentic-analytics && bun install</code></pre>
           <p class="aa-label aa-exhibit-label">Exhibit · a real report from the example run, verified</p>
           <Exhibit />
         </div>
-        {/* The scroll track the pinned exhibit stays over (site v5 PR 2; only when the walkthrough is pinned): one
-            sentinel per step, which the exhibit's script observes, and a tail so the last step holds before the pin
-            releases into the engine machine below. */}
-        <div class="aa-hero-track" aria-hidden="true">
-          {walkSteps.map((_, i) => <div class="aa-hero-step" data-walk-sentinel={i + 1} />)}
-        </div>
+      </div>
+      {/* The scroll track the pinned hero stays over (site v5 PR 2; only when the walkthrough is pinned): one sentinel
+          per step, which the exhibit's script observes, and a tail so the last step holds before the whole hero
+          releases into the engine machine below. The pinned row covers it the whole time, so it never shows. */}
+      <div class="aa-hero-track" aria-hidden="true">
+        {walkSteps.map((_, i) => <div class="aa-hero-step" data-walk-sentinel={i + 1} />)}
       </div>
     </section>
 
@@ -817,23 +817,22 @@ AA_DEMO_MODEL=scripted \
   .aa-exhibit-label {
     margin-bottom: var(--aa-space-4);
   }
-  /* The scroll-driven walkthrough (site v5 PR 2; DESIGN.md §6, overriding D2's "nothing pinned"). From 900px, when the
-     exhibit fits the screen (Exhibit.astro decides before first paint: data-walk="pin"), the hero row holds a scroll
-     track under its content and the exhibit sticks while the track passes: each sentinel crossing a line 65% down the
-     screen is the next step. From 1100px the statement sticks beside it, so the whole hero holds still; both release
-     together as the track ends, straight into the engine machine's band. Under 900px, under reduced motion and without
-     JS there is no track. Position only: nothing animates. */
-  .aa-hero-row {
+  /* The scroll-driven walkthrough (site v5 PR 2; DESIGN.md §5–§6, overriding D2's "nothing pinned"). From 1100px, when
+     the whole hero fits the screen (Exhibit.astro decides before first paint: data-walk="pin"), the hero's row (the
+     statement, its field and the exhibit, inside the frame's corner marks) is one sticky unit, at least a screen tall
+     with its content centred, over a scroll track below it in the section: each sentinel crossing a line 65% down the
+     screen is the next step. The row covers the track the whole time, and as the track ends the whole hero releases
+     straight into the engine machine's band, with nothing in between. Below that (stacked, or a short window), under
+     reduced motion and without JS there is no track. Position only: nothing animates. */
+  .aa-hero {
     --aa-walk-step: 45vh;
-    --aa-pin-top: var(--aa-space-6);
     timeline-scope: --aa-walk-track;
   }
   .aa-hero-track {
     display: none;
   }
-  .aa-hero-row:has([data-walk="pin"]) > .aa-hero-track {
+  .aa-hero:has([data-walk="pin"]) > .aa-hero-track {
     display: block;
-    grid-column: 1 / -1;
     /* The tail: the last step holds for a while before the pin lets go. */
     padding-bottom: 20vh;
     view-timeline: --aa-walk-track block;
@@ -841,15 +840,16 @@ AA_DEMO_MODEL=scripted \
   .aa-hero-step {
     height: var(--aa-walk-step);
   }
-  .aa-hero-row:has([data-walk="pin"]) > .aa-hero-exhibit {
+  .aa-hero:has([data-walk="pin"]) > .aa-hero-row {
     position: sticky;
-    top: var(--aa-pin-top);
-  }
-  @media (min-width: 68.75rem) {
-    .aa-hero-row:has([data-walk="pin"]) > .aa-statement {
-      position: sticky;
-      top: var(--aa-pin-top);
-    }
+    top: 0;
+    z-index: 1;
+    /* At least a screen tall, so the empty track never shows below it, with the content centred so a tall screen
+       (1920 × 1080) has no empty block at the bottom; the statement's field fades in at its top while pinned
+       (HeroField.astro), so its edge never shows mid-screen. */
+    min-height: 100vh;
+    min-height: 100svh;
+    align-content: center;
   }
   @media (min-width: 68.75rem) {
     .aa-hero-row {
