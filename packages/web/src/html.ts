@@ -80,8 +80,9 @@ export function decodeEntities(s: string): string {
 }
 
 /**
- * `text` is what a reader sees. `hidden` is text a reader doesn't see but a model might: hidden elements and HTML
- * comments (never scripts or styles, whose URLs and code aren't prose). Callers screen both for injections.
+ * `text` is what a reader sees. `hidden` is text a reader doesn't see but a model might: hidden elements, the page
+ * chrome left out of `text` (nav, header, footer, aside, form, button, select) and HTML comments (never scripts or
+ * styles, whose URLs and code aren't prose). Callers screen both for injections.
  */
 export function htmlToText(html: string): { title: string; text: string; hidden: string } {
   const title = decodeEntities(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
@@ -96,7 +97,7 @@ export function htmlToText(html: string): { title: string; text: string; hidden:
   const out: string[] = [];
   const hidden: string[] = [...comments];
   // Open elements whose content is dropped: tag name per level, so nested same-name tags close correctly; `prose`
-  // marks levels that hold prose (hidden elements) rather than code (scripts, styles, svg).
+  // marks levels that hold prose (hidden elements, page chrome) rather than code (scripts, styles, svg).
   const skipping: { name: string; prose: boolean }[] = [];
   const CODE = new Set(["script", "style", "noscript", "svg", "template", "iframe", "object", "canvas", "head", "title"]);
   // Quote-aware attributes: a ">" inside a quoted value doesn't end the tag (and can't smuggle hidden text out).
@@ -128,7 +129,9 @@ export function htmlToText(html: string): { title: string; text: string; hidden:
       continue;
     }
     if ((SKIP.has(name) || HIDDEN.test(attrs)) && !selfClosing) {
-      skipping.push({ name, prose: !CODE.has(name) && (HIDDEN.test(attrs) || !SKIP.has(name) || !CODE.has(name)) });
+      // Everything skipped but code is prose for the screen: hidden elements, and the page chrome that the readable
+      // text leaves out.
+      skipping.push({ name, prose: !CODE.has(name) });
       continue;
     }
     if (BLOCK.has(name)) out.push("\n");
