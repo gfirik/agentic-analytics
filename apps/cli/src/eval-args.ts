@@ -37,3 +37,33 @@ export function nightlyArgs(
       : {}),
   };
 }
+
+export interface RepeatArgs {
+  /** `--repeat N`: the run count, absent for a single run. */
+  readonly repeat?: number;
+  /** The response cache is off: `--no-cache`, or implied by `--repeat` (docs/specs/accuracy.md §7). */
+  readonly cacheOff: boolean;
+}
+
+/**
+ * `aa eval --repeat N` and `--no-cache` (docs/specs/accuracy.md §7). `--repeat` takes a whole number ≥ 2, goes with
+ * --suite smoke|full (alone or with --models), never with --passes (N whole runs in one go, not one run carried over
+ * nights), and turns the response cache off: a repeat measures the model, and a cached run 2 would only replay run 1.
+ * Throws EvalRunError USAGE on a refused combination.
+ */
+export function repeatArgs(a: {
+  readonly repeat?: string;
+  readonly noCache?: boolean;
+  readonly suite?: string;
+  readonly passes?: string;
+}): RepeatArgs {
+  if (a.repeat === undefined) return { cacheOff: a.noCache === true };
+  const n = Number(a.repeat);
+  if (!/^\d+$/.test(a.repeat) || !(Number.isInteger(n) && n >= 2))
+    throw new EvalRunError("USAGE", `--repeat takes a whole number ≥ 2, not "${a.repeat}"`);
+  if (a.suite !== undefined && a.suite !== "smoke" && a.suite !== "full")
+    throw new EvalRunError("USAGE", `--repeat runs --suite smoke or full, not ${a.suite}`);
+  if (a.passes !== undefined)
+    throw new EvalRunError("USAGE", "--repeat runs N whole runs in one go: drop --passes (a run carried over nights can't be repeated)");
+  return { repeat: n, cacheOff: true };
+}

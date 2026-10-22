@@ -9,6 +9,17 @@ import { baselineModel } from "./baseline.ts";
 import { EvalRunError } from "./errors.ts";
 import { missingRealData, type RealSuiteResult, realResultsMarkdown, runRealSuite } from "./real.ts";
 import {
+  consistency,
+  type JobSnapshot,
+  MEASURES,
+  type Measure,
+  measureLines,
+  type RepeatResult,
+  type RepeatRun,
+  repeatMarkdown,
+  snapshotOf,
+} from "./repeat.ts";
+import {
   mergeResults,
   planResume,
   resultsMarkdown,
@@ -184,6 +195,35 @@ export function replayedDrafts(dir: string, dataset: string): readonly unknown[]
   }
 }
 
+/**
+ * The model client per dataset for a suite run: the scripted baseline (answering metric drafts from --replay-drafts
+ * when given, read up front so a missing or mistyped folder never quietly runs the scripted drafts), or `modelFor`.
+ */
+function suiteModel(
+  a: Pick<EvalArgs, "model" | "smallModel" | "replayDrafts">,
+  d: EvalDeps,
+  datasets: readonly Dataset[],
+): (onCall: (c: CallRecord) => void, id: string) => ModelClient {
+  const baseline = a.model === "baseline";
+  if (a.replayDrafts && !baseline) throw new EvalRunError("USAGE", "--replay-drafts goes with --model baseline");
+  const replayed = new Map<string, readonly unknown[]>();
+  if (a.replayDrafts) {
+    if (!existsSync(a.replayDrafts)) throw new EvalRunError("USAGE", `--replay-drafts: no folder ${a.replayDrafts}`);
+    for (const x of datasets) {
+      const proposals = replayedDrafts(a.replayDrafts, x.id);
+      if (proposals) replayed.set(x.id, proposals);
+    }
+    if (!replayed.size) throw new EvalRunError("USAGE", `--replay-drafts: no model draft in ${a.replayDrafts} for these datasets`);
+    d.print(`replaying model drafts for ${replayed.size} of ${datasets.length} datasets (the rest use the scripted draft)`);
+  }
+  return baseline
+    ? (_onCall, id) => {
+        const proposals = replayed.get(id);
+        return baselineModel({ small: a.smallModel === true, ...(proposals ? { drafts: proposals } : {}) });
+      }
+    : (onCall) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
+}
+
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
@@ -231,24 +271,7 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
       `resuming the ${plan.from.date} pass (${prevFile}): ${all.length - plan.run.length} of ${all.length} jobs finished, running the other ${plan.run.length}`,
     );
   const datasets = plan ? all.filter((x) => plan.run.includes(x.id)) : all;
-  if (a.replayDrafts && !baseline) throw new EvalRunError("USAGE", "--replay-drafts goes with --model baseline");
-  // Replayed drafts are read up front: a missing or mistyped folder must not quietly run the scripted drafts instead.
-  const replayed = new Map<string, readonly unknown[]>();
-  if (a.replayDrafts) {
-    if (!existsSync(a.replayDrafts)) throw new EvalRunError("USAGE", `--replay-drafts: no folder ${a.replayDrafts}`);
-    for (const x of datasets) {
-      const proposals = replayedDrafts(a.replayDrafts, x.id);
-      if (proposals) replayed.set(x.id, proposals);
-    }
-    if (!replayed.size) throw new EvalRunError("USAGE", `--replay-drafts: no model draft in ${a.replayDrafts} for these datasets`);
-    d.print(`replaying model drafts for ${replayed.size} of ${datasets.length} datasets (the rest use the scripted draft)`);
-  }
-  const make = baseline
-    ? (_onCall: (c: CallRecord) => void, id: string) => {
-        const proposals = replayed.get(id);
-        return baselineModel({ small: a.smallModel === true, ...(proposals ? { drafts: proposals } : {}) });
-      }
-    : (onCall: (c: CallRecord) => void) => (d.modelFor as NonNullable<EvalDeps["modelFor"]>)(a.model, onCall);
+  const make = suiteModel(a, d, datasets);
   const r = await runSuite({
     suite: a.suite,
     model: make,
@@ -297,9 +320,87 @@ export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult
   return result;
 }
 
+/** Where a `--repeat` run writes: `<results dir>/repeat/<date>-<model>[-small]-<suite>-repeat<N>` (.json and .md). */
+export const repeatPath = (resultsDir: string, date: string, a: Pick<EvalArgs, "model" | "label" | "smallModel" | "suite">, n: number) =>
+  join(resultsDir, "repeat", `${evalSlug(date, a)}-repeat${n}`);
+
+/**
+ * `aa eval --repeat N` (docs/specs/accuracy.md §7): the suite N times with the same model, then the five agreement
+ * measures of analyst-grade §4.3 over the N reports of each job. The caller turns the response cache off for a model
+ * run (the CLI does), so runs 2..N are live; each run's cached-call count is recorded to show it. The runs write no
+ * results rows and leave RESULTS.md alone: one run of N is not "the" result of the model, and N rows of the same
+ * name would replace each other. Writes the result (.json) and the disagreements side by side (.md).
+ */
+export async function evalRepeat(a: Omit<EvalArgs, "passes"> & { readonly repeat: number }, d: EvalDeps): Promise<RepeatResult> {
+  if (!(Number.isInteger(a.repeat) && a.repeat >= 2))
+    throw new EvalRunError("USAGE", `--repeat takes a whole number ≥ 2, not "${a.repeat}"`);
+  const baseline = a.model === "baseline";
+  if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
+  const datasets = selectDatasets(a.suite, a.only);
+  const make = suiteModel(a, d, datasets);
+  const modelName = (a.label ?? a.name ?? a.model) + (a.smallModel ? " (small-model mode)" : "");
+  const at = (d.now ?? (() => new Date()))();
+  const snaps = new Map<string, JobSnapshot[]>(datasets.map((x) => [x.id, []]));
+  const runs: RepeatRun[] = [];
+  for (let k = 1; k <= a.repeat; k++) {
+    d.print(`== run ${k} of ${a.repeat}`);
+    const r = await runSuite({
+      suite: a.suite,
+      model: make,
+      modelName,
+      datasets,
+      embedder: d.embedder,
+      ...(a.smallModel ? { smallModel: true } : {}),
+      // Each run keeps its reports apart: one folder would hold only the last run's.
+      ...(a.keepReports ? { keepReports: join(a.keepReports, `run-${k}`) } : {}),
+      now: () => at,
+      onReport: (id, report) => snaps.get(id)?.push(snapshotOf(id, report)),
+      onDataset: (s, i, n) =>
+        d.print(
+          `[${i + 1}/${n}] ${s.dataset}: ${s.completed ? `${s.planted.filter((p) => p.detected).length}/${s.planted.length} planted found` : `failed (${s.error})`} · ${s.seconds.toFixed(1)} s`,
+        ),
+    });
+    const calls = r.usage?.calls ?? 0;
+    const cached = r.usage?.cached ?? 0;
+    runs.push({ run: k, finished: r.scores.filter((s) => s.completed).length, of: r.scores.length, calls, cached });
+    if (cached) d.print(`warning: run ${k} served ${cached} of ${calls} calls from the response cache; its agreement is overstated`);
+  }
+  const c = consistency(datasets.map((x) => snaps.get(x.id) ?? []));
+  const result: RepeatResult = {
+    suite: a.suite,
+    model: modelName,
+    ...(a.note ? { note: a.note } : {}),
+    date: at.toISOString().slice(0, 10),
+    repeat: a.repeat,
+    cache: baseline ? "n/a" : runs.every((x) => x.cached === 0) ? "off" : "on",
+    datasets: datasets.map((x) => x.id),
+    runs,
+    ...c,
+  };
+  const base = repeatPath(a.resultsDir, result.date, a, a.repeat);
+  mkdirSync(join(a.resultsDir, "repeat"), { recursive: true });
+  writeFileSync(`${base}.json`, `${JSON.stringify(result, null, 2)}\n`);
+  writeFileSync(`${base}.md`, repeatMarkdown(result));
+  d.print("");
+  d.print(`consistency over ${a.repeat} runs (share of jobs where every run agrees):`);
+  for (const line of measureLines(result.measures)) d.print(line);
+  d.print(`${result.disagreements.length} disagreement${result.disagreements.length === 1 ? "" : "s"}, side by side: ${base}.md`);
+  d.print(`results: ${base}.json`);
+  return result;
+}
+
+/**
+ * A --repeat run passes when no call was served from the cache, every run finished every job and no measure misses its
+ * bar (n/a misses none).
+ */
+export const repeatPassed = (r: RepeatResult): boolean =>
+  r.cache !== "on" && r.runs.every((x) => x.finished === x.of) && r.measures.every((m) => m.pass !== false);
+
 export interface MatrixRun {
   readonly model: string;
   readonly result?: SuiteResult;
+  /** With --repeat: the model's consistency over N runs, in place of `result`. */
+  readonly repeat?: RepeatResult;
   /** Why this model's run didn't finish (no client, a provider error): the other models still run. */
   readonly error?: string;
 }
@@ -311,7 +412,7 @@ export interface MatrixRun {
  */
 export async function evalMatrix(
   models: readonly string[],
-  a: Omit<EvalArgs, "model" | "label" | "name" | "passes" | "replayDrafts" | "roleModels">,
+  a: Omit<EvalArgs, "model" | "label" | "name" | "passes" | "replayDrafts" | "roleModels"> & { readonly repeat?: number },
   d: EvalDeps,
 ): Promise<MatrixRun[]> {
   if (models.length < 2) throw new EvalRunError("USAGE", "--models needs at least two models (use --model for one)");
@@ -330,7 +431,11 @@ export async function evalMatrix(
       // Each model keeps its reports in its own subfolder: one shared folder would let the next model overwrite them.
       // evalSlug("", …) is "-<model>[-small]-<suite>": the folder is that name without its leading dash.
       const keepReports = a.keepReports ? join(a.keepReports, (slugs[i] as string).replace(/^-/, "")) : undefined;
-      runs.push({ model, result: await evalCommand({ ...a, model, ...(keepReports ? { keepReports } : {}) }, d) });
+      const { repeat, ...rest } = a;
+      const args = { ...rest, model, ...(keepReports ? { keepReports } : {}) };
+      runs.push(
+        repeat === undefined ? { model, result: await evalCommand(args, d) } : { model, repeat: await evalRepeat({ ...args, repeat }, d) },
+      );
     } catch (err) {
       // A model's own failure (no client, a provider error, a refused run) is reported and the next model runs; anything
       // else is an engine or filesystem bug that would fail every model the same way, so it stops the matrix.
@@ -345,10 +450,15 @@ export async function evalMatrix(
   return runs;
 }
 
-/** One line per model: jobs finished, planted recall@5 and number mismatches, or the error. */
+/** One line per model: jobs finished, planted recall@5 and number mismatches (with --repeat: the agreement shares), or the error. */
 export function matrixLines(runs: readonly MatrixRun[]): string[] {
   const pct = (v: number | undefined) => (v === undefined ? "n/a" : `${(v * 100).toFixed(1)}%`);
   return runs.map((r) => {
+    if (r.repeat) {
+      const measures = r.repeat.measures;
+      const share = (m: Measure) => pct(measures.find((x) => x.measure === m)?.share);
+      return `${r.model}: ${r.repeat.repeat} runs, every run agrees on ${MEASURES.map((m) => `${m} ${share(m)}`).join(", ")} of jobs`;
+    }
     if (!r.result) return `${r.model}: not run (${r.error ?? "unknown error"})`;
     const bar = (m: string) => r.result?.bars.find((b) => b.metric === m)?.value;
     const done = r.result.scores.filter((s) => s.completed).length;

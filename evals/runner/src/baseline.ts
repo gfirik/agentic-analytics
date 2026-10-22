@@ -2,7 +2,7 @@
 // dataset, so the whole harness runs end to end with FakeModel (docs/EVALS.md §3 smoke suite). It reads only what a
 // model would see in its prompts, but its keyword rules were written knowing the generator's document templates,
 // so its cause and action scores are optimistic. It checks plumbing, not model quality; RESULTS.md says so.
-import { FakeModel, type FakeRequest } from "@agentic-analytics/models/testing";
+import { FakeModel, type FakeRequest, type FakeScriptEntry } from "@agentic-analytics/models/testing";
 
 interface SheetFact {
   readonly id: string;
@@ -156,8 +156,16 @@ function judge(r: FakeRequest): unknown {
  * measures detection, ranking and the findings cap under real metrics, with no model call.
  */
 export function baselineModel(options: { small?: boolean; drafts?: readonly unknown[] } = {}): FakeModel {
+  return new FakeModel(baselineScript(options));
+}
+
+/**
+ * The baseline's script entries. FakeModel answers with the first entry that matches, so a test can put its own
+ * entries in front to vary one answer (the `--repeat` CI path scripts runs that disagree).
+ */
+export function baselineScript(options: { small?: boolean; drafts?: readonly unknown[] } = {}): FakeScriptEntry[] {
   const small = options.small === true;
-  return new FakeModel([
+  return [
     ...(options.drafts
       ? [
           {
@@ -174,5 +182,5 @@ export function baselineModel(options: { small?: boolean; drafts?: readonly unkn
     { role: "planner", match: "Propose the candidate actions", repeat: true, object: candidates },
     { role: "planner", match: "Write the headline", repeat: true, object: headline },
     { role: "judge", repeat: true, object: judge },
-  ]);
+  ];
 }
