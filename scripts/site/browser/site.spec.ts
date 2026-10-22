@@ -1616,7 +1616,7 @@ test.describe("motion", () => {
               // A sticky row head (§1, §2 from 1100px) moves with the scroll by design once it reaches the end of
               // its row; that is position, not animation, so those shifts are told apart by identity. Those heads are
               // also reveal parts, so their reveal goes unchecked here at 1440; it is still checked at 390 (nothing is
-              // sticky there) and on the heads that aren't sticky (#engine, #results, #quickstart).
+              // sticky there) and on the heads that aren't sticky (#results, #quickstart).
               sticky:
                 els.length > 0 &&
                 els.every(
