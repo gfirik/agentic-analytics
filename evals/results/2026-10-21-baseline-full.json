@@ -1,0 +1,1206 @@
+{
+  "suite": "full",
+  "model": "baseline",
+  "note": "Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-overlap judge), not a language model. Its rules were written knowing the generator's document templates (e.g. it treats a sentence with \"after\" and \"pausing\" as a stated cause), so its cause-grade and action scores are optimistic. It checks the harness end to end; it is not evidence of model quality.",
+  "date": "2026-10-21",
+  "datasets": 30,
+  "scores": [
+    {
+      "dataset": "coffee_roaster-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 4.09,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 5.015,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 6.024,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.182,
+      "tokens": {
+        "input": 290,
+        "output": 145
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 3,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 3,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "printing_shop-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.736,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "printing_shop-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 4.253,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "clinic-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.944,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "clinic-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 4.075,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "clinic-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 4.667,
+      "tokens": {
+        "input": 560,
+        "output": 280
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 9,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "online_store-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 3.142,
+      "tokens": {
+        "input": 380,
+        "output": 190
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 4,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 2,
+      "groundedRecommendations": 2,
+      "findings": 4,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "online_store-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 4.495,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "online_store-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 5.367,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 4,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "distributor-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.346,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "distributor-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.269,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "distributor-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 3.44,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "restaurant-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 3.793,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "restaurant-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 5.005,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "restaurant-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 6.677,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "saas-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 3.654,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "saas-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 4.448,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "saas-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 5.194,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "logistics-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 3.239,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "logistics-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 4.62,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "logistics-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 5.571,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "construction_supplier-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 2.986,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "construction_supplier-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 3.611,
+      "tokens": {
+        "input": 530,
+        "output": 265
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 6,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "construction_supplier-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 4.252,
+      "tokens": {
+        "input": 570,
+        "output": 285
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 2,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 10,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "agency-v1",
+      "distractors": 1,
+      "quality": 2,
+      "seconds": 1.915,
+      "tokens": {
+        "input": 470,
+        "output": 235
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1",
+        "Q2"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "agency-v2",
+      "distractors": 1,
+      "quality": 1,
+      "seconds": 2.596,
+      "tokens": {
+        "input": 520,
+        "output": 260
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P2",
+          "detected": false
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 5,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    },
+    {
+      "dataset": "agency-v3",
+      "distractors": 3,
+      "quality": 1,
+      "seconds": 3.665,
+      "tokens": {
+        "input": 560,
+        "output": 280
+      },
+      "completed": true,
+      "numberMismatch": false,
+      "planted": [
+        {
+          "id": "P1",
+          "detected": true,
+          "rank": 1,
+          "driver": true,
+          "cause": true
+        },
+        {
+          "id": "P3",
+          "detected": true,
+          "rank": 3,
+          "cause": true
+        }
+      ],
+      "distractorsReported": [],
+      "qualityFound": [
+        "Q1"
+      ],
+      "citationsChecked": 9,
+      "citationsUnsupported": 0,
+      "definitionViolations": 0,
+      "recommendations": 1,
+      "groundedRecommendations": 1,
+      "findings": 5,
+      "actionRelevant": true,
+      "routes": []
+    }
+  ],
+  "bars": [
+    {
+      "metric": "Jobs completed",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Number mismatches",
+      "value": 0,
+      "bar": "0",
+      "pass": true
+    },
+    {
+      "metric": "Planted recall@5",
+      "value": 0.96,
+      "bar": "≥ 80%",
+      "pass": true
+    },
+    {
+      "metric": "Driver accuracy",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Cause grade accuracy",
+      "value": 1,
+      "bar": "≥ 80%",
+      "pass": true
+    },
+    {
+      "metric": "Distractor FP rate",
+      "value": 0,
+      "bar": "≤ 10%",
+      "pass": true
+    },
+    {
+      "metric": "Quality-issue recall",
+      "value": 1,
+      "bar": "≥ 90%",
+      "pass": true
+    },
+    {
+      "metric": "Citation precision",
+      "value": 1,
+      "bar": "≥ 95%",
+      "pass": true
+    },
+    {
+      "metric": "Definition adherence",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation grounding",
+      "value": 1,
+      "bar": "100%",
+      "pass": true
+    },
+    {
+      "metric": "Recommendation relevance",
+      "value": 1,
+      "bar": "≥ 70%",
+      "pass": true
+    }
+  ],
+  "routes": [],
+  "usage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "calls": 0,
+    "cached": 0,
+    "unknownTokens": 0
+  },
+  "seconds": 120.383,
+  "tokens": {
+    "input": 15400,
+    "output": 7700
+  }
+}

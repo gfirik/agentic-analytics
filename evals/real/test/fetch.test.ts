@@ -197,6 +197,11 @@ describe("derivations", () => {
       "Series_reference,Period,Data_value\nECTA.S1GA1,2002.03,1\nECTM.S1GA1,2002.10,2182.6\nECTM.S1GS1,2002.10,5\nECTM.S1GA8,2002.11,7\n";
     expect(deriveCardSpendByIndustry(csv)).toBe("Series_reference,Period,Data_value\nECTM.S1GA1,2002.10,2182.6\nECTM.S1GA8,2002.11,7\n");
   });
+
+  it("takes only series S1GA1–S1GA8, the documented slice (S1GA0 and S1GA9 are not in it)", () => {
+    const csv = "Series_reference,Period,Data_value\nECTM.S1GA0,2002.10,1\nECTM.S1GA5,2002.10,2\nECTM.S1GA9,2002.10,3\n";
+    expect(deriveCardSpendByIndustry(csv)).toBe("Series_reference,Period,Data_value\nECTM.S1GA5,2002.10,2\n");
+  });
 });
 
 describe("manifest and answer files", () => {

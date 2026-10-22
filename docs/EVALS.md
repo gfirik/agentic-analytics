@@ -110,7 +110,7 @@ A run whose jobs didn't all finish (a free tier's daily quota ran out) is publis
 - regenerates the README table and RESULTS.md;
 - on the second night, deletes the first night's results file, which the combined file replaces. If that file was committed, the deletion shows in `git status` of the checkout and goes in the same PR as the combined file. So commit a first night's file only together with its second night: on its own it reads "in progress" until a later run closes it;
 - refuses a rerun on the day of a run's last pass (it would overwrite the combined file), and sets an unreadable earlier file aside as `<file>.bad` (gitignored);
-- sends a one-line summary through `scripts/notify.sh`.
+- sends a one-line summary through `scripts/notify.sh`. The log is one file per UTC day (`data/logs/eval-<suite>-<date>.log`), appended to; the summary counts only this run's part of it, so a same-day rerun doesn't add the earlier run's jobs.
 
 To see where the quota stands now: `aa usage` (its first section is the last 24 hours, with Groq's own count from its latest rate-limit error). To see what a night used: `aa usage --day <YYYY-MM-DD>` (UTC). On 2026-10-19 the planner route spent 188,852 tokens of Groq's 200,000 (94.4%).
 

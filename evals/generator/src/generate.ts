@@ -7,8 +7,8 @@
 //   0 · 12 months, dd/mm/yyyy text dates, sales.xlsx: key client lost after a price rise (P1).
 //   1 · 18 months, orders.csv + costs.xlsx: P1, plus a supplier switch that raises refunds (P2).
 //   2 · 24 months with a December peak, sales.xlsx: P1, plus a new product cannibalizing an old one (P3).
-// Every variant has a ×1000 cost typo (Q1), a noise blip inside the band (D1) and irrelevant or coincidental
-// documents. Variant 2 adds the seasonal December peak as a distractor (D2).
+// Every variant has a ×1000 cost typo (Q1), a noise blip inside the band (D1, never in a December peak month) and
+// irrelevant or coincidental documents. Variant 2 adds the seasonal December peak as a distractor (D2).
 import { createHash } from "node:crypto";
 import { allocate, docx, eml, rng, textPdf } from "@agentic-analytics/eval-datasets";
 import * as XLSX from "xlsx";
@@ -140,7 +140,11 @@ export function generateDataset(a: Archetype, variant: 0 | 1 | 2, seed?: number)
   const L = n - 3; // the key client pauses from this month
   const S = n - 2; // supplier switch (variant 1)
   const C = n - 5; // product launch (variant 2)
-  const N = n - 7; // noise blip (distractor)
+  // The noise blip (distractor D1). n − 7 is 2025-12 in every variant, which in variant 2 is a planted December peak
+  // (×1.25 on the blip customer's channel). There the blip moves to 2025-11, before the peak: a month after it
+  // (2026-01) would sit on the post-peak drop, so a real January-vs-December finding would count as the false alarm.
+  // Variants 0 and 1 keep n − 7, so their datasets and published results are unchanged.
+  const N = variant === 2 ? n - 8 : n - 7;
   const blipCustomer = a.counter[1] as string;
   const oldProduct = a.products[0][0] as string;
   const accountShares = [0.45, ...allocate(55, a.accounts.length - 1, rand).map((x) => x / 100)];

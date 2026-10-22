@@ -54,7 +54,7 @@ distractors:
   - id: D1
     description: a 3% blip for Dinner service, inside the noise band
     metric: revenue
-    period: 2025-12
+    period: 2025-11
     member:
       dimension: customer
       member: Dinner service

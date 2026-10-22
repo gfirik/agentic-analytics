@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +26,7 @@ import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
 import { parse } from "yaml";
 import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
+import { collectPaths } from "./collect.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { nightlyArgs } from "./eval-args.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
@@ -61,13 +62,6 @@ const doctor = defineCommand({
     process.exitCode = exitCode(results);
   },
 });
-
-const collect = (p: string): string[] =>
-  statSync(p).isDirectory()
-    ? readdirSync(p)
-        .sort()
-        .flatMap((n) => collect(join(p, n)))
-    : [p];
 
 const ENGINE_VERSION = "0.0.0";
 const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
@@ -203,7 +197,7 @@ const analyze = defineCommand({
     log: { type: "boolean", description: "Write structured logs to stderr" },
   },
   async run({ args }) {
-    const paths = (args._ as string[]).flatMap(collect);
+    const paths = collectPaths(args._ as string[]);
     if (!paths.length) throw new Error("give one or more files or folders: aa analyze <paths…>");
     const rt = runtime(args.embedder);
     const review = args.yes ? undefined : terminalReview();
@@ -501,7 +495,7 @@ const metrics = defineCommand({
     today: { type: "string", description: "Today's date for the future-date check (YYYY-MM-DD)" },
   },
   async run({ args }) {
-    const paths = (args._ as string[]).flatMap(collect);
+    const paths = collectPaths(args._ as string[]);
     if (!paths.length) throw new Error("give one or more files or folders: aa metrics <paths…>");
     let model: ModelClient | undefined;
     let modelError: string | undefined;
@@ -596,7 +590,7 @@ const run = defineCommand({
   },
   async run({ args }) {
     const resume = args.resume;
-    const paths = (args._ as string[]).flatMap(collect);
+    const paths = collectPaths(args._ as string[]);
     if (!resume && !paths.length) throw new Error("give files or folders (aa run <paths…>), or --resume <job folder>");
     const config = resolveModelConfig(process.env, configFile());
     const planner = config.models.planner;
