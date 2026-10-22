@@ -1669,6 +1669,12 @@ test("a sticky row head is alone in its grid column, so it never slides over a n
     // §1 and §2 keep their sticky heads; §4's isn't sticky.
     expect(
       await page
+        .locator("#how .aa-cell-head")
+        .first()
+        .evaluate((el) => getComputedStyle(el).position),
+    ).toBe("sticky");
+    expect(
+      await page
         .locator("#why .aa-cell-head")
         .first()
         .evaluate((el) => getComputedStyle(el).position),
