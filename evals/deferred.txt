@@ -1,0 +1,9 @@
+# The deferred real-model runs, one per night (scripts/eval-deferred.sh; STATE "Deferred checks", [nightly slot]).
+# They run on a Groq model the nightly full suite doesn't use, so the full suite's per-model quota is untouched.
+# One entry per line: <id> | <bun run arguments>. MODEL stands for that model's route. The first entry not yet
+# finished runs; a run the quota stops runs again the next night. Order: the cheapest first, so one night's quota
+# finishes something.
+golden-v1 | eval -- --suite golden --model MODEL
+ablation-smoke | eval:ablation -- --arms A,B,C --suite smoke --model MODEL
+ablation-golden | eval:ablation -- --arms A,B,C --suite golden --model MODEL
+repeat-smoke | eval -- --suite smoke --repeat 5 --model MODEL
