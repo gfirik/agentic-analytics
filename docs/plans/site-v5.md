@@ -42,6 +42,20 @@ Visuals only: the exhibit and its walkthrough keep their behaviour exactly.
 - no horizontal scroll at 360px;
 - screenshots at 1920, 1440 and 390.
 
+## PR 1b: a bolder hero
+
+The maintainer, after PR 1: "it's still too flat and restrained. Be bold this time; DESIGN.md's calm/ink-only rules may be changed for the hero."
+
+**Tasks, in order:**
+1. Tokens: one brand accent (`--aa-accent`, `-deep`, `-wash`) replacing `--aa-glow`; DESIGN.md's rules changed for the hero only (§1, §2.4, §2.6, §3, §12).
+2. Type: a two-voice headline (Plex Sans 700 + the serif italic) at 72–84px on desktop; Plex Sans 700 latin only (23 KB) with a metric-matched fallback face, and an italic fallback face; preloads on `/`.
+3. Proof chips from generated data (`proofChips()` into `evals.json`), with icons, links and sources; unit tests and a browser test that recomputes each figure from the runs.
+4. The net: more nodes, accent connectors that draw in, pulses toward the exhibit; the same pause rules, ≤ 30 fps.
+5. Fixes: the eyebrow on one line at 390, Pause in its own slot.
+6. Checks: CLS with CI-like fallback fonts (Noto hidden from fontconfig), the glow's contrast measured behind the text, Lighthouse, axe, 360px, before/after screenshots.
+
+**Risks:** contrast over a visible glow (measured, ≤ 22% of the accent behind text); a late heavy face moving the page (fallback faces, checked with CI's fonts); the motion getting busy behind text (masked to 40% there).
+
 ## PR 2: the scroll-pinned story
 
 The next PR. Not started here.

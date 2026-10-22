@@ -1,19 +1,23 @@
 ---
-// The hero's background system (DESIGN.md §5 "Hero field", §7; site v5 PR 1). Rendered inside the hero statement, it
-// runs full-bleed behind it and never behind the exhibit:
+// The hero's background system (DESIGN.md §5 "Hero field", §7; site v5 PR 1, made bold in PR 1b). Rendered inside the
+// hero statement, it runs full-bleed behind it and never behind the exhibit:
 // - graph paper (24px minor lines, 96px major lines, a dot on every crossing) fading out radially from the statement;
-// - a soft, cool-tinted glow (`--aa-glow`) with a lighter core behind the headline;
+// - the accent glow (`--aa-accent`): a cobalt bloom over the headline, a deeper one on the side the exhibit is on, and
+//   a soft wash between them; never stronger than 22% of the accent behind text, so the lead keeps AA;
 // - a fine grain (an inline SVG noise in a data URI: no image request);
-// - a quiet ledger network on a canvas: small square nodes drifting slowly, joined by elbowed hairline connectors, an
-//   occasional ink tick running along one of them.
+// - the ledger network on a canvas: square nodes drifting, joined by elbowed connectors that draw themselves in, and
+//   pulses of the accent running along them toward the exhibit (rightward in the wide row, downward when stacked),
+//   hopping node to node and lighting each node they reach.
 // The first three are CSS and static. The canvas is the only motion, and it is cheap and polite:
 // - it starts on idle after load and fades in (opacity only), so it costs nothing on the first paint and never shifts
 //   the layout (the canvas is absolutely positioned and sized by CSS);
 // - it draws only while the hero is on screen (IntersectionObserver) and the tab is visible, at most 30 frames a
-//   second, with no layout reads per frame (sizes come from a ResizeObserver);
-// - its backing store is DPR-aware and capped (DPR ≤ 2 and about 1.6 million pixels);
+//   second, with no layout reads per frame (sizes come from a ResizeObserver; the direction from a media query);
+// - its backing store is DPR-aware and capped (DPR ≤ 2 and about 1.6 million pixels); the pulse's halo is drawn once
+//   to a sprite and stamped, never blurred per frame;
 // - none of it under prefers-reduced-motion or Save-Data, or without JS: the static field is all there is;
-// - a "Pause background" button stops it (WCAG 2.2.2); it is absolutely placed and only made visible by the script.
+// - a "Pause background" button stops it (WCAG 2.2.2); it sits in a slot the statement reserves and is only made
+//   visible by the script.
 ---
 
 <div class="aa-hero-field" aria-hidden="true">
@@ -29,25 +33,39 @@
   const canvas = field?.querySelector<HTMLCanvasElement>(".aa-hf-net") ?? null;
   const toggle = document.querySelector<HTMLButtonElement>("[data-hf-toggle]");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  // The exhibit is to the right from 1100px and below the statement under it: pulses run toward it.
+  const wide = matchMedia("(min-width: 68.75rem)");
   const saveData = Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
   const ctx = canvas?.getContext("2d") ?? null;
 
   if (field && canvas && ctx && toggle && !reduce.matches && !saveData && typeof IntersectionObserver !== "undefined") {
-    type Node = { x: number; y: number; vx: number; vy: number; s: number; filled: boolean; flip: boolean };
-    type Pulse = { a: number; b: number; t: number };
+    type Node = { x: number; y: number; vx: number; vy: number; s: number; filled: boolean; flip: boolean; lit: number };
+    type Link = { a: number; b: number; d: number; born: number };
+    type Pulse = { a: number; b: number; t: number; hops: number };
+    type Debug = HTMLCanvasElement & { aaFrames?: number; aaLinks?: number; aaPulses?: number; aaDrawn?: number };
     const css = getComputedStyle(document.documentElement);
-    const ink = css.getPropertyValue("--aa-ink").trim() || "#121417";
-    const line = css.getPropertyValue("--aa-rule-strong").trim() || "#8b8f94";
+    const accent = css.getPropertyValue("--aa-accent").trim() || "#2f3fe8";
+    const deep = css.getPropertyValue("--aa-accent-deep").trim() || "#2433c4";
     const page = css.getPropertyValue("--aa-page").trim() || "#f8f8f6";
-    const FRAME = 1000 / 30;
-    const LINK = 168; // px: nodes closer than this are joined
+    /** A token's hex colour at an alpha, for canvas gradients (which take plain colours). */
+    const rgba = (hex: string, a: number) => {
+      const n = Number.parseInt(hex.replace("#", ""), 16);
+      return `rgb(${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255} / ${a})`;
+    };
+    const FRAME = 1000 / 30; // at most 30 frames a second
+    const LINK = 150; // px (taxicab): nodes closer than this may be joined
+    const DRAW_IN = 900; // ms for a connector to draw itself in
+    const PULSE_MS = 1100; // ms for a pulse to run one connector
+    const MAX_PULSES = 6;
     const MAX_PIXELS = 1_600_000;
 
     let w = 0;
     let h = 0;
     let nodes: Node[] = [];
-    let pulse: Pulse | null = null;
-    let nextPulse = 1800;
+    const links = new Map<string, Link>();
+    const pulses: Pulse[] = [];
+    let clock = 0; // ms of running time: draw-in and pulses advance only while the net runs
+    let nextPulse = 400;
     let onScreen = false;
     let paused = false;
     let raf = 0;
@@ -61,19 +79,36 @@
       return seed / 2 ** 32;
     };
 
+    // The pulse's halo: a radial gradient drawn once to a small canvas, then stamped with drawImage (no shadowBlur).
+    const HALO = 28;
+    const halo = document.createElement("canvas");
+    halo.width = halo.height = HALO * 2;
+    {
+      const g = halo.getContext("2d");
+      if (g) {
+        const r = g.createRadialGradient(HALO, HALO, 0, HALO, HALO, HALO);
+        r.addColorStop(0, rgba(accent, 0.55));
+        r.addColorStop(0.35, rgba(accent, 0.22));
+        r.addColorStop(1, rgba(accent, 0));
+        g.fillStyle = r;
+        g.fillRect(0, 0, HALO * 2, HALO * 2);
+      }
+    }
+
     const seedNodes = () => {
-      const n = Math.max(10, Math.min(34, Math.round((w * h) / 21000)));
+      const n = Math.max(16, Math.min(64, Math.round((w * h) / 11000)));
       nodes = Array.from({ length: n }, () => {
-        const speed = 5 + rnd() * 9; // px a second: a drift, never a motion that pulls the eye
+        const speed = 6 + rnd() * 10; // px a second: a drift, never a motion that pulls the eye
         const dir = rnd() * Math.PI * 2;
         return {
           x: rnd() * w,
           y: rnd() * h,
           vx: Math.cos(dir) * speed,
           vy: Math.sin(dir) * speed,
-          s: rnd() < 0.3 ? 5 : 3,
-          filled: rnd() < 0.22,
+          s: rnd() < 0.3 ? 6 : 4,
+          filled: rnd() < 0.28,
           flip: rnd() < 0.5,
+          lit: 0,
         };
       });
     };
@@ -94,18 +129,75 @@
           p.x = Math.min(p.x, w);
           p.y = Math.min(p.y, h);
         }
+      relink();
       draw();
     };
 
-    /** An elbowed connector, horizontal then vertical (or the other way): the ledger's own right angles. */
-    const elbow = (a: Node, b: Node) => {
-      ctx.moveTo(a.x, a.y);
-      if (a.flip) ctx.lineTo(b.x, a.y);
-      else ctx.lineTo(a.x, b.y);
-      ctx.lineTo(b.x, b.y);
+    /** How far toward the exhibit a node is: its x in the wide row, its y when stacked. */
+    const toward = (p: Node) => (wide.matches ? p.x : p.y);
+
+    /**
+     * Each node joins its two nearest neighbours within reach, so the net stays sparse. A connector that appears is
+     * born now and draws itself in; the first ones are staggered along the way to the exhibit, so the net assembles as
+     * a sweep toward it.
+     */
+    const relink = () => {
+      const seen = new Set<string>();
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i] as Node;
+        let b1 = -1;
+        let d1 = LINK;
+        let b2 = -1;
+        let d2 = LINK;
+        for (let j = 0; j < nodes.length; j++) {
+          if (j === i) continue;
+          const b = nodes[j] as Node;
+          const d = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+          if (d < d1) {
+            b2 = b1;
+            d2 = d1;
+            b1 = j;
+            d1 = d;
+          } else if (d < d2) {
+            b2 = j;
+            d2 = d;
+          }
+        }
+        for (const [j, d] of [
+          [b1, d1],
+          [b2, d2],
+        ] as const) {
+          if (j < 0) continue;
+          const key = i < j ? `${i}:${j}` : `${j}:${i}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const link = links.get(key);
+          if (link) link.d = d;
+          else {
+            const span = wide.matches ? w : h;
+            const stagger = clock < DRAW_IN ? (Math.min(toward(a), span) / Math.max(span, 1)) * 1400 : 0;
+            links.set(key, { a: Math.min(i, j), b: Math.max(i, j), d, born: clock + stagger });
+          }
+        }
+      }
+      for (const key of links.keys()) if (!seen.has(key)) links.delete(key);
     };
-    const pointOn = (a: Node, b: Node, t: number) => {
-      const c = a.flip ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+
+    /**
+     * The corner of the elbowed connector between nodes i and j, horizontal then vertical (or the other way): the
+     * ledger's own right angles. It is fixed by the pair (the lower index's flip), not by the direction it is run in,
+     * so a connector never snaps its corner when a pulse runs it the other way.
+     */
+    const corner = (i: number, j: number) => {
+      const lo = nodes[Math.min(i, j)] as Node;
+      const hi = nodes[Math.max(i, j)] as Node;
+      return lo.flip ? { x: hi.x, y: lo.y } : { x: lo.x, y: hi.y };
+    };
+    /** The point a fraction t along the elbow from node i to node j. */
+    const pointOn = (i: number, j: number, t: number) => {
+      const a = nodes[i] as Node;
+      const b = nodes[j] as Node;
+      const c = corner(i, j);
       const l1 = Math.abs(c.x - a.x) + Math.abs(c.y - a.y);
       const l2 = Math.abs(b.x - c.x) + Math.abs(b.y - c.y);
       const d = t * (l1 + l2);
@@ -116,75 +208,152 @@
       const k = (d - l1) / l2;
       return { x: c.x + (b.x - c.x) * k, y: c.y + (b.y - c.y) * k };
     };
+    /** The elbow from a toward b, drawn up to the fraction t (the draw-in). The corner is the one the a→b order gives. */
+    const elbowTo = (i: number, j: number, t: number) => {
+      const a = nodes[i] as Node;
+      const b = nodes[j] as Node;
+      const c = corner(i, j);
+      ctx.moveTo(a.x, a.y);
+      const l1 = Math.abs(c.x - a.x) + Math.abs(c.y - a.y);
+      const l2 = Math.abs(b.x - c.x) + Math.abs(b.y - c.y);
+      if (t * (l1 + l2) > l1) ctx.lineTo(c.x, c.y);
+      const q = t >= 1 ? b : pointOn(i, j, t);
+      ctx.lineTo(q.x, q.y);
+    };
+    /** A connector's ends in the order a pulse runs it: toward the exhibit. */
+    const ordered = (l: Link): [number, number] =>
+      toward(nodes[l.a] as Node) <= toward(nodes[l.b] as Node) ? [l.a, l.b] : [l.b, l.a];
 
-    const links: [number, number, number][] = [];
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
-      links.length = 0;
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i] as Node;
-        // Each node joins its nearest neighbour within reach (at most two links a node), so the net stays sparse.
-        let best = -1;
-        let bestD = LINK;
-        for (let j = 0; j < nodes.length; j++) {
-          if (j === i) continue;
-          const b = nodes[j] as Node;
-          const d = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-          if (d < bestD) {
-            bestD = d;
-            best = j;
-          }
-        }
-        if (best >= 0) links.push([i, best, bestD]);
-      }
       ctx.lineWidth = 1;
-      ctx.strokeStyle = line;
-      for (const [i, j, d] of links) {
-        ctx.globalAlpha = 0.55 * (1 - d / LINK) ** 0.6;
+      let drawn = 0;
+      for (const l of links.values()) {
+        const t = Math.max(0, Math.min(1, (clock - l.born) / DRAW_IN));
+        if (t <= 0) continue;
+        if (t >= 1) drawn++;
+        const [i, j] = ordered(l);
+        ctx.globalAlpha = 0.55 * (1 - l.d / LINK) ** 0.5 + 0.12;
+        ctx.strokeStyle = accent;
         ctx.beginPath();
-        elbow(nodes[i] as Node, nodes[j] as Node);
+        // Ease-out on the draw-in, so a connector arrives rather than slides.
+        elbowTo(i, j, 1 - (1 - t) ** 3);
         ctx.stroke();
       }
-      ctx.globalAlpha = 1;
+      for (const p of pulses) {
+        const a = nodes[p.a];
+        if (!a || !nodes[p.b]) continue;
+        const q = pointOn(p.a, p.b, Math.min(p.t, 1));
+        // A short tail behind the head: the last fifth of the run, brighter toward the head.
+        const tail = pointOn(p.a, p.b, Math.max(0, Math.min(p.t, 1) - 0.2));
+        const grad = ctx.createLinearGradient(tail.x, tail.y, q.x, q.y);
+        grad.addColorStop(0, rgba(deep, 0));
+        grad.addColorStop(1, deep);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tail.x, tail.y);
+        // The tail follows the elbow when it spans the corner.
+        const c = corner(p.a, p.b);
+        const before = (pt: { x: number; y: number }) => Math.abs(pt.x - a.x) + Math.abs(pt.y - a.y);
+        if (before(tail) < before(c) && before(q) > before(c)) ctx.lineTo(c.x, c.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(halo, q.x - HALO, q.y - HALO);
+        ctx.fillStyle = deep;
+        ctx.fillRect(Math.round(q.x) - 1.5, Math.round(q.y) - 1.5, 3, 3);
+      }
       for (const p of nodes) {
         const x = Math.round(p.x - p.s / 2) + 0.5;
         const y = Math.round(p.y - p.s / 2) + 0.5;
-        if (p.filled) {
-          ctx.fillStyle = ink;
-          ctx.globalAlpha = 0.7;
+        if (p.lit > 0) {
+          // A node a pulse reached: a ring that opens and fades.
+          const k = 1 - p.lit;
+          ctx.globalAlpha = 0.6 * p.lit;
+          ctx.strokeStyle = accent;
+          const r = p.s / 2 + 2 + 8 * k;
+          ctx.strokeRect(Math.round(p.x - r) + 0.5, Math.round(p.y - r) + 0.5, Math.round(2 * r), Math.round(2 * r));
+        }
+        if (p.filled || p.lit > 0) {
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = p.lit > 0 ? deep : accent;
           ctx.fillRect(x - 0.5, y - 0.5, p.s, p.s);
         } else {
-          ctx.globalAlpha = 0.85;
+          ctx.globalAlpha = 0.9;
           ctx.fillStyle = page;
           ctx.fillRect(x, y, p.s - 1, p.s - 1);
-          ctx.strokeStyle = line;
+          ctx.strokeStyle = accent;
           ctx.strokeRect(x, y, p.s - 1, p.s - 1);
         }
       }
-      if (pulse && nodes[pulse.a] && nodes[pulse.b]) {
-        const q = pointOn(nodes[pulse.a] as Node, nodes[pulse.b] as Node, pulse.t);
-        ctx.globalAlpha = 0.8 * Math.sin(Math.PI * pulse.t);
-        ctx.fillStyle = ink;
-        ctx.fillRect(Math.round(q.x) - 1, Math.round(q.y) - 1, 3, 3);
-      }
       ctx.globalAlpha = 1;
+      const dbg = canvas as Debug;
+      dbg.aaLinks = links.size;
+      dbg.aaDrawn = drawn;
+      dbg.aaPulses = pulses.length;
+    };
+
+    /** A new pulse on a drawn connector, starting from its end farther from the exhibit; it prefers the far side. */
+    const spawn = () => {
+      const ready = [...links.values()].filter((l) => clock - l.born >= DRAW_IN);
+      if (!ready.length) return;
+      // Bias toward connectors far from the exhibit, so a pulse has somewhere to run.
+      let pick = ready[Math.floor(rnd() * ready.length)] as Link;
+      for (let k = 0; k < 2; k++) {
+        const other = ready[Math.floor(rnd() * ready.length)] as Link;
+        if (toward(nodes[ordered(other)[0]] as Node) < toward(nodes[ordered(pick)[0]] as Node)) pick = other;
+      }
+      const [a, b] = ordered(pick);
+      pulses.push({ a, b, t: 0, hops: 0 });
+    };
+
+    /** At its end node a pulse lights it, then takes a connector onward toward the exhibit, if there is one. */
+    const hop = (p: Pulse): boolean => {
+      const at = nodes[p.b] as Node;
+      at.lit = 1;
+      if (p.hops >= 6) return false;
+      let next: number | null = null;
+      let gain = 4; // px: an onward connector must make real progress toward the exhibit
+      for (const l of links.values()) {
+        if (clock - l.born < DRAW_IN || (l.a !== p.b && l.b !== p.b)) continue;
+        const other = l.a === p.b ? l.b : l.a;
+        if (other === p.a) continue;
+        const g = toward(nodes[other] as Node) - toward(at);
+        if (g > gain) {
+          gain = g;
+          next = other;
+        }
+      }
+      if (next === null) return false;
+      p.a = p.b;
+      p.b = next;
+      p.t = 0;
+      p.hops++;
+      return true;
     };
 
     const step = (dt: number) => {
+      clock += dt;
       const s = dt / 1000;
       for (const p of nodes) {
         p.x += p.vx * s;
         p.y += p.vy * s;
         if (p.x < -8 || p.x > w + 8) p.vx = -p.vx;
         if (p.y < -8 || p.y > h + 8) p.vy = -p.vy;
+        if (p.lit > 0) p.lit = Math.max(0, p.lit - dt / 700);
       }
-      if (pulse) {
-        pulse.t += dt / 1600;
-        if (pulse.t >= 1) pulse = null;
-      } else if ((nextPulse -= dt) <= 0 && links.length) {
-        const [a, b] = links[Math.floor(rnd() * links.length)] as [number, number, number];
-        pulse = { a, b, t: 0 };
-        nextPulse = 2400 + rnd() * 2400;
+      relink();
+      for (let k = pulses.length - 1; k >= 0; k--) {
+        const p = pulses[k] as Pulse;
+        p.t += dt / PULSE_MS;
+        if (p.t >= 1 && !hop(p)) pulses.splice(k, 1);
+      }
+      if ((nextPulse -= dt) <= 0) {
+        if (pulses.length < MAX_PULSES) spawn();
+        nextPulse = 450 + rnd() * 650;
       }
     };
 
@@ -194,11 +363,11 @@
       last = now;
       acc += dt;
       if (acc < FRAME) return;
-      step(acc);
+      step(Math.min(acc, 100));
       acc = 0;
       draw();
       frames++;
-      (canvas as HTMLCanvasElement & { aaFrames?: number }).aaFrames = frames;
+      (canvas as Debug).aaFrames = frames;
     };
 
     const running = () => onScreen && !paused && !document.hidden && !reduce.matches;
@@ -262,7 +431,7 @@
      scrollbar's width, so it can reach a few pixels past the viewport: .aa-paper's overflow-x: clip hides that. */
   .aa-hero-field {
     --hf-x: 50%;
-    --hf-y: 46%;
+    --hf-y: 42%;
     --hf-mask: radial-gradient(ellipse 62% 62% at var(--hf-x) var(--hf-y), #000 24%, rgb(0 0 0 / 0.5) 58%, transparent 100%);
     position: absolute;
     inset: calc(-1 * var(--aa-space-8)) calc(50% - 50vw) calc(-1 * var(--aa-space-7));
@@ -275,26 +444,37 @@
       /* The statement's centre, measured from the field's right edge (the middle of the gap): half the gap plus half
          the statement (cqi: the statement is an inline-size container). */
       --hf-x: calc(100% - var(--aa-space-5) - 50cqi);
-      --hf-y: 44%;
+      --hf-y: 40%;
       --hf-mask: radial-gradient(ellipse 58% 64% at var(--hf-x) var(--hf-y), #000 22%, rgb(0 0 0 / 0.5) 56%, transparent 100%);
       inset: calc(-1 * var(--aa-space-8)) calc(-1 * var(--aa-space-5)) calc(-1 * var(--aa-space-8))
         calc(-1 * (var(--aa-gutter) + max(0px, (100vw - var(--aa-container)) / 2)));
       /* It ends in the gap before the exhibit: fade it out there rather than cut it. */
-      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 12rem), transparent);
-      mask-image: linear-gradient(to right, #000 calc(100% - 12rem), transparent);
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 10rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 10rem), transparent);
     }
   }
   .aa-hero-field > * {
     position: absolute;
     inset: 0;
   }
-  /* The glow: the statement sits on a lit sheet. A broad white core (`raised`, lighter than the page) right behind the
-     headline, inside a faint cool haze (`--aa-glow`) that dies out before the field's edge. Light, never a shadow:
-     nothing behind the text is darker than the page. */
+  /* The glow (site v5 PR 1b): the accent, plainly visible. A cobalt bloom above and behind the headline, a deeper one
+     low on the side toward the exhibit, and a wash joining them. Behind text it stays at or under 22% of the accent
+     on the page (the lead's ink-2 keeps 6.4:1); it is strongest where there is no text, at the field's edges. */
   .aa-hf-glow {
     background:
-      radial-gradient(ellipse 46% 40% at var(--hf-x) calc(var(--hf-y) - 4%), var(--aa-raised) 0%, color-mix(in srgb, var(--aa-raised) 70%, transparent) 45%, transparent 100%),
-      radial-gradient(ellipse 60% 66% at var(--hf-x) var(--hf-y), transparent 20%, color-mix(in srgb, var(--aa-glow) 70%, transparent) 55%, transparent 100%);
+      radial-gradient(ellipse 34% 30% at calc(var(--hf-x) - 22%) calc(var(--hf-y) - 26%), color-mix(in srgb, var(--aa-accent) 34%, transparent) 0%, transparent 100%),
+      radial-gradient(ellipse 40% 36% at calc(var(--hf-x) + 30%) calc(var(--hf-y) + 30%), color-mix(in srgb, var(--aa-accent-deep) 30%, transparent) 0%, transparent 100%),
+      radial-gradient(ellipse 58% 52% at var(--hf-x) var(--hf-y), color-mix(in srgb, var(--aa-accent) 18%, transparent) 0%, color-mix(in srgb, var(--aa-accent) 8%, transparent) 55%, transparent 100%);
+  }
+  @media (max-width: 68.6875rem) {
+    .aa-hf-glow {
+      /* Stacked, the bloom sits behind the headline's top and the deeper light below the statement, toward the
+         exhibit; both reach past the screen's sides. */
+      background:
+        radial-gradient(ellipse 70% 26% at 18% 12%, color-mix(in srgb, var(--aa-accent) 32%, transparent) 0%, transparent 100%),
+        radial-gradient(ellipse 80% 24% at 86% 92%, color-mix(in srgb, var(--aa-accent-deep) 28%, transparent) 0%, transparent 100%),
+        radial-gradient(ellipse 90% 60% at 50% 45%, color-mix(in srgb, var(--aa-accent) 14%, transparent) 0%, transparent 100%);
+    }
   }
   /* Graph paper: 24px minor lines, every fourth line a little stronger, and a dot on each crossing. The lines are
      anchored to the frame's left edge, so they meet the frame line exactly. */
@@ -322,14 +502,14 @@
       background-position: center 0;
     }
   }
-  /* The net: quiet at the centre where the headline is, visible in a ring around it, gone at the edges. */
+  /* The net: calmer where the headline and lead are, full strength in a ring around them, gone at the edges. */
   .aa-hf-net {
     width: 100%;
     height: 100%;
     opacity: 0;
     transition: opacity 600ms var(--aa-ease);
-    -webkit-mask-image: radial-gradient(ellipse 60% 64% at var(--hf-x) var(--hf-y), rgb(0 0 0 / 0.28) 0%, rgb(0 0 0 / 0.28) 26%, #000 54%, transparent 92%);
-    mask-image: radial-gradient(ellipse 60% 64% at var(--hf-x) var(--hf-y), rgb(0 0 0 / 0.28) 0%, rgb(0 0 0 / 0.28) 26%, #000 54%, transparent 92%);
+    -webkit-mask-image: radial-gradient(ellipse 62% 66% at var(--hf-x) var(--hf-y), rgb(0 0 0 / 0.4) 0%, rgb(0 0 0 / 0.4) 24%, #000 52%, transparent 94%);
+    mask-image: radial-gradient(ellipse 62% 66% at var(--hf-x) var(--hf-y), rgb(0 0 0 / 0.4) 0%, rgb(0 0 0 / 0.4) 24%, #000 52%, transparent 94%);
   }
   .aa-hero-field.is-live .aa-hf-net {
     opacity: 1;
@@ -348,11 +528,12 @@
     }
   }
 
-  /* The pause control: a label-sized text button in the space under the statement, absolutely placed so showing it
-     (only once the net runs) never moves anything. */
+  /* The pause control: a label-sized text button in the slot the statement reserves under the install line
+     (index.astro, .aa-statement's bottom padding), so showing it (only once the net runs) never moves anything, and
+     when stacked it keeps the row's full gap from the exhibit's label. */
   .aa-hf-toggle {
     position: absolute;
-    bottom: calc(-1 * var(--aa-space-6) - 0.25rem);
+    bottom: 0;
     left: 50%;
     translate: -50% 0;
     min-height: 1.5rem;
@@ -363,7 +544,7 @@
     font: 500 var(--aa-text-label) / 1.5rem var(--aa-font-mono);
     letter-spacing: var(--aa-label-tracking);
     text-transform: uppercase;
-    color: var(--aa-ink-3);
+    color: var(--aa-ink-2);
     cursor: pointer;
     transition: color var(--aa-fast) var(--aa-ease);
   }

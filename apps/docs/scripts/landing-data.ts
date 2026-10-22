@@ -475,3 +475,74 @@ export function suiteRunLabels(s: { readonly completed: number; readonly dataset
   if (status === "partial") return { status, flag: "partial" };
   return { status, flag: null };
 }
+
+// ── The hero's proof chips (DESIGN.md §5, site v5 PR 1b) ─────────────────────────────────────────────────────────────
+
+export interface ProofInputs {
+  /** The latest real public data run (evals/results/*-baseline-real.json). */
+  readonly real: { readonly file: string; readonly datasets: readonly { readonly checks: readonly { readonly pass: boolean }[] }[] };
+  /** The latest real-model smoke run: its file, jobs finished, and numbers the verifier found wrong. */
+  readonly smoke: { readonly file: string; readonly completed: number; readonly datasets: number; readonly mismatches: number | null };
+  /** The verifier's own check table from the recorded run (docs/assets/readme/pipeline.json `checks`). */
+  readonly checks: readonly { readonly check: string }[];
+  /** The model routes a fresh install uses (packages/models resolveModelConfig with no env and no config file). */
+  readonly defaults: Readonly<Record<string, { readonly provider: string; readonly model: string } | undefined>>;
+}
+
+export interface ProofChip {
+  readonly id: "real" | "numbers" | "verifier" | "local";
+  /** The figure, set in mono; empty when the chip states a property rather than a count. */
+  readonly figure: string;
+  readonly text: string;
+  readonly href: string;
+  /** Where the figure comes from: shown on hover and read by screen readers after the text. */
+  readonly source: string;
+}
+
+const LOCAL_PROVIDERS = new Set(["ollama", "transformers"]);
+
+/**
+ * The hero's proof chips, each a figure from the same generated data as the status strip and §3, never typed. A chip
+ * whose claim the data doesn't support is left out, not softened: no real-model run yet, no "wrong numbers" chip; a
+ * default route that isn't local, no "free local models" chip.
+ */
+export function proofChips(s: ProofInputs): ProofChip[] {
+  const chips: ProofChip[] = [];
+  const checks = s.real.datasets.flatMap((d) => d.checks);
+  if (checks.length)
+    chips.push({
+      id: "real",
+      figure: `${checks.filter((c) => c.pass).length}/${checks.length}`,
+      text: "real-data checks",
+      href: "#results",
+      source: `checks passed on real public datasets, ${s.real.file}`,
+    });
+  if (s.smoke.mismatches !== null && s.smoke.completed > 0)
+    chips.push({
+      id: "numbers",
+      figure: String(s.smoke.mismatches),
+      text: `wrong number${s.smoke.mismatches === 1 ? "" : "s"}`,
+      href: "#results",
+      source: `numbers the verifier found wrong in the latest real-model run (${s.smoke.completed}/${s.smoke.datasets} jobs), ${s.smoke.file}`,
+    });
+  const ids = s.checks.map((c) => c.check);
+  const ordered = ids.every((id, i) => id === `V${i + 1}`);
+  if (ids.length && ordered)
+    chips.push({
+      id: "verifier",
+      figure: ids.length > 1 ? `${ids[0]}–${ids.at(-1)}` : (ids[0] as string),
+      text: "verifier",
+      href: "how-it-works/verifier/",
+      source: `${ids.length} checks on every report before it ships, the verifier's check table in the recorded run`,
+    });
+  const roles = Object.entries(s.defaults).filter((e): e is [string, { provider: string; model: string }] => Boolean(e[1]));
+  if (roles.length && roles.every(([, m]) => LOCAL_PROVIDERS.has(m.provider)))
+    chips.push({
+      id: "local",
+      figure: "",
+      text: "runs on free local models",
+      href: "models/running-free/",
+      source: `the default install: ${roles.map(([role, m]) => `${role} ${m.provider}:${m.model}`).join(", ")}`,
+    });
+  return chips;
+}

@@ -11,6 +11,7 @@ import {
   exhibitIds,
   exhibitRows,
   globToRegExp,
+  proofChips,
   statusStrip,
   suiteRunLabels,
 } from "../../apps/docs/scripts/landing-data.ts";
@@ -29,6 +30,7 @@ import {
 import { firstSentence, monthName, placeholders, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
 import { buildMachine, TONES, type Tokens } from "../../apps/docs/src/components/site/machine-scene.ts";
 import { shownFacts } from "../../apps/docs/src/components/site/pipeline-stages.ts";
+import { resolveModelConfig } from "../../packages/models/src/index.ts";
 
 let run: ReturnType<typeof recordRun<Awaited<ReturnType<typeof exhibitRows>>>> | undefined;
 /** Whitespace-insensitive SQL, for comparing a laid-out query with the recorded one. */
@@ -224,7 +226,7 @@ describe("landing markup", () => {
 
   it("index.astro, Exhibit.astro and PipelineStages.astro type no figures in their text", () => {
     for (const [f, known] of [
-      ["pages/index.astro", "An AI analyst you can audit."],
+      ["pages/index.astro", "you can audit."],
       ["components/site/Exhibit.astro", "Recorded from a real engine run."],
       ["components/site/PipelineStages.astro", "Play"],
     ] as const) {
@@ -339,6 +341,54 @@ describe("status strip", () => {
     expect(g.test("packages/models/test/deep/x.test.ts")).toBe(true);
     expect(g.test("packages/models/src/fetch.test.ts")).toBe(false);
     expect(g.test("packages/a/b/test/x.test.ts")).toBe(false);
+  });
+});
+
+describe("hero proof chips (site v5 PR 1b)", () => {
+  const checks = ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8"].map((check) => ({ check }));
+  const local = {
+    planner: { provider: "ollama", model: "qwen3.5:9b" },
+    extractor: { provider: "ollama", model: "qwen3.5:9b" },
+    judge: { provider: "ollama", model: "qwen3.5:9b" },
+    embedder: { provider: "transformers", model: "Xenova/bge-m3" },
+  };
+  const base = {
+    real: { file: "evals/results/r.json", datasets: [{ checks: [{ pass: true }, { pass: false }] }, { checks: [{ pass: true }] }] },
+    smoke: { file: "evals/results/s.json", completed: 3, datasets: 3, mismatches: 0 },
+    checks,
+    defaults: local,
+  };
+
+  it("states each figure from its run, with the run's file as its source", () => {
+    const chips = proofChips(base);
+    expect(chips.map((c) => [c.id, c.figure, c.text, c.href])).toEqual([
+      ["real", "2/3", "real-data checks", "#results"],
+      ["numbers", "0", "wrong numbers", "#results"],
+      ["verifier", "V1–V8", "verifier", "how-it-works/verifier/"],
+      ["local", "", "runs on free local models", "models/running-free/"],
+    ]);
+    expect(chips[0]?.source).toContain("evals/results/r.json");
+    expect(chips[1]?.source).toContain("evals/results/s.json");
+    expect(chips[1]?.source).toContain("3/3 jobs");
+    expect(chips[3]?.source).toContain("planner ollama:qwen3.5:9b");
+    expect(proofChips({ ...base, smoke: { ...base.smoke, mismatches: 1 } })[1]?.text).toBe("wrong number");
+  });
+
+  it("leaves out a chip its data doesn't support, rather than soften it", () => {
+    const ids = (s: Parameters<typeof proofChips>[0]) => proofChips(s).map((c) => c.id);
+    expect(ids({ ...base, smoke: { ...base.smoke, mismatches: null } })).not.toContain("numbers");
+    expect(ids({ ...base, smoke: { ...base.smoke, completed: 0 } })).not.toContain("numbers");
+    expect(ids({ ...base, real: { ...base.real, datasets: [] } })).not.toContain("real");
+    expect(ids({ ...base, checks: [{ check: "V1" }, { check: "V3" }] })).not.toContain("verifier");
+    expect(ids({ ...base, defaults: { ...local, planner: { provider: "openai-compatible", model: "groq" } } })).not.toContain("local");
+  });
+
+  it("from the committed data: the verifier's table and the default install the generator reads", () => {
+    const ROOT = join(import.meta.dirname, "..", "..");
+    const pipeline = JSON.parse(readFileSync(join(ROOT, "docs/assets/readme/pipeline.json"), "utf8")) as PipelineData;
+    const chips = proofChips({ ...base, checks: pipeline.checks, defaults: resolveModelConfig({}).models });
+    expect(chips.find((c) => c.id === "verifier")?.figure).toBe(`V1–V${pipeline.checks.length}`);
+    expect(chips.map((c) => c.id)).toContain("local");
   });
 });
 
