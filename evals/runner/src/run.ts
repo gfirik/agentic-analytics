@@ -260,6 +260,8 @@ export interface RunOptions {
   /** Keep each report as `<dir>/<dataset>.json` (real-model runs cost tokens; this lets them be inspected later). */
   readonly keepReports?: string;
   readonly now?: () => Date;
+  /** Each dataset's report as the job shipped it (undefined when the job failed): `aa eval --repeat` compares them. */
+  readonly onReport?: (dataset: string, report: Report | undefined) => void;
 }
 
 /**
@@ -288,6 +290,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
       ...(o.smallModel ? { smallModel: true } : {}),
     };
     let score: DatasetScore;
+    let report: Report | undefined;
     try {
       const out = await runJob(
         { dir, jobId: ds.id, files: Object.entries(ds.files).map(([name, bytes]) => ({ name, bytes })), options },
@@ -298,6 +301,8 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
         mkdirSync(o.keepReports, { recursive: true });
         writeFileSync(join(o.keepReports, `${ds.id}.json`), `${JSON.stringify(out.report, null, 2)}\n`);
       }
+      // Only now: a job whose scoring or keep-reports write failed is scored failed, so its report isn't handed on.
+      report = out.report;
     } catch (err) {
       // A stage failure wraps the stage's own error; the verifier's mismatch codes are what count here.
       const cause = err instanceof Error && err.cause instanceof Error ? err.cause : err;
@@ -312,6 +317,7 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
       rmSync(dir, { recursive: true, force: true });
     }
     scores.push({ ...score, routes: routeSummary(calls) });
+    o.onReport?.(ds.id, report);
     o.onDataset?.(score, i, datasets.length);
   }
   return {
