@@ -242,6 +242,8 @@ describe("evalRepeat (CI path: scripted variation)", () => {
     expect(r.measures.every((m) => m.share === 1)).toBe(true);
     expect(r.disagreements).toEqual([]);
     expect(repeatPassed(r)).toBe(true);
+    // A run that served calls from the cache overstates agreement, so it fails whatever its measures say.
+    expect(repeatPassed({ ...r, cache: "on" })).toBe(false);
     await expect(
       evalRepeat({ suite: "smoke", model: "baseline", repeat: 1, resultsDir: dir }, { embedder: hashEmbedder(), print: () => {} }),
     ).rejects.toThrow(EvalRunError);

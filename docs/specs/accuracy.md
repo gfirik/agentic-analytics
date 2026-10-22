@@ -65,7 +65,7 @@ The two real sets (M14 PR 3) cover totals by period, a share or concentration (t
 
 `aa eval --suite smoke|full --repeat N` (`evalRepeat` in evals/runner/src/cli.ts, the measures in evals/runner/src/repeat.ts) runs the suite N times (N a whole number ≥ 2) with the same model and the same arguments, and measures how often the runs agree (analyst-grade §4.3). The temperature is the provider's default.
 
-**The response cache is off.** `--repeat` implies `--no-cache`: the cache is never built, read or written, so runs 2..N can't replay run 1 and every call is live. `--no-cache` on its own does the same for any `aa eval` run (a fresh measurement of a model with no earlier answers). Each run records its provider calls and how many were cached (0 with the cache off; a non-zero count prints a warning, as its agreement would be overstated). The scripted baseline makes no provider calls; its result says `cache: "n/a"`.
+**The response cache is off.** `--repeat` implies `--no-cache`: the cache is never built, read or written, so runs 2..N can't replay run 1 and every call is live. `--no-cache` on its own does the same for any `aa eval` run (a fresh measurement of a model with no earlier answers). Each run records its provider calls and how many were cached (0 with the cache off). A non-zero count prints a warning and records `cache: "on"`, and the run fails, as its agreement would be overstated; `cache: "off"` is measured from those counts, not assumed. The scripted baseline makes no provider calls; its result says `cache: "n/a"`.
 
 **What is compared.** Each run's shipped report.json is reduced, per job, to a snapshot:
 
@@ -77,13 +77,13 @@ The two real sets (M14 PR 3) cover totals by period, a share or concentration (t
 
 | Measure | The runs agree when |
 |---|---|
-| (a) numbers | every fact label has the same values in every run that has it (exact equality). A label only some runs have is a findings difference, not a changed number |
+| (a) numbers | every fact label has the same values in every run that has it (exact equality). A label only some runs have isn't a changed number: it counts under (b) when it belongs to a top-5 finding, and under no measure otherwise |
 | (b) findings | the top-5 keys are the same multiset (rank order may differ) |
 | (c) driver | each key in every run's top 5 has the same top driver in every run (compared in rank order when a key repeats) |
 | (d) cause grade | each such key has the same grade in every run |
 | (e) action | the top recommendation's scenario type is the same |
 
-A job that failed in any run agrees on nothing. (c) and (d) are n/a for a job with no key in every run's top 5 (a findings difference is counted once, under (b)). **The reported value** per measure is the share of jobs where all N runs agree, n/a jobs left out, beside the §4.7 launch bar (100% / 95% / 95% / 90% / 90%; the bar is set over 5 runs). The command exits 1 when a run left a job unfinished or a measure misses its bar.
+A job that failed in any run agrees on nothing. (c) and (d) are n/a for a job with no key in every run's top 5 (a findings difference is counted once, under (b)). **The reported value** per measure is the share of jobs where all N runs agree, n/a jobs left out, beside the §4.7 launch bar (100% / 95% / 95% / 90% / 90%; the bar is set over 5 runs). The command exits 1 when a run served a call from the cache, left a job unfinished or a measure misses its bar.
 
 **Output.** Each `--repeat` run writes `<results dir>/repeat/<date>-<model>[-small]-<suite>-repeat<N>.json` (the `RepeatResult`: the runs, the measures, each job's agreement and the disagreements) and, beside it, the same name in `.md`: the measures, then every disagreement side by side, one row per item (the fact label, the finding key, or the top recommendation) and one column per run ("—" where a run has no such item). The N runs write no results rows and leave RESULTS.md alone: one run of N is not the model's result, and N rows of one name would replace each other. Baseline smoke repeats are gitignored like baseline smoke runs.
 

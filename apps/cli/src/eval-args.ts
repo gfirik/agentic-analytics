@@ -59,7 +59,7 @@ export function repeatArgs(a: {
 }): RepeatArgs {
   if (a.repeat === undefined) return { cacheOff: a.noCache === true };
   const n = Number(a.repeat);
-  if (a.repeat.trim() === "" || !(Number.isInteger(n) && n >= 2))
+  if (!/^\d+$/.test(a.repeat) || !(Number.isInteger(n) && n >= 2))
     throw new EvalRunError("USAGE", `--repeat takes a whole number ≥ 2, not "${a.repeat}"`);
   if (a.suite !== undefined && a.suite !== "smoke" && a.suite !== "full")
     throw new EvalRunError("USAGE", `--repeat runs --suite smoke or full, not ${a.suite}`);

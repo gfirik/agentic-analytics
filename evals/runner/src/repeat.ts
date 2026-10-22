@@ -133,8 +133,8 @@ export function jobAgreement(runs: readonly JobSnapshot[]): { agreement: JobAgre
     const no = { numbers: false, findings: false, driver: false, grade: false, action: false };
     return { agreement: { dataset, agree: no }, disagreements: out };
   }
-  // (a) A label's values must be the same in every run that has the label; a label only some runs have is a findings
-  // difference (b), not a number that changed.
+  // (a) A label's values must be the same in every run that has the label. A label only some runs have isn't a number
+  // that changed: it counts under (b) when it belongs to a top-5 finding, and under no measure otherwise.
   const labels = [...new Set(runs.flatMap((r) => Object.keys(r.facts)))].sort();
   let numbers = true;
   for (const label of labels) {
@@ -229,8 +229,11 @@ export interface RepeatResult {
   readonly note?: string;
   readonly date: string;
   readonly repeat: number;
-  /** "off": every call live. "n/a": the scripted baseline, which makes no provider calls. */
-  readonly cache: "off" | "n/a";
+  /**
+   * Measured from the call records: "off" when no run served a call from the cache, "on" when one did (its agreement is
+   * overstated, so the run fails), "n/a" for the scripted baseline, which makes no provider calls.
+   */
+  readonly cache: "off" | "on" | "n/a";
   readonly datasets: readonly string[];
   readonly runs: readonly RepeatRun[];
   readonly measures: readonly MeasureShare[];
@@ -247,7 +250,7 @@ export function repeatMarkdown(r: RepeatResult): string {
     `# Consistency: ${r.model} · ${r.suite} suite · ${r.repeat} runs · ${r.date}`,
     "",
     ...(r.note ? [r.note, ""] : []),
-    `Response cache: ${r.cache === "off" ? "off (every call live)" : "n/a (scripted model, no provider calls)"}. Datasets: ${r.datasets.join(", ")}.`,
+    `Response cache: ${r.cache === "off" ? "off (every call live)" : r.cache === "on" ? "on (some calls replayed; agreement overstated)" : "n/a (scripted model, no provider calls)"}. Datasets: ${r.datasets.join(", ")}.`,
     "",
     ...r.runs.map((x) => `- Run ${x.run}: ${x.finished}/${x.of} jobs finished, ${x.calls} provider calls (${x.cached} cached)`),
     "",

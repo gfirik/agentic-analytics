@@ -372,7 +372,7 @@ export async function evalRepeat(a: Omit<EvalArgs, "passes"> & { readonly repeat
     ...(a.note ? { note: a.note } : {}),
     date: at.toISOString().slice(0, 10),
     repeat: a.repeat,
-    cache: baseline ? "n/a" : "off",
+    cache: baseline ? "n/a" : runs.every((x) => x.cached === 0) ? "off" : "on",
     datasets: datasets.map((x) => x.id),
     runs,
     ...c,
@@ -389,9 +389,12 @@ export async function evalRepeat(a: Omit<EvalArgs, "passes"> & { readonly repeat
   return result;
 }
 
-/** A --repeat run passes when every run finished every job and no measure misses its bar (n/a misses none). */
+/**
+ * A --repeat run passes when no call was served from the cache, every run finished every job and no measure misses its
+ * bar (n/a misses none).
+ */
 export const repeatPassed = (r: RepeatResult): boolean =>
-  r.runs.every((x) => x.finished === x.of) && r.measures.every((m) => m.pass !== false);
+  r.cache !== "on" && r.runs.every((x) => x.finished === x.of) && r.measures.every((m) => m.pass !== false);
 
 export interface MatrixRun {
   readonly model: string;

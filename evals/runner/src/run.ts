@@ -296,12 +296,13 @@ export async function runSuite(o: RunOptions): Promise<SuiteResult> {
         { dir, jobId: ds.id, files: Object.entries(ds.files).map(([name, bytes]) => ({ name, bytes })), options },
         { model, embedder: o.embedder },
       );
-      report = out.report;
       score = scoreReport(out.report, ds.answers, { seconds: (Date.now() - started) / 1000, tokens });
       if (o.keepReports) {
         mkdirSync(o.keepReports, { recursive: true });
         writeFileSync(join(o.keepReports, `${ds.id}.json`), `${JSON.stringify(out.report, null, 2)}\n`);
       }
+      // Only now: a job whose scoring or keep-reports write failed is scored failed, so its report isn't handed on.
+      report = out.report;
     } catch (err) {
       // A stage failure wraps the stage's own error; the verifier's mismatch codes are what count here.
       const cause = err instanceof Error && err.cause instanceof Error ? err.cause : err;

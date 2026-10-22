@@ -72,7 +72,8 @@ describe("repeatArgs", () => {
     expect(repeatArgs({ repeat: "5", suite: "full" })).toEqual({ repeat: 5, cacheOff: true });
   });
   it("refuses a count below 2 or not whole, --suite real and --passes", () => {
-    for (const bad of ["1", "0", "2.5", "five", "", "-3"]) expect(() => repeatArgs({ repeat: bad })).toThrow(/whole number ≥ 2/);
+    for (const bad of ["1", "0", "2.5", "five", "", "-3", "0x2", "1e1", "2.0", " 3"])
+      expect(() => repeatArgs({ repeat: bad })).toThrow(/whole number ≥ 2/);
     expect(() => repeatArgs({ repeat: "3", suite: "real" })).toThrow(/smoke or full, not real/);
     expect(() => repeatArgs({ repeat: "3", passes: "2" })).toThrow(/drop --passes/);
   });
