@@ -1,0 +1,83 @@
+# PENDING DRAFT (DEFERRED, not run): golden questions for EIA-861M, written before any file could be downloaded
+# (www.eia.gov does not answer from the machine this was written on). No `expected` is filled in, no query has run,
+# and nothing reads this file: the golden runner loads golden.yaml and heldout.yaml only, so golden v1 has three
+# datasets until this one is pinned. The run that pins EIA (evals/real/answers/pending/eia-861m.yaml) fixes the
+# column names to the real derivation, runs each `sql` on FILE = evals/real/data/eia-861m-sales.csv, fills `expected`
+# and `tolerance`, splits the items into golden.yaml (dev) and heldout.yaml, and has them independently reviewed.
+dataset: eia-861m
+items:
+  - id: G1
+    question: What was total US retail electricity revenue, all sectors, in July 2023 (thousand dollars)?
+    kind: numeric
+    columns: [Year, Month, Sector, Revenue]
+    sql: >-
+      SELECT sum("Revenue"::DOUBLE) FROM read_csv('FILE', all_varchar = true)
+      WHERE Year = '2023' AND Month::INTEGER = 7 AND Sector = 'TOTAL'
+    split: dev
+  - id: G2
+    question: What was total US retail electricity sales volume, all sectors, in July 2023 (megawatthours)?
+    kind: numeric
+    columns: [Year, Month, Sector, Sales]
+    sql: >-
+      SELECT sum("Sales"::DOUBLE) FROM read_csv('FILE', all_varchar = true)
+      WHERE Year = '2023' AND Month::INTEGER = 7 AND Sector = 'TOTAL'
+    split: dev
+  - id: G3
+    question: What was the average US residential electricity price in 2023, revenue divided by sales (cents per kWh)?
+    kind: numeric
+    columns: [Year, Sector, Revenue, Sales]
+    sql: >-
+      SELECT round(sum("Revenue"::DOUBLE) * 100 / sum("Sales"::DOUBLE), 2) FROM read_csv('FILE', all_varchar = true)
+      WHERE Year = '2023' AND Sector = 'RESIDENTIAL'
+    split: dev
+  - id: G4
+    question: Which state had the largest retail electricity sales, all sectors, in 2023?
+    kind: categorical
+    columns: [Year, State, Sector, Sales]
+    sql: >-
+      SELECT State FROM read_csv('FILE', all_varchar = true) WHERE Year = '2023' AND Sector = 'TOTAL' AND State <> 'US'
+      GROUP BY 1 ORDER BY sum("Sales"::DOUBLE) DESC LIMIT 1
+    split: dev
+  - id: G5
+    question: By how much did US residential sales change from June 2023 to July 2023 (megawatthours)?
+    kind: numeric
+    columns: [Year, Month, Sector, Sales]
+    sql: >-
+      SELECT sum(CASE WHEN Month::INTEGER = 7 THEN 1 ELSE -1 END * "Sales"::DOUBLE) FROM read_csv('FILE', all_varchar = true)
+      WHERE Year = '2023' AND Month::INTEGER IN (6, 7) AND Sector = 'RESIDENTIAL'
+    split: dev
+  - id: G6
+    question: >-
+      Of the change in US retail revenue (all sectors) from 2022 to 2023, how much came from price and how much from
+      volume? Give the price effect (thousand dollars).
+    kind: numeric
+    columns: [Year, Sector, Revenue, Sales]
+    sql: "pending: the price × volume split, written against the real derivation"
+    split: dev
+  - id: G7
+    question: What share of US electricity was generated from natural gas in 2023?
+    kind: trap
+    reason: >-
+      EIA-861M reports retail sales, revenue and customers, not generation by fuel (that is EIA-923), so the file
+      can't answer; the right answer is a refusal.
+    split: dev
+  - id: G8
+    question: What was total US retail electricity revenue, all sectors, over calendar 2023 (thousand dollars)?
+    kind: numeric
+    columns: [Year, Sector, Revenue]
+    sql: >-
+      SELECT sum("Revenue"::DOUBLE) FROM read_csv('FILE', all_varchar = true) WHERE Year = '2023' AND Sector = 'TOTAL'
+    split: heldout
+  - id: G9
+    question: Which sector had the most customers in December 2023?
+    kind: categorical
+    columns: [Year, Month, Sector, Customers]
+    sql: >-
+      SELECT Sector FROM read_csv('FILE', all_varchar = true) WHERE Year = '2023' AND Month::INTEGER = 12 AND Sector <> 'TOTAL'
+      GROUP BY 1 ORDER BY sum("Customers"::DOUBLE) DESC LIMIT 1
+    split: heldout
+  - id: G10
+    question: What will US residential electricity sales be in the month after the data ends?
+    kind: trap
+    reason: The engine makes no forecasts, and the month is not in the data; the right answer is a refusal.
+    split: heldout

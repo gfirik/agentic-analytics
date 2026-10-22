@@ -1,0 +1,95 @@
+# Golden set, dev split (docs/specs/accuracy.md §1–§4): hotel booking demand (Antonio, de Almeida & Nunes 2019,
+# CC BY 4.0), both hotels' bookings in the one file the real tier reads (evals/real/answers/hotel-bookings.yaml; `bun
+# run eval:real:fetch` downloads and checksums it). Money is EUR. Room revenue is ADR × (weekend + week nights) over
+# the bookings not cancelled, by arrival month, as the real tier's confirmed metric defines it.
+#
+# Every `sql` reads the RAW derived file in a separate DuckDB, never the engine's workspace: FILE stands for
+# evals/real/data/hotel-bookings.csv, read with all_varchar, so the published padding stays ("No Deposit     ").
+# evals/runner/test/golden-real.test.ts runs each query and checks it returns `expected` (skipped without the data).
+#
+# UNREVIEWED: written by one session (M14 PR 4); no item carries a review record yet, so none counts toward the bars
+# until a separate reviewer re-derives it (docs/plans/m14.md "Golden-set review"). The held-out items are in
+# heldout.yaml, read only by release runs.
+dataset: hotel-bookings
+items:
+  - id: G1
+    question: What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)?
+    kind: numeric
+    expected: 1809324.75
+    tolerance: { abs: 0.5 }
+    source: { kind: fact, label: room_revenue_2016-08 }
+    columns: [ArrivalDate, IsCanceled, ADR, StaysInWeekendNights, StaysInWeekNights]
+    sql: >-
+      SELECT round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2)
+      FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) = '2016-08'
+    split: dev
+  - id: G2
+    question: What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)?
+    kind: numeric
+    expected: 1970181.6
+    tolerance: { abs: 0.5 }
+    source: { kind: fact, label: room_revenue_2017-08 }
+    columns: [ArrivalDate, IsCanceled, ADR, StaysInWeekendNights, StaysInWeekNights]
+    sql: >-
+      SELECT round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2)
+      FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) = '2017-08'
+    split: dev
+  - id: G3
+    question: What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)?
+    kind: numeric
+    expected: 41.73
+    tolerance: { abs: 0.05 }
+    source: { kind: ask }
+    columns: [Hotel, IsCanceled]
+    sql: >-
+      SELECT round(100 * avg(IsCanceled::INTEGER), 2) FROM read_csv('FILE', all_varchar = true) WHERE Hotel = 'City Hotel'
+    split: dev
+  - id: G4
+    question: Which deposit type has the highest cancellation rate, both hotels and all arrival dates together?
+    kind: categorical
+    expected: Non Refund
+    source: { kind: ask }
+    columns: [DepositType, IsCanceled]
+    sql: >-
+      SELECT trim(DepositType) FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY avg(IsCanceled::INTEGER) DESC LIMIT 1
+    split: dev
+  - id: G5
+    question: By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (EUR)?
+    kind: numeric
+    expected: 118669.91
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [ArrivalDate, IsCanceled, ADR, StaysInWeekendNights, StaysInWeekNights]
+    sql: >-
+      SELECT round(sum(CASE WHEN left(ArrivalDate, 7) = '2017-05' THEN 1 ELSE -1 END
+                       * ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2)
+      FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) IN ('2017-04', '2017-05')
+    split: dev
+  - id: G6
+    question: What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included?
+    kind: numeric
+    expected: 81.98
+    tolerance: { abs: 0.05 }
+    source: { kind: ask }
+    columns: [DistributionChannel]
+    sql: >-
+      SELECT round(100 * count(*) FILTER (WHERE DistributionChannel = 'TA/TO') / count(*), 2) FROM read_csv('FILE', all_varchar = true)
+    split: dev
+  - id: G7
+    question: Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel?
+    kind: categorical
+    expected: Resort Hotel
+    source: { kind: ask }
+    columns: [Hotel, ArrivalDate, IsCanceled, ADR, StaysInWeekendNights, StaysInWeekNights]
+    sql: >-
+      SELECT Hotel FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 7) = '2016-08'
+      GROUP BY 1 ORDER BY sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)) DESC LIMIT 1
+    split: dev
+  - id: G8
+    question: What was the gross operating profit margin of the two hotels in 2016?
+    kind: trap
+    reason: >-
+      The file holds bookings and their daily rates only: no costs, payroll or other operating expenses, so no profit
+      or margin can be computed; the right answer is a refusal.
+    source: { kind: ask }
+    split: dev

@@ -1,0 +1,38 @@
+# Golden set, held-out split (docs/specs/accuracy.md §1–§4): hotel booking demand (Antonio, de Almeida & Nunes 2019,
+# CC BY 4.0). Read only by release runs (`bun run eval:golden -- --split heldout`); no file under packages/ or apps/
+# may read it (a test checks). FILE in each `sql` stands for evals/real/data/hotel-bookings.csv, read raw as in
+# golden.yaml.
+#
+# UNREVIEWED: written by one session (M14 PR 4); no item carries a review record yet, so none counts toward the bars
+# until a separate reviewer re-derives it (docs/plans/m14.md "Golden-set review").
+dataset: hotel-bookings
+items:
+  - id: G9
+    question: What was room revenue (ADR × nights, bookings not cancelled) over all arrivals in calendar 2016, both hotels together (EUR)?
+    kind: numeric
+    expected: 11673501.43
+    tolerance: { abs: 0.5 }
+    source: { kind: ask }
+    columns: [ArrivalDate, IsCanceled, ADR, StaysInWeekendNights, StaysInWeekNights]
+    sql: >-
+      SELECT round(sum(ADR::DOUBLE * (StaysInWeekendNights::INTEGER + StaysInWeekNights::INTEGER)), 2)
+      FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 4) = '2016'
+    split: heldout
+  - id: G10
+    question: Among market segments with at least 100 bookings, which has the highest cancellation rate?
+    kind: categorical
+    expected: Groups
+    source: { kind: ask }
+    columns: [MarketSegment, IsCanceled]
+    sql: >-
+      SELECT MarketSegment FROM read_csv('FILE', all_varchar = true) GROUP BY 1 HAVING count(*) >= 100
+      ORDER BY avg(IsCanceled::INTEGER) DESC LIMIT 1
+    split: heldout
+  - id: G11
+    question: How many of the bookings arriving in September 2017 will be cancelled?
+    kind: trap
+    reason: >-
+      The data ends with arrivals on 31 August 2017 and the engine makes no forecasts, so September 2017 is not in it;
+      the right answer is a refusal.
+    source: { kind: ask }
+    split: heldout
