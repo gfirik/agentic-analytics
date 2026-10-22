@@ -7,7 +7,7 @@ import { runMetric } from "@agentic-analytics/metrics";
 import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { beyondKeys } from "./decompose.ts";
-import { AnalysisError, FactBook, type SeriesInfo } from "./factbook.ts";
+import { AnalysisError, FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { impactRange, type Scenario } from "./impact.ts";
 import { otherFilter, persistFacts, type StoredDecomposition, type StoredInsight } from "./runner.ts";
 import { benchmarkGap, topContributors } from "./templates.ts";
@@ -173,12 +173,12 @@ export async function drillDown(ws: Workspace, defs: readonly MetricDef[], catal
   );
   const book = new FactBook(ws, defs, catalog, q.range.grain, series, new Set(defs.map((d) => d.id)), await nextFactNumber(ws));
   const scope = await book.calcs(insight.calcs, `drill_down ${def.id} ${q.period} by ${q.dimension}`, def.id);
-  const facts: Record<string, string> = { total: scope.get("delta:total") ?? "" };
+  const facts: Record<string, string> = { total: factOf(scope, "delta:total") };
   for (const c of insight.contribution?.contributors ?? []) {
-    facts[`change:${c.key}`] = scope.get(c.delta.name) ?? "";
-    facts[`share:${c.key}`] = scope.get(c.share.name) ?? "";
+    facts[`change:${c.key}`] = factOf(scope, c.delta.name);
+    facts[`share:${c.key}`] = factOf(scope, c.share.name);
   }
-  for (const [key, name] of insight.contribution ? beyondKeys(insight.contribution) : []) facts[key] = scope.get(name) ?? "";
+  for (const [key, name] of insight.contribution ? beyondKeys(insight.contribution) : []) facts[key] = factOf(scope, name);
   await persistFacts(ws, book.facts);
   return { metric: def.id, dimension: q.dimension, before, after: q.period, facts, newFacts: book.facts };
 }
@@ -281,9 +281,9 @@ export async function scenarioFacts(
   return {
     method: r.method,
     formula: r.formula,
-    low: scope.get(r.low.name) ?? "",
-    high: scope.get(r.high.name) ?? "",
-    params: r.params.map((p) => scope.get(p.name) ?? ""),
+    low: factOf(scope, r.low.name),
+    high: factOf(scope, r.high.name),
+    params: r.params.map((p) => factOf(scope, p.name)),
     newFacts,
   };
 }
@@ -405,5 +405,5 @@ export async function benchmarkFacts(
   const book = new FactBook(ws, defs, catalog, grain, new Map(), new Set(defs.map((d) => d.id)), await nextFactNumber(ws));
   const scope = await book.calcs(calcs, `benchmark ${own.id} vs ${external.source_id}`, own.metric_id);
   await persistFacts(ws, book.facts);
-  return { low: low.id, high: high.id, gap: scope.get("gap") ?? "", newFacts: [low, high, ...book.facts] };
+  return { low: low.id, high: high.id, gap: factOf(scope, "gap"), newFacts: [low, high, ...book.facts] };
 }

@@ -137,12 +137,25 @@ async function setMeta(ws: Workspace, key: string, value: unknown): Promise<void
   await ws.run(sql`INSERT OR REPLACE INTO job_meta VALUES (${key}, ${JSON.stringify(value)}::JSON)`);
 }
 
-async function profileDone(path: string): Promise<boolean> {
-  if (!existsSync(path)) return false;
+/** Whether PROFILE completed, and the job's own settings, which outlive a restart from scratch. */
+interface PriorRun {
+  readonly profiled: boolean;
+  readonly options?: JobOptions;
+  readonly jobId?: string;
+  /** The event history, so a restart continues its sequence numbers instead of repeating them. */
+  readonly events: readonly { seq: number; job_id: string; occurred_at: string; type: string; payload: string | null }[];
+}
+
+async function priorRun(path: string): Promise<PriorRun> {
   const ws = await Workspace.open(path);
   try {
     const r = await ws.one<{ n: number }>(sql`SELECT count(*) AS n FROM job_stages WHERE stage = 'PROFILE' AND status = 'completed'`);
-    return (r?.n ?? 0) > 0;
+    const options = await meta<JobOptions>(ws, "options");
+    const jobId = await meta<string>(ws, "job_id");
+    const events = await ws.all<PriorRun["events"][number]>(
+      sql`SELECT seq, job_id, occurred_at::VARCHAR AS occurred_at, type, payload::VARCHAR AS payload FROM events ORDER BY seq`,
+    );
+    return { profiled: (r?.n ?? 0) > 0, ...(options ? { options } : {}), ...(jobId ? { jobId } : {}), events };
   } finally {
     ws.close();
   }
@@ -217,13 +230,21 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
   const { dir } = input;
   mkdirSync(join(dir, "input"), { recursive: true });
   const path = join(dir, DB);
-  // A job that never finished PROFILE has nothing worth keeping: start its workspace from scratch.
-  if (existsSync(path) && !(await profileDone(path))) {
+  // A job that never finished PROFILE has no data worth keeping: start its workspace from scratch. Its options and id
+  // are kept, so the resume command printed after the failure still works (the inputs stay in input/).
+  const prior = existsSync(path) ? await priorRun(path) : undefined;
+  if (prior && !prior.profiled) {
     rmSync(path, { force: true });
     rmSync(`${path}.wal`, { force: true });
   }
   const ws = await Workspace.open(path);
   try {
+    if (prior && !prior.profiled) {
+      if (prior.options) await setMeta(ws, "options", prior.options);
+      if (prior.jobId) await setMeta(ws, "job_id", prior.jobId);
+      for (const e of prior.events)
+        await ws.run(sql`INSERT INTO events VALUES (${e.seq}, ${e.job_id}, ${e.occurred_at}::TIMESTAMP, ${e.type}, ${e.payload}::JSON)`);
+    }
     let options = await meta<JobOptions>(ws, "options");
     let jobId = await meta<string>(ws, "job_id");
     if (!options) {

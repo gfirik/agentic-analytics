@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +26,7 @@ import { searxngProvider } from "@agentic-analytics/web";
 import { defineCommand, runMain } from "citty";
 import { parse } from "yaml";
 import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
+import { collectPaths } from "./collect.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { nightlyArgs } from "./eval-args.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
@@ -62,16 +63,12 @@ const doctor = defineCommand({
   },
 });
 
-const collect = (p: string): string[] =>
-  statSync(p).isDirectory()
-    ? readdirSync(p)
-        .sort()
-        .flatMap((n) => collect(join(p, n)))
-    : [p];
-
 const ENGINE_VERSION = "0.0.0";
 const jobsRoot = () => process.env.AA_JOBS_DIR ?? join("data", "jobs");
 const print = (l: string) => process.stdout.write(`${l}\n`);
+/** Unexpected server and MCP errors: the full detail goes to stderr, the caller gets a generic message. */
+const logInternal = (err: unknown) =>
+  process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`);
 
 /**
  * Every model call, with the provider and model that served it (M13a): appended to data/logs/model-calls.jsonl,
@@ -200,7 +197,7 @@ const analyze = defineCommand({
     log: { type: "boolean", description: "Write structured logs to stderr" },
   },
   async run({ args }) {
-    const paths = (args._ as string[]).flatMap(collect);
+    const paths = collectPaths(args._ as string[]);
     if (!paths.length) throw new Error("give one or more files or folders: aa analyze <paths…>");
     const rt = runtime(args.embedder);
     const review = args.yes ? undefined : terminalReview();
@@ -293,9 +290,10 @@ const serveCmd = defineCommand({
           .filter(Boolean),
       ],
       health,
-      onError: (err) => process.stderr.write(`internal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`),
+      onError: logInternal,
       mcp: mcpHttpHandler(manager, {
         version: ENGINE_VERSION,
+        onError: logInternal,
         roots: (process.env.AA_MCP_ROOTS ?? "")
           .split(",")
           .map((r) => r.trim())
@@ -324,7 +322,8 @@ const mcp = defineCommand({
   meta: { name: "mcp", description: "Start the MCP server on stdio (for Claude Desktop and other MCP clients)" },
   args: { embedder: { type: "string", description: "'hash' for the offline embedder" } },
   async run({ args }) {
-    await serveStdio(runtime(args.embedder).manager(), { version: ENGINE_VERSION });
+    // stderr is safe on stdio (stdout carries the protocol): unexpected errors are logged, the client gets a short message.
+    await serveStdio(runtime(args.embedder).manager(), { version: ENGINE_VERSION, onError: logInternal });
   },
 });
 
@@ -496,7 +495,7 @@ const metrics = defineCommand({
     today: { type: "string", description: "Today's date for the future-date check (YYYY-MM-DD)" },
   },
   async run({ args }) {
-    const paths = (args._ as string[]).flatMap(collect);
+    const paths = collectPaths(args._ as string[]);
     if (!paths.length) throw new Error("give one or more files or folders: aa metrics <paths…>");
     let model: ModelClient | undefined;
     let modelError: string | undefined;
@@ -591,7 +590,7 @@ const run = defineCommand({
   },
   async run({ args }) {
     const resume = args.resume;
-    const paths = (args._ as string[]).flatMap(collect);
+    const paths = collectPaths(args._ as string[]);
     if (!resume && !paths.length) throw new Error("give files or folders (aa run <paths…>), or --resume <job folder>");
     const config = resolveModelConfig(process.env, configFile());
     const planner = config.models.planner;

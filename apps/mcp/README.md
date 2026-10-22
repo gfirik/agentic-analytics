@@ -19,9 +19,14 @@ Resources: `report://{job_id}` (JSON) and `report-html://{job_id}`. Every tool d
 
 ## Public API
 
-- `createMcpServer(manager, { today?, version? })`: an `McpServer` over a `JobManager`.
-- `serveStdio(manager)`: connects it to stdio.
-- `mcpHttpHandler(manager)`: a stateless `(Request) => Promise<Response>` for streamable HTTP.
+- `createMcpServer(manager, { today?, version?, roots?, maxBytes?, onError? })`: an `McpServer` over a `JobManager`.
+  - `roots`: where `analyze_files` may read, `"any"` (the stdio default) or a list of folders (`[]`, none, is the HTTP default; set `AA_MCP_ROOTS`).
+  - `maxBytes`: the most one `analyze_files` call reads (default 200 MB, the HTTP upload limit), with at most 500 files and 100 paths per call.
+  - `onError`: gets unexpected errors; the caller sees only `INTERNAL: internal error`. `ManagerError`, `PathNotAllowedError` and `LimitError` keep their message.
+- `serveStdio(manager, options?)`: connects it to stdio.
+- `mcpHttpHandler(manager, options?)`: a stateless `(Request) => Promise<Response>` for streamable HTTP (`roots` defaults to none).
+- `allowedPath(path, roots)`, `PathNotAllowedError`, `LimitError`.
+- `collectFiles(path, out)`, `MAX_FILES`: the file walker `analyze_files` uses (symlinks skipped, at most 500 files in all, a `LimitError` past that); the CLI collects its paths with it too.
 
 ## Claude Desktop
 

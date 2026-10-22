@@ -12,6 +12,7 @@ import { lookup as dnsLookup } from "node:dns";
 import http from "node:http";
 import https from "node:https";
 import { isBlockedAddress, parseIPv4, parseIPv6 } from "./ip.ts";
+import { normalizeText, phrases, wordRe } from "./sanitize.ts";
 import { WebError } from "./types.ts";
 
 export interface FetchedPage {
@@ -28,8 +29,10 @@ export interface SafeFetchOptions {
   readonly timeoutMs?: number;
   readonly maxBytes?: number;
   readonly maxRedirects?: number;
-  /** Private strings that must not appear in a URL's query string (security §4). */
+  /** Private strings (file names, ids, emails) that must not appear in a URL's query string (security §4). */
   readonly privateValues?: readonly string[];
+  /** Private names (people, companies): matched with the sanitizer's spellings, whole words (security §4). */
+  readonly privateNames?: readonly string[];
   /** DNS resolution (default: the system resolver, all addresses). Injected in tests. */
   readonly lookup?: Lookup;
   /** The address policy (default: `isBlockedAddress`). Tests may allow a loopback test server. */
@@ -54,6 +57,7 @@ export function checkUrl(
   privateValues: readonly string[] = [],
   blocked: (ip: string) => boolean = isBlockedAddress,
   ports: readonly number[] = [80, 443],
+  privateNames: readonly string[] = [],
 ): URL {
   let url: URL;
   try {
@@ -72,10 +76,51 @@ export function checkUrl(
     throw new WebError("BLOCKED_ADDRESS", `${host} is a private or reserved address`);
   if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|metadata\.google\.internal)$/i.test(host))
     throw new WebError("BLOCKED_ADDRESS", `${host} is a local name`);
-  const query = decodeURIComponent(url.search.replace(/\+/g, " ")).toLowerCase();
-  const leak = privateValues.find((v) => v.trim().length >= 3 && query.includes(v.trim().toLowerCase()));
+  const query = decodeLenient(url.search.replace(/\+/g, " ")).toLowerCase();
+  // Matched the way the query sanitizer matches (security §4). Names: every spelling `phrases` gives (full, without
+  // legal forms, joined, leading two words), whole words on the normalised query, and a joined spelling in the query
+  // with its spaces removed ("HotelGroupLLC"). Values (file names, ids): anywhere, as written or normalised, as the
+  // sanitizer removes them ("4821" in "A4821").
+  const nq = ` ${normalizeText(query)} `;
+  const squeezed = nq.replace(/ /g, "");
+  const leak =
+    privateValues.find((v) => {
+      const nv = normalizeText(v);
+      return v.trim().length >= 3 && (query.includes(v.trim().toLowerCase()) || (nv.length >= 3 && nq.includes(nv)));
+    }) ??
+    privateNames.find((n) =>
+      phrases({ names: [n] }).some(
+        (p) => p.length >= 3 && (wordRe(p).test(nq) || (!p.includes(" ") && p.length >= 6 && squeezed.includes(p))),
+      ),
+    );
   if (leak !== undefined) throw new WebError("PRIVATE_VALUE", "the URL's query string contains private data; not fetched");
   return url;
+}
+
+/**
+ * `decodeURIComponent` that never throws: a malformed escape ("%zz") in a search result or redirect must not fail
+ * the stage. Each run of escapes is decoded as UTF-8 with only an invalid byte becoming U+FFFD, so one bad byte in
+ * front of an encoded private value can't keep the value from being decoded and matched.
+ */
+const utf8 = new TextDecoder("utf-8", { fatal: false });
+function decodeLenient(s: string): string {
+  return s.replace(/(?:%[0-9a-f]{2})+/gi, (run) => utf8.decode(Uint8Array.from(run.slice(1).split("%"), (h) => Number.parseInt(h, 16))));
+}
+
+/**
+ * The page's text in its own charset: the Content-Type header's, else a `<meta charset>` in the first 2 KB, else UTF-8
+ * (also for a label TextDecoder doesn't know). Russian and Uzbek sites still serve windows-1251, which read as UTF-8
+ * would be mojibake that no quote or screen could match.
+ */
+export function decodeBody(bytes: Uint8Array, contentType: string): string {
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 2048));
+  const label =
+    /charset\s*=\s*"?([\w.:-]+)/i.exec(contentType)?.[1] ?? /<meta[^>]+charset\s*=\s*["']?([\w.:-]+)/i.exec(head)?.[1] ?? "utf-8";
+  try {
+    return new TextDecoder(label).decode(bytes);
+  } catch {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
 }
 
 function request(
@@ -146,7 +191,7 @@ function request(
           }
           chunks.push(c);
         });
-        res.on("end", () => resolve({ status, contentType, body: Buffer.concat(chunks).toString("utf8") }));
+        res.on("end", () => resolve({ status, contentType, body: decodeBody(Buffer.concat(chunks), contentType) }));
         res.on("error", fail);
       },
     );
@@ -169,7 +214,7 @@ export async function safeFetch(raw: string, options: SafeFetchOptions = {}): Pr
     blocked: options.blocked ?? isBlockedAddress,
   };
   const maxRedirects = options.maxRedirects ?? 3;
-  let url = checkUrl(raw, options.privateValues, opts.blocked, options.ports);
+  let url = checkUrl(raw, options.privateValues, opts.blocked, options.ports, options.privateNames);
   const start = Date.now();
   for (let hop = 0; ; hop++) {
     // One budget for the whole fetch, redirects included.
@@ -179,7 +224,7 @@ export async function safeFetch(raw: string, options: SafeFetchOptions = {}): Pr
     if (res.location !== undefined) {
       if (hop >= maxRedirects) throw new WebError("TOO_MANY_REDIRECTS", `more than ${maxRedirects} redirects`);
       // Each redirect target goes through every check again.
-      url = checkUrl(new URL(res.location, url).toString(), options.privateValues, opts.blocked, options.ports);
+      url = checkUrl(new URL(res.location, url).toString(), options.privateValues, opts.blocked, options.ports, options.privateNames);
       continue;
     }
     if (res.status < 200 || res.status >= 300) throw new WebError("HTTP_STATUS", `HTTP ${res.status}`);

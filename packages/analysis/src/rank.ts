@@ -89,7 +89,10 @@ export const REPRESENTATIVE_SHARE = 0.5;
 /** A member change competes for the member slot when its impact share (see impactShare) is at least this. */
 export const MEMBER_MIN_SHARE = 0.02;
 
-/** The insight's relative change (its `change_pct` calc, in percent), or 0 when it has none. */
+/**
+ * The insight's relative change (its `change_pct` calc, in percent), or 0 when it has none: no positive base (a loss
+ * shrinking, a count from 0) ties at 0 in the member and rate slots, rather than ranking on a % that isn't stated.
+ */
 function relativeChange(r: Ranked): number {
   return r.insight.calcs.find((c) => c.name === "change_pct")?.value ?? 0;
 }

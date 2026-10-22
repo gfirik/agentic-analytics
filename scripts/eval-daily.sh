@@ -26,11 +26,17 @@
 # The pass runs as a heavy job (scripts/heavy.sh: one at a time on the machine, AGENTS.md §9). Results land in
 # evals/results and the README table; a maintainer commits them in a PR.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+# No -e above (the eval's own status is kept), so a failed cd must stop here, not run the eval in cron's folder.
+cd "$(dirname "$0")/.." || exit 1
 suite="${1:?usage: eval-daily.sh <smoke|full> [args...]}"
 shift
 mkdir -p data/logs
 log="data/logs/eval-${suite}-$(date -u +%F).log"
+# The log is one file per UTC day, appended to: a same-day rerun adds to it. The counts below read only this run's
+# part of the file, from the size it had before this run's header line.
+start=0
+[ -f "$log" ] && start=$(wc -c <"$log")
+this_run() { tail -c "+$((start + 1))" "$log"; }
 passes=(--passes 2)
 for a in "$@"; do [ "$a" = "--passes" ] || [[ "$a" == --passes=* ]] && passes=(); done
 echo "[$(date -u +%FT%TZ)] bun run eval -- --suite ${suite} --model configured ${passes[*]} $*" | tee -a "$log"
@@ -38,13 +44,13 @@ bash scripts/heavy.sh bun run eval -- --suite "$suite" --model configured "${pas
 status=$?
 # The eval rewrote evals/RESULTS.md; the README table is generated from evals/results: keep it in step with the pass.
 bun run readme:assets >/dev/null 2>&1 || true
-jobs=$(grep -cE '^\[[0-9]+/[0-9]+\]' "$log" || true)
-done_jobs=$(grep -E '^\[[0-9]+/[0-9]+\]' "$log" | grep -vc ': failed' || true)
-limited=$(grep -E '^\[[0-9]+/[0-9]+\]' "$log" | grep -cE 'failed \((RATE_LIMITED|PROVIDER: .*(429|Rate limit|rate limit))' || true)
+jobs=$(this_run | grep -cE '^\[[0-9]+/[0-9]+\]' || true)
+done_jobs=$(this_run | grep -E '^\[[0-9]+/[0-9]+\]' | grep -vc ': failed' || true)
+limited=$(this_run | grep -E '^\[[0-9]+/[0-9]+\]' | grep -cE 'failed \((RATE_LIMITED|PROVIDER: .*(429|Rate limit|rate limit))' || true)
 other=$((jobs - done_jobs - limited))
 if [ "$other" -lt 0 ]; then other=0; fi
 # The run as a whole (this pass plus the one it resumed), from the eval's own "combined:" line.
-combined=$(grep -E '^combined: ' "$log" | tail -n 1)
+combined=$(this_run | grep -E '^combined: ' | tail -n 1)
 summary="eval ${suite} (daily pass): ${done_jobs} of ${jobs} jobs run tonight finished, ${limited} stopped on the rate limit, ${other} failed otherwise${combined:+; ${combined}} (log: ${log})"
 echo "$summary"
 bash scripts/notify.sh "$summary"

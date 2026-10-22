@@ -210,9 +210,12 @@ function RecommendationView({ r, ctx }: { r: Recommendation; ctx: Ctx }) {
   const low = ctx.facts.get(r.impact.low);
   const high = ctx.facts.get(r.impact.high);
   // Bar geometry is presentation only; the numbers shown are the facts themselves.
-  const scale = Math.max(Math.abs(high?.value ?? 0), Math.abs(low?.value ?? 0)) * 1.25 || 1;
-  const left = Math.max(0, ((low?.value ?? 0) / scale) * 100);
-  const width = Math.max(1, (((high?.value ?? 0) - (low?.value ?? 0)) / scale) * 100);
+  // The axis runs from min(0, low) to max(0, high), so a range below zero (a scenario that loses money) is drawn
+  // where it lies instead of collapsing to a sliver at 0.
+  const lo = Math.min(0, low?.value ?? 0);
+  const span = (Math.max(0, high?.value ?? 0) - lo) * 1.25 || 1;
+  const left = (((low?.value ?? 0) - lo) / span) * 100;
+  const width = Math.max(1, (((high?.value ?? 0) - (low?.value ?? 0)) / span) * 100);
   const metric = (id: string) => ctx.metrics.get(id)?.label ?? id;
   return (
     <article id={r.id} className="panel rec">

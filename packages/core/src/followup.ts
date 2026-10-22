@@ -73,7 +73,8 @@ export async function askJob(dir: string, question: string, model: ModelClient):
     id: `F${n}`,
     type: report.findings[0]?.type ?? "regression",
     severity: "low",
-    title: question.slice(0, 200),
+    // A fixed title: the question itself can hold digits ("drop 10%", "Q2"), which V1 refuses in any title.
+    title: "Answer to a follow-up question",
     claims: draft.claims,
     method: "answer to a follow-up question",
     confidence: "low",

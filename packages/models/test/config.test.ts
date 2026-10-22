@@ -57,3 +57,32 @@ describe("model config", () => {
     expect(() => resolveModelConfig({ JUDGE_MODEL: "openai-compatible:nowhere:m" })).toThrow(/unknown openai-compatible endpoint/);
   });
 });
+
+describe("config mistakes are named at startup (code-quality fix 11)", () => {
+  it("a mistyped MODEL_TIMEOUT_MS is a CONFIG error naming the variable, not a silent default", () => {
+    for (const v of ["2m", "abc", "0", "-5", "1.5"])
+      expect(() => resolveModelConfig({ MODEL_TIMEOUT_MS: v }), v).toThrowError(
+        expect.objectContaining({ code: "CONFIG", message: expect.stringContaining("MODEL_TIMEOUT_MS") }),
+      );
+    expect(resolveModelConfig({ MODEL_TIMEOUT_MS: "90000" }).timeouts.model_ms).toBe(90000);
+  });
+
+  it("transformers serves embeddings only, and embeddings come from transformers or Ollama", () => {
+    expect(() => resolveModelConfig({ PLANNER_MODEL: "transformers:Xenova/bge-m3" })).toThrowError(
+      expect.objectContaining({ code: "CONFIG", message: expect.stringContaining("planner can't use transformers") }),
+    );
+    expect(() => resolveModelConfig({ EMBEDDING_MODEL: "openai-compatible:groq:some-embedder" })).toThrowError(
+      expect.objectContaining({ code: "CONFIG", message: expect.stringContaining("embedder must be transformers or ollama") }),
+    );
+    expect(resolveModelConfig({ EMBEDDING_MODEL: "ollama:bge-m3" }).models.embedder?.provider).toBe("ollama");
+    // A transformers reranker is the documented default (models.md, retrieval.md).
+    const withReranker = resolveModelConfig(
+      {},
+      { models: { reranker: { provider: "transformers", model: "onnx-community/bge-reranker-v2-m3-ONNX" } } },
+    );
+    expect(withReranker.models.reranker?.provider).toBe("transformers");
+    expect(() => resolveModelConfig({}, { models: { reranker: { provider: "ollama", model: "bge-reranker" } } })).toThrowError(
+      expect.objectContaining({ code: "CONFIG", message: expect.stringContaining("reranker must be transformers") }),
+    );
+  });
+});

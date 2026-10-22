@@ -2,6 +2,7 @@ import { loadCatalog } from "@agentic-analytics/metrics";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { factOf } from "../src/factbook.ts";
 import { AnalysisError, FactBook, type SeriesInfo } from "../src/index.ts";
 import { calcRef } from "../src/types.ts";
 
@@ -40,6 +41,17 @@ describe("FactBook errors are typed (AGENTS.md §4)", () => {
 
   it("CALC_UNDEFINED", async () => {
     expect(await code(book.resolve(calcRef("missing"), new Map()))).toBe("CALC_UNDEFINED");
+  });
+
+  it("NO_VALUE: a derived number that isn't finite never becomes a fact", async () => {
+    const ratio = { name: "share", label: "share", value: Number.NaN, unit: "percent" as const, fn: "contribution.v1", inputs: [] };
+    expect(await code(book.calcs([ratio], "zero-total"))).toBe("NO_VALUE");
+    expect(book.facts.some((f) => f.label === "zero-total:share")).toBe(false);
+  });
+
+  it("CALC_UNDEFINED: a calc name with no fact is an error, not an empty id", () => {
+    expect(() => factOf(new Map([["a", "N1"]]), "b")).toThrowError(expect.objectContaining({ code: "CALC_UNDEFINED" }));
+    expect(factOf(new Map([["a", "N1"]]), "a")).toBe("N1");
   });
 
   it("CIRCULAR_CALCS", async () => {

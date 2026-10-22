@@ -59,7 +59,10 @@ const RULES: Record<string, Rule> = {
   share: (f, x, byId) => {
     const total = x.reduce((a, b) => a + b, 0);
     const named = x.filter((_, i) => !(byId.get(f.computation.inputs?.[i] ?? "")?.label ?? "").includes("=(other)]"));
-    return { value: total && named.length ? (Math.max(...named) / total) * 100 : Number.NaN, how: "largest named member ÷ Σ × 100" };
+    return {
+      value: total && named.length ? (named.reduce((m, v) => Math.max(m, v), -Infinity) / total) * 100 : Number.NaN,
+      how: "largest named member ÷ Σ × 100",
+    };
   },
   hhi: (_f, x) => {
     const total = x.reduce((a, b) => a + b, 0);
@@ -192,7 +195,12 @@ export async function recomputeFacts(ws: Workspace, facts: readonly Fact[], all:
     if (fn === "scenario_param") {
       // A parameter is a choice, not a computation: it must lie within the scenario's bounds.
       const type = /impact\.v1:(\w+)/.exec(f.label)?.[1] as keyof typeof SCENARIO_BOUNDS | undefined;
-      const [lo, hi] = /param_cost$/.test(f.label) ? COST_BOUNDS : type ? SCENARIO_BOUNDS[type] : [Number.NaN, Number.NaN];
+      // An unknown scenario type has no bounds: the fact fails as a mismatch with its `how`, never a TypeError.
+      const [lo, hi] = /param_cost$/.test(f.label)
+        ? COST_BOUNDS
+        : type && Object.hasOwn(SCENARIO_BOUNDS, type)
+          ? SCENARIO_BOUNDS[type]
+          : [Number.NaN, Number.NaN];
       const ok = f.value / 100 >= lo - TOLERANCE && f.value / 100 <= hi + TOLERANCE;
       out.push({ fact: f.id, stored: f.value, computed: [lo * 100, hi * 100], ok, how: "scenario parameter within bounds" });
       continue;

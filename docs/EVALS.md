@@ -67,14 +67,14 @@ How a finding is matched to a planted event (by the subject its code-written fir
 
 | Metric | Definition | v0.1 bar |
 |---|---|---|
-| Number mismatches | V2/V3 failures in shipped reports | 0 |
-| Planted recall@k | Share of planted events present among top-k findings (k = 5) with the correct driver | ≥ 80% (reference model) |
+| Number mismatches | Jobs aborted on a wrong number (V2 recompute, V3 re-derivation, or a fact citing rows that don't hold it). A shipped report never has one, so this counts aborted jobs | 0 |
+| Planted recall@k | Share of planted events present among top-k findings (k = 5) with the correct driver, moving the event's way (a regression lowers revenue, raises a refund rate) | ≥ 80% (reference model) |
 | Driver accuracy | Correct top driver for detected planted events | ≥ 90% |
 | Cause grade accuracy | Assigned causal grade ≥ expected | ≥ 80% |
-| Distractor FP rate | Distractors reported as findings | ≤ 10% |
-| Quality-issue recall | Planted data-quality issues reported | ≥ 90% |
-| Citation precision | Citations judged supporting (by a separate judge and spot-checked by hand on the golden set) | ≥ 95% |
-| Definition adherence | Facts matching confirmed definitions | 100% |
+| Distractor FP rate | Distractors reported as findings (a one-member blip also counts when reported on the whole metric at that period) | ≤ 10% |
+| Quality-issue recall | Planted data-quality issues reported with the right kind, file and sheet (and column when the citation names cells; the engine's items cite rows) | ≥ 90% |
+| Citation precision | Quotes the verifier's judge found supporting, of those it checked (V5). Measured in the pipeline by the judge under test, before drops; claims it rejected don't ship. No quote checked is a fail, not a pass. A separate post-ship judge is planned for the golden set (M14) | ≥ 95% |
+| Definition adherence | Completed jobs with no claim dropped for breaking a confirmed definition (V6). Measured in the pipeline, like citation precision; no completed job is a fail | 100% |
 | Recommendation grounding | Recs with ≥ 1 verified finding | 100% |
 | Recommendation relevance | Top rec matches a `good_actions` category | ≥ 70% |
 | Retrieval recall@8 | Answer-bearing chunk in the top 8 | ≥ 0.85 |
@@ -110,7 +110,7 @@ A run whose jobs didn't all finish (a free tier's daily quota ran out) is publis
 - regenerates the README table and RESULTS.md;
 - on the second night, deletes the first night's results file, which the combined file replaces. If that file was committed, the deletion shows in `git status` of the checkout and goes in the same PR as the combined file. So commit a first night's file only together with its second night: on its own it reads "in progress" until a later run closes it;
 - refuses a rerun on the day of a run's last pass (it would overwrite the combined file), and sets an unreadable earlier file aside as `<file>.bad` (gitignored);
-- sends a one-line summary through `scripts/notify.sh`.
+- sends a one-line summary through `scripts/notify.sh`. The log is one file per UTC day (`data/logs/eval-<suite>-<date>.log`), appended to; the summary counts only this run's part of it, so a same-day rerun doesn't add the earlier run's jobs.
 
 To see where the quota stands now: `aa usage` (its first section is the last 24 hours, with Groq's own count from its latest rate-limit error). To see what a night used: `aa usage --day <YYYY-MM-DD>` (UTC). On 2026-10-19 the planner route spent 188,852 tokens of Groq's 200,000 (94.4%).
 

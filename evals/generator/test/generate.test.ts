@@ -46,6 +46,30 @@ describe("generated datasets", () => {
     expect(p2?.metric).toBe("refund_rate");
   });
 
+  it("the D1 blip is a 3% move for its member in its month, never on a December peak or another event's month", () => {
+    for (const d of all) {
+      const d1 = d.answers.distractors.find((x) => x.id === "D1");
+      const others = [...d.answers.planted, ...d.answers.distractors].filter((x) => x.id !== "D1").map((x) => x.period);
+      expect(others, d.id).not.toContain(d1?.period);
+      if (d.id.endsWith("-v3")) expect(d1?.period.endsWith("-12"), d.id).toBe(false);
+    }
+    // saas-v3, from the rows: both counter customers share one channel total (0.6 and 0.4 of it), so the blip customer
+    // runs at 0.4/0.6 of the other every month except D1's, where it is 3% higher.
+    const d = generateDataset(ARCHETYPES.find((a) => a.id === "saas") as (typeof ARCHETYPES)[number], 2);
+    const d1 = d.answers.distractors.find((x) => x.id === "D1");
+    const blip = d1?.member?.member as string;
+    const wb = XLSX.read(d.files["sales.xlsx"]);
+    const rows = XLSX.utils.sheet_to_json<(string | number)[]>(wb.Sheets.Orders as XLSX.WorkSheet, { header: 1 }).slice(1);
+    const counter = ARCHETYPES.find((a) => a.id === "saas")?.counter as readonly string[];
+    const sum = (customer: string, month: string) =>
+      rows.filter((r) => r[2] === customer && String(r[0]).startsWith(month)).reduce((s, r) => s + Number(r[6]), 0);
+    const ratio = (month: string) => sum(blip, month) / sum(counter[0] as string, month);
+    const base = 0.4 / 0.6;
+    expect(ratio(d1?.period as string) / base).toBeCloseTo(1.03, 3);
+    // The months either side of the blip are untouched.
+    for (const month of ["2025-10", "2025-12"]) expect(ratio(month) / base, month).toBeCloseTo(1, 3);
+  });
+
   it("the typo is 1,000× its neighbours, at the cell the key names", () => {
     const d = all.find((x) => x.id === "clinic-v1");
     const q = d?.answers.quality.find((x) => x.kind === "unit_error");

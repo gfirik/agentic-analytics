@@ -4,7 +4,16 @@ import { validateReport } from "../src/index.ts";
 
 let failed = 0;
 for (const file of process.argv.slice(2)) {
-  const res = validateReport(JSON.parse(readFileSync(file, "utf8")));
+  let json: unknown;
+  try {
+    json = JSON.parse(readFileSync(file, "utf8"));
+  } catch (err) {
+    // One unreadable file is reported like an invalid one; the files after it are still checked.
+    failed++;
+    process.stdout.write(`✗ ${file}\n  not readable JSON: ${err instanceof Error ? err.message : String(err)}\n`);
+    continue;
+  }
+  const res = validateReport(json);
   if (res.ok) {
     const r = res.report;
     process.stdout.write(

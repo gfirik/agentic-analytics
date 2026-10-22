@@ -19,7 +19,13 @@ export class Workspace {
   static async open(path = ":memory:"): Promise<Workspace> {
     const instance = await DuckDBInstance.create(path);
     const ws = new Workspace(instance, await instance.connect(), path);
-    await ws.migrate();
+    try {
+      await ws.migrate();
+    } catch (err) {
+      // A bad or newer workspace file: release the database before failing, or the process keeps its lock.
+      ws.close();
+      throw err;
+    }
     return ws;
   }
 
@@ -92,10 +98,15 @@ export class Workspace {
         await this.connection.run(`INSERT INTO schema_migrations (version) VALUES (${m.version})`);
         await this.connection.run("COMMIT");
       } catch (err) {
-        await this.connection.run("ROLLBACK");
+        // A failed ROLLBACK must not replace the migration error, which is the one that explains the failure; it is
+        // kept on the error as `rollback`.
+        const rollback = await this.connection.run("ROLLBACK").then(
+          () => undefined,
+          (e: unknown) => e,
+        );
         throw new StoreError(
           "MIGRATION",
-          `migration ${m.version} (${m.name}) failed: ${err instanceof Error ? err.message : String(err)}`,
+          `migration ${m.version} (${m.name}) failed: ${err instanceof Error ? err.message : String(err)}${rollback ? `; the rollback failed too: ${rollback instanceof Error ? rollback.message : String(rollback)}` : ""}`,
           { cause: err },
         );
       }

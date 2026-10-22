@@ -38,6 +38,17 @@ function magnitude(of: Calc, name: string, label: string): Calc {
 }
 
 /**
+ * Whether member changes cancel out: their sum is 0 within float noise. The noise in each Δ = after − before scales
+ * with the values, not with Δ (12,345,678.91 → 12,345,679.01 is a Δ of 0.09999999962747097), so the tolerance is
+ * relative to Σ(|before| + |after|). Shares of such a total would be 0/0, or ±10¹⁰ % from the noise.
+ */
+export function cancelsOut(members: readonly Pick<MemberChange, "before" | "after">[]): boolean {
+  const sum = members.reduce((s, m) => s + (m.after.value - m.before.value), 0);
+  const size = members.reduce((s, m) => s + Math.abs(m.before.value) + Math.abs(m.after.value), 0);
+  return Math.abs(sum) <= 1e-12 * size;
+}
+
+/**
  * For T = Σ xᵢ: ΔT = Σ Δxᵢ and shareᵢ = Δxᵢ / ΔT (spec §4.1). Shares can exceed 100% when contributors
  * offset each other (wholesale −8,500 and retail +600 → total −7,900 → wholesale 108%). Positive and negative
  * contributors are reported separately. Shares are percent (×100).
@@ -55,6 +66,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
     } satisfies Calc,
   }));
   const total = deltas.reduce((s, d) => s + d.delta.value, 0);
+  const flat = cancelsOut(members);
   const totalDelta: Calc = {
     name: "delta:total",
     label: "total change",
@@ -70,7 +82,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
       share: {
         name: `share:${d.key}`,
         label: `${d.key} share of the change`,
-        value: total !== 0 ? (d.delta.value / total) * 100 : Number.NaN,
+        value: flat ? Number.NaN : (d.delta.value / total) * 100,
         unit: "percent" as const,
         fn: "contribution.v1",
         inputs: [calcRef(d.delta.name), calcRef(totalDelta.name)],
@@ -81,7 +93,7 @@ export function contribution(members: readonly MemberChange[], unit: Unit): Cont
   const top = contributors[0];
   const offset = negative[0];
   const beyond =
-    top && total !== 0 && Math.abs(top.delta.value) > Math.abs(total)
+    top && !flat && Math.abs(top.delta.value) > Math.abs(total)
       ? {
           key: top.key,
           magnitude: magnitude(top.delta, `magnitude:${top.key}`, `size of the change in ${top.key}`),

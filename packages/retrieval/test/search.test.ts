@@ -139,6 +139,13 @@ describe("query flow (spec §3)", () => {
     expect(june.hits.length).toBeGreaterThan(0);
     // only dated (email) chunks from June can pass a date filter
     for (const h of june.hits) expect(h.prefix).toMatch(/· 2026-06-\d\d\]$/);
+    // Dates compare as dates: a one-day window still finds that day's email, and an impossible day matches nothing
+    // (never a DuckDB conversion error).
+    const day = june.hits[0]?.prefix.match(/(2026-06-\d\d)\]$/)?.[1] as string;
+    const oneDay = await searchDocuments(ws, "catalogue", { embedder, from: day, to: day });
+    expect(oneDay.hits.length).toBeGreaterThan(0);
+    const impossible = await searchDocuments(ws, "catalogue", { embedder, from: "2026-13-45" });
+    expect(impossible.hits).toEqual([]);
   });
 
   it("never returns a quarantined source, even when asked for it by name (security §3)", async () => {

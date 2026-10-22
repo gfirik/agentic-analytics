@@ -33,7 +33,7 @@ export function observedClaim(i: StoredInsight, defs: readonly MetricDef[], fact
     const p1 = periodOf(facts.get(f.after)) ?? i.period;
     const pct = f.change_pct ? `, ${ph(f.change_pct)}` : "";
     let text = `${m} went from ${ph(f.before)} in ${p0} to ${ph(f.after)} in ${p1} (a change of ${ph(f.change)}${pct}).`;
-    const ids = [f.before, f.after, f.change, f.change_pct];
+    const ids = [f.before, f.after, f.change, ...(f.change_pct ? [f.change_pct] : [])];
     if (f.latest && f.change_since && f.latest !== f.after) {
       text += ` It stood at ${ph(f.latest)} in ${periodOf(facts.get(f.latest)) ?? "the latest period"}.`;
       ids.push(f.latest);

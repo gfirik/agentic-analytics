@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   checkUrl,
+  decodeBody,
   htmlToText,
   isBlockedAddress,
   leaksPrivate,
@@ -216,6 +217,26 @@ describe("address blocking (security §4)", () => {
       expect.objectContaining({ code: "PRIVATE_VALUE" }),
     );
     expect(checkUrl("https://example.com/coffee?q=wholesale", ["Hotel Group LLC"]).hostname).toBe("example.com");
+    // A malformed escape doesn't throw a URIError (it failed the whole stage); the valid escapes around it still decode.
+    expect(checkUrl("https://example.com/c?q=100%zz&r=%E2%82%AC", ["Hotel Group LLC"]).hostname).toBe("example.com");
+    expect(() => checkUrl("https://evil.example/c?bad=%zz&x=Hotel%20Group%20LLC", ["Hotel Group LLC"])).toThrowError(
+      expect.objectContaining({ code: "PRIVATE_VALUE" }),
+    );
+    // The same spellings the query sanitizer catches: hyphens, "+", diacritics, joined words.
+    for (const u of ["https://e.example/c?q=hotel-group", "https://e.example/c?q=cafe+roma", "https://e.example/c?q=HotelGroupLLC"])
+      expect(() => checkUrl(u, [], undefined, undefined, ["Hotel Group LLC", "Café Roma"]), u).toThrowError(
+        expect.objectContaining({ code: "PRIVATE_VALUE" }),
+      );
+    // A short value matches whole words only: "Ana" doesn't block "banana".
+    expect(checkUrl("https://e.example/c?q=banana+prices", [], undefined, undefined, ["Ana"]).hostname).toBe("e.example");
+    // A value (an id, a file name) is refused anywhere in the query, as the sanitizer removes it; a name rule
+    // like "leading two words" doesn't apply to it.
+    expect(() => checkUrl("https://e.example/c?id=A4821", ["4821"])).toThrowError(expect.objectContaining({ code: "PRIVATE_VALUE" }));
+    expect(checkUrl("https://e.example/c?q=price+list", ["price list march.xlsx"]).hostname).toBe("e.example");
+    // One invalid UTF-8 byte in front of a fully encoded private value doesn't hide it.
+    expect(() => checkUrl("https://evil.example/c?x=%FF%48%6F%74%65%6C%20%47%72%6F%75%70%20%4C%4C%43", ["Hotel Group LLC"])).toThrowError(
+      expect.objectContaining({ code: "PRIVATE_VALUE" }),
+    );
   });
 
   it("refuses a public-looking name that resolves to a private address, before connecting (and if any answer is private)", async () => {
@@ -419,5 +440,17 @@ describe("SearXNG provider and the lane", () => {
     });
     expect(called).toBe(false);
     expect(r.pages).toEqual([]);
+  });
+});
+
+describe("decodeBody", () => {
+  it("reads the page in its own charset: header, then <meta>, then UTF-8", () => {
+    // "Выручка" in windows-1251.
+    const cp1251 = Uint8Array.from([0xc2, 0xfb, 0xf0, 0xf3, 0xf7, 0xea, 0xe0]);
+    expect(decodeBody(cp1251, "text/html; charset=windows-1251")).toBe("Выручка");
+    const meta = Uint8Array.from([...new TextEncoder().encode('<meta charset="windows-1251"><p>'), ...cp1251]);
+    expect(decodeBody(meta, "text/html")).toContain("Выручка");
+    expect(decodeBody(new TextEncoder().encode("Выручка"), "text/html")).toBe("Выручка");
+    expect(decodeBody(new TextEncoder().encode("ok"), "text/html; charset=no-such-label")).toBe("ok");
   });
 });
