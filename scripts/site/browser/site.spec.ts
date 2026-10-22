@@ -1646,3 +1646,38 @@ test.describe("motion", () => {
     }
   });
 });
+
+test("a sticky row head is alone in its grid column, so it never slides over a neighbour (1100, 1440)", async ({ page }) => {
+  for (const width of [1100, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(LANDING, { waitUntil: "networkidle" });
+    const clashes = await page.locator(".aa-split > .aa-cell-head").evaluateAll((heads) =>
+      heads.flatMap((head) => {
+        if (getComputedStyle(head).position !== "sticky") return [];
+        const h = head.getBoundingClientRect();
+        // Any sibling whose box shares the head's columns: the sticky head would move over it.
+        return [...(head.parentElement?.children ?? [])]
+          .filter((el) => el !== head)
+          .filter((el) => {
+            const r = el.getBoundingClientRect();
+            return r.width > 0 && r.left < h.right - 1 && r.right > h.left + 1;
+          })
+          .map((el) => `${head.closest("section")?.id}: ${el.className}`);
+      }),
+    );
+    expect(clashes, `width ${width}`).toEqual([]);
+    // §1 and §2 keep their sticky heads; §4's isn't sticky.
+    expect(
+      await page
+        .locator("#why .aa-cell-head")
+        .first()
+        .evaluate((el) => getComputedStyle(el).position),
+    ).toBe("sticky");
+    expect(
+      await page
+        .locator("#quickstart .aa-cell-head")
+        .first()
+        .evaluate((el) => getComputedStyle(el).position),
+    ).not.toBe("sticky");
+  }
+});

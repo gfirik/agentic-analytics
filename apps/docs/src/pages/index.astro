@@ -626,9 +626,10 @@ AA_DEMO_MODEL=scripted \
   }
 
   /* In a wide row the visual is taller than its head, so the head stays in view beside it while the row scrolls by
-     (site v4 PR 3, using the room PR 1 left empty under the §2 and §4 heads). Position only: nothing animates. */
+     (site v4 PR 3). Position only: nothing animates. Only §1 and §2, whose heads are alone in their column: a sticky
+     grid item is held within the whole grid, so §4's head would slide over the binaries list below it. */
   @media (min-width: 68.75rem) {
-    .aa-split > .aa-cell-head {
+    :is(#how, #why) .aa-split > .aa-cell-head {
       position: sticky;
       top: var(--aa-space-7);
     }

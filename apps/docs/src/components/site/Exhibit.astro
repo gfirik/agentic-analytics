@@ -908,7 +908,8 @@ const plural = (k: number, one: string, many: string) => `${k} ${k === 1 ? one :
     color: transparent;
   }
   .aa-exhibit .aa-fig[data-count]::after {
-    content: attr(data-count);
+    /* The running value is visual only: screen readers keep reading the real figure underneath. */
+    content: attr(data-count) / "";
     position: absolute;
     left: 0;
     top: 0;
