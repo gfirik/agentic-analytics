@@ -1,0 +1,30 @@
+{
+  "name": "@agentic-analytics/eval-ablation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@agentic-analytics/core": "workspace:*",
+    "@agentic-analytics/eval-datasets": "workspace:*",
+    "@agentic-analytics/eval-generator": "workspace:*",
+    "@agentic-analytics/eval-runner": "workspace:*",
+    "@agentic-analytics/ingest": "workspace:*",
+    "@agentic-analytics/models": "workspace:*",
+    "@agentic-analytics/profile": "workspace:*",
+    "@agentic-analytics/retrieval": "workspace:*",
+    "@agentic-analytics/schema": "workspace:*",
+    "@agentic-analytics/store": "workspace:*",
+    "@duckdb/node-api": "^1.5.6-r.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}
