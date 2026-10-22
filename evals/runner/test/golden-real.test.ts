@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { Workspace } from "@agentic-analytics/store";
 import { describe, expect, it } from "vitest";
@@ -141,6 +142,41 @@ items:
       expect(lines[0]).toMatch(/^coffee-roaster \(dev, baseline\): 1\/2 pass · /);
       expect(lines[1]).toMatch(/^ {2}G1 +pass numeric +fact +expected 36200; got 36200(\.\d+)? — What was revenue in April 2026\?$/);
       expect(lines.at(-1)).toContain("2 not counted");
+    } finally {
+      rmSync(g, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  // The job uses the scripted baseline; every follow-up question then meets a model that throws `err`.
+  const failingAsk = (err: Error) => {
+    let calls = 0;
+    return (): ModelClient => {
+      if (calls++ === 0) return baselineModel();
+      const fail = () => Promise.reject(err);
+      return { generateObject: fail, generateWithTools: fail, embed: fail };
+    };
+  };
+  const runWith = (model: () => ModelClient, goldenDir: string) =>
+    runGoldenSet({
+      dataset: "coffee-roaster",
+      split: "dev",
+      model,
+      modelName: "baseline",
+      embedder: hashEmbedder(),
+      dataDir: join(EXAMPLES, "coffee-roaster"),
+      answersDir: join(EXAMPLES, "my-evals"),
+      goldenDir,
+    });
+
+  it("a model failure on a follow-up question, even wrapped in a cause, is that item's miss; any other error stops the run", async () => {
+    const g = dir();
+    try {
+      write(g, "coffee-roaster", "dev", SET);
+      const direct = await runWith(failingAsk(new ModelError("PROVIDER", "provider down")), g);
+      expect(direct.items[1]?.got).toBe("no answer (provider down)");
+      const wrapped = new Error("the agent gave up", { cause: new ModelError("RATE_LIMITED", "rate limited") });
+      expect((await runWith(failingAsk(wrapped), g)).items[1]?.got).toBe("no answer (the agent gave up)");
+      await expect(runWith(failingAsk(new TypeError("x is undefined")), g)).rejects.toThrow("x is undefined");
     } finally {
       rmSync(g, { recursive: true, force: true });
     }
