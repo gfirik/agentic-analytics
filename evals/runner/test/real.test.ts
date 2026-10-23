@@ -319,6 +319,7 @@ describe("the published real-data results", () => {
   it("parses every answer file", () => {
     expect(loadRealAnswers(join(REAL, "answers")).map((a) => a.answers.dataset)).toEqual([
       "hotel-bookings",
+      "montgomery-warehouse-sales",
       "nz-card-spend",
       "online-retail-ii",
     ]);

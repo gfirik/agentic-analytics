@@ -34,6 +34,18 @@ The real-data tier downloads these files at run time (`bun run eval:real:fetch`)
   - The article's other supplements are the same data as R files (mmc3.zip) and a data dictionary (mmc1.pdf); they are not used.
 - **Changes made:** both files in one CSV, the resort hotel's lines first, each line unchanged behind two added fields: `Hotel` ("Resort Hotel" for H1, "City Hotel" for H2) and `ArrivalDate` (ISO, from ArrivalDateYear, ArrivalDateMonth and ArrivalDateDayOfMonth). `hotel-bookings.csv`, 119,390 bookings: SHA-256 `3b22c26428ec81ad9432ec81f063c3623921ea0865066b5412535a39d143773b`
 
+## Warehouse and Retail Sales, 2017–2020 (Montgomery County, Maryland)
+
+- **Credit:** Source: Montgomery County, MD. Warehouse and Retail Sales, https://data.montgomerycountymd.gov/d/v76h-r7br (dataset id `v76h-r7br`; the Department of Liquor Control's sales and movement data by item and supplier).
+- **Licence:** Public Domain, as the dataset's Socrata metadata states it.
+- **Licence evidence**, from the dataset's metadata https://data.montgomerycountymd.gov/api/views/v76h-r7br.json (read 2026-10-23): `"licenseId" : "PUBLIC_DOMAIN"`, `"license" : { "name" : "Public Domain" }`, `"attribution" : "Montgomery County, MD"`. The same record shows no restriction beyond that. The human page is rendered by script and states no licence in its HTML, which is why the earlier M13e look at the catalogue pages found none; the metadata is the publisher's own statement and the Socrata catalogue API (https://api.us.socrata.com/api/catalog/v1, same dataset) agrees. **The fetch re-reads `"license" : { "name" : "Public Domain" }` in the metadata before every download** and stops (`LICENCE_CHANGED`) if it is gone.
+- **Download:** the publisher's Socrata CSV export, limited to the closed calendar years 2017–2020 and put in a total order, because the dataset grows every month (rows for June to August 2026 were appended after a gap since September 2020) and a whole-file checksum would break on each update: `https://data.montgomerycountymd.gov/resource/v76h-r7br.csv?$where=calendar_year<=2020&$order=calendar_year,cal_month_num,supplier,item_code,item_description,item_type,rtl_sales,rtl_transfers,whs_sales&$limit=1000000` (the manifest has it percent-encoded)
+  - download, 30,773,087 bytes, 307,645 data rows: SHA-256 `b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851` (two downloads, minutes apart, gave the same bytes)
+  - It is a plain CSV, not an archive (`download.raw` in the manifest), and the engine reads it as it is.
+- **Changes made:** none. `montgomery-warehouse-sales.csv`: SHA-256 `b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851` (the download itself).
+- **What is in it:** `calendar_year`, `cal_month_num`, `supplier`, `item_code`, `item_description`, `item_type`, `rtl_sales`, `rtl_transfers`, `whs_sales`. There is no date column, no price and no cost column. Months present: 2017-06 to 2017-12, 2018-01 to 2018-02, 2019-01 to 2019-11, and 2020 months 1, 3, 7 and 9.
+- **If the host blocks us (DEFERRED, like EIA-861M):** the fetch would fail with `DOWNLOAD_FAILED` on this dataset only. To run the rest of the tier meanwhile, move `answers/montgomery-warehouse-sales.yaml` out of the answers folder. The command to run once it is reachable: `bun run eval:real:fetch && bash scripts/heavy.sh bun run eval:real`. On the machine that built it (2026-10-23) the host answered, so nothing is deferred.
+
 ## Pending
 
 A dataset chosen for the tier whose file has not been pinned yet. `bun run eval:real:fetch` re-reads its licence and probes its page on every run, prints `DEFERRED` while it is unreachable (that doesn't fail the run), and asks for it to be pinned once it is reachable. Nothing of it is scored until then.
@@ -49,4 +61,5 @@ A dataset chosen for the tier whose file has not been pinned yet. `bun run eval:
 
 - **UCI Hierarchical Sales Data (id 611).** UCI lists it as CC BY 4.0, but its original publisher, Mendeley Data (doi:10.17632/njdkntcpc9.1), licenses it CC BY-NC 3.0, and the UCI download link returned 404. A non-commercial licence doesn't fit an Apache-2.0 project.
 - **UCI Online Retail (id 352).** CC BY 4.0, but it is the 2010–2011 half of Online Retail II, so it adds nothing.
-- **Montgomery County "Warehouse and Retail Sales"** and **Iowa Liquor Sales.** The catalogue pages state no licence.
+- **Iowa Liquor Sales.** The catalogue pages state no licence. (Montgomery County's Warehouse and Retail Sales looked the same in M13e, but its Socrata metadata does state Public Domain; it is pinned above.)
+- **A real dataset with a cost column (M15 PR 2's time-boxed search, 2026-10-23).** None passed; see docs/plans/m15.md, "Cost-column search".
