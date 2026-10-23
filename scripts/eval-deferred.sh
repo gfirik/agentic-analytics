@@ -20,12 +20,18 @@ state=data/cron/deferred
 mkdir -p "$state" data/logs
 touch "$state/done"
 
+# Trims surrounding blanks in bash (xargs did this before, and failed on the apostrophe in a comment line).
+trim() {
+  local s=$1
+  s=${s#"${s%%[![:space:]]*}"}
+  printf '%s' "${s%"${s##*[![:space:]]}"}"
+}
 next=""
 while IFS='|' read -r id args; do
-  id=$(echo "$id" | xargs)
+  id=$(trim "$id")
   [ -z "$id" ] || [[ "$id" == \#* ]] && continue
   if ! grep -qxF "$id" "$state/done"; then
-    next="$id|$(echo "$args" | xargs)"
+    next="$id|$(trim "$args")"
     break
   fi
 done <"$queue"
