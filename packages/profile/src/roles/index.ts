@@ -11,6 +11,7 @@ export {
 } from "./detect.ts";
 export { RoleError, type RoleErrorCode } from "./errors.ts";
 export { headerTokens } from "./header.ts";
+export { type PeriodParts, YEAR_RANGE } from "./period.ts";
 export { columnCandidates, type Evidence, PROPOSE_AT, type RoleCandidate, type RoleColumn, WEIGHTS } from "./score.ts";
 export { loadRoles, type StoredRole, saveRoles } from "./store.ts";
 export { maskSample, type RoleTieBreak, TIE_MARGIN, type TieBreakQuestion } from "./tiebreak.ts";

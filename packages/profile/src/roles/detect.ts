@@ -3,6 +3,7 @@
 // is the only way a model can take part, and it can only choose among the code's own candidates.
 import { type NormalizedTable, type Sql, tableName, type Workspace } from "@agentic-analytics/store";
 import type { TableProfile } from "../stats.ts";
+import { type PeriodParts, periodPartCandidate, periodParts } from "./period.ts";
 import { dateOrder, lineIdentity, marginIdentity } from "./roles.sql.ts";
 import {
   columnCandidates,
@@ -56,6 +57,8 @@ export interface TableRoles {
   readonly table_id: string;
   readonly columns: readonly ColumnRoles[];
   readonly identities: readonly RoleIdentity[];
+  /** Year (and month) integer columns that together are the period of a table with no date column (§2.1). */
+  readonly period_parts?: PeriodParts;
 }
 
 export interface DetectOptions {
@@ -145,6 +148,17 @@ export async function detectRoles(
       .sort((a, b) => b.s - a.s || a.c.position - b.c.position)
       .slice(0, PER_ROLE)
       .map((x) => x.c.name);
+
+  const parts = periodParts(cols);
+  if (parts) {
+    for (const [kind, column] of [
+      ["year", parts.year],
+      ["month", parts.month],
+    ] as const) {
+      const cand = column ? periodPartCandidate(kind) : undefined;
+      if (column && cand) cands.set(column, rank([...(cands.get(column) ?? []), cand]));
+    }
+  }
 
   const identities: RoleIdentity[] = [];
   const record = (check: IdentityCheck, columns: Record<string, string>, n: Counts): RoleIdentity => {
@@ -294,7 +308,7 @@ export async function detectRoles(
       source,
     });
   }
-  return { table_id: table.id, columns, identities };
+  return { table_id: table.id, columns, identities, ...(parts ? { period_parts: parts } : {}) };
 }
 
 /** Sorted by position, the proposals as `column → role`. */

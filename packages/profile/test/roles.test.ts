@@ -561,3 +561,95 @@ describe("the optional model tie-break (§2.4), with a scripted stand-in", () =>
     expect(maskSample("ID 4521-77")).toBe("ID 9999-99");
   });
 });
+
+describe("year and month number columns form the period when the table has no date column (§2.1)", () => {
+  const rows = (f: (i: number) => (string | number)[]) => Array.from({ length: 12 }, (_, i) => f(i));
+  const year = (i: number) => (i < 6 ? 2017 : 2018);
+
+  it("a year column and a month-number column are the period, and the pair is exposed", async () => {
+    const t = fixture(
+      [
+        { label: "calendar_year", type: "integer" },
+        { label: "cal_month_num", type: "integer" },
+        { label: "Sales", type: "currency" },
+      ],
+      rows((i) => [year(i), (i % 6) + 1, 10 + i]),
+    );
+    const { roles } = await detect(t);
+    expect(roleOf(roles, "calendar_year")).toBe("period");
+    expect(roleOf(roles, "cal_month_num")).toBe("period");
+    expect(roles.period_parts).toEqual({ year: "calendar_year", month: "cal_month_num" });
+  });
+
+  it("a year column alone is a period; the Russian and Uzbek words count", async () => {
+    for (const label of ["Год", "Yil", "fiscal_yr"]) {
+      const { roles } = await detect(
+        fixture(
+          [
+            { label, type: "integer" },
+            { label: "Sales", type: "currency" },
+          ],
+          rows((i) => [year(i), 10 + i]),
+        ),
+      );
+      expect(roleOf(roles, label), label).toBe("period");
+      expect(roles.period_parts).toEqual({ year: label.toLowerCase().replace(/\W+/g, "_") });
+    }
+  });
+
+  it("negatives: a 1-12 quantity without a month word, a year-range amount without a year word", async () => {
+    const { roles } = await detect(
+      fixture(
+        [
+          { label: "year", type: "integer" },
+          { label: "Qty", type: "integer" },
+          { label: "Amount", type: "integer" },
+        ],
+        rows((i) => [year(i), (i % 12) + 1, 2000 + i]),
+      ),
+    );
+    expect(roleOf(roles, "Qty")).toBe("quantity");
+    expect(roleOf(roles, "Amount")).toBe("amount");
+    expect(roles.period_parts).toEqual({ year: "year" });
+  });
+
+  it("negatives: a month number with no year column beside it, and a year outside 1900-2100", async () => {
+    const m = await detect(
+      fixture(
+        [
+          { label: "Month", type: "integer" },
+          { label: "Sales", type: "currency" },
+        ],
+        rows((i) => [(i % 12) + 1, 10 + i]),
+      ),
+    );
+    expect(roleOf(m.roles, "Month")).not.toBe("period");
+    expect(m.roles.period_parts).toBeUndefined();
+    const y = await detect(
+      fixture(
+        [
+          { label: "Year", type: "integer" },
+          { label: "Sales", type: "currency" },
+        ],
+        rows((i) => [1000 + i, 10 + i]),
+      ),
+    );
+    expect(roleOf(y.roles, "Year")).not.toBe("period");
+  });
+
+  it("with a date column, year and month numbers are only parts of it", async () => {
+    const { roles } = await detect(
+      fixture(
+        [
+          { label: "ArrivalDate", type: "date" },
+          { label: "ArrivalDateYear", type: "integer" },
+          { label: "Month", type: "integer" },
+        ],
+        rows((i) => [`${year(i)}-0${(i % 6) + 1}-01`, year(i), (i % 6) + 1]),
+      ),
+      "arrivaldate",
+    );
+    expect(roleOf(roles, "ArrivalDateYear")).not.toBe("period");
+    expect(roles.period_parts).toBeUndefined();
+  });
+});
