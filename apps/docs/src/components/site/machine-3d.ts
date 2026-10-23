@@ -343,8 +343,22 @@ export async function mount(root: HTMLElement, data: MachineData, opts: MountOpt
     return null;
   };
   let pending: PointerEvent | null = null;
+  // Where the mouse was before this move, page-wide. When the drift (or the scroll) slides a label out from under a
+  // still mouse, the browser sends the canvas a move at the same spot; that is not the reader pointing somewhere new, so
+  // it must not take the hover from the label they are on (it reset the pressed label after #92).
+  let prevMouse: [number, number] | null = null;
+  let lastMouse: [number, number] | null = null;
+  addEventListener(
+    "pointermove",
+    (e) => {
+      prevMouse = lastMouse;
+      lastMouse = [e.clientX, e.clientY];
+    },
+    { capture: true, passive: true },
+  );
   canvas.addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
+    if (prevMouse && prevMouse[0] === e.clientX && prevMouse[1] === e.clientY) return;
     // One pick per frame at most.
     if (!pending)
       requestAnimationFrame(() => {
@@ -364,6 +378,9 @@ export async function mount(root: HTMLElement, data: MachineData, opts: MountOpt
     pending = e;
   });
   canvas.addEventListener("pointerleave", () => {
+    // A move still waiting for its frame belongs to the canvas the pointer has left (onto a label, say): drop it, or
+    // its late pick would replace the label's.
+    pending = null;
     hovered = null;
     pointer = null;
     canvas.style.cursor = "";
