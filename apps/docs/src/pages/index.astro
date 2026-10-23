@@ -193,9 +193,11 @@ cd agentic-analytics && bun install</code></pre>
       </div>
     </section>
 
+    {/* Site v5: the machine's stage fills the screen with no frame around it, so the section has no cell; its head
+        goes into the machine's "head" slot (over the stage's top left from 60rem, above it below that). */}
     <section id="engine" class="aa-sheet aa-engine-band" aria-labelledby="aa-engine-title">
-      <div class="aa-cell">
-        <div class="aa-cell-head aa-grid-field aa-engine-head">
+      <EngineMachine>
+        <div slot="head" class="aa-cell-head aa-engine-head">
           <SectionLabel text="The engine, opened up" />
           <h2 id="aa-engine-title" class="aa-h2 aa-center">A small factory for business questions.</h2>
           <p class="aa-lead aa-center">
@@ -203,8 +205,7 @@ cd agentic-analytics && bun install</code></pre>
             every number is made by the database.
           </p>
         </div>
-        <EngineMachine />
-      </div>
+      </EngineMachine>
     </section>
 
     <section id="how" class="aa-sheet" data-reveal aria-labelledby="aa-how-title">
@@ -909,9 +910,6 @@ AA_DEMO_MODEL=scripted \
     }
   }
   /* The engine machine's band (DESIGN.md §6): the head above, then the full-width stage (its own component). */
-  .aa-engine-head {
-    margin-bottom: var(--aa-space-7);
-  }
   .aa-engine-head .aa-lead {
     max-width: var(--aa-measure);
   }

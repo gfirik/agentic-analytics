@@ -69,3 +69,17 @@ The maintainer's spec (it overrides site v3's D2, "no scroll-pinning"): the hero
 7. Checks: Playwright (pin and step on scroll, release, tap list, reduced motion, keyboard, axe on the live modes), CLS with CI-like fonts, Lighthouse, 360px, screenshots `pr2-*.png`.
 
 **Risks:** a pinned exhibit taller than the screen (pin only when it fits, measured before first paint); a reader without a mouse (keyboard scrolling drives the steps; figures stay links in the tab order; a polite live region); layout shift as the pin releases (position, not animation; the shift test tells sticky moves apart).
+
+## The machine's modes: full screen, a quicker tour, explore
+
+The maintainer's spec for the engine machine (it overrides site v4 PR 2, which dropped OrbitControls and the guided modes for the scroll-linked camera alone):
+
+1. The stage fills the screen (100svh, full-bleed, no frame) and stays pinned through the tour, then releases into §1; it starts right where the hero's pin releases. The section's head sits over the home view's top left from 60rem and fades as the tour starts.
+2. Tour (default): seven stops of neighbouring pieces instead of thirteen (`tourStops()`), a shorter band, the camera framing each group and easing between stops.
+3. Explore: a click on the canvas (a "Click to explore" hint on hover) hands the camera to the reader (three's OrbitControls from `three/examples/jsm`, already part of the pinned `three`: damped, bounded zoom and tilt, pan kept over the machine); a station click opens its card; the wheel zooms, not the page. Back to tour, Esc, a press outside or scrolling the page another way eases back to the tour's stop.
+4. Phones and coarse pointers: an Explore button instead of the hint; in the tour a touch scrolls the page (`touch-action: pan-y`), in explore the canvas takes it.
+5. Labels: only near the stop (or the pointer in explore), never overlapping.
+6. Unchanged: the still frame and the list under reduced motion, weak devices, Save-Data and no JS; three on idle once the band is near; same-origin only; no new dependency.
+7. Checks: Playwright (full-viewport pin, the stops, the hint, click to explore, the wheel in both modes, a station click, Esc / Back / a press outside, the phone's button and touch scrolling, labels, reduced motion, axe in explore), CLS through the page, Lighthouse, 360px, screenshots `machine-*.png` (`site-screenshots.ts --machine`).
+
+**Risks:** the wheel or a swipe trapped by the canvas (the controls are off in the tour, and explore is entered on purpose); a reader lost in explore (Back to tour, Esc, a press outside, and a scroll all return); layout shift from the card and the labels (fresh nodes for the card's text, hidden labels frozen while they fade).

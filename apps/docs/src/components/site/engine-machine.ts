@@ -335,24 +335,48 @@ export function sidePieces(run: PipelineData): Station[] {
   return (["vault", "models"] as const).map((key) => ({ key, n: "", stages: [], info: STATION_INFO[key], run: runRows(key, run) }));
 }
 
-/** The tour: every station in line order, the database file after the first station that writes to it, the model room before the first station after Explain that calls it. */
-export function tourOrder(stations: readonly Station[]): (StationKey | SideKey)[] {
-  const keys = stations.map((s) => s.key);
-  const out: (StationKey | SideKey)[] = [];
-  let vault = false;
-  let models = false;
-  for (const k of keys) {
-    out.push(k);
-    if (!vault && k !== "doors") {
-      out.push("vault");
-      vault = true;
-    }
-    if (!models && k === "explain") {
-      out.push("models");
-      models = true;
-    }
+/** One stop of the scroll tour: one piece, or a few neighbouring pieces seen together. */
+export interface TourStop {
+  /** The stop's id (its first piece's key). */
+  readonly key: string;
+  /** What the stop shows, in plain words (a single piece's stop uses the piece's own name). */
+  readonly title: string;
+  /** The pieces it shows and highlights, in line order (station and side-piece keys). */
+  readonly members: readonly (StationKey | SideKey)[];
+}
+
+/**
+ * The tour's groups (site v5, the maintainer's "quicker tour"): files in, read and understand, the database file,
+ * calculate, explain and decide (with the model room), verify, report. Neighbouring stations share a stop, so the
+ * camera makes seven moves instead of thirteen; every piece is still on one stop. Wording only: no figures.
+ */
+const TOUR_GROUPS: readonly { readonly title: string; readonly members: readonly (StationKey | SideKey)[] }[] = [
+  { title: "Your files go in", members: ["doors"] },
+  { title: "Read and understand the files", members: ["ingest", "profile"] },
+  { title: "Everything is saved in one database file", members: ["vault"] },
+  { title: "Agree what to measure, then calculate it", members: ["metrics", "analysis"] },
+  { title: "Find out why, and suggest what to do", members: ["index", "web", "explain", "decide", "models"] },
+  { title: "Check everything", members: ["verify"] },
+  { title: "Write the report", members: ["render"] },
+];
+
+/**
+ * The scroll tour's stops after the home view: the groups above, keeping only the pieces this run has (a station
+ * the run never reached is not drawn), and any piece the groups miss as a stop of its own, so every piece is on
+ * exactly one stop.
+ */
+export function tourStops(stations: readonly Station[]): TourStop[] {
+  const present = new Set<string>([...stations.map((s) => s.key), "vault", "models"]);
+  const out: TourStop[] = [];
+  for (const g of TOUR_GROUPS) {
+    const members = g.members.filter((k) => present.has(k));
+    const first = members[0];
+    if (!first) continue;
+    const title = members.length === 1 ? STATION_INFO[first].simple : g.title;
+    out.push({ key: first, title, members });
   }
-  if (!models) out.push("models");
+  const seen = new Set(out.flatMap((s) => s.members));
+  for (const s of stations) if (!seen.has(s.key)) out.push({ key: s.key, title: s.info.simple, members: [s.key] });
   return out;
 }
 
