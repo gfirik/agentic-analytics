@@ -323,13 +323,13 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (54 calls, 5
 
 Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.
 
-### baseline · real public data · 2026-10-22
+### baseline · real public data · 2026-10-23
 
 Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.
 
 #### Hotel booking demand datasets (Data in Brief (Elsevier), CC BY 4.0)
 
-Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 26.0 s · 4/6 checks pass.
+Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 27.4 s · 4/6 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -342,9 +342,20 @@ Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. 
 
 Metrics: room_revenue, room_nights, bookings, cancellation_rate. Data-quality kinds: unparseable_value, unit_error, missing_value. Findings: trend_break: revenue 2017-04 → 2017-05 (contribution.v1); anomaly: bookings 2015-10 → 2015-11 (contribution.v1); anomaly: room_nights 2015-10 → 2015-11 (contribution.v1); improvement: revenue[customertype=Group] 2016-08 → 2017-08 (period_change.v1); improvement: revenue 2017-08 (trend.v1).
 
+#### Warehouse and Retail Sales (Montgomery County, Maryland), 2017–2020 (Montgomery County, MD (Department of Liquor Control, on data.montgomerycountymd.gov), Public domain)
+
+Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain). File read: `montgomery-warehouse-sales.csv` (SHA-256 `b1f5450e132c…`). Completed in 147.8 s · 2/2 checks pass.
+
+| Check | Pass | What the report shows |
+|---|---|---|
+| C1: The job completes on a file with a split year and month and three money-like measures | yes | report with 0 findings, 3 data-quality items |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 2 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+
+Metrics: none. Data-quality kinds: unparseable_value, missing_id, missing_value. Findings: none.
+
 #### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
 
-This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 5.4 s · 5/5 checks pass.
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 8.0 s · 5/5 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -358,7 +369,7 @@ Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 12.6 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 15.8 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|

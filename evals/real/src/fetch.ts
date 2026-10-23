@@ -87,7 +87,7 @@ export async function fetchDataset(d: RealDataset, deps: FetchDeps): Promise<Fet
     return { id: d.id, file: d.derived.file, sha256: d.derived.sha256, cached: true };
   }
   // A repaired cache is never silent: say which file failed its checksum and what was done about it.
-  const archiveName = `${d.id}.zip`;
+  const archiveName = `${d.id}.${d.download.raw ? "download.csv" : "zip"}`;
   let archive = deps.read(archiveName);
   if (archive && sha256(archive) === d.download.sha256) {
     if (cachedDerived) deps.print(`${d.id}: checksum mismatch on ${d.derived.file}: rebuilding it from the cached ${archiveName}`);
@@ -102,11 +102,13 @@ export async function fetchDataset(d: RealDataset, deps: FetchDeps): Promise<Fet
     verifySha256(`${d.id} download`, archive, d.download.sha256);
     deps.write(archiveName, archive);
   }
-  const entries = d.download.entries.map((e) => {
-    const bytes = zipEntry(archive as Uint8Array, e.name);
-    verifySha256(`${d.id} ${e.name}`, bytes, e.sha256);
-    return bytes;
-  });
+  const entries = d.download.raw
+    ? [archive]
+    : d.download.entries.map((e) => {
+        const bytes = zipEntry(archive as Uint8Array, e.name);
+        verifySha256(`${d.id} ${e.name}`, bytes, e.sha256);
+        return bytes;
+      });
   const derived = d.derived.derive(entries);
   verifySha256(`${d.id} ${d.derived.file}`, derived, d.derived.sha256);
   deps.write(d.derived.file, derived);

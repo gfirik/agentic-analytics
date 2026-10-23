@@ -24,9 +24,14 @@ export interface RealDataset {
   readonly citation: string;
   readonly download: {
     readonly url: string;
-    /** SHA-256 of the downloaded bytes (a ZIP archive). */
+    /** SHA-256 of the downloaded bytes (a ZIP archive, or the file itself when `raw`). */
     readonly sha256: string;
     readonly bytes: number;
+    /**
+     * The download is the file itself, not an archive (a Socrata CSV export): `derive` takes it as its one input,
+     * and `entries` is empty.
+     */
+    readonly raw?: boolean;
     /** The entries read from the archive, in the order `derive` takes them, each with its SHA-256. */
     readonly entries: readonly { readonly name: string; readonly sha256: string }[];
   };
@@ -139,6 +144,39 @@ export const REAL_DATASETS: readonly RealDataset[] = [
       sha256: "3b22c26428ec81ad9432ec81f063c3623921ea0865066b5412535a39d143773b",
       how: "H1.csv (resort hotel) then H2.csv (city hotel) in one CSV, each line unchanged behind two added fields: Hotel and ArrivalDate (ISO, from the arrival year, month and day).",
       derive: ([h1, h2]) => utf8.encode(deriveHotelBookings(text(h1), text(h2))),
+    },
+  },
+  {
+    id: "montgomery-warehouse-sales",
+    title: "Warehouse and Retail Sales (Montgomery County, Maryland), 2017–2020",
+    publisher: "Montgomery County, MD (Department of Liquor Control, on data.montgomerycountymd.gov)",
+    page: "https://data.montgomerycountymd.gov/d/v76h-r7br",
+    licence: {
+      name: "Public domain",
+      url: "https://data.montgomerycountymd.gov/api/views/v76h-r7br.json",
+      evidence: '"license" : { "name" : "Public Domain" }',
+      // Socrata states the licence in the dataset's metadata (the human page is rendered by script). The wording is
+      // compared as plain text, so the metadata's pretty-printing doesn't matter.
+      check: {
+        url: "https://data.montgomerycountymd.gov/api/views/v76h-r7br.json",
+        text: '"license" : { "name" : "Public Domain" }',
+      },
+    },
+    citation: "Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain).",
+    download: {
+      // The dataset grows every month (2026 months were appended after a gap since 2020), so a whole-file checksum would
+      // break on each update. The query pins the closed years 2017–2020 in a total order, which makes the bytes fixed.
+      url: "https://data.montgomerycountymd.gov/resource/v76h-r7br.csv?$where=calendar_year%3C%3D2020&$order=calendar_year%2Ccal_month_num%2Csupplier%2Citem_code%2Citem_description%2Citem_type%2Crtl_sales%2Crtl_transfers%2Cwhs_sales&$limit=1000000",
+      sha256: "b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851",
+      bytes: 30_773_087,
+      raw: true,
+      entries: [],
+    },
+    derived: {
+      file: "montgomery-warehouse-sales.csv",
+      sha256: "b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851",
+      how: "The Socrata CSV export of calendar years 2017–2020 (307,645 rows), unchanged, ordered by every column so the bytes are fixed.",
+      derive: ([csv]) => csv as Uint8Array,
     },
   },
 ];

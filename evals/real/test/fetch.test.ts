@@ -97,6 +97,21 @@ describe("fetchDataset", () => {
     expect(sha256(files.get("toy.zip") ?? new Uint8Array())).toBe(sha256(ARCHIVE));
   });
 
+  it("reads a raw (non-archive) download as the derivation's one input, and still checks its checksum", async () => {
+    const raw = utf8("a,b\n1,2\n");
+    const toy: RealDataset = {
+      ...dataset(),
+      download: { url: "https://example.org/toy.csv", sha256: sha256(raw), bytes: raw.length, raw: true, entries: [] },
+      derived: { file: "toy.csv", sha256: sha256(raw), how: "unchanged", derive: ([e]) => e as Uint8Array },
+    };
+    const { d, files, calls } = deps(raw);
+    await fetchDataset(toy, d);
+    expect(calls).toEqual(["https://example.org/toy.csv"]);
+    expect(files.has("toy.download.csv")).toBe(true);
+    expect(new TextDecoder().decode(files.get("toy.csv"))).toBe("a,b\n1,2\n");
+    await expect(fetchDataset(toy, deps(utf8("a,b\n9,9\n")).d)).rejects.toMatchObject({ code: "CHECKSUM_MISMATCH" });
+  });
+
   it("fails loudly on a changed download and writes nothing", async () => {
     const { d, files } = deps(zip("table.csv", utf8("a,b\n9,9\n")));
     await expect(fetchDataset(dataset(), d)).rejects.toMatchObject({ code: "CHECKSUM_MISMATCH" });
@@ -232,7 +247,7 @@ describe("manifest and answer files", () => {
     for (const d of REAL_DATASETS) {
       for (const h of [d.download.sha256, ...d.download.entries.map((e) => e.sha256), d.derived.sha256])
         expect(h).toMatch(/^[0-9a-f]{64}$/);
-      expect(d.licence.name).toBe("CC BY 4.0");
+      expect(["CC BY 4.0", "Public domain"]).toContain(d.licence.name);
       // Every download re-reads the licence: the wording checked is the evidence recorded in DATASETS.md.
       expect(d.licence.evidence).toContain(d.licence.check?.text ?? "no check");
       expect(d.citation.length).toBeGreaterThan(20);

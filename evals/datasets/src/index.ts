@@ -3,6 +3,7 @@ export { EMAIL_BODY, EMAIL_EML, OPS_NOTES, opsNotesDocx, opsNotesText, PRICE_LIS
 export { type InjectionFixture, injectionFixtures } from "./injection.ts";
 export { textPdf } from "./pdf.ts";
 export { DELIVERY_TERMS, HR_NOTES, MARKETING_PLAN, printingShopFiles } from "./printing-shop.ts";
+export * from "./wholesale-margin.ts";
 export { salesWorkbook, salesXlsx } from "./workbook.ts";
 export { type DocxSection, docx, type EmlHeaders, eml, emlText } from "./writers.ts";
 export { crc32, zipStored } from "./zip.ts";
