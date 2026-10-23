@@ -8,6 +8,7 @@
 dataset: hotel-bookings
 items:
   - id: G9
+    capability: kpi
     question: What was room revenue (ADR × nights, bookings not cancelled) over all arrivals in calendar 2016, both hotels together (EUR)?
     kind: numeric
     expected: 11673501.43
@@ -20,6 +21,7 @@ items:
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G10
+    capability: other
     question: Among market segments with at least 100 bookings, which has the highest cancellation rate?
     kind: categorical
     expected: Groups
@@ -31,6 +33,7 @@ items:
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G11
+    capability: other
     question: How many of the bookings arriving in September 2017 will be cancelled?
     kind: trap
     reason: >-
@@ -39,3 +42,21 @@ items:
     source: { kind: ask }
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  # M15 addition (docs/plans/m15.md PR 3), reviewed 2026-10-23 by a separate subagent (agrees).
+  - id: G13
+    capability: pareto
+    question: >-
+      What share of 2016 room revenue (ADR × nights, bookings not cancelled, by arrival date), in percent, came through the
+      three travel agents with the most room revenue in 2016? Bookings with no agent are left out of the total.
+    kind: numeric
+    expected: 52.74
+    tolerance: { abs: 0.05 }
+    source: { kind: fact, label: top3_share.salesperson_2016 }
+    columns: [Agent, ArrivalDate, IsCanceled, ADR, StaysInWeekendNights, StaysInWeekNights]
+    sql: >-
+      WITH m AS (SELECT trim(Agent) AS a, sum(ADR::DOUBLE * (StaysInWeekendNights::DOUBLE + StaysInWeekNights::DOUBLE)) AS v
+                 FROM read_csv('FILE', all_varchar = true) WHERE IsCanceled = '0' AND left(ArrivalDate, 4) = '2016' AND trim(Agent) <> 'NULL'
+                 GROUP BY 1 HAVING sum(ADR::DOUBLE * (StaysInWeekendNights::DOUBLE + StaysInWeekNights::DOUBLE)) > 0)
+      SELECT round(100 * (SELECT sum(v) FROM (SELECT v FROM m ORDER BY v DESC LIMIT 3)) / (SELECT sum(v) FROM m), 2)
+    split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }

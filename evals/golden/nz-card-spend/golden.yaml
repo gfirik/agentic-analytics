@@ -11,6 +11,7 @@
 dataset: nz-card-spend
 items:
   - id: G1
+    capability: kpi
     question: What was total card spending, all industry groups together, in December 2025 (NZD million)?
     kind: numeric
     expected: 11321.6
@@ -22,6 +23,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G2
+    capability: kpi
     question: What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)?
     kind: numeric
     expected: 9190.7
@@ -33,6 +35,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G3
+    capability: driver
     question: Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020?
     kind: categorical
     expected: Durables
@@ -45,6 +48,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G4
+    capability: kpi
     question: By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)?
     kind: numeric
     expected: -3803.7
@@ -57,6 +61,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G5
+    capability: pareto
     question: What share of 2025 card spending, in percent, was in the Consumables industry group?
     kind: numeric
     expected: 29.015
@@ -69,6 +74,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G6
+    capability: kpi
     question: By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier?
     kind: numeric
     expected: 1.25
@@ -81,6 +87,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G7
+    capability: other
     question: What was the average value of a card transaction in 2025?
     kind: trap
     reason: >-

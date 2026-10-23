@@ -11,11 +11,13 @@ import type { Fact, Report } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  capabilityBar,
   type GoldenItem,
   type GoldenScore,
   pairedBootstrap,
   parseGoldenSet,
   scoreGoldenItem,
+  scoreNotRun,
   summarizeGolden,
   withinTolerance,
 } from "../src/index.ts";
@@ -34,6 +36,7 @@ const reviewed = { reviewed_by: "agent (autonomous mode)", date: "2026-10-22", m
 const numeric = (source: GoldenItem["source"], expected: number, tol = { abs: 0, rel: 0 }): GoldenItem => ({
   id: "G1",
   question: "What was revenue in April?",
+  capability: "kpi",
   kind: "numeric",
   expected,
   tolerance: tol,
@@ -73,6 +76,7 @@ describe("golden scorer", () => {
     const trap: GoldenItem = {
       id: "G9",
       question: "What is the margin?",
+      capability: "margin",
       kind: "trap",
       reason: "no cost column",
       source: { kind: "ask" },
@@ -104,6 +108,7 @@ describe("golden scorer", () => {
     const driver = (period: string, expected: string): GoldenItem => ({
       id: "G2",
       question: "Which channel drove it?",
+      capability: "driver",
       kind: "categorical",
       expected,
       source: { kind: "driver", metric: "revenue", period },
@@ -121,6 +126,7 @@ describe("golden scorer", () => {
     const cat: GoldenItem = {
       id: "G3",
       question: "Which channel?",
+      capability: "other",
       kind: "categorical",
       expected: "wholesale",
       source: { kind: "ask" },
@@ -148,6 +154,7 @@ describe("golden scorer", () => {
     const s = (split: GoldenScore["split"], pass: boolean): GoldenScore => ({
       id: "G",
       kind: "numeric",
+      capability: "kpi",
       split,
       pass,
       got: "",
@@ -162,6 +169,7 @@ describe("golden scorer", () => {
     const s = (pass: boolean, kind: GoldenScore["kind"], counts: boolean): GoldenScore => ({
       id: "G",
       kind,
+      capability: "kpi",
       split: "dev",
       pass,
       got: "",
@@ -173,28 +181,134 @@ describe("golden scorer", () => {
       s(true, "trap", true),
       s(true, "numeric", false),
     ]);
-    expect(sum).toEqual({ numericCategorical: { passed: 1, of: 2 }, traps: { passed: 1, of: 1 }, notCounted: 1 });
+    expect(sum).toMatchObject({ numericCategorical: { passed: 1, of: 2 }, traps: { passed: 1, of: 1 }, notCounted: 1 });
+    expect(sum.byCapability.kpi).toEqual({ passed: 2, of: 3 });
+  });
+
+  it("per-capability rates count only counted items of each capability (hand-computed)", () => {
+    const s = (capability: GoldenScore["capability"], pass: boolean, counts = true): GoldenScore => ({
+      id: "G",
+      kind: "numeric",
+      capability,
+      split: "dev",
+      pass,
+      got: "",
+      counts,
+    });
+    // kpi: 3 counted, 2 pass; margin: 2 counted, 0 pass; pareto: 1 counted and passing, 1 uncounted miss; driver: none.
+    const sum = summarizeGolden([
+      s("kpi", true),
+      s("kpi", true),
+      s("kpi", false),
+      s("margin", false),
+      s("margin", false),
+      s("pareto", true),
+      s("pareto", false, false),
+    ]);
+    expect(sum.byCapability).toEqual({
+      kpi: { passed: 2, of: 3 },
+      margin: { passed: 0, of: 2 },
+      pareto: { passed: 1, of: 1 },
+      driver: { passed: 0, of: 0 },
+      other: { passed: 0, of: 0 },
+    });
+    expect(sum.notCounted).toBe(1);
+  });
+
+  it("the capability bar is the baseline + 15 pp or 85%, whichever is higher", () => {
+    expect(capabilityBar(0)).toBe(0.85); // 0 + 15 pp = 15% < 85%
+    expect(capabilityBar(0.5)).toBe(0.85); // 65% < 85%
+    expect(capabilityBar(0.7)).toBeCloseTo(0.85, 12); // 85% exactly
+    expect(capabilityBar(0.8)).toBeCloseTo(0.95, 12); // 95% > 85%
+  });
+
+  describe("the not_run source", () => {
+    const trap = (analysis = "gross_margin"): GoldenItem => ({
+      id: "G9",
+      question: "What was the gross margin?",
+      capability: "margin",
+      kind: "trap",
+      reason: "no cost column",
+      source: { kind: "not_run", analysis },
+      columns: [],
+      split: "dev",
+      review: reviewed,
+    });
+    const withNotRun = (entries: unknown, facts: Fact[] = []) => ({ facts, findings: [], analyses_not_run: entries }) as unknown as Report;
+
+    it("passes when the analysis is listed with a reason and none of its facts is stated", () => {
+      const r = withNotRun(
+        [{ analysis: "gross_margin", reason_code: "no_cost_role", reason: "No cost column was found.", needs: ["unit_cost"] }],
+        [fact("N1", "revenue_2010-11", 1)],
+      );
+      expect(scoreGoldenItem(trap(), r)).toMatchObject({ pass: true, got: "not run: No cost column was found." });
+    });
+
+    it("misses when the entry is absent (the M14 engine has none), has no reason, or names another analysis", () => {
+      expect(scoreGoldenItem(trap(), report([])).pass).toBe(false);
+      expect(scoreGoldenItem(trap(), withNotRun([])).pass).toBe(false);
+      expect(scoreGoldenItem(trap(), withNotRun([{ analysis: "pareto.v1", reason: "x" }])).pass).toBe(false);
+      expect(scoreGoldenItem(trap(), withNotRun([{ analysis: "gross_margin", reason: "  " }])).got).toBe(
+        "gross_margin is listed without a reason",
+      );
+    });
+
+    it("misses when the report lists the analysis and also states one of its facts", () => {
+      const entries = [{ analysis: "gross_margin", reason: "No cost column." }];
+      for (const label of ["gross_margin_2010-11", "gross_margin[product=A]_2010-11", "gross_margin.trend.slope"]) {
+        const r = scoreGoldenItem(trap(), withNotRun(entries, [fact("N1", label, 1)]));
+        expect(r.pass, label).toBe(false);
+        expect(r.got).toContain("yet the report states");
+      }
+      // gross_margin_pct is a different analysis stem, not a fact of gross_margin.
+      expect(scoreNotRun("gross_margin", withNotRun(entries, [fact("N1", "gross_margin_pct_2010-11", 1)]))[0]).toBe(true);
+      // A versioned analysis id matches its labels without the version: pvm_margin.v1 → pvm_margin.cost_2026-04.
+      expect(
+        scoreNotRun(
+          "pvm_margin.v1",
+          withNotRun([{ analysis: "pvm_margin.v1", reason: "r" }], [fact("N1", "pvm_margin.cost_2026-04", 1)]),
+        )[0],
+      ).toBe(false);
+    });
+
+    it("is refused on a non-trap item, and a trap may use it", () => {
+      const yaml = (kind: string, extra: string) =>
+        `dataset: d\nitems:\n  - { id: G1, question: What is the margin?, capability: margin, kind: ${kind}, ${extra}, source: { kind: not_run, analysis: gross_margin }, split: dev }\n`;
+      expect(parseGoldenSet(yaml("trap", "reason: no cost column")).items[0]?.source).toEqual({
+        kind: "not_run",
+        analysis: "gross_margin",
+      });
+      expect(() => parseGoldenSet(yaml("numeric", "expected: 1"))).toThrow(/only a trap may use the not_run source/);
+    });
+
+    it("every item needs a capability", () => {
+      expect(() =>
+        parseGoldenSet(
+          "dataset: d\nitems:\n  - { id: G1, question: What is revenue?, kind: numeric, expected: 1, source: { kind: ask }, split: dev }\n",
+        ),
+      ).toThrow(/capability/);
+    });
   });
 
   it("a golden file is validated: duplicate ids and a trap read from a fact are refused", () => {
     expect(() =>
       parseGoldenSet(
-        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, kind: trap, reason: not answerable, source: { kind: fact, label: x }, split: dev }",
+        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, capability: kpi, kind: trap, reason: not answerable, source: { kind: fact, label: x }, split: dev }",
       ),
     ).toThrowError(/a trap is answered through ask/);
     expect(() =>
       parseGoldenSet(
-        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, kind: numeric, expected: 1, source: { kind: ask }, split: dev }\n  - { id: G1, question: Revenue in May?, kind: numeric, expected: 2, source: { kind: ask }, split: dev }",
+        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, capability: kpi, kind: numeric, expected: 1, source: { kind: ask }, split: dev }\n  - { id: G1, question: Revenue in May?, capability: kpi, kind: numeric, expected: 2, source: { kind: ask }, split: dev }",
       ),
     ).toThrowError(/duplicate id G1/);
     expect(() =>
       parseGoldenSet(
-        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, kind: numeric, expected: 1, source: { kind: driver, metric: r, period: p }, split: dev }",
+        "dataset: d\nitems:\n  - { id: G1, question: Revenue in April?, capability: kpi, kind: numeric, expected: 1, source: { kind: driver, metric: r, period: p }, split: dev }",
       ),
     ).toThrowError(/a driver answers categorical items only/);
     expect(() =>
       parseGoldenSet(
-        "dataset: d\nitems:\n  - { id: G1, question: Which channel?, kind: categorical, expected: w, source: { kind: fact, label: x }, split: dev }",
+        "dataset: d\nitems:\n  - { id: G1, question: Which channel?, capability: other, kind: categorical, expected: w, source: { kind: fact, label: x }, split: dev }",
       ),
     ).toThrowError(/a fact answers numeric items only/);
   });
