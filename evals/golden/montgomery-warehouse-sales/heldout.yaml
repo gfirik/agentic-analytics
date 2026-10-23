@@ -1,0 +1,24 @@
+# Golden set, held-out split (accuracy.md §1–§4, M15 PR 3b): Montgomery County warehouse and retail sales. Read only by
+# release runs. FILE stands for evals/real/data/montgomery-warehouse-sales.csv. Agent-reviewed (2026-10-23): re-derived
+# blind by a separate subagent, which agrees; not yet maintainer-reviewed.
+dataset: montgomery-warehouse-sales
+items:
+  - id: G4
+    capability: pareto
+    question: >-
+      By how much did the Herfindahl-Hirschman index of the suppliers' retail sales (rtl_sales) change from 2017 to 2019
+      (2019 minus 2017, as a fraction between 0 and 1)? Each year's index is over suppliers with positive sales that year,
+      and lines with no supplier are left out of the total.
+    kind: numeric
+    expected: -0.000271
+    tolerance: { abs: 0.000005 }
+    source: { kind: ask }
+    columns: [supplier, rtl_sales, calendar_year]
+    sql: >-
+      WITH s AS (SELECT calendar_year AS y, supplier, sum(rtl_sales::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true)
+                 WHERE calendar_year IN ('2017', '2019') AND supplier <> '' GROUP BY 1, 2 HAVING sum(rtl_sales::DOUBLE) > 0),
+           t AS (SELECT y, sum(v) AS tot FROM s GROUP BY 1),
+           h AS (SELECT y, sum(power(v / tot, 2)) AS hhi FROM s JOIN t USING (y) GROUP BY 1)
+      SELECT round((SELECT hhi FROM h WHERE y = '2019') - (SELECT hhi FROM h WHERE y = '2017'), 6)
+    split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }

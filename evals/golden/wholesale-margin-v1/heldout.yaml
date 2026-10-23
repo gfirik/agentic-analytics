@@ -1,0 +1,17 @@
+# Golden set, held-out split (accuracy.md §1–§4, M15 PR 3b): wholesale-margin-v1. Read only by release runs. FILE in the
+# `sql` stands for evals/datasets/wholesale-margin-v1/files/invoice-lines.csv. Agent-reviewed (2026-10-23): re-derived
+# blind by a separate subagent, which agrees; not yet maintainer-reviewed.
+dataset: wholesale-margin-v1
+items:
+  - id: G4
+    capability: margin
+    question: Which SKU had the lowest gross margin percentage (gross margin divided by net sales) in June 2026?
+    kind: categorical
+    expected: SKU-100
+    source: { kind: ask }
+    columns: ["Invoice Date", SKU, "Qty", "Std cost", "Net Amount"]
+    sql: >-
+      SELECT SKU FROM read_csv('FILE', all_varchar = true) WHERE left("Invoice Date", 7) = '2026-06'
+      GROUP BY SKU ORDER BY 1 - sum("Qty"::DOUBLE * "Std cost"::DOUBLE) / sum("Net Amount"::DOUBLE) ASC LIMIT 1
+    split: heldout
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }
