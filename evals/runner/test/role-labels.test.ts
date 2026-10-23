@@ -26,12 +26,12 @@ describe("role labels", () => {
     expect([...kinds.matchAll(/^\| \d \| `([a-z_]+)` \|/gm)].map((m) => m[1])).toEqual([...TABLE_KINDS]);
   });
 
-  it("counts: 55 real columns, 360 generated, 12 distinct generated", () => {
+  it("counts: 64 real columns, 360 generated, 12 margin-dataset", () => {
     const c = countRoleLabels(labels);
-    expect(c.byGroup).toEqual({ real: 55, generated: 360 });
-    expect(c.columns).toBe(415);
-    expect(c.tables).toBe(63);
-    expect(c.distinct).toBe(55 + 12);
+    expect(c.byGroup).toEqual({ real: 64, generated: 360, synthetic: 12 });
+    expect(c.columns).toBe(436);
+    expect(c.tables).toBe(65);
+    expect(c.distinct).toBe(64 + 12 + 12);
   });
 
   it("expands a layout per dataset", () => {
@@ -61,12 +61,28 @@ describe("role labels", () => {
     "online-retail-ii": "online_retail_II.sample10.csv",
     "nz-card-spend": "nz-card-spend-by-industry.csv",
     "hotel-bookings": "hotel-bookings.csv",
+    "montgomery-warehouse-sales": "montgomery-warehouse-sales.csv",
   };
   for (const t of expandRoleLabels(labels).filter((x) => x.group === "real"))
     it.skipIf(!existsSync(join(data, files[t.dataset] as string)))(`${t.dataset}: labelled columns are the file's header`, () => {
       const first = readFileSync(join(data, files[t.dataset] as string), "utf8").split("\n", 1)[0] ?? "";
-      expect(headerDifferences(t, first.replace(/\r$/, "").split(","))).toEqual([]);
+      expect(
+        headerDifferences(
+          t,
+          first
+            .replace(/\r$/, "")
+            .split(",")
+            .map((h) => h.replace(/^"|"$/g, "")),
+        ),
+      ).toEqual([]);
     });
+
+  it("the margin dataset's labelled columns are its committed file's header", () => {
+    const t = expandRoleLabels(labels).find((x) => x.dataset === "wholesale-margin-v1");
+    const file = join(root, "evals", "datasets", "wholesale-margin-v1", "files", "invoice-lines.csv");
+    const first = readFileSync(file, "utf8").split("\n", 1)[0] ?? "";
+    expect(t && headerDifferences(t, first.split(","))).toEqual([]);
+  });
 
   it("refuses a repeated header, an unknown role and an accept that repeats the role", () => {
     const base = (cols: string) =>

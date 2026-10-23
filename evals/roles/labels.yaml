@@ -109,3 +109,38 @@ entries:
       - { header: "Rent", role: measure, accept: [amount, cost_amount], agrees: true }
       - { header: "Staff", role: measure, accept: [amount, cost_amount], agrees: true }
       - { header: "Supplies", role: measure, accept: [amount, cost_amount], agrees: true }
+  - id: montgomery-warehouse-sales
+    group: real
+    datasets: [montgomery-warehouse-sales]
+    table: montgomery-warehouse-sales.csv
+    kind: period_summary
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 9, agreed: 8, kind_agrees: true }
+    columns:
+      - { header: "calendar_year", role: period, accept: [dimension], agrees: true }
+      - { header: "cal_month_num", role: period, accept: [dimension], agrees: true }
+      - { header: "supplier", role: supplier, agrees: true }
+      - { header: "item_code", role: product_id, agrees: true }
+      - { header: "item_description", role: product, accept: [description], agrees: true }
+      - { header: "item_type", role: product_group, accept: [dimension], agrees: true }
+      - { header: "rtl_sales", role: amount, accept: [measure], agrees: true }
+      - { header: "rtl_transfers", role: measure, accept: [quantity], agrees: true }
+      - { header: "whs_sales", role: amount, accept: [measure], agrees: false, note: "warehouse (wholesale) sales in dollars: the same money as rtl_sales, so amount stands; the blind labeller said measure, accepted" }
+  - id: wholesale-margin-v1
+    group: synthetic
+    datasets: [wholesale-margin-v1]
+    table: invoice-lines.csv
+    kind: sales_lines
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 12, agreed: 12, kind_agrees: true }
+    columns:
+      - { header: "Invoice Date", role: transaction_date, accept: [issue_date], agrees: true }
+      - { header: "Invoice No", role: invoice_id, accept: [order_id], agrees: true }
+      - { header: "Customer", role: customer, agrees: true }
+      - { header: "Channel", role: channel, agrees: true }
+      - { header: "SKU", role: product_id, agrees: true }
+      - { header: "Product", role: product, agrees: true }
+      - { header: "Category", role: product_group, agrees: true }
+      - { header: "Qty", role: quantity, agrees: true }
+      - { header: "Unit Price", role: unit_price, agrees: true }
+      - { header: "Std cost", role: unit_cost, agrees: true }
+      - { header: "Discount", role: discount, agrees: true }
+      - { header: "Net Amount", role: amount, agrees: true }
