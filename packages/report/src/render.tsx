@@ -361,6 +361,76 @@ function EvidenceView({ e, ctx }: { e: Evidence; ctx: Ctx }) {
   );
 }
 
+const KIND_LABEL: Record<string, string> = {
+  sales_lines: "sales lines",
+  invoices: "invoices",
+  bills: "bills",
+  inventory_snapshot: "inventory snapshot",
+  bank_cash: "bank and cash",
+  budget_plan: "budget or plan",
+  period_summary: "period summary",
+  other: "other",
+};
+
+/** Table kinds, the business model and each table's column roles with their evidence (report-schema §5b, §6). */
+function SemanticsView({ report, ctx }: { report: Report; ctx: Ctx }) {
+  const tables = [...new Set([...(report.table_kinds ?? []).map((k) => k.table_id), ...(report.roles ?? []).map((r) => r.table_id)])];
+  const file = (id: string) => report.sources.find((s) => s.id === id)?.file ?? id;
+  return (
+    <section aria-labelledby="semantics">
+      <h2 id="semantics">Column roles and table kinds</h2>
+      {report.business_model ? (
+        <p>
+          Business model: <b>{report.business_model.model}</b>{" "}
+          <span className={`tag ${report.business_model.status === "confirmed" ? "ok" : "warn"}`}>{report.business_model.status}</span>
+        </p>
+      ) : null}
+      <div className="list">
+        {tables.map((t) => {
+          const kind = report.table_kinds?.find((k) => k.table_id === t);
+          const roles = (report.roles ?? []).filter((r) => r.table_id === t);
+          return (
+            <div key={t} className="panel">
+              <p>
+                <span className="mono">{t}</span> {file(t)}
+                {kind ? (
+                  <>
+                    {" "}
+                    <span className="tag ok">{KIND_LABEL[kind.kind] ?? kind.kind}</span>
+                  </>
+                ) : null}
+              </p>
+              {roles.length ? (
+                <details>
+                  <summary className="hint">Column roles</summary>
+                  <ul>
+                    {roles.map((r) => (
+                      <li key={r.column}>
+                        <span className="mono">{r.column}</span> is <b>{r.role.replace(/_/g, " ")}</b>{" "}
+                        <span className={`tag ${r.status === "confirmed" ? "ok" : "warn"}`}>{r.status}</span>{" "}
+                        <span className="muted">
+                          {r.evidence
+                            .filter((e) => e.kind !== "type")
+                            .map((e, i) => (
+                              <span key={`${i}-${e.kind}`}>
+                                {i ? "; " : ""}
+                                <Text text={e.text} ctx={ctx} />
+                              </span>
+                            ))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
   const v = report.verification;
   const verifiedOk = v.numbers_mismatched === 0 && v.rederivation_mismatches === 0;
@@ -445,7 +515,7 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
               {report.assumptions.map((a) => (
                 <li key={a.id}>
                   <span className="mono">{a.id}</span> <Text text={a.text} ctx={ctx} />{" "}
-                  <span className="muted">Affects {a.affects.join(", ")}.</span>
+                  {a.affects.length ? <span className="muted">Affects {a.affects.join(", ")}.</span> : null}
                 </li>
               ))}
             </ul>
@@ -469,6 +539,8 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
             ))}
           </div>
         </section>
+
+        {report.roles?.length || report.table_kinds?.length ? <SemanticsView report={report} ctx={ctx} /> : null}
 
         <section aria-labelledby="sources">
           <h2 id="sources">Sources</h2>

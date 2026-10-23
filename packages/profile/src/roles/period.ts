@@ -38,7 +38,7 @@ export function periodPartCandidate(kind: "year" | "month"): RoleCandidate {
     { signal: "name" as const, text: `header has a ${kind} word`, weight: WEIGHTS.nameEnds },
     {
       signal: "value" as const,
-      text: kind === "year" ? "whole numbers within 1900-2100" : "whole numbers within 1-12",
+      text: kind === "year" ? "whole numbers in the range of years" : "whole numbers in the range of month numbers",
       weight: WEIGHTS.value,
     },
     { signal: "value" as const, text: "the table has no date column, so the year and month columns are its period", weight: WEIGHTS.value },

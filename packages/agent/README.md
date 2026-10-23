@@ -36,7 +36,7 @@ EXPLAIN and DECIDE.
   - Trimming is pure and deterministic. Kept values are never changed, and facts the findings cite are always kept.
   - Without a budget, the request is byte for byte the untrimmed one.
   - `test/fixtures/printing-shop-v1-decide.json` is a real request that a provider refused at 7,804 tokens.
-- **`writeHeadline`, `buildDraft`**: the headline and the report v1 draft.
+- **`writeHeadline`, `buildDraft`**: the headline and the report v1 draft. With `semantics` (from the profile) the draft also carries `roles`, `table_kinds` and `business_model`, their measurements as SQL facts and the business model as an assumption; a quarantined table and a column whose name addresses a model are left out.
   - Every fact referenced is included, with its inputs.
   - Quality issues and open questions are worded without numerals.
 - **`renderPrompt(name, vars)`**: prompts live in `prompts/*.md` with a versioned header and `[[variable]]` slots. They are covered by snapshot tests. The package reads them from `src/prompts.gen.ts`, generated from the `.md` files so they ship inside bundles and the standalone binary: after editing a prompt run `bun run prompts:write` (`bun run check` fails while it is stale).

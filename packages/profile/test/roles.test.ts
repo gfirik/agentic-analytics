@@ -401,7 +401,7 @@ describe("margin identity needs a cost candidate", () => {
     expect(roleOf(roles, "Gross")).toBe("measure");
     expect(roles.identities.find((i) => i.check === "margin")).toMatchObject({ matched: 6, total: 6, holds: true });
     const gross = roles.columns.find((c) => c.label === "Gross");
-    expect(gross?.evidence.map((e) => e.text).join(" ")).toMatch(/margin identity holds on 100\.0%/);
+    expect(gross?.evidence.map((e) => e.text).join(" ")).toMatch(/margin identity holds/);
   });
 
   it("no cost column, no margin identity", async () => {

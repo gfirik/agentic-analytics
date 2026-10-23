@@ -201,6 +201,8 @@ NotRun = { analysis: string, reason_code: NotRunReason, reason: string, needs: s
 
 Role scores are not in the report: they rank candidates inside the detector (semantics §6).
 
+**As built (PR 5, `roles`, `table_kinds`, `business_model`).** Zod in `packages/schema/src/report.ts` (`ColumnRole`, `TableKind`, `BusinessModel`, `COLUMN_ROLES`, `TABLE_KINDS`); the JSON Schema is regenerated and `report.roles` etc. are optional. `ColumnRole.role` excludes `none`. `checkReportIntegrity` checks that role and kind `table_id`s are sources, that evidence and signal facts and the business-model assumption resolve, and that evidence and signal texts have no free numerals. `ColumnRole.assumption` is not filled yet (PR 6 attaches an assumption to each role an analysis reads). The HTML report shows a "Column roles and table kinds" section after the metric definitions (the business model, each table's kind, each role with its status and evidence, with the identity rate a clickable number). An assumption with an empty `affects` prints no "Affects" clause.
+
 ## 6. HTML report requirements
 
 - **One self-contained file.** Inline CSS and JS, no external requests, works offline.

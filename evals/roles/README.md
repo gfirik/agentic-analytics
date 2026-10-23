@@ -13,3 +13,5 @@ Checks: `bunx vitest run evals/runner/test/role-labels.test.ts` (schema, vocabul
 ## Scoring
 
 `bun run eval:roles` (`aa eval --suite roles`, no model) scores the detector's proposal before confirmation against these labels: right when it equals `role` or is in `accept`; a `none` label is right when no role is proposed. It prints the pooled per-column rate (the A1 figure, bar 95%), the real datasets alone and the distinct (layout, column) rate, lists the misses, and writes `evals/results/roles/<date>-roles.json` with the engine commit. `--only generated` needs no download. The detector was written after these labels, but its rules were designed with them in view, so its score on these datasets is not independent evidence: the datasets labelled later (the margin dataset, Montgomery County) are the held-out check.
+
+`bun run eval:roles` also classifies each labelled table (semantics §3) and prints how many kinds match the `kind` labels, as information with no bar (M15 PR 5).

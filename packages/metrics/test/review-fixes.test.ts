@@ -169,6 +169,23 @@ describe("validation and fallback fixes", () => {
       issues: [],
       entities: [],
       assumptions: [],
+      // Roles drive the drafts (semantics §1): the amount column is revenue, the channel column splits it.
+      semantics: {
+        roles: [
+          {
+            table_id: "T1",
+            identities: [],
+            columns: [
+              { column: "day", role: "transaction_date", score: 0.6, position: 0 },
+              { column: "amount", role: "amount", score: 0.7, position: 1 },
+              { column: "status", role: "status", score: 0.7, position: 2 },
+              { column: "channel", role: "channel", score: 0.7, position: 3 },
+            ],
+          },
+        ],
+        table_kinds: [],
+        business_model: { model: "unknown", signals: [] },
+      },
     } as unknown as ProfileSummary;
     const defs = validateMetrics(fallbackMetrics(summary), catalog).accepted;
     expect(defs.map((d) => d.id).sort()).toEqual(["a_revenue", "refund_rate", "revenue"]);

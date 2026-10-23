@@ -156,6 +156,82 @@ export const TextExcerpt = z.object({
 });
 export const Evidence = z.discriminatedUnion("kind", [TableExcerpt, TextExcerpt]);
 
+// §5b Business semantics (M15, additive): column roles, table kinds and the business model (docs/specs/semantics.md).
+// The role vocabulary is the spec's §1 table, in order; packages/profile checks this list against its own and the spec's.
+export const COLUMN_ROLES = [
+  "transaction_date",
+  "issue_date",
+  "due_date",
+  "paid_date",
+  "period",
+  "snapshot_date",
+  "order_id",
+  "invoice_id",
+  "line_id",
+  "customer_id",
+  "product_id",
+  "supplier_id",
+  "customer",
+  "product",
+  "product_group",
+  "channel",
+  "location",
+  "supplier",
+  "salesperson",
+  "dimension",
+  "amount",
+  "quantity",
+  "unit_price",
+  "unit_cost",
+  "cost_amount",
+  "discount",
+  "tax",
+  "refund_amount",
+  "paid_amount",
+  "balance",
+  "stock_on_hand",
+  "count",
+  "measure",
+  "status",
+  "currency",
+  "description",
+  "none",
+] as const;
+export const Role = z.enum(COLUMN_ROLES);
+// `none` is a role in the vocabulary, but a column with no role is left out of the report.
+export const ReportRole = Role.exclude(["none"]);
+export const RoleEvidence = z.object({
+  kind: z.enum(["name", "type", "pattern", "identity", "tie_break", "user"]),
+  text: z.string(),
+  fact: id.optional(),
+});
+export const ColumnRole = z.object({
+  table_id: id,
+  column: z.string(),
+  role: ReportRole,
+  status: z.enum(["confirmed", "assumed"]),
+  source: z.enum(["detector", "model", "user"]),
+  evidence: z.array(RoleEvidence),
+  assumption: id.optional(),
+});
+export const TABLE_KINDS = [
+  "sales_lines",
+  "invoices",
+  "bills",
+  "inventory_snapshot",
+  "bank_cash",
+  "budget_plan",
+  "period_summary",
+  "other",
+] as const;
+export const TableKind = z.object({ table_id: id, kind: z.enum(TABLE_KINDS), evidence: z.array(z.string()) });
+export const BusinessModel = z.object({
+  model: z.enum(["retail", "wholesale", "subscription", "services", "unknown"]),
+  status: z.enum(["confirmed", "assumed"]),
+  assumption: id,
+  signals: z.array(z.object({ text: z.string(), fact: id.optional() })),
+});
+
 export const ModelRole = z.enum(["planner", "extractor", "judge", "embedder", "reranker"]);
 
 export const Report = z.object({
@@ -179,6 +255,10 @@ export const Report = z.object({
   facts: z.array(Fact),
   verification: VerificationSummary,
   evidence: z.array(Evidence).optional(),
+  // Additive in M15 (report-schema §5b): optional, so every earlier v1 report stays valid.
+  roles: z.array(ColumnRole).optional(),
+  table_kinds: z.array(TableKind).optional(),
+  business_model: BusinessModel.optional(),
 });
 
 export type Report = z.infer<typeof Report>;
@@ -196,3 +276,7 @@ export type VerificationSummary = z.infer<typeof VerificationSummary>;
 export type QualityIssue = z.infer<typeof QualityIssue>;
 export type OpenQuestion = z.infer<typeof OpenQuestion>;
 export type Assumption = z.infer<typeof Assumption>;
+export type ColumnRole = z.infer<typeof ColumnRole>;
+export type TableKind = z.infer<typeof TableKind>;
+export type BusinessModel = z.infer<typeof BusinessModel>;
+export type RoleEvidence = z.infer<typeof RoleEvidence>;

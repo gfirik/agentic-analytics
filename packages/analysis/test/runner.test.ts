@@ -14,7 +14,7 @@ const dir = join(import.meta.dirname, "..", "..", "..", "evals/datasets/coffee-r
 let ws: Workspace;
 let result: AnalysisResult;
 
-const setup = async (options: { maxMembers?: number } = {}): Promise<{ ws: Workspace; result: AnalysisResult }> => {
+const setup = async (options: { maxMembers?: number } = {}) => {
   const w = await Workspace.open();
   const files = ["sales-2026.xlsx", "price-list.pdf", "email-0412.eml", "ops-notes.docx"].map((f) => ({
     name: f,
@@ -23,7 +23,7 @@ const setup = async (options: { maxMembers?: number } = {}): Promise<{ ws: Works
   const summary = await profileJob(w, await ingest(files), { today: "2026-07-01" });
   const catalog = await loadCatalog(w);
   const defs = validateMetrics(fallbackMetrics(summary), catalog, { defaultCurrency: "USD" }).accepted;
-  return { ws: w, result: await analyzeJob(w, defs, catalog, { from: "2026-01", to: "2026-06", ...options }) };
+  return { ws: w, summary, result: await analyzeJob(w, defs, catalog, { from: "2026-01", to: "2026-06", ...options }) };
 };
 
 beforeAll(async () => {
@@ -225,5 +225,51 @@ describe('members beyond the top N are grouped as "(other)"', () => {
     expect(r.openQuestions.some((q) => q.includes(`grouped as "${OTHER}"`))).toBe(true);
     // no PVM over a dimension with an "(other)" bucket: it has no unit price
     expect(r.decompositions.some((d) => d.insight === b?.id && d.method === "pvm.v1")).toBe(false);
+  });
+});
+
+describe("PVM reads roles, not header names (semantics §1)", () => {
+  /** The first run's PVM for the April revenue break, or none once `edit` has changed the stored roles. */
+  async function pvmAfter(edit: (w: Workspace) => Promise<void>): Promise<boolean> {
+    const s = await setup();
+    try {
+      await edit(s.ws);
+      // The first run persisted its facts; this run starts clean, as a resumed MEASURE stage does.
+      for (const t of ["facts", "insights", "decompositions"]) await s.ws.run({ text: `DELETE FROM ${t}`, params: [] });
+      const catalog = await loadCatalog(s.ws);
+      const defs = validateMetrics(fallbackMetrics(s.summary), catalog, { defaultCurrency: "USD" }).accepted;
+      const r = await analyzeJob(s.ws, defs, catalog, { from: "2026-01", to: "2026-06" });
+      return r.decompositions.some((d) => d.method === "pvm.v1");
+    } finally {
+      s.ws.close();
+    }
+  }
+  it("the stored proposals: the product column is a product and the units column a quantity", async () => {
+    const rows = await ws.all<{ column_name: string; role: string }>(
+      sql`SELECT column_name, role FROM profile_roles WHERE table_id = 'T1'`,
+    );
+    const role = (c: string) => rows.find((r) => r.column_name === c)?.role;
+    expect(role("product")).toBe("product");
+    expect(role("qty")).toBe("quantity");
+  });
+
+  it("PVM runs with the roles as proposed", async () => {
+    expect(await pvmAfter(async () => {})).toBe(true);
+  });
+
+  it("a dropped quantity role means no PVM: the column name is not enough", async () => {
+    expect(
+      await pvmAfter(
+        async (w) => void (await w.run(sql`UPDATE profile_roles SET role = 'none' WHERE table_id = 'T1' AND column_name = 'qty'`)),
+      ),
+    ).toBe(false);
+  });
+
+  it("a dimension that is not an item has no PVM: the product role dropped", async () => {
+    expect(
+      await pvmAfter(
+        async (w) => void (await w.run(sql`UPDATE profile_roles SET role = 'dimension' WHERE table_id = 'T1' AND column_name = 'product'`)),
+      ),
+    ).toBe(false);
   });
 });

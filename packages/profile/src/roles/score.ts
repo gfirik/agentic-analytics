@@ -51,8 +51,11 @@ export type EvidenceSignal = "name" | "type" | "value" | "identity" | "model";
 
 export interface Evidence {
   readonly signal: EvidenceSignal;
+  /** Readable, with no numerals: report.json carries it as text (report-schema §5a). A measurement sits in `fact`. */
   readonly text: string;
   readonly weight: number;
+  /** An identity's fact id (`role_identity.<check>.<table>`, semantics §2.2): the rate is that fact, not part of the text. */
+  readonly fact?: string;
 }
 
 export interface RoleCandidate {
@@ -196,7 +199,7 @@ export function columnCandidates(c: RoleColumn): RoleCandidate[] {
     if (hit && role === "quantity" && !codeLike(c))
       evidence.push({ signal: "value", text: "whole numbers or decimals with many distinct values", weight: WEIGHTS.value });
     if (hit && role === "status" && c.distinct <= 10)
-      evidence.push({ signal: "value", text: `${c.distinct} distinct values`, weight: WEIGHTS.value });
+      evidence.push({ signal: "value", text: "few distinct values", weight: WEIGHTS.value });
     if (hit && role === "currency" && c.top.length > 0 && c.top.every((v) => /^[A-Z]{3}$/.test(v)))
       evidence.push({ signal: "value", text: "values are three-letter codes", weight: WEIGHTS.value });
     add(role, evidence);

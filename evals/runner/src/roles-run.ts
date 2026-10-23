@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from "node:path";
 import { generatedDatasets } from "@agentic-analytics/eval-generator";
 import { type InputFile, ingest } from "@agentic-analytics/ingest";
-import { detectRoles, normalizeTable, profileTable, type Role, type TableRoles } from "@agentic-analytics/profile";
+import { classifyTable, detectRoles, normalizeTable, profileTable, type Role, type TableRoles } from "@agentic-analytics/profile";
 import { loadTable, Workspace } from "@agentic-analytics/store";
 import { EvalRunError } from "./errors.ts";
 import { engineCommit } from "./golden-run.ts";
@@ -51,6 +51,14 @@ export interface DistinctMiss {
   readonly evidence: readonly string[];
 }
 
+/** One table's kind against its label (semantics §3). Reported beside the roles; no acceptance bar. */
+export interface KindScore {
+  readonly dataset: string;
+  readonly table: string;
+  readonly label: string;
+  readonly proposed: string;
+}
+
 export interface RolesResult {
   readonly suite: "roles";
   readonly date: string;
@@ -68,6 +76,8 @@ export interface RolesResult {
   readonly pass: boolean;
   readonly datasets: readonly { readonly dataset: string; readonly group: RolesGroup; readonly correct: number; readonly total: number }[];
   readonly misses: readonly DistinctMiss[];
+  /** Table kinds classified from the proposed roles (information; absent in results written before M15 PR 5). */
+  readonly kinds?: { readonly correct: number; readonly total: number; readonly wrong: readonly KindScore[] };
   /** Labelled datasets whose data is not here (a real file not fetched), each with the command that gets it. */
   readonly skipped: readonly { readonly dataset: string; readonly reason: string }[];
   readonly note: string;
@@ -102,6 +112,9 @@ async function profiledTables(
   const src = await cache.get(key);
   return src?.tables.get(t.table);
 }
+
+/** The kind each profiled table was classified as, kept beside its roles. */
+const kindOf = new WeakMap<TableRoles, string>();
 
 interface ProfiledSource {
   readonly tables: Map<string, TableRoles>;
@@ -143,7 +156,9 @@ async function profileDataset(t: DatasetTableLabels, a: RolesArgs): Promise<Prof
       const file = files_.get(region.file_id) ?? region.file_id;
       // The labels name a workbook table by its sheet and a CSV by its file ("Orders" for the generator's orders.csv).
       const key = region.sheet ?? (/^orders\.csv$/i.test(file) ? "Orders" : file);
-      tables.set(key, await detectRoles(ws, n.table, profile));
+      const roles = await detectRoles(ws, n.table, profile);
+      kindOf.set(roles, (await classifyTable(ws, roles, profile, [region.sheet ?? "", file].filter(Boolean))).kind);
+      tables.set(key, roles);
     }
     return { tables };
   } finally {
@@ -178,6 +193,7 @@ export function summarizeRoles(
   scores: readonly ColumnScore[],
   skipped: RolesResult["skipped"],
   meta: { readonly date: string; readonly engine_commit: string; readonly only?: string },
+  kinds: readonly KindScore[] = [],
 ): RolesResult {
   const count = (xs: readonly ColumnScore[]) => rate(xs.filter((s) => s.correct).length, xs.length);
   const groups = [...new Set(scores.map((s) => s.group))];
@@ -227,6 +243,15 @@ export function summarizeRoles(
       total: rows.length,
     })),
     misses,
+    ...(kinds.length
+      ? {
+          kinds: {
+            correct: kinds.filter((k) => k.label === k.proposed).length,
+            total: kinds.length,
+            wrong: kinds.filter((k) => k.label !== k.proposed),
+          },
+        }
+      : {}),
     skipped,
     note: "Labels are agent-reviewed, not maintainer-reviewed (evals/roles/README.md). The detector's proposal before confirmation, with no model.",
   };
@@ -243,6 +268,10 @@ export function rolesLines(r: RolesResult): string[] {
     `  real datasets alone: ${r.real.total ? `${pct(r.real)} (${fraction(r.real)})` : "n/a (no real data fetched: bun run eval:real:fetch)"}${r.real.rate !== null && r.real.rate < ROLES_BAR ? "  BELOW BAR (a known gap)" : ""}`,
     `  distinct (layout, column) pairs: ${pct(r.distinct)} (${fraction(r.distinct)})`,
   ];
+  if (r.kinds) {
+    lines.push(`  table kinds (information, no bar): ${r.kinds.correct}/${r.kinds.total} right`);
+    for (const k of r.kinds.wrong) lines.push(`    ${k.dataset} / ${k.table}: labelled ${k.label}, classified ${k.proposed}`);
+  }
   for (const s of r.skipped) lines.push(`  skipped ${s.dataset}: ${s.reason}`);
   if (r.misses.length) {
     lines.push(`  misses (${r.misses.length} distinct column${r.misses.length === 1 ? "" : "s"}):`);
@@ -273,6 +302,7 @@ export async function runRolesSuite(a: RolesArgs, print: (line: string) => void 
   const wanted = expandRoleLabels(labels).filter((t) => !only || only.includes(t.group) || only.includes(t.dataset));
   const cache = new Map<string, Promise<ProfiledSource | undefined>>();
   const scores: ColumnScore[] = [];
+  const kinds: KindScore[] = [];
   const skipped = new Map<string, string>();
   for (const [i, t] of wanted.entries()) {
     const roles = await profiledTables(t, a, cache);
@@ -286,6 +316,7 @@ export async function runRolesSuite(a: RolesArgs, print: (line: string) => void 
       continue;
     }
     scores.push(...scoreTable(t, roles));
+    kinds.push({ dataset: t.dataset, table: t.table, label: t.kind, proposed: kindOf.get(roles) ?? "other" });
     if ((i + 1) % 10 === 0) print(`  ... ${i + 1}/${wanted.length} tables`);
   }
   const date = (a.now ?? (() => new Date()))().toISOString().slice(0, 10);
@@ -293,6 +324,7 @@ export async function runRolesSuite(a: RolesArgs, print: (line: string) => void 
     scores,
     [...skipped.entries()].map(([dataset, reason]) => ({ dataset, reason })),
     { date, engine_commit: engineCommit(), ...(only ? { only: only.join(",") } : {}) },
+    kinds,
   );
   for (const l of rolesLines(result)) print(l);
   const dir = join(a.resultsDir, "roles");

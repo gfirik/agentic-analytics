@@ -2,7 +2,7 @@
 // checked identifiers and parameters only. Rows with a null in any term count neither way. The per-row tolerance is
 // max(half a minor unit, 0.5% of |the amount the identity predicts|); the 1e-9 slack only absorbs binary rounding at
 // an exact boundary (3 × 0.33 vs 1.00 stays a miss; 0.01 off a 100.00 line stays a hit).
-import { fragment, ident, type Sql, sql } from "@agentic-analytics/store";
+import { fragment, ident, idents, type Sql, sql } from "@agentic-analytics/store";
 
 const detail = sql`NOT _is_total`;
 const SLACK = 1e-9;
@@ -30,3 +30,8 @@ export const dateOrder = (table: string, issue: string, due: string): Sql =>
   sql`SELECT count(*) AS total, count(*) FILTER (WHERE ${ident(due)} >= ${ident(issue)}) AS matched,
       count(*) FILTER (WHERE ${ident(due)} > ${ident(issue)}) AS later
       FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(issue)} IS NOT NULL AND ${ident(due)} IS NOT NULL`;
+
+/** Detail rows, and how many distinct (date, dimensions) keys they hold: equal when the date and dimensions are a unique key. */
+export const uniqueKey = (table: string, date: string, dimensions: readonly string[]): Sql =>
+  sql`SELECT count(*) AS total, count(DISTINCT (${idents([date, ...dimensions])})) AS keys
+      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(date)} IS NOT NULL`;

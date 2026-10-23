@@ -191,3 +191,88 @@ describe("text helpers", () => {
     expect(performance.now() - t0).toBeLessThan(500);
   });
 });
+
+describe("roles, table kinds and the business model (report-schema §5b, additive in M15)", () => {
+  /** Adds the three optional fields, wired to the fixture's own source and fact ids. */
+  function withSemantics(r: Report): Report {
+    const source = r.sources[0]?.id ?? "";
+    const fact = r.facts[0]?.id ?? "";
+    r.assumptions.push({ id: "A9", text: "Business model assumed: wholesale (a few customers hold most of the revenue).", affects: [] });
+    r.roles = [
+      {
+        table_id: source,
+        column: "unit_cost",
+        role: "unit_cost",
+        status: "assumed",
+        source: "detector",
+        evidence: [
+          { kind: "name", text: 'header ends with "cost"' },
+          { kind: "identity", text: `margin identity holds on {{${fact}}} of rows`, fact },
+        ],
+      },
+    ];
+    r.table_kinds = [{ table_id: source, kind: "sales_lines", evidence: ["transaction_date", "amount", "customer"] }];
+    r.business_model = {
+      model: "wholesale",
+      status: "assumed",
+      assumption: "A9",
+      signals: [{ text: `the ten largest customers hold {{${fact}}} of the revenue`, fact }],
+    };
+    return r;
+  }
+
+  it("a report with them validates, and one without them still does (every v1 report stays valid)", () => {
+    const res = validateReport(withSemantics(fixture()));
+    expect(res.ok ? [] : res.issues).toEqual([]);
+    expect(validateReport(fixture()).ok).toBe(true);
+  });
+
+  it("round-trips through JSON unchanged", () => {
+    const r = withSemantics(fixture());
+    const res = validateReport(JSON.parse(JSON.stringify(r)));
+    expect(res.ok && res.report.roles).toEqual(r.roles);
+    expect(res.ok && res.report.business_model).toEqual(r.business_model);
+  });
+
+  it("refuses a role outside the vocabulary and the role none (a column with no role is left out)", () => {
+    expect(issuesOf((r) => (((withSemantics(r).roles ?? [])[0] as { role: string }).role = "revenue")).join("\n")).toContain(
+      "roles.0.role",
+    );
+    expect(issuesOf((r) => (((withSemantics(r).roles ?? [])[0] as { role: string }).role = "none")).join("\n")).toContain("roles.0.role");
+  });
+
+  it("refuses an unknown table kind and an unknown business model", () => {
+    expect(issuesOf((r) => (((withSemantics(r).table_kinds ?? [])[0] as { kind: string }).kind = "ledger")).join("\n")).toContain(
+      "table_kinds.0.kind",
+    );
+    expect(
+      issuesOf((r) => (((withSemantics(r).business_model ?? { model: "" }) as { model: string }).model = "bank")).join("\n"),
+    ).toContain("business_model.model");
+  });
+
+  it("integrity: facts, sources and the assumption must resolve", () => {
+    expect(issuesOf((r) => (((withSemantics(r).roles ?? [])[0] as { table_id: string }).table_id = "T99")).join("\n")).toContain(
+      "unknown source T99",
+    );
+    expect(issuesOf((r) => (((withSemantics(r).roles ?? [])[0]?.evidence[1] as { fact: string }).fact = "N9999")).join("\n")).toContain(
+      "unknown fact N9999",
+    );
+    expect(
+      issuesOf((r) => (((withSemantics(r).business_model ?? { assumption: "" }) as { assumption: string }).assumption = "A77")).join("\n"),
+    ).toContain("unknown assumption A77");
+    expect(issuesOf((r) => (((withSemantics(r).table_kinds ?? [])[0] as { table_id: string }).table_id = "T99")).join("\n")).toContain(
+      "unknown source T99",
+    );
+  });
+
+  it("integrity: evidence and signal texts carry no free numerals", () => {
+    expect(
+      issuesOf((r) => (((withSemantics(r).roles ?? [])[0]?.evidence[0] as { text: string }).text = "holds on 97% of rows")).join("\n"),
+    ).toContain("free numerals");
+    expect(
+      issuesOf((r) => (((withSemantics(r).business_model?.signals ?? [])[0] as { text: string }).text = "ten customers hold 80%")).join(
+        "\n",
+      ),
+    ).toContain("free numerals");
+  });
+});

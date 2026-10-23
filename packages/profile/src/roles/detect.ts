@@ -1,7 +1,7 @@
 // The role detector (docs/specs/semantics.md §2): for each column of a profiled table, a ranked list of candidate roles
 // with the evidence behind each, and a proposal. It is deterministic and calls no model; an injected tie-break (§2.4)
 // is the only way a model can take part, and it can only choose among the code's own candidates.
-import { type NormalizedTable, type Sql, tableName, type Workspace } from "@agentic-analytics/store";
+import { fragment, type NormalizedTable, type Sql, type SqlValue, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import type { TableProfile } from "../stats.ts";
 import { type PeriodParts, periodPartCandidate, periodParts } from "./period.ts";
 import { dateOrder, lineIdentity, marginIdentity } from "./roles.sql.ts";
@@ -39,6 +39,8 @@ export interface RoleIdentity {
   /** Percent of the non-null rows that match. */
   readonly rate: number;
   readonly holds: boolean;
+  /** The query that returns the rate as `value` (percent) over the table: the fact's computation, which V2 re-runs. */
+  readonly sql: { readonly text: string; readonly params: readonly SqlValue[] };
 }
 
 export interface ColumnRoles {
@@ -87,6 +89,12 @@ const ZERO_DECIMAL = new Set([
 ]);
 export const halfMinorUnit = (currency?: string): number => (currency && ZERO_DECIMAL.has(currency.toUpperCase()) ? 0.5 : 0.005);
 
+/** An identity's count query as the percent of matching rows (`value`), the computation of its fact. */
+const rateOf = (q: Sql): { text: string; params: readonly SqlValue[] } => {
+  const w = sql`SELECT 100.0 * matched / nullif(total, 0) AS value FROM (${fragment(q)}) AS identity`;
+  return { text: w.text, params: w.params };
+};
+
 /** Whether `matched` of `total` rows reach the identity share, in integers so 19 of 20 is exactly 95%. */
 export const identityHolds = (matched: number, total: number): boolean =>
   total >= MIN_IDENTITY_ROWS && matched * 100 >= IDENTITY_PERCENT * total;
@@ -114,6 +122,7 @@ interface Counts {
   total: number;
   matched: number;
   later?: number;
+  q: Sql;
 }
 
 export async function detectRoles(
@@ -134,11 +143,11 @@ export async function detectRoles(
     cands.set(c.name, cs);
   }
   const boosted = new Set<string>();
-  const boost = (column: string, role: Role, text: string) => {
+  const boost = (column: string, role: Role, text: string, fact: string) => {
     const c = byName.get(column);
     // One identity point per (column, role): several holding pairings are still one piece of evidence.
     if (c && !boosted.has(`${column}/${role}`) && boosted.add(`${column}/${role}`))
-      cands.set(column, withEvidence(cands.get(column) ?? [], role, { signal: "identity", text, weight: WEIGHTS.identity }, c));
+      cands.set(column, withEvidence(cands.get(column) ?? [], role, { signal: "identity", text, weight: WEIGHTS.identity, fact }, c));
   };
   const top = (role: Role, min = PROPOSE_AT, exclude: readonly string[] = []): string[] =>
     cols
@@ -170,6 +179,7 @@ export async function detectRoles(
       total: n.total,
       rate: n.total ? (n.matched / n.total) * 100 : 0,
       holds: identityHolds(n.matched, n.total),
+      sql: rateOf(n.q),
     };
     // One fact per check: the best-measured pairing (a holding one first, then the higher rate).
     const i = identities.findIndex((x) => x.check === check);
@@ -184,6 +194,7 @@ export async function detectRoles(
       total: Number(r?.total ?? 0),
       matched: Number(r?.matched ?? 0),
       ...(r?.later !== undefined ? { later: Number(r.later) } : {}),
+      q,
     };
   };
 
@@ -210,7 +221,7 @@ export async function detectRoles(
               [a, "amount"],
               [d, "discount"],
             ] as const)
-              boost(col, role, `net line identity holds on ${net.rate.toFixed(1)}% of rows`);
+              boost(col, role, "net line identity holds", net.fact);
         }
         if (gross.holds && !net?.holds)
           for (const [col, role] of [
@@ -218,7 +229,7 @@ export async function detectRoles(
             [p, "unit_price"],
             [a, "amount"],
           ] as const)
-            boost(col, role, `gross line identity holds on ${gross.rate.toFixed(1)}% of rows`);
+            boost(col, role, "gross line identity holds", gross.fact);
         // Margin: a cost candidate plus the same quantity and amount; a column m with a − q × c = m is a margin.
         for (const c of cs) {
           if ([q, p, a].includes(c)) continue;
@@ -230,8 +241,8 @@ export async function detectRoles(
               await count(marginIdentity(name, q, c, a, m.name, half)),
             );
             if (r.holds) {
-              boost(m.name, "measure", `margin identity holds on ${r.rate.toFixed(1)}% of rows`);
-              boost(c, "unit_cost", `margin identity holds on ${r.rate.toFixed(1)}% of rows`);
+              boost(m.name, "measure", "margin identity holds", r.fact);
+              boost(c, "unit_cost", "margin identity holds", r.fact);
             }
           }
         }
@@ -249,8 +260,8 @@ export async function detectRoles(
       const r = record("dates", { issue: x.name, due: y.name }, n);
       // A column equal to the issue date on every row is a copy, not a due date.
       if (r.holds && (n.later ?? 0) > 0) {
-        boost(x.name, "issue_date", `due date is on or after it on ${r.rate.toFixed(1)}% of rows`);
-        boost(y.name, "due_date", `on or after "${x.label}" on ${r.rate.toFixed(1)}% of rows`);
+        boost(x.name, "issue_date", "the due date is on or after it", r.fact);
+        boost(y.name, "due_date", `on or after "${x.label}"`, r.fact);
       }
     }
 
