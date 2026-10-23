@@ -1,0 +1,51 @@
+# Golden set, dev split (accuracy.md §1–§4, M15 PR 3b): Montgomery County, MD, Warehouse and Retail Sales 2017-2020 (public
+# domain; evals/real/answers/montgomery-warehouse-sales.yaml, `bun run eval:real:fetch`). FILE in each `sql` stands for
+# evals/real/data/montgomery-warehouse-sales.csv, read raw. Retail sales (rtl_sales) are the metric; lines with no supplier
+# are left out of the total and members are suppliers with positive sales in the year (analysis-library §11), so the
+# 2019 top-5 share differs from the answer file's G5, which counts the missing supplier as a member.
+# Agent-reviewed (2026-10-23): a separate subagent re-derived each answer blind and agrees; not yet maintainer-reviewed.
+dataset: montgomery-warehouse-sales
+items:
+  - id: G1
+    capability: pareto
+    question: >-
+      What share of 2019 retail sales (rtl_sales, January to November, the months the file has), in percent, came from the
+      five suppliers with the most retail sales that year? Lines with no supplier are left out of the total, and so are
+      suppliers whose 2019 retail sales are not positive.
+    kind: numeric
+    expected: 29.923
+    tolerance: { abs: 0.01 }
+    source: { kind: fact, label: top5_share.supplier_2019 }
+    columns: [supplier, rtl_sales, calendar_year]
+    sql: >-
+      WITH s AS (SELECT supplier, sum(rtl_sales::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true)
+                 WHERE calendar_year = '2019' AND supplier <> '' GROUP BY 1 HAVING sum(rtl_sales::DOUBLE) > 0)
+      SELECT round(100 * (SELECT sum(v) FROM (SELECT v FROM s ORDER BY v DESC LIMIT 5)) / (SELECT sum(v) FROM s), 4)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }
+  - id: G2
+    capability: pareto
+    question: >-
+      What was the Herfindahl-Hirschman index (the sum of squared shares) of the suppliers' 2019 retail sales (rtl_sales),
+      as a fraction between 0 and 1? Lines with no supplier are left out of the total, and so are suppliers whose 2019
+      retail sales are not positive.
+    kind: numeric
+    expected: 0.031832
+    tolerance: { abs: 0.00001 }
+    source: { kind: fact, label: hhi.supplier_2019 }
+    columns: [supplier, rtl_sales, calendar_year]
+    sql: >-
+      WITH s AS (SELECT supplier, sum(rtl_sales::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true)
+                 WHERE calendar_year = '2019' AND supplier <> '' GROUP BY 1 HAVING sum(rtl_sales::DOUBLE) > 0)
+      SELECT round(sum(power(v / (SELECT sum(v) FROM s), 2)), 6) FROM s
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }
+  - id: G3
+    capability: margin
+    question: What was the gross margin on Montgomery County's retail sales in 2019?
+    kind: trap
+    reason: The file has retail sales, transfers and warehouse sales only, with no cost or unit price, so no gross margin can be computed.
+    source: { kind: not_run, analysis: gross_margin }
+    columns: [rtl_sales, whs_sales]
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }

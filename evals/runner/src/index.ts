@@ -58,6 +58,7 @@ export {
   goldenLines,
   goldenMarkdown,
   goldenPath,
+  LOCAL_GOLDEN_DATASETS,
   loadCapabilityBaseline,
   loadGoldenSet,
   M15_BASELINE_FILE,

@@ -32,11 +32,23 @@ const FILES: Record<string, string> = {
   "hotel-bookings": "hotel-bookings.csv",
 };
 const DATASETS = Object.keys(FILES);
+// M15 PR 3b: datasets with small golden sets (no minimum item counts). The margin dataset is committed, not downloaded.
+const SMALL: Record<string, string> = {
+  "montgomery-warehouse-sales": join(DATA, "montgomery-warehouse-sales.csv"),
+  "wholesale-margin-v1": join(ROOT, "evals", "datasets", "wholesale-margin-v1", "files", "invoice-lines.csv"),
+};
+const ALL = [...DATASETS, ...Object.keys(SMALL)];
+const fileOf = (d: string) => SMALL[d] ?? join(DATA, FILES[d] as string);
 const SPLITS: GoldenSplit[] = ["dev", "heldout"];
-const hasData = (d: string) => existsSync(join(DATA, FILES[d] as string));
+const hasData = (d: string) => existsSync(fileOf(d));
 
 /** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass. */
-const M15_ITEMS: Record<string, string[]> = { "online-retail-ii": ["G12", "G13", "G14"], "hotel-bookings": ["G12"] };
+const M15_ITEMS: Record<string, string[]> = {
+  "online-retail-ii": ["G12", "G13", "G14"],
+  "hotel-bookings": ["G12"],
+  "montgomery-warehouse-sales": ["G1", "G2", "G3"],
+  "wholesale-margin-v1": ["G1", "G2", "G3"],
+};
 
 describe("the real datasets' golden sets", () => {
   it("each file parses, holds only its own split, and every answerable item has its SQL and columns", () => {
@@ -56,19 +68,33 @@ describe("the real datasets' golden sets", () => {
     }
   });
 
+  it("the small sets parse, hold their own split, and every answerable item has its SQL and columns", () => {
+    for (const dataset of Object.keys(SMALL)) {
+      const all = SPLITS.flatMap((split) => loadGoldenSet(GOLDEN_DIR, dataset, split).items);
+      expect(all.length, dataset).toBeGreaterThanOrEqual(4);
+      expect(all.filter((i) => i.split === "heldout").length, dataset).toBeGreaterThanOrEqual(1);
+      expect(new Set(all.map((i) => i.id)).size, dataset).toBe(all.length);
+      for (const i of all) {
+        if (i.kind === "trap") continue;
+        expect(i.sql, `${dataset} ${i.id}`).toMatch(/read_csv\('FILE'/);
+        expect(i.columns.length, `${dataset} ${i.id}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("golden v1 runs on the pinned datasets only: EIA-861M's draft (no file pinned yet) is never loaded", () => {
-    for (const split of SPLITS) expect(goldenDatasets(GOLDEN_DIR, ANSWERS, split).sort(), split).toEqual([...DATASETS].sort());
+    for (const split of SPLITS) expect(goldenDatasets(GOLDEN_DIR, ANSWERS, split).sort(), split).toEqual([...ALL].sort());
     expect(existsSync(join(GOLDEN_DIR, "eia-861m", "draft.yaml"))).toBe(true);
     for (const split of SPLITS) expect(existsSync(goldenFile(GOLDEN_DIR, "eia-861m", split)), split).toBe(false);
   });
 
-  it.skipIf(!DATASETS.every(hasData))(
+  it.skipIf(!ALL.every(hasData))(
     "each item's SQL on the raw derived file returns its expected value, and its columns are the file's (needs eval:real:fetch)",
     async () => {
       const ws = await Workspace.open(":memory:");
       try {
-        for (const dataset of DATASETS) {
-          const file = join(DATA, FILES[dataset] as string);
+        for (const dataset of ALL) {
+          const file = fileOf(dataset);
           const header = (
             await ws.all<{ column_name: string }>({ text: `DESCRIBE SELECT * FROM read_csv('${file}', all_varchar = true)`, params: [] })
           ).map((r) => r.column_name);
@@ -88,10 +114,10 @@ describe("the real datasets' golden sets", () => {
     },
   );
 
-  it.skipIf(!DATASETS.every(hasData))(
+  it.skipIf(!ALL.every(hasData))(
     "the dev split runs with the baseline: the jobs complete and every fact item equals its SQL (needs eval:real:fetch)",
     async () => {
-      for (const dataset of DATASETS) {
+      for (const dataset of ALL) {
         const r = await runGoldenSet({
           dataset,
           split: "dev",

@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Answer, askJob } from "@agentic-analytics/core";
+import type { RealAnswers } from "@agentic-analytics/eval-real";
 import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
 import { z } from "zod";
@@ -31,6 +32,21 @@ export type GoldenSplit = GoldenItem["split"];
 
 /** evals/golden in a checkout. */
 export const GOLDEN_DIR = join(import.meta.dirname, "..", "..", "golden");
+
+/**
+ * Committed datasets with a golden set (no download): the engine reads the file in place, with these options. The
+ * margin dataset is synthetic and not one of the public datasets in the real tier (its answers are expectations.yaml).
+ */
+export const LOCAL_GOLDEN_DATASETS: Readonly<
+  Record<string, { readonly dir: string; readonly file: string; readonly today: string; readonly currency: string }>
+> = {
+  "wholesale-margin-v1": {
+    dir: join(import.meta.dirname, "..", "..", "datasets", "wholesale-margin-v1", "files"),
+    file: "invoice-lines.csv",
+    today: "2026-07-03",
+    currency: "GBP",
+  },
+};
 
 /** The file of one split: golden.yaml (dev) or heldout.yaml (held-out, release runs only). */
 export function goldenFile(goldenDir: string, dataset: string, split: GoldenSplit): string {
@@ -87,16 +103,30 @@ const expectedOf = (i: GoldenItem): string => (i.kind === "trap" ? "refusal" : S
  */
 export async function runGoldenSet(o: GoldenRunOptions): Promise<GoldenRunResult> {
   const set = loadGoldenSet(o.goldenDir ?? GOLDEN_DIR, o.dataset, o.split);
-  const entry = loadRealAnswers(o.answersDir).find((a) => a.answers.dataset === o.dataset);
+  const local = LOCAL_GOLDEN_DATASETS[o.dataset];
+  const entry = local
+    ? {
+        dir: o.answersDir,
+        answers: {
+          dataset: o.dataset,
+          title: o.dataset,
+          file: local.file,
+          options: { today: local.today, currency: local.currency },
+          ground_truth: [],
+          checks: [{ id: "C1", kind: "completes", about: "committed dataset" }],
+        } as RealAnswers,
+      }
+    : loadRealAnswers(o.answersDir).find((a) => a.answers.dataset === o.dataset);
   if (!entry) throw new EvalRunError("UNKNOWN_DATASET", `no answer file for ${o.dataset} in ${o.answersDir}`);
   const { answers } = entry;
-  if (!existsSync(join(o.dataDir, answers.file)))
+  const dataDir = local ? local.dir : o.dataDir;
+  if (!existsSync(join(dataDir, answers.file)))
     throw new EvalRunError(
       "NO_DATA",
-      `${answers.file} is missing in ${o.dataDir}; for the public datasets run \`bun run eval:real:fetch\` first`,
+      `${answers.file} is missing in ${dataDir}; for the public datasets run \`bun run eval:real:fetch\` first`,
     );
   const started = Date.now();
-  const { bytes } = readRealFile(answers, o.dataDir);
+  const { bytes } = readRealFile(answers, dataDir);
   const dir = mkdtempSync(join(tmpdir(), `aa-golden-${o.dataset}-`));
   const items: GoldenItemResult[] = [];
   let error: string | undefined;
@@ -149,9 +179,9 @@ export async function runGoldenSet(o: GoldenRunOptions): Promise<GoldenRunResult
 
 /** The datasets with a golden set of this split and an answer file (the real datasets; not the CI fixture). */
 export function goldenDatasets(goldenDir: string, answersDir: string, split: GoldenSplit): string[] {
-  return loadRealAnswers(answersDir)
-    .map((a) => a.answers.dataset)
-    .filter((d) => existsSync(goldenFile(goldenDir, d, split)));
+  return [...loadRealAnswers(answersDir).map((a) => a.answers.dataset), ...Object.keys(LOCAL_GOLDEN_DATASETS)].filter((d) =>
+    existsSync(goldenFile(goldenDir, d, split)),
+  );
 }
 
 const pad = (s: string, n: number) => (s.length >= n ? s : s + " ".repeat(n - s.length));
