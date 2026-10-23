@@ -142,7 +142,7 @@ describe("the detector against the generated businesses' labels", () => {
     dirs.push(out);
     const r = await runRolesSuite({ resultsDir: out, only: ["real"], dataDir: join(out, "nothing-here") });
     expect(r.pooled.total).toBe(0);
-    expect(r.skipped.map((s) => s.dataset)).toEqual(["online-retail-ii", "nz-card-spend", "hotel-bookings"]);
+    expect(r.skipped.map((s) => s.dataset)).toEqual(["online-retail-ii", "nz-card-spend", "hotel-bookings", "montgomery-warehouse-sales"]);
     expect(r.skipped[0]?.reason).toMatch(/bun run eval:real:fetch/);
   });
 
