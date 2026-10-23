@@ -1,0 +1,111 @@
+# Hand role labels (docs/specs/semantics.md §1, §3; docs/specs/accuracy.md §11; docs/plans/m15.md A1).
+# Written from the raw files and the vocabulary before any detector existed. `role` is the one a careful analyst gives;
+# `accept` lists other roles that are also right where two genuinely are; the detector's top proposal is right when it is
+# the role or in `accept`. A column labelled `none` is right when the detector proposes no role.
+# The 30 generated businesses share two header layouts (the Orders sheet or file, and the Costs sheet), so their labels
+# are written once per layout with the datasets that use it; evals/runner expands them per dataset.
+# Agent-reviewed, not maintainer-reviewed (see evals/roles/README.md).
+version: 1
+entries:
+  - id: online-retail-ii
+    group: real
+    datasets: [online-retail-ii]
+    table: online_retail_II.sample10.csv
+    kind: sales_lines
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 8, agreed: 8, kind_agrees: true }
+    columns:
+      - { header: "Invoice", role: invoice_id, accept: [order_id], agrees: true }
+      - { header: "StockCode", role: product_id, agrees: true }
+      - { header: "Description", role: product, accept: [description], agrees: true }
+      - { header: "Quantity", role: quantity, agrees: true }
+      - { header: "InvoiceDate", role: transaction_date, accept: [issue_date], agrees: true }
+      - { header: "Price", role: unit_price, agrees: true }
+      - { header: "Customer ID", role: customer_id, agrees: true }
+      - { header: "Country", role: location, agrees: true }
+  - id: nz-card-spend
+    group: real
+    datasets: [nz-card-spend]
+    table: nz-card-spend-by-industry.csv
+    kind: period_summary
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 14, agreed: 12, kind_agrees: true }
+    columns:
+      - { header: "Series_reference", role: dimension, accept: [none], agrees: false, note: "settled by the spec: a series code groups rows, so dimension; the blind labeller's none is accepted too" }
+      - { header: "Period", role: period, agrees: true }
+      - { header: "Data_value", role: amount, accept: [measure], agrees: true }
+      - { header: "Suppressed", role: none, agrees: true }
+      - { header: "STATUS", role: status, accept: [dimension, none], agrees: false, note: "F/C is a final/confirmed flag on the value; status stands, none accepted (blind labeller said none)" }
+      - { header: "UNITS", role: none, accept: [currency, dimension], agrees: true }
+      - { header: "Magnitude", role: none, agrees: true }
+      - { header: "Subject", role: none, agrees: true }
+      - { header: "Group", role: none, agrees: true }
+      - { header: "Series_title_1", role: none, accept: [dimension], agrees: true }
+      - { header: "Series_title_2", role: product_group, accept: [dimension], agrees: true }
+      - { header: "Series_title_3", role: none, agrees: true }
+      - { header: "Series_title_4", role: none, agrees: true }
+      - { header: "Series_title_5", role: none, agrees: true }
+  - id: hotel-bookings
+    group: real
+    datasets: [hotel-bookings]
+    table: hotel-bookings.csv
+    kind: sales_lines
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 33, agreed: 29, kind_agrees: true }
+    columns:
+      - { header: "Hotel", role: location, accept: [dimension], agrees: true }
+      - { header: "ArrivalDate", role: transaction_date, agrees: true }
+      - { header: "IsCanceled", role: status, accept: [measure], agrees: true }
+      - { header: "LeadTime", role: measure, agrees: true }
+      - { header: "ArrivalDateYear", role: none, accept: [dimension, measure], agrees: true }
+      - { header: "ArrivalDateMonth", role: none, accept: [dimension], agrees: true }
+      - { header: "ArrivalDateWeekNumber", role: none, accept: [dimension, measure], agrees: true }
+      - { header: "ArrivalDateDayOfMonth", role: none, accept: [dimension, measure], agrees: true }
+      - { header: "StaysInWeekendNights", role: quantity, accept: [measure], agrees: false, note: "nights are quantity in the synonym list (semantics 2.3); the blind labeller's measure is accepted" }
+      - { header: "StaysInWeekNights", role: quantity, accept: [measure], agrees: false, note: "nights are quantity in the synonym list (semantics 2.3); the blind labeller's measure is accepted" }
+      - { header: "Adults", role: measure, accept: [count, quantity], agrees: true }
+      - { header: "Children", role: measure, accept: [count, quantity], agrees: true }
+      - { header: "Babies", role: measure, accept: [count, quantity], agrees: true }
+      - { header: "Meal", role: dimension, agrees: true }
+      - { header: "Country", role: location, agrees: true }
+      - { header: "MarketSegment", role: dimension, accept: [channel], agrees: false, note: "semantics 1 defines channel as a sales or booking channel; DistributionChannel is that, a market segment is a customer grouping, so dimension stands with channel accepted (blind labeller said channel)" }
+      - { header: "DistributionChannel", role: channel, agrees: true }
+      - { header: "IsRepeatedGuest", role: dimension, accept: [status, measure], agrees: true }
+      - { header: "PreviousCancellations", role: measure, accept: [count], agrees: true }
+      - { header: "PreviousBookingsNotCanceled", role: measure, accept: [count], agrees: true }
+      - { header: "ReservedRoomType", role: dimension, accept: [product_group, product], agrees: false, note: "a room type is a product family; dimension stands with product_group accepted (blind labeller said product_group)" }
+      - { header: "AssignedRoomType", role: dimension, accept: [product_group, product], agrees: false, note: "a room type is a product family; dimension stands with product_group accepted (blind labeller said product_group)" }
+      - { header: "BookingChanges", role: measure, accept: [count], agrees: true }
+      - { header: "DepositType", role: dimension, accept: [status], agrees: true }
+      - { header: "Agent", role: salesperson, accept: [dimension], agrees: true }
+      - { header: "Company", role: customer_id, accept: [customer, dimension], agrees: true }
+      - { header: "DaysInWaitingList", role: measure, agrees: true }
+      - { header: "CustomerType", role: dimension, agrees: true }
+      - { header: "ADR", role: unit_price, accept: [measure], agrees: true }
+      - { header: "RequiredCarParkingSpaces", role: measure, accept: [count], agrees: true }
+      - { header: "TotalOfSpecialRequests", role: measure, accept: [count], agrees: true }
+      - { header: "ReservationStatus", role: status, agrees: true }
+      - { header: "ReservationStatusDate", role: none, agrees: true }
+  - id: generated-orders
+    group: generated
+    datasets: [agency-v1, agency-v2, agency-v3, clinic-v1, clinic-v2, clinic-v3, coffee_roaster-v1, coffee_roaster-v2, coffee_roaster-v3, construction_supplier-v1, construction_supplier-v2, construction_supplier-v3, distributor-v1, distributor-v2, distributor-v3, logistics-v1, logistics-v2, logistics-v3, online_store-v1, online_store-v2, online_store-v3, printing_shop-v1, printing_shop-v2, printing_shop-v3, restaurant-v1, restaurant-v2, restaurant-v3, saas-v1, saas-v2, saas-v3]
+    table: Orders
+    kind: sales_lines
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 8, agreed: 8, kind_agrees: true }
+    columns:
+      - { header: "Date", role: transaction_date, agrees: true }
+      - { header: "Order ID", role: order_id, agrees: true }
+      - { header: "Customer", role: customer, accept: [dimension], agrees: true }
+      - { header: "Channel", role: channel, agrees: true }
+      - { header: "Product", role: product, accept: [product_group], agrees: true }
+      - { header: "Qty", role: quantity, agrees: true }
+      - { header: "Amount", role: amount, agrees: true }
+      - { header: "Status", role: status, agrees: true }
+  - id: generated-costs
+    group: generated
+    datasets: [agency-v1, agency-v2, agency-v3, clinic-v1, clinic-v2, clinic-v3, coffee_roaster-v1, coffee_roaster-v2, coffee_roaster-v3, construction_supplier-v1, construction_supplier-v2, construction_supplier-v3, distributor-v1, distributor-v2, distributor-v3, logistics-v1, logistics-v2, logistics-v3, online_store-v1, online_store-v2, online_store-v3, printing_shop-v1, printing_shop-v2, printing_shop-v3, restaurant-v1, restaurant-v2, restaurant-v3, saas-v1, saas-v2, saas-v3]
+    table: Costs
+    kind: period_summary
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, columns: 4, agreed: 4, kind_agrees: true }
+    columns:
+      - { header: "Month", role: period, accept: [transaction_date], agrees: true }
+      - { header: "Rent", role: measure, accept: [amount, cost_amount], agrees: true }
+      - { header: "Staff", role: measure, accept: [amount, cost_amount], agrees: true }
+      - { header: "Supplies", role: measure, accept: [amount, cost_amount], agrees: true }
