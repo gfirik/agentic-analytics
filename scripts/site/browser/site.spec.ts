@@ -1149,7 +1149,9 @@ test("pipeline stages: still until Play; a stop opens its panel; Play steps once
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
   const root = page.locator(".aa-stages");
-  await root.scrollIntoViewIfNeeded();
+  // To the rail's top, so the engine machine's full-screen stage just above is wholly off screen: under the fake
+  // clock every runFor would otherwise draw its frames (SwiftShader), slowing the page enough to flake the crossfade.
+  await root.evaluate((el) => el.scrollIntoView({ block: "start" }));
   const current = root.locator(".aa-stage.is-current");
   const stop = (name: string) => root.getByRole("button", { name, exact: true });
   // The finished report first, and still.
