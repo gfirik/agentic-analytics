@@ -1560,9 +1560,16 @@ test.describe("engine machine", () => {
     await expect(page.locator(".aa-engine-view canvas")).toBeVisible();
 
     // Hovering a station's label shows its card (the list's own entry) and presses it; the card links its Learn page.
-    await scrollToY(page, atStop(await band(page), 0));
+    // At Analysis's own stop: away from the stop a label fades out and stops taking the pointer (is-far), so hovering
+    // it at stop 0 raced the fade (main after #92).
+    const b = await band(page);
+    // Wait for the tour to reach that stop and the camera to settle, as the tour tests do, before hovering.
+    await scrollToY(page, atStop(b, stopOf(b, "analysis")));
+    await expect(page.locator("[data-card-kicker]")).toHaveText(new RegExp(`^Stop ${stopOf(b, "analysis")} of `), { timeout: 10_000 });
+    await page.waitForTimeout(1000);
     const analysis = page.locator('[data-tag][data-id="analysis"]');
     await expect(analysis).toBeVisible();
+    await expect(analysis).not.toHaveClass(/\bis-far\b/);
     await analysis.hover();
     await expect(analysis).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator('[data-tag][aria-pressed="true"]')).toHaveCount(1);
@@ -1579,6 +1586,17 @@ test.describe("engine machine", () => {
         .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.station ?? "")),
     );
 
+    // Let the labels' colour and opacity transitions land first: on CI axe once measured the pressed label halfway
+    // through its 150ms change and reported its contrast (main after #92).
+    await page.waitForFunction(
+      () =>
+        document
+          .getAnimations()
+          .filter((a) => a.playState === "running")
+          .every((a) => !((a.effect as KeyframeEffect | null)?.target as Element | null)?.closest?.(".aa-engine")),
+      undefined,
+      { polling: "raf", timeout: 3_000 },
+    );
     const axe = await new AxeBuilder({ page }).include(".aa-engine").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
     expect(requests.filter(offOrigin)).toEqual([]);
