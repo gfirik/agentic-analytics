@@ -68,21 +68,25 @@ export async function semanticsParts(
     business_model: dropModel ? { model: "unknown", status: input.business_model.status, signals: [] } : input.business_model,
     facts: input.facts.filter((f) => !out.has(f.source_id) && !(dropModel && f.source_id === modelTable)),
   };
+  // Only the facts that a kept role's evidence or a kept signal names go into the report.
+  const used = new Set([...s.roles.flatMap((r) => r.evidence.map((e) => e.fact)), ...s.business_model.signals.map((x) => x.fact)]);
   let next = await nextFactNumber(ws);
   const ids = new Map<string, string>();
-  const facts: Fact[] = s.facts.map((f) => {
-    const id = `N${next++}`;
-    ids.set(f.key, id);
-    return {
-      id,
-      label: f.label,
-      value: f.value,
-      unit: "percent",
-      computation: { kind: "sql", sql: f.sql.text, params: Object.fromEntries(f.sql.params.map((p, i) => [`$${i + 1}`, p])) },
-      citations: f.source_id ? [{ source_id: f.source_id }] : [],
-      verified: false,
-    } satisfies Fact;
-  });
+  const facts: Fact[] = s.facts
+    .filter((f) => used.has(f.key))
+    .map((f) => {
+      const id = `N${next++}`;
+      ids.set(f.key, id);
+      return {
+        id,
+        label: f.label,
+        value: f.value,
+        unit: "percent",
+        computation: { kind: "sql", sql: f.sql.text, params: Object.fromEntries(f.sql.params.map((p, i) => [`$${i + 1}`, p])) },
+        citations: f.source_id ? [{ source_id: f.source_id }] : [],
+        verified: false,
+      } satisfies Fact;
+    });
   await persistFacts(ws, facts);
   const resolve = (text: string) => text.replace(/\{\{([^}]+)\}\}/g, (m, key: string) => (ids.has(key) ? `{{${ids.get(key)}}}` : m));
   const fact = (key?: string) => (key ? ids.get(key) : undefined);

@@ -261,7 +261,7 @@ export async function detectRoles(
       // A column equal to the issue date on every row is a copy, not a due date.
       if (r.holds && (n.later ?? 0) > 0) {
         boost(x.name, "issue_date", "the due date is on or after it", r.fact);
-        boost(y.name, "due_date", `on or after "${x.label}"`, r.fact);
+        boost(y.name, "due_date", "on or after the issue date", r.fact);
       }
     }
 
