@@ -2159,8 +2159,8 @@ test.describe("motion", () => {
     const net = page.locator(NET);
     await expect(net).toHaveAttribute("data-state", "running", { timeout: 5_000 });
     const a = await frames(page);
-    await page.waitForTimeout(600);
-    expect(await frames(page), "draws while on screen").toBeGreaterThan(a + 5);
+    // Waited for, not read once after a fixed 600ms: a busy CI runner drew only 2 frames in that time.
+    await expect.poll(() => frames(page), { message: "draws while on screen", timeout: 3_000 }).toBeGreaterThan(a + 5);
     // Site v5 PR 1b: the connectors draw themselves in, pulses run along them, and it never draws past 30 fps.
     type Debug = HTMLCanvasElement & { aaFrames?: number; aaLinks?: number; aaDrawn?: number; aaPulses?: number };
     const stats = () =>
