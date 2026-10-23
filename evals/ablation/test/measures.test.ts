@@ -18,6 +18,7 @@ import {
 const numeric = (id: string, question: string, expected: number, abs = 0.5): GoldenItem => ({
   id,
   question,
+  capability: "kpi",
   kind: "numeric",
   expected,
   tolerance: { abs, rel: 0 },
@@ -28,6 +29,7 @@ const numeric = (id: string, question: string, expected: number, abs = 0.5): Gol
 const categorical: GoldenItem = {
   id: "G3",
   question: "Which channel drove the April drop?",
+  capability: "driver",
   kind: "categorical",
   expected: "wholesale",
   source: { kind: "ask" },
@@ -37,6 +39,7 @@ const categorical: GoldenItem = {
 const trap: GoldenItem = {
   id: "G5",
   question: "What will revenue be next year?",
+  capability: "other",
   kind: "trap",
   reason: "no forecasts",
   source: { kind: "ask" },
