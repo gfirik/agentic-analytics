@@ -141,7 +141,7 @@ When the top two candidates of a column are within 0.1 of each other, and a mode
 
 Roles are stored in the workspace next to the profile (a migration adds them):
 
-- (migration 6 creates all three tables; PR 4 fills the first two, PR 5 the third)
+- (migration 6 creates all three tables; PR 4 fills the first two, PR 5 the third, and gives the PROFILE stage the whole path: detect, store, classify, infer)
 - `profile_roles(table_id, column_name, role, score, status, source, evidence_json)`, where `status` is `proposed | confirmed | assumed` and `source` is `detector | model | user`;
 - `profile_role_candidates(table_id, column_name, role, score)`;
 - `profile_table_kinds(table_id, kind, evidence_json)`.
@@ -175,6 +175,17 @@ A table kind is classified from the table's roles (after confirmation, or the pr
 | `bills`, `inventory_snapshot`, `bank_cash`, `budget_plan` | none in M15: they are classified and reported, and their packs come with M16 |
 | `other` | none beyond today's model-drafted metrics |
 
+**As built (PR 5).** `classifyKind` in `packages/profile/src/roles/kinds.ts` is a pure function of the roles, the detector's identities and a small context; `classifyTable` measures the context in SQL and stores the result in `profile_table_kinds`.
+
+- Entities follow §1: a customer entity is `customer_id` or `customer`, a supplier entity `supplier_id` or `supplier`, a product entity `product_id` or `product`. `invoices` needs a customer entity and no supplier entity, `bills` a supplier entity and no customer entity, so a register with both is neither and falls through to the later rules.
+- `inventory_snapshot` needs the `snapshot_date` role; the "a date with a single value per snapshot" alternative is not built (no M15 dataset has such a table, and M16 owns inventory).
+- `bank_cash`: "both signs present" is read from the amount column's profile minimum and maximum (a negative minimum and a positive maximum). The date is `transaction_date` or `issue_date`.
+- `budget_plan`: the words are matched as whole words in the table's sheet, file and table names and in every column header (`planet` is not `plan`). `period` or a date, and `amount` or `measure`, are the roles.
+- `period_summary`: a `period` role qualifies. A date whose values with the dimension columns (`customer`, `product`, `product_group`, `channel`, `location`, `supplier`, `salesperson`, `dimension`, `status`, `currency`) form a unique key over more than one row also qualifies, but only when the table has a money or measure role (`amount`, `measure`, `count`, `quantity`, `cost_amount`): rows of dimensions with no numbers are not a summary. An id role (`order_id`, `invoice_id`, `line_id`) or a holding gross or net line identity rules both out. The key check is the SQL in `roles.sql.ts` (`uniqueKey`).
+- `sales_lines` takes `transaction_date` or `issue_date` as its date.
+- `evidence` lists the role names that matched, in the order the rule names them; `other` has none.
+- `aa eval --suite roles` also scores each labelled table's kind and prints the count as information (no bar).
+
 **Tests** (PR 5): one classifier fixture per kind, plus an ambiguity fixture: an invoice register with a supplier column and no customer column is `bills`, not `invoices`.
 
 ## 4. Business model
@@ -189,9 +200,17 @@ The business model is inferred from table kinds, roles and a few SQL facts. It i
 | `services` | a `sales_lines` table with no `quantity` role and no product entity |
 | `unknown` | none of the above |
 
-The shares are SQL facts (`business_model.<signal>`). They support the assumption but are not claims, and the assumption's text carries no numerals, for example "Business model assumed: wholesale (a few customers hold most of the revenue)."
+The shares are SQL facts (`business_model.<signal>.<table>`). They support the assumption but are not claims, and the assumption's text carries no numerals, for example "Business model assumed: wholesale (a few customers hold most of the revenue)."
 
 **Effect on order:** for `wholesale`, Pareto and concentration by customer come first; for `retail`, AOV and units per order come before customer concentration; for `subscription`, customers and new vs returning come first. For `unknown` the order is the one in analysis-library §8. Ranking (analysis-library §6) still decides what reaches EXPLAIN.
+
+**As built (PR 5).** `inferBusinessModel` in `packages/profile/src/roles/business.ts`, with its SQL in `business.sql.ts`. It reads the largest `sales_lines` table (an `invoices` register when there is none) and the top-scoring `amount`, `transaction_date` (or `issue_date`), customer-entity (the id role first) and `channel` columns. Without a sales or invoices table the model is `unknown` with no signals. The signals are tried in the spec's order and the first that holds decides; every signal that was measured is kept as a fact:
+
+- *subscription*: `business_model.subscription_steady.<table>`, the share of the last 12 months' revenue held by customers with at least one run of 3 consecutive months in which each month is within 5% of the month before (a customer's monthly revenue is summed first; a gap month breaks the run).
+- *wholesale*: `business_model.wholesale_channel.<table>` (the revenue of every channel member whose value contains `wholesale`, `b2b`, `опт` or `ulgurji`, case-insensitive, summed: a substring match, so "Wholesale EU" counts and so would "оптика") and `business_model.wholesale_top10.<table>` (the ten largest customers, nulls excluded from the ranking but not from the total). With ten customers or fewer the second signal holds trivially; that follows the spec's wording, and the user can edit the assumption.
+- *retail*: `business_model.retail_channel.<table>` (`retail|store|розниц|chakana`) and `business_model.retail_no_customer.<table>` (the share of detail rows with no customer; 20% or more holds). A sales table with no customer column at all reads as retail, with the signal "the sales table has no customer column" and no fact.
+- *services*: a `sales_lines` table with no `quantity` role and no product entity. Because retail's "no customer" signal is checked first, services is reached only when customers are named on at least 80% of the rows.
+- "The last 12 months" are the 12 calendar months ending with the table's latest month. All facts are percents (0–100) and V2 re-runs their SQL.
 
 ## 5. Confirmation
 
@@ -205,6 +224,16 @@ Roles are confirmed on the same screen as the metrics (analyst-grade §6.2; metr
 ## 6. Roles in `report.json`
 
 `report.json` gains `roles`, `table_kinds` and `business_model` (report-schema §5b). Scores are not in the report: they rank candidates inside the detector, and the report carries the evidence instead, with each identity rate as a fact. The workspace keeps the scores for `aa explain` and the roles eval.
+
+**As built (PR 5).**
+
+- The PROFILE stage detects roles, stores them (`profile_roles`, status `proposed`), classifies each table (`profile_table_kinds`), infers the business model, and returns all three in `ProfileSummary.semantics`. `reportSemantics` (profile) turns that into the report's parts and `buildDraft` (agent, `semantics.ts`) gives the measurements fact ids.
+- A role's report status is `assumed` while its stored status is `proposed` (auto-confirm keeps every proposal, §5) and `confirmed` once a person confirms it (PR 6). Columns with role `none` are left out.
+- Evidence text has no numerals. The detector's texts were made numeral-free for this ("few distinct values", "whole numbers in the range of years"), and an identity's rate is not in the text but in the fact the evidence names: the report writes `margin identity holds on {{N41}} of rows`. Business-model signals do the same.
+- The measurements are facts in the report: `role_identity.<check>.<table>` (percent) and `business_model.<signal>.<table>` (percent), with an SQL computation that V2 re-runs and a citation of the table. Only identities that a reported role's evidence names are included.
+- The business model is also an `Assumption` ("Business model assumed: wholesale (a few customers or a wholesale channel hold most of the revenue)."), which affects no finding in PR 5; `business_model.assumption` is its id.
+- A quarantined table's roles, kind and facts, and any role whose column name addresses a model (`screen`), are left out of the report (security §3). If the business model was read from a quarantined table, it is reported as `unknown` with no signals.
+- The runner's PVM and `fallbackMetrics` read the stored roles: PVM needs a `quantity` column and an item dimension (`product`, `product_id` or `product_group`), the fallback revenue needs an `amount` column of type currency (or `quantity` and `unit_price`), and its channel split a `channel` column with 2–5 values. A summary with no roles drafts nothing.
 
 ## 7. Evaluation
 

@@ -76,8 +76,20 @@ export interface AnalysisResult {
   readonly openQuestions: string[];
 }
 
-const QTY = /qty|quantity|units|pcs|pieces|количество|шт|soni|dona/i;
-const ITEM = /product|item|sku|товар|продукт|mahsulot/i;
+/**
+ * The roles PVM reads (semantics §1, M15): the units column has role `quantity`, and the dimension is an item, so it has
+ * a product role. They replace header regexes; the roles are the detector's proposals or the user's confirmation, stored
+ * next to the profile (`profile_roles`).
+ */
+const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
+
+/** The columns of a table that have a role, best score first. */
+async function columnsWithRole(ws: Workspace, tableId: string, roles: readonly string[]): Promise<string[]> {
+  const rows = await ws.all<{ column_name: string; role: string }>(
+    sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${tableId} ORDER BY score DESC, column_name`,
+  );
+  return rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
+}
 
 export async function analyzeJob(
   ws: Workspace,
@@ -454,8 +466,12 @@ async function pvmFor(
 ): Promise<Pvm | undefined> {
   const table = catalog.get(def.table ?? "");
   const dimCol = table?.columns.get(dimension);
-  const qtyCol = [...(table?.columns.values() ?? [])].find((c) => (c.type === "integer" || c.type === "decimal") && QTY.test(c.label));
-  if (def.type !== "sum" || !table || !dimCol || !qtyCol || !ITEM.test(dimCol.label)) return undefined;
+  if (def.type !== "sum" || !table || !dimCol) return undefined;
+  if (!(await columnsWithRole(ws, table.id, ITEM_ROLES)).includes(dimension)) return undefined;
+  const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
+    .map((name) => table.columns.get(name))
+    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+  if (!qtyCol) return undefined;
   // An "(other)" bucket mixes many items, so it has no unit price; contribution.v1 still covers this dimension.
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
   // The quantity metric is registered with the runner's defs so the fact book can compile its points.

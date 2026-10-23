@@ -12,6 +12,7 @@ Zod contracts for the engine: report v1, metric YAML, config and job events, wit
 | `Report`, `Fact`, `Claim`, `Finding`, `Recommendation`, `Source`, `Citation`, `Evidence`, … | Report v1 schema parts (Zod values and inferred types) |
 | `validateReport(json)` | Zod shape check, then `checkReportIntegrity`; returns `{ ok, report }` or `{ ok: false, issues }` |
 | `checkReportIntegrity(report)` | Cross-reference rules: every `{{N…}}` placeholder and fact id exists, citations point at sources, no free numerals in model text |
+| `ColumnRole`, `TableKind`, `BusinessModel`, `COLUMN_ROLES`, `TABLE_KINDS` | Business semantics in the report (M15, additive and optional): a role per column with evidence, a kind per table, and the business model as an assumption (report-schema §5b) |
 | `findFreeNumerals(text)`, `placeholders(text)` | Text helpers shared with the verifier (M9) |
 | `MetricDef`, `MetricFile` | Metric YAML |
 | `Config`, `RoleModel` | `agentic-analytics.config.yaml` |

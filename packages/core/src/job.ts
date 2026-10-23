@@ -37,7 +37,7 @@ import {
   validateMetrics,
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import { type ProfileSummary, partialLastMonth, periodOf, previousMonth, profileJob } from "@agentic-analytics/profile";
+import { type ProfileSummary, partialLastMonth, periodOf, previousMonth, profileJob, reportSemantics } from "@agentic-analytics/profile";
 import { renderReportHtml } from "@agentic-analytics/report";
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
@@ -540,6 +540,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               steps: d.request.steps,
             });
           const headline = await writeHeadline(deps.model, ex.findings, small);
+          const profiled = (await ctx.output<ProfileSummary>("PROFILE")) as ProfileSummary;
           const report = await buildDraft(ws, {
             jobId: id,
             generatedAt: (deps.now ?? (() => new Date()))().toISOString(),
@@ -557,6 +558,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             downgraded: ex.downgraded,
             facts: await factMap(),
             ...(m.partialPeriod ? { partialPeriod: m.partialPeriod } : {}),
+            ...(profiled.semantics ? { semantics: await reportSemantics(ws, profiled.semantics) } : {}),
           });
           const v = validateReport(report);
           if (!v.ok)

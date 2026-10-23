@@ -2,7 +2,7 @@
 // code validates every proposal. When no model is available (or it fails, or nothing it proposes is valid),
 // deterministic fallbacks draft the common metrics from column names and values (§2.4).
 import type { ModelClient } from "@agentic-analytics/models";
-import type { ProfileSummary } from "@agentic-analytics/profile";
+import type { ProfileSummary, Role } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { screen } from "@agentic-analytics/schema";
 import { z } from "zod";
@@ -122,9 +122,7 @@ export function draftRecord(draft: DraftResult): DraftRecord {
   };
 }
 
-const MONEY = /amount|revenue|sales|sum\b|summa|выручка|сумма|tushum|turnover/i;
 const REFUND_VALUE = /refund|return|cancel|chargeback|возврат|отмен|qaytar/i;
-const CHANNEL = /channel|segment|канал|сегмент|kanal/i;
 
 /** Grouping columns can have many values: the analysis keeps the top members and an "(other)" bucket. */
 export const MAX_GROUPING_VALUES = 2000;
@@ -174,8 +172,15 @@ function safeMemberName(value: string): boolean {
   return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !screen(value);
 }
 
-const PRICE = /price|цена|narx/i;
-const QUANTITY = /qty|quantity|units|pcs|pieces|кол-во|количество|soni|dona/i;
+/** The table's columns that have a role, best score first (semantics §1: roles replaced the header regexes of M4). */
+function withRole(summary: ProfileSummary, table: ProfiledTable, ...roles: Role[]): ProfiledTable["columns"] {
+  const detected = summary.semantics?.roles.find((r) => r.table_id === table.table_id);
+  if (!detected) return [];
+  return detected.columns
+    .filter((c) => roles.includes(c.role))
+    .sort((a, b) => b.score - a.score || a.position - b.position)
+    .flatMap((c) => table.columns.filter((x) => x.name === c.column));
+}
 
 /**
  * What revenue sums, in the largest dated table that has it: a money-named amount column, or else a line total,
@@ -184,12 +189,12 @@ const QUANTITY = /qty|quantity|units|pcs|pieces|кол-во|количество
 function salesAmount(summary: ProfileSummary): { table: ProfiledTable; expression: string; currency?: string } | undefined {
   const tables = [...summary.tables].filter((t) => t.date_column).sort((a, b) => b.detail_rows - a.detail_rows);
   for (const t of tables) {
-    const money = t.columns.find((c) => c.type === "currency" && MONEY.test(c.label));
+    const money = withRole(summary, t, "amount").find((c) => c.type === "currency");
     if (money) return { table: t, expression: money.name, ...(money.currency ? { currency: money.currency } : {}) };
   }
   for (const t of tables) {
-    const price = t.columns.find((c) => c.type === "currency" && PRICE.test(c.label));
-    const qty = t.columns.find((c) => (c.type === "integer" || c.type === "decimal") && QUANTITY.test(c.label));
+    const price = withRole(summary, t, "unit_price").find((c) => c.type === "currency");
+    const qty = withRole(summary, t, "quantity").find((c) => c.type === "integer" || c.type === "decimal");
     if (price && qty)
       return { table: t, expression: `${qty.name} * ${price.name}`, ...(price.currency ? { currency: price.currency } : {}) };
   }
@@ -248,9 +253,7 @@ export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
       status: "assumed",
     });
   }
-  const channel = table.columns.find(
-    (c) => c.type === "category" && CHANNEL.test(c.label) && c.distinct_count >= 2 && c.distinct_count <= 5,
-  );
+  const channel = withRole(summary, table, "channel").find((c) => c.type === "category" && c.distinct_count >= 2 && c.distinct_count <= 5);
   for (const member of (channel?.top_values ?? []).filter((m) => safeMemberName(m.value))) {
     const id = `${member.value
       .toLowerCase()

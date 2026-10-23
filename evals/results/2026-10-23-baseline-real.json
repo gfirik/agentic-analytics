@@ -14,7 +14,7 @@
       "sha256": "3b22c26428ec81ad9432ec81f063c3623921ea0865066b5412535a39d143773b",
       "file": "hotel-bookings.csv",
       "completed": true,
-      "seconds": 27.391,
+      "seconds": 26.2,
       "metrics": [
         "room_revenue",
         "room_nights",
@@ -46,7 +46,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "106 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+          "detail": "107 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
@@ -88,7 +88,7 @@
       "sha256": "b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851",
       "file": "montgomery-warehouse-sales.csv",
       "completed": true,
-      "seconds": 147.827,
+      "seconds": 141.666,
       "metrics": [],
       "findings": [],
       "quality": [
@@ -123,7 +123,7 @@
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
       "file": "nz-card-spend-by-industry.csv",
       "completed": true,
-      "seconds": 7.985,
+      "seconds": 6.694,
       "metrics": [
         "card_spend"
       ],
@@ -184,7 +184,7 @@
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
       "file": "online_retail_II.sample10.csv",
       "completed": true,
-      "seconds": 15.842,
+      "seconds": 13.866,
       "metrics": [
         "revenue",
         "orders"
@@ -211,7 +211,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "31 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+          "detail": "32 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
@@ -251,5 +251,5 @@
       ]
     }
   ],
-  "seconds": 199.062
+  "seconds": 188.433
 }

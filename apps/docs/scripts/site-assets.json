@@ -1,7 +1,7 @@
 {
-  "inputs": "140f505e05b8670c8ad12f3880e5b4b4143dfa3e7f563beb86bb25ec74af56e9",
+  "inputs": "f951aefd3224eea8041b52cb49b89fc05629b6947a40e66198179197eab45cfb",
   "outputs": {
-    "public/og.png": "1f442e84fcfc20dfde19647c1574dd2b2227eed4edac9ea40bf9e0f66e458234",
+    "public/og.png": "cb3bf30fa0b2d5e4f1645fd396d0ef738372f27fedccbb1005b787054718f6fa",
     "public/favicon.ico": "3cdce01268f6e87bd95e9333a4f083242466603892c9c50622efa29640c1f8be",
     "public/machine-wide.webp": "ceb942af273c5d823d2df8d3c044b36e86b9424220894932aa27a58124d1ab50",
     "public/machine-wide.png": "29a2e0fd91ebd65fe4adedd36717bf5cca65abff15f3fb0306dd1a645cb0a664",

@@ -4,7 +4,8 @@ The PROFILE stage. It normalizes ingested tables (dates, numbers, currency, type
 
 - **Spec:** docs/specs/ingestion-and-profiling.md §5–8
 - **Role detector:** docs/specs/semantics.md §1–§2 (M15)
-- **Status:** M3; the role detector is M15 PR 4.
+- **Table kinds and business model:** docs/specs/semantics.md §3–§4, §6 (M15 PR 5)
+- **Status:** M3; the role detector is M15 PR 4, table kinds, the business model and `ProfileSummary.semantics` are PR 5.
 
 ## Public API
 
@@ -21,6 +22,10 @@ The PROFILE stage. It normalizes ingested tables (dates, numbers, currency, type
 | `detectRoles(ws, table, profile, { tieBreak? })` | The role detector. For every column: ranked candidates `{ role, score, evidence }` from the header (EN/RU/UZ synonyms, head word, entity + id suffix), the inferred type, value patterns and cross-column identities checked in DuckDB (`quantity × unit_price − discount ≈ amount`, margin, due ≥ issue; each rate is returned as `role_identity.<check>.<table>`). The proposal is the top candidate at 0.4 or more, else `none`. Deterministic, no model; an optional injected `RoleTieBreak` may choose between candidates within 0.1 and can only pick from them. |
 | `columnCandidates(column)` | The pure, per-column part of the detector (no SQL): name, type and value signals. |
 | `saveRoles(ws, roles)`, `loadRoles(ws, tableId)` | Store the proposals and candidates (`profile_roles`, `profile_role_candidates`, migration 6). |
+| `classifyKind(roles, ctx)`, `classifyTable(ws, roles, profile, names)`, `TABLE_KINDS` | The table-kind classifier (semantics §3): a pure function of the proposed roles, the detector's identities and a small context (names, signed amount, a unique date key measured in SQL). First matching rule wins; the result is `{ table_id, kind, evidence }` with the matched roles as evidence. |
+| `saveTableKind(ws, kind)`, `loadTableKinds(ws)` | Store the kinds (`profile_table_kinds`). |
+| `inferBusinessModel(ws, tables)` | retail, wholesale, subscription, services or unknown (semantics §4), from the kinds, roles and revenue shares measured in SQL. Each measured share comes back with its SQL, so it can be a fact. |
+| `reportSemantics(ws, summary.semantics)` | The report's `roles`, `table_kinds` and `business_model` parts, plus the facts behind them, ready for `buildDraft` (semantics §6). |
 | `ROLES`, `parseRole(s)`, `RoleError` | The fixed vocabulary (semantics §1) and its typed refusal (`UNKNOWN_ROLE`). |
 | `matchEntities(ws, tables)`, `normalizeEntity(raw)` | Customer, supplier and product spellings. Exact after normalization (legal forms, quotes, punctuation, transliteration), else Jaro–Winkler ≥ 0.92 in DuckDB with a token-overlap and same-numbers check. |
 

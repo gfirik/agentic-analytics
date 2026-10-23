@@ -19,6 +19,8 @@ Renders a report v1 (`report.json`) to one self-contained `report.html`: React s
 
 What the page does:
 
+- Shows the business model, each table's kind and each column's role with its evidence in a "Column roles and table kinds" section after the metric definitions (when the report has them).
+
 - Every `{{N…}}` placeholder becomes a button; clicking it shows the fact's exact value, SQL or function, inputs, metric definition and citations. Escape closes it.
 - Every citation is a chip; clicking it shows the source in the Evidence panel with the cited rows/cells or quoted passage highlighted. Web sources carry an **External** badge.
 - Light and dark themes, keyboard focus styles, print stylesheet. Report text is escaped and written with `textContent` only.

@@ -150,3 +150,48 @@ describe("renderReportHtml", () => {
     expect(out).not.toContain("</script><script>alert(1)");
   });
 });
+
+describe("column roles and table kinds (report-schema §5b, §6)", () => {
+  function withSemantics(): Report {
+    const r = fixture();
+    const source = r.sources.find((s) => s.kind === "table")?.id ?? "";
+    const fact = r.facts[0]?.id ?? "";
+    r.assumptions.push({ id: "A9", text: "Business model assumed: wholesale (a few customers hold most of the revenue).", affects: [] });
+    r.roles = [
+      {
+        table_id: source,
+        column: "unit_cost",
+        role: "unit_cost",
+        status: "assumed",
+        source: "detector",
+        evidence: [
+          { kind: "name", text: 'header is "unit cost"' },
+          { kind: "identity", text: `margin identity holds on {{${fact}}} of rows`, fact },
+        ],
+      },
+    ];
+    r.table_kinds = [{ table_id: source, kind: "period_summary", evidence: ["period", "amount"] }];
+    r.business_model = { model: "wholesale", status: "assumed", assumption: "A9", signals: [] };
+    return r;
+  }
+
+  it("shows the business model, the table's kind, and each role with its evidence and a clickable fact", async () => {
+    const doc = await open(renderReportHtml(withSemantics()));
+    const section = doc.querySelector("#semantics")?.parentElement;
+    expect(section?.textContent).toContain("Business model: wholesale");
+    expect(section?.textContent).toContain("period summary");
+    expect(section?.textContent).toContain("unit_cost is unit cost");
+    expect(section?.querySelector("button.num[data-fact]")).not.toBeNull();
+  });
+
+  it("an assumption that affects nothing prints no empty 'Affects' clause", async () => {
+    const doc = await open(renderReportHtml(withSemantics()));
+    const li = [...doc.querySelectorAll("#assumptions ~ ul li")].find((x) => x.textContent?.includes("Business model assumed"));
+    expect(li?.textContent).not.toContain("Affects");
+  });
+
+  it("a report without them has no such section", async () => {
+    const doc = await open(renderReportHtml(fixture()));
+    expect(doc.querySelector("#semantics")).toBeNull();
+  });
+});

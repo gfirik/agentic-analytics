@@ -401,7 +401,14 @@ describe("margin identity needs a cost candidate", () => {
     expect(roleOf(roles, "Gross")).toBe("measure");
     expect(roles.identities.find((i) => i.check === "margin")).toMatchObject({ matched: 6, total: 6, holds: true });
     const gross = roles.columns.find((c) => c.label === "Gross");
-    expect(gross?.evidence.map((e) => e.text).join(" ")).toMatch(/margin identity holds on 100\.0%/);
+    expect(gross?.evidence.map((e) => e.text).join(" ")).toMatch(/margin identity holds/);
+    // every reported rate is what the identity's own SQL returns (AGENTS.md 2.1), margin included
+    const { ws } = await detect(fixture(specs, rows));
+    expect(roles.identities.length).toBeGreaterThan(0);
+    for (const id of roles.identities) {
+      const row = await ws.one<{ value: number }>({ text: id.sql.text, params: id.sql.params as never });
+      expect(id.rate).toBe(Number(row?.value));
+    }
   });
 
   it("no cost column, no margin identity", async () => {

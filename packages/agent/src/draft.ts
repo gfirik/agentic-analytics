@@ -23,6 +23,7 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
 import { qualityCount } from "./quality.sql.ts";
+import { type SemanticsInput, semanticsParts } from "./semantics.ts";
 import type { OpenQuestionDraft } from "./tools.ts";
 
 export interface DraftInput {
@@ -44,6 +45,8 @@ export interface DraftInput {
   readonly facts: ReadonlyMap<string, Fact>;
   /** An incomplete last month the analysis left out (it becomes an assumption). */
   readonly partialPeriod?: string;
+  /** Roles, table kinds and the business model from PROFILE (M15; report-schema §5b). Absent: the report carries none. */
+  readonly semantics?: SemanticsInput;
 }
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -319,7 +322,13 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
   ];
   const quality = await qualityIssues(ws, input.quarantined);
   const known = new Map([...input.facts, ...quality.facts.map((f) => [f.id, f] as const)]);
-  const facts = closure([...referenced, ...[...texts, ...quality.issues.map((i) => i.description)].flatMap(placeholders)], known);
+  const cited = closure([...referenced, ...[...texts, ...quality.issues.map((i) => i.description)].flatMap(placeholders)], known);
+  // The business model is an assumption of its own, shown beside the others (semantics §4); its facts follow the quality facts.
+  const semantics = input.semantics
+    ? await semanticsParts(ws, input.semantics, `A${assumptions.length + 1}`, input.quarantined)
+    : undefined;
+  if (semantics) assumptions.push(semantics.assumption);
+  const facts = semantics ? [...cited, ...semantics.facts] : cited;
 
   return {
     schema: REPORT_SCHEMA_ID,
@@ -337,6 +346,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     recommendations: [...input.recommendations],
     open_questions: questions,
     facts,
+    ...(semantics ? { roles: semantics.roles, table_kinds: semantics.table_kinds, business_model: semantics.business_model } : {}),
     verification: {
       numbers_checked: 0,
       numbers_mismatched: 0,

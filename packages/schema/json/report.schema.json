@@ -1264,6 +1264,205 @@
           }
         ]
       }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "column": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "transaction_date",
+              "issue_date",
+              "due_date",
+              "paid_date",
+              "period",
+              "snapshot_date",
+              "order_id",
+              "invoice_id",
+              "line_id",
+              "customer_id",
+              "product_id",
+              "supplier_id",
+              "customer",
+              "product",
+              "product_group",
+              "channel",
+              "location",
+              "supplier",
+              "salesperson",
+              "dimension",
+              "amount",
+              "quantity",
+              "unit_price",
+              "unit_cost",
+              "cost_amount",
+              "discount",
+              "tax",
+              "refund_amount",
+              "paid_amount",
+              "balance",
+              "stock_on_hand",
+              "count",
+              "measure",
+              "status",
+              "currency",
+              "description"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "assumed"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "detector",
+              "model",
+              "user"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "name",
+                    "type",
+                    "pattern",
+                    "identity",
+                    "tie_break",
+                    "user"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                },
+                "fact": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "text"
+              ]
+            }
+          },
+          "assumption": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "table_id",
+          "column",
+          "role",
+          "status",
+          "source",
+          "evidence"
+        ]
+      }
+    },
+    "table_kinds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sales_lines",
+              "invoices",
+              "bills",
+              "inventory_snapshot",
+              "bank_cash",
+              "budget_plan",
+              "period_summary",
+              "other"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "table_id",
+          "kind",
+          "evidence"
+        ]
+      }
+    },
+    "business_model": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": [
+            "retail",
+            "wholesale",
+            "subscription",
+            "services",
+            "unknown"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "assumed"
+          ]
+        },
+        "assumption": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "fact": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "text"
+            ]
+          }
+        }
+      },
+      "required": [
+        "model",
+        "status",
+        "assumption",
+        "signals"
+      ]
     }
   },
   "required": [

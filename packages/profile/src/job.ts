@@ -5,6 +5,11 @@ import type { IngestResult } from "@agentic-analytics/ingest";
 import { type IssueRow, insertIssues, loadJob, type NormalizedTable, type SectionRow, type Workspace } from "@agentic-analytics/store";
 import { ASSUME_BELOW, type Entity, matchEntities } from "./entities.ts";
 import { type ColumnIssue, type Grain, normalizeTable } from "./normalize.ts";
+import { inferBusinessModel } from "./roles/business.ts";
+import { detectRoles, type TableRoles } from "./roles/detect.ts";
+import { classifyTable, type KindResult } from "./roles/kinds.ts";
+import type { SemanticsSummary } from "./roles/report.ts";
+import { saveRoles, saveTableKind } from "./roles/store.ts";
 import { runRules } from "./rules.ts";
 import { profileTable, type TableProfile } from "./stats.ts";
 
@@ -21,6 +26,8 @@ export interface ProfileSummary {
   readonly entities: Entity[];
   /** Things the report must carry as assumptions: unresolved date orders, uncertain entity links. */
   readonly assumptions: { readonly kind: string; readonly text: string; readonly refs: Record<string, unknown> }[];
+  /** Column roles, table kinds and the business model (docs/specs/semantics.md): proposals, until a person confirms them. */
+  readonly semantics: SemanticsSummary;
 }
 
 export async function profileJob(ws: Workspace, ingested: IngestResult, options: ProfileOptions): Promise<ProfileSummary> {
@@ -76,6 +83,8 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
   });
 
   const tables: ProfileSummary["tables"] = [];
+  const allRoles: TableRoles[] = [];
+  const kinds: KindResult[] = [];
   const ruleIssues: IssueRow[] = [];
   for (const n of normalized) {
     const profile = await profileTable(ws, n.table, n.periodColumn);
@@ -86,6 +95,14 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
       ...(n.table.sheet !== undefined ? { sheet: n.table.sheet } : {}),
       range: n.table.range,
     });
+    // Roles and the table kind (semantics §2–§3): proposals from the profile, stored next to it.
+    const named = tables[tables.length - 1];
+    const roles = await detectRoles(ws, n.table, profile);
+    await saveRoles(ws, roles);
+    const kind = await classifyTable(ws, roles, profile, [named?.name ?? "", named?.file ?? "", named?.sheet ?? ""].filter(Boolean));
+    await saveTableKind(ws, kind);
+    allRoles.push(roles);
+    kinds.push(kind);
     for (const r of await runRules(ws, n.table, profile, options.today)) {
       ruleIssues.push({
         id: nextId(),
@@ -130,7 +147,26 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
       }
     }
   }
-  return { grain, tables, issues: [...issues, ...ruleIssues], entities, assumptions };
+  const business_model = await inferBusinessModel(
+    ws,
+    kinds.map((kind) => {
+      const t = tables.find((x) => x.table_id === kind.table_id);
+      return {
+        kind,
+        roles: allRoles.find((r) => r.table_id === kind.table_id) as TableRoles,
+        detail_rows: t?.detail_rows ?? 0,
+        date_column: t?.date_column,
+      };
+    }),
+  );
+  return {
+    grain,
+    tables,
+    issues: [...issues, ...ruleIssues],
+    entities,
+    assumptions,
+    semantics: { roles: allRoles, table_kinds: kinds, business_model },
+  };
 }
 
 function columnIssue(id: string, t: NormalizedTable, ci: ColumnIssue): IssueRow {

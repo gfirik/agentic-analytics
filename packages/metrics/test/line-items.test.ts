@@ -60,3 +60,35 @@ describe("fallback metrics on invoice lines", () => {
     expect(fallbackMetrics(summary).find((d) => d.id === "revenue")?.expression).toBe("amount");
   });
 });
+
+describe("fallback metrics read column roles, not header names (semantics §1)", () => {
+  const CSV = "Date,Foo,Route\n2026-01-05,$3.00,a\n2026-01-06,$4.00,b\n2026-01-07,$4.50,a\n2026-02-02,$4.00,b\n2026-02-09,$5.00,a\n";
+  const withRoles = async (assign: Record<string, string>) => {
+    const ws = await Workspace.open();
+    open.push(ws);
+    const summary = await profileJob(ws, await ingest([{ name: "s.csv", bytes: new TextEncoder().encode(CSV) }]), { today: "2026-07-01" });
+    const first = summary.semantics.roles[0];
+    if (!first) throw new Error("no roles");
+    const columns = first.columns.map((c) => ({ ...c, role: (assign[c.column] ?? "none") as typeof c.role, score: 1 }));
+    return { ...summary, semantics: { ...summary.semantics, roles: [{ ...first, columns }] } };
+  };
+
+  it("a column the roles call the amount is revenue, whatever its header says; the channel role splits it", async () => {
+    const summary = await withRoles({ date: "transaction_date", foo: "amount", route: "channel" });
+    const drafts = fallbackMetrics(summary);
+    expect(drafts.map((d) => [d.id, d.expression])).toEqual([
+      ["revenue", "foo"],
+      ["a_revenue", "foo"],
+      ["b_revenue", "foo"],
+    ]);
+  });
+
+  it("with no amount role there is no revenue to draft: the header 'Foo' alone is not enough, and neither would 'Amount' be", async () => {
+    expect(fallbackMetrics(await withRoles({ date: "transaction_date", route: "channel" }))).toEqual([]);
+  });
+
+  it("a summary with no roles drafts nothing", async () => {
+    const summary = await withRoles({ foo: "amount" });
+    expect(fallbackMetrics({ ...summary, semantics: { ...summary.semantics, roles: [] } })).toEqual([]);
+  });
+});

@@ -136,7 +136,7 @@
     {
       "check": "V2",
       "name": "recompute",
-      "run": 100,
+      "run": 101,
       "failed": 0
     },
     {
@@ -177,7 +177,7 @@
     }
   ],
   "verification": {
-    "numbers_checked": 100,
+    "numbers_checked": 101,
     "numbers_mismatched": 0,
     "citations_checked": 6,
     "claims_dropped": 2,

@@ -108,6 +108,35 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     expect(report.recommendations.every((r) => r.because.every((b) => report.findings.some((f) => f.id === b)))).toBe(true);
   });
 
+  it("report.json carries the column roles, table kinds and business model, with measured facts that V2 re-ran (M15)", () => {
+    // coffee-roaster-v1: an Orders sheet of sales lines, and two monthly summaries (Costs and the pre-aggregated P&L sheet).
+    expect(report.table_kinds?.map((k) => k.kind)).toEqual(["sales_lines", "period_summary", "period_summary"]);
+    const t1 = (report.roles ?? []).filter((r) => r.table_id === "T1");
+    const roleOf = (column: string) => t1.find((r) => r.column === column)?.role;
+    expect([
+      roleOf("date"),
+      roleOf("order_id"),
+      roleOf("customer"),
+      roleOf("product"),
+      roleOf("qty"),
+      roleOf("amount"),
+      roleOf("channel"),
+    ]).toEqual(["transaction_date", "order_id", "customer", "product", "quantity", "amount", "channel"]);
+    // auto-confirm keeps proposals as assumptions, and every role names its evidence
+    expect((report.roles ?? []).every((r) => r.status === "assumed" && r.source === "detector" && r.evidence.length > 0)).toBe(true);
+    // the business model is an assumption of its own, backed by a fact that is an SQL computation
+    const b = report.business_model;
+    expect(b?.status).toBe("assumed");
+    expect(report.assumptions.find((a) => a.id === b?.assumption)?.text).toMatch(/^Business model assumed: \w+ \(/);
+    for (const s of b?.signals ?? []) {
+      const f = report.facts.find((x) => x.id === s.fact);
+      expect(f?.computation.kind).toBe("sql");
+      expect(f?.unit).toBe("percent");
+    }
+    // V2 re-ran every fact in the report, these included, with no mismatch
+    expect(report.verification.numbers_mismatched).toBe(0);
+  });
+
   it("runs every stage once, skips the optional ones, renders report.html, and logs events", () => {
     expect(out.run.ran).toEqual([
       "INGEST",

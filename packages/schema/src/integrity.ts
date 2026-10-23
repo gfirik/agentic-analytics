@@ -204,6 +204,26 @@ export function checkReportIntegrity(report: Report): IntegrityIssue[] {
     text(`data_quality[${i}].description`, q.description);
     citations(`data_quality[${i}].citations`, q.citations);
   }
+  // M15 (report-schema §5b): roles, table kinds and the business model resolve their facts, sources and assumption.
+  for (const [i, r] of (report.roles ?? []).entries()) {
+    const p = `roles[${i}]`;
+    if (!sourceIds.has(r.table_id)) add(`${p}.table_id`, `unknown source ${r.table_id}`);
+    if (r.assumption && !assumptionIds.has(r.assumption)) add(`${p}.assumption`, `unknown assumption ${r.assumption}`);
+    for (const [j, e] of r.evidence.entries()) {
+      text(`${p}.evidence[${j}].text`, e.text);
+      if (e.fact) fact(`${p}.evidence[${j}].fact`, e.fact);
+    }
+  }
+  for (const [i, k] of (report.table_kinds ?? []).entries())
+    if (!sourceIds.has(k.table_id)) add(`table_kinds[${i}].table_id`, `unknown source ${k.table_id}`);
+  if (report.business_model) {
+    const b = report.business_model;
+    if (!assumptionIds.has(b.assumption)) add("business_model.assumption", `unknown assumption ${b.assumption}`);
+    for (const [j, sig] of b.signals.entries()) {
+      text(`business_model.signals[${j}].text`, sig.text);
+      if (sig.fact) fact(`business_model.signals[${j}].fact`, sig.fact);
+    }
+  }
   report.evidence?.forEach((e, i) => {
     if (!sourceIds.has(e.source_id)) add(`evidence[${i}].source_id`, `unknown source ${e.source_id}`);
   });
