@@ -159,7 +159,7 @@ The order that goes to EXPLAIN:
 
 First come the candidates:
 
-- **Family firsts.** One candidate per metric family: its best whole-metric change. A channel slice such as `wholesale_revenue` is in the `revenue` family. The family's candidate is the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without a per-family candidate a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
+- **Family firsts.** One candidate per metric family: its best whole-metric change. A channel slice such as `wholesale_revenue` is in the `revenue` family. From M15 (PR 7), families are grouped by definition, not by id suffix: metrics on the same table and expression are one family whatever their filters (§8.1). The family's candidate is the parent metric's best change when that carries at least half the family's best score: the parent is the headline, and its decomposition names the driver. A rate's materiality is a small share of its own total, so without a per-family candidate a refund rate tripling would lose every slot to restatements of one revenue drop (M11).
 - **The member story.** The most dramatic single-member change: the largest relative change (`change_pct`) among members whose impact share is ≥ 2%. Impact share is the same measure the score uses: |Δ| over the objective metric's total for the period (currency), or the percentage-point change / 100 (rates). A count-unit member has impact share 0 and is never a candidate. A member already named as the top driver of a family first is excluded. A member change on a slice speaks through the same member's change, in the same period, on the objective metric or the slice's parent, when that carries at least half its score: drafted slice ids often don't share the parent's id (`revenue_by_channel_walkin` next to `total_revenue`). Without this slot a product cannibalized by a launch never reaches the top (M13a).
 
 Then the lead order (M14a). Small-model mode explains only 3 findings. With a real model drafting 8–15 metrics, the other families (gross margin, net profit, a second sales measure, a channel share) each restated the lead change and took slots 2 and 3, so the planted rate and member events were never explained. In the 2026-10-19 nightly run, P2 was found in 3 of 7 finished jobs and P3 in 0 of 7. The order:
@@ -180,3 +180,273 @@ In 2, 3 and 4, a change in another period than the lead's comes before one in th
   - revenue Apr vs Mar −17.9%;
   - wholesale contribution 108%;
   - refund rate 1.2% → 3.4%.
+
+## 8. Analysis packs (M15)
+
+A **pack** is a fixed list of metrics and templates that a set of roles or table kinds unlocks (semantics §1–§3; analyst-grade §3.2). The runner runs every pack whose requirements are met, and lists each one that isn't under "Analyses not run" (§13). Ranking (§6) is still the only place that decides what reaches EXPLAIN. The scorecard (§12) and the concentration section (§11) are their own report sections, so a bigger metric set doesn't push other findings out.
+
+Rules for every pack:
+
+- **Every number is a fact.** A pack's numbers come from a parameterized SQL template (`.sql.ts`) or a pure function in this package, with a `computation` record. Each function has a V2 rule (agent-and-verifier §7), and its hand-computed test also runs through V2.
+- **Roles, not names.** Packs read confirmed or assumed roles (semantics §5), never column-name regexes. PR 5 moves the runner's `QTY`/`ITEM` regexes and `fallbackMetrics`' name guesses onto roles.
+- **Fixed labels.** Each pack's facts carry the labels in §14, so golden items can name them before the engine exists.
+
+The M15 packs, in their default order (semantics §4 reorders them per business model):
+
+| Pack | Section | Unlocked by |
+|---|---|---|
+| Sales KPIs | §8.1 | a `sales_lines` table (or `invoices` when there is none) |
+| Margin | §9 | the sales KPIs + `unit_cost` (with `quantity`) or `cost_amount` |
+| Margin PVM | §10 | margin + `quantity` + a product entity |
+| Pareto and concentration | §11 | an additive currency metric + a dimension with an entity or `channel`, `location`, `salesperson`, `product_group` role |
+| Scorecard | §12 | any pack KPI or confirmed metric |
+
+### 8.1 Sales KPI pack (drafted by code)
+
+From a sales-lines table's roles, code drafts these metric definitions (metric-layer §2). Each one is drafted only when its roles exist. Each missing one becomes an "Analyses not run" entry (§13).
+
+**Revenue lines** are the table's rows minus those whose `status` is in the refund or cancellation class: refunded, returned, cancelled, canceled, a true `is_canceled`-style flag; RU возврат, отменён; UZ qaytarilgan, bekor qilingan. The value lists live in code next to the synonyms (semantics §2.3). Negative-quantity lines are not removed: they net out, as today.
+
+| id | Type | Definition | Needs |
+|---|---|---|---|
+| `revenue` | sum | Σ `amount` over revenue lines; with no `amount`, Σ `quantity` × `unit_price` (minus `discount` when the net identity holds, semantics §2.2) | `amount`, or `quantity` + `unit_price` |
+| `orders` | count_distinct | distinct `order_id` (else `invoice_id`) over revenue lines | `order_id` or `invoice_id` |
+| `units` | sum | Σ `quantity` over revenue lines | `quantity` |
+| `aov` | ratio | `revenue` ÷ `orders`, unit currency | revenue + orders |
+| `customers` | count_distinct | distinct customer entity (the id when both exist) over revenue lines | a customer entity |
+| `new_customers` | count_distinct | customers active in the period whose first revenue line in the table falls in that period | a customer entity |
+| `returning_customers` | count_distinct | customers active in the period whose first revenue line is earlier | a customer entity |
+| `refund_rate` | ratio, percent | with `refund_amount`: Σ `refund_amount` ÷ `revenue` × 100. Else, with a `status` in the refund class: orders with that status ÷ all orders × 100, where "orders" is distinct `order_id`, or rows when there is no order id | `refund_amount`, or `status` with refund values |
+| `cancellation_rate` | ratio, percent | orders (or rows) with a cancellation status ÷ all orders (or rows) × 100 | `status` with cancellation values |
+| `discount_rate` | ratio, percent | Σ `discount` ÷ gross sales × 100, where gross sales = Σ `quantity` × `unit_price` over revenue lines, or Σ (`amount` + `discount`) when there is no price, with the assumption "amount is net of discount" | `discount` |
+
+- **New and returning customers** have no history before the table's first period, so they are not stated for that period. Every customer there would read as new. The not-run entry says so.
+- **Slicing.** Every KPI is measured per period and per dimension member as in §1. A ratio is sliced by slicing its numerator and denominator (analyst-grade §2.2).
+- **Dedupe by definition.** The model's drafts are added after the code's, and two definitions are the same metric when their type, table, expression (whitespace and case normalized) and filter set are equal. For a ratio, its numerator and denominator must be the same too. The surviving id is the user's (a confirmed metric), else the code's, else the model's. This also closes the [M14a] gap "families grouped by id suffix": families are grouped by definition (§6).
+
+### 8.2 Hand-computed KPI fixture (one month, 10 lines)
+
+These are the same rows as PR 7's test and semantics §2.2's gross-vs-net example. `amount` is net of `discount`.
+
+| line | order | customer | product | qty | unit price | discount | amount | status |
+|---|---|---|---|---|---|---|---|---|
+| 1 | O1 | C1 | A | 2 | 100.00 | 0 | 200.00 | paid |
+| 2 | O1 | C1 | B | 1 | 150.00 | 0 | 150.00 | paid |
+| 3 | O2 | C2 | A | 3 | 100.00 | 0 | 300.00 | paid |
+| 4 | O3 | C1 | B | 2 | 150.00 | 0 | 300.00 | paid |
+| 5 | O4 | C3 | A | 1 | 100.00 | 0 | 100.00 | refunded |
+| 6 | O5 | C4 | C | 4 | 50.00 | 20.00 | 180.00 | paid |
+| 7 | O6 | C2 | D | 5 | 85.00 | 0 | 425.00 | paid |
+| 8 | O7 | C5 | B | 1 | 150.00 | 0 | 150.00 | refunded |
+| 9 | O8 | C3 | B | 2 | 150.00 | 30.00 | 270.00 | paid |
+| 10 | O8 | C3 | C | 1 | 50.00 | 0 | 50.00 | paid |
+
+The revenue lines are 1–4, 6, 7, 9 and 10 (lines 5 and 8 are refunded).
+
+- `revenue` = 200 + 150 + 300 + 300 + 180 + 425 + 270 + 50 = **1,875.00**
+- `orders` = {O1, O2, O3, O5, O6, O8} = **6**
+- `aov` = 1,875.00 ÷ 6 = **312.50**
+- `units` = 2 + 1 + 3 + 2 + 4 + 5 + 2 + 1 = **20**
+- `customers` = {C1, C2, C3, C4} = **4** (C3 is counted through O8; C5 has only a refunded order)
+- `refund_rate` (status form; all orders O1–O8 = 8, refunded O4 and O7 = 2) = 2 ÷ 8 × 100 = **25%**
+- `discount_rate`: discounts 20.00 + 30.00 = 50.00; gross sales = Σ qty × price over revenue lines = 200 + 150 + 300 + 300 + 200 + 425 + 300 + 50 = 1,925.00; 50.00 ÷ 1,925.00 × 100 = **2.597402…%**
+- *New vs returning*, with one earlier month in which C1 and C6 bought: in this month C1 is **returning** (1), and C2, C3 and C4 are **new** (3).
+
+## 9. Margin
+
+Margin is drafted by code when a cost role exists.
+
+- **`cost`**: Σ `quantity` × `unit_cost` over revenue lines, or Σ `cost_amount` when that role exists. Rows with a null cost are left out of margin on both sides. When any revenue line in a period has no cost, the pack drafts `costed_revenue` (revenue over the lines with a cost) and uses it in place of `revenue` below. It also records the assumption "margin covers only lines with a cost" and cites the missing-value quality item.
+- **`gross_margin`** = revenue − cost. It is a derived metric (`expression: revenue - cost`). Its value for a period or member is a function fact: `fn: gross_margin`, inputs [revenue fact, cost fact] of the same period and member, value a − b. V2 recomputes it from those inputs, and V4 checks that the inputs are measured from the definition's two terms (agent-and-verifier §7).
+- **`gross_margin_pct`** = gross_margin ÷ revenue × 100. It is a ratio metric (numerator `gross_margin`, denominator `revenue`), so it is sliced by slicing its numerator and denominator. Its value is a function fact: `fn: gross_margin_pct`, inputs [revenue, cost], value (a − b) ÷ a × 100. It is not stated when revenue ≤ 0, as with Δ% (§2).
+- **Margin by member:** the same facts per product, customer and channel member (the top 50 by revenue plus "(other)", as in §1).
+- **Contribution margin** needs variable-cost data that no M15 dataset has. It is listed under "Analyses not run" (`contribution_margin`, `no_variable_cost`).
+- **Without a cost role,** margin, margin by member and margin PVM are not run (`no_cost_role`). A claim that names margin anyway is dropped by V4's role check (agent-and-verifier §7).
+
+**Hand-computed** (the same two products as §10's first case):
+
+| Product | Period 0: revenue, cost, margin, margin % | Period 1: revenue, cost, margin, margin % |
+|---|---|---|
+| A | 10 × 5 = 50; 10 × 3 = 30; 20; 20 ÷ 50 = 40% | 12 × 5 = 60; 12 × 4 = 48; 12; 12 ÷ 60 = 20% |
+| B | 10 × 10 = 100; 10 × 6 = 60; 40; 40 ÷ 100 = 40% | 8 × 11 = 88; 8 × 6 = 48; 40; 40 ÷ 88 = 45.4545…% |
+| Total | 150; 90; **60**; 60 ÷ 150 = **40%** | 148; 96; **52**; 52 ÷ 148 = **35.135135…%** |
+
+Revenue is nearly flat (150 → 148) while margin falls 60 → 52: a margin squeeze. The product with the lowest margin % in period 1 is A (20%).
+
+## 10. Margin price–volume–mix (`pvm_margin.v1`)
+
+This extends `pvm.v1` (§4.2) to margin, with one more effect for unit cost. For each item i, it uses unit price pᵢ = rᵢ ÷ qᵢ, unit cost cᵢ = costᵢ ÷ qᵢ and unit margin uᵢ = pᵢ − cᵢ. Over the items present in both periods with non-zero quantity, it uses Q = Σ qᵢ, sᵢ = qᵢ ÷ Q and the base average unit margin ū₀ = Σ sᵢ₀ uᵢ₀.
+
+- Volume = (Q₁ − Q₀) · ū₀
+- Mix = Q₁ · (Σ sᵢ₁ uᵢ₀ − ū₀), computed as Σ qᵢ₁ uᵢ₀ − Q₁ ū₀ (the same value, and defined when Q₁ = 0)
+- Price = Σ qᵢ₁ (pᵢ₁ − pᵢ₀)
+- Cost = −Σ qᵢ₁ (cᵢ₁ − cᵢ₀)
+
+**Identity.** Volume + Mix = Σ qᵢ₁uᵢ₀ − Q₀ū₀ = Σ qᵢ₁uᵢ₀ − Σ qᵢ₀uᵢ₀. Price + Cost = Σ qᵢ₁((pᵢ₁ − cᵢ₁) − (pᵢ₀ − cᵢ₀)) = Σ qᵢ₁uᵢ₁ − Σ qᵢ₁uᵢ₀. So Volume + Mix + Price + Cost = Σ qᵢ₁uᵢ₁ − Σ qᵢ₀uᵢ₀, the common items' change in margin, exactly.
+
+The rest of the change goes to separate effects, as in `pvm.v1`. An item is present in a period when its revenue or its cost there is non-zero.
+
+- **New**: +Σ (r₁ − cost₁) over items present only in period 1.
+- **Lost**: −Σ (r₀ − cost₀) over items present only in period 0.
+- **Unpriced**: the whole margin change of items present in both periods but with zero quantity in one of them (no unit price or unit cost to split). Uncosted lines are already outside margin (§9).
+- Effects whose item group is empty are omitted. The sum of all effects is ΔM = M₁ − M₀.
+
+**Zero base quantity.** Returns can make the common items' Q₀ = 0 while their margin is not 0. Then ū₀ is undefined, so Volume = 0 and Mix = Σ qᵢ₁uᵢ₀ − Σ qᵢ₀uᵢ₀, which keeps the identity. Hand-computed: A q 5 → 3, p 4, c 1 (u = 3); B q −5 → 2, p 4 → 5, c 3 (u 1 → 2). Q₀ = 0, M₀ = 15 − 5 = 10, M₁ = 9 + 4 = 13, ΔM = 3. Volume = 0; Mix = (3·3 + 2·1) − (5·3 + (−5)·1) = 11 − 10 = 1; Price = 3·0 + 2·1 = 2; Cost = 0. 0 + 1 + 2 + 0 = 3. (`pvm.v1` sets P̄₀ to 0 in this case, which breaks its identity when R₀ ≠ 0; a known gap that PR 8 fixes in both.)
+
+**Hand-computed case 1** (A2/A3's fixed case; PR 8's test):
+
+- A: q 10 → 12, p 5 → 5, c 3 → 4, so u 2 → 1. B: q 10 → 8, p 10 → 11, c 6 → 6, so u 4 → 5.
+- M₀ = 10·2 + 10·4 = 60. M₁ = 12·1 + 8·5 = 52. ΔM = **−8**.
+- Q₀ = Q₁ = 20. s₀ = (0.5, 0.5), ū₀ = 0.5·2 + 0.5·4 = 3. s₁ = (0.6, 0.4).
+- Volume = (20 − 20)·3 = **0**.
+- Mix = 20·(0.6·2 + 0.4·4 − 3) = 20·(1.2 + 1.6 − 3) = 20·(−0.2) = **−4**. Check: Σ q₁u₀ − Q₁ū₀ = (12·2 + 8·4) − 20·3 = 56 − 60 = −4.
+- Price = 12·(5 − 5) + 8·(11 − 10) = **8**.
+- Cost = −(12·(4 − 3) + 8·(6 − 6)) = **−12**.
+- Sum: 0 − 4 + 8 − 12 = **−8** = ΔM.
+
+**Hand-computed case 2** (volume, new, lost and unpriced items):
+
+- A: q 10 → 16, p 5 → 5, c 3 → 3.5 (u 2 → 1.5). B: q 10 → 5, p 10, c 6 (u 4). C new: q₁ 4, p 8, c 5 (margin 32 − 20 = 12). D lost: q₀ 2, p 20, c 12 (margin 40 − 24 = 16). E: r 30 → 10, cost 18 → 0, q 3 → 0 (unpriced; margin 12 → 10).
+- M₀ = 20 + 40 + 16 + 12 = 88. M₁ = 24 + 20 + 12 + 10 = 66. ΔM = **−22**.
+- Common items A and B: Q₀ = 20, Q₁ = 21, ū₀ = (10·2 + 10·4) ÷ 20 = 3.
+- Volume = (21 − 20)·3 = **3**. Mix = (16·2 + 5·4) − 21·3 = 52 − 63 = **−11**. Price = 16·0 + 5·0 = **0**. Cost = −(16·0.5 + 5·0) = **−8**.
+- New = **+12**. Lost = **−16**. Unpriced = 10 − 12 = **−2**.
+- Sum: 3 − 11 + 0 − 8 + 12 − 16 − 2 = **−22** = ΔM.
+
+**Inputs and V2.** Each effect is a function fact (`fn: pvm_margin.v1`, the effect named by its label, §14). Its inputs are the measured per-item facts (`revenue[product=…]`, `units[product=…]`, `cost[product=…]`):
+
+- Volume, mix, price and cost read the common items in groups of six (r₀, q₀, cost₀, r₁, q₁, cost₁).
+- New reads pairs (r₁, cost₁), and lost reads pairs (r₀, cost₀).
+- Unpriced reads groups of four (r₀, cost₀, r₁, cost₁).
+
+V2 recomputes each effect from its inputs (agent-and-verifier §7). "(other)" is one item, as in `pvm.v1`, so the identity still holds.
+
+**When it runs.** For every material change of `gross_margin` (`period_change.v1`), at that period against its baseline (§2), when the table has `quantity`, a product entity and a cost role. Otherwise the not-run entry is `pvm_margin.v1` with reason `no_cost_role`, `no_quantity_role` or `no_item_dimension`.
+
+**Tests (PR 8):** both cases above and the zero-base case; 200 seeded random cases (mulberry32, fixed seed, 1–12 items, new, lost, unpriced and uncosted items, negative quantities as returns), where the sum of the effects equals ΔM within a relative 1e-9 and V2 recomputes every effect; and a tampered effect (+0.01) that fails V2.
+
+## 11. Pareto, top-N concentration and its trend
+
+These run on one metric: the pack's `revenue`, or the objective metric when that is an additive currency metric. They cover each dimension column whose role is an entity (customer, product, supplier) or `channel`, `location`, `salesperson` or `product_group`. Other metrics and dimensions are reached on demand through the `concentration` planner tool (agent-and-verifier §3).
+
+**Members** are the dimension's values with their metric value over the window, taken from the metric's own member query **without the 50-member cap** of §1. The class counts need every member: Online Retail II has thousands of customers.
+
+- Members with a value ≤ 0 are left out of the curve and counted as their own facts (`nonpositive_count`, `nonpositive_value`).
+- Rows with no key (a null customer id) are left out too, with their value as a fact (`unkeyed_value`). Otherwise "(none)" would read as the largest customer.
+- Shares are of the positive members' total T.
+
+### 11.1 `pareto.v1`
+
+- **Windows:** the trailing 12 months ending at the report's last period (`ttm`), or the whole range when shorter, and the 12 months before it (`ttm_prev`), computed only when the data covers all 12. At other grains the window is the same calendar span: 4 quarters, 52 weeks, 1 year or 365 days.
+- **Curve:** members sorted by value descending, ties by key ascending. The cumulative share Sₖ = (v₁ + … + vₖ) ÷ T × 100.
+- **Classes:** A when Sₖ ≤ 80, B when 80 < Sₖ ≤ 95, C when Sₖ > 95. A member is in the class its cumulative share reaches. The first member is always A, so a member that holds more than 80% alone still makes class A. The comparison allows a relative 1e-12 so that a member that reaches exactly 80% or 95% lands on the lower class despite floating-point rounding.
+- **Facts per class:** the member count, the value and the share of T. Also stated: the total member count, the non-positive count and value, and the unkeyed value.
+- **Computation:** an SQL template (`pareto.sql.ts`: window sums per member, then a window function for the cumulative share), with the metric, dimension, window bounds and thresholds as parameters. The facts are `sql` facts and cite the metric's rows in the window, like any measured fact. V2 re-runs the template. It also applies the `pareto_class` rule: it reads the member totals with a plain group-by (no window function), sorts and classifies them in TypeScript, and the counts and values must match.
+
+**Hand-computed:** members 50, 30, 10, 6, 4 (T = 100) give cumulative shares 50, 80, 90, 96, 100. A = {50, 30}: 2 members, value 80, 80%. B = {10}: 90 ≤ 95, 1 member, value 10. C = {6, 4}: 96 > 95, 2 members, value 10. With a member −5 added, the curve is unchanged, and the non-positive count is 1 with value −5. Edge case: 85, 10, 5 give 85 (A, the first member), 95 (B, since 95 ≤ 95) and 100 (C).
+
+### 11.2 Top-N shares and HHI
+
+- **Top-N share** = Σ of the N largest members ÷ T × 100, for N = 3, 5 and 10. It is stated only when there are more than N positive members, since otherwise it is trivially 100%.
+- **HHI** = Σ sᵢ² over the positive members, with sᵢ = vᵢ ÷ T.
+- **Periods:** each job period, each complete calendar year in the data (when the grain is finer than a year), and the `ttm` window.
+- **Computation:** an SQL template (`concentration.sql.ts`), as `sql` facts that V2 re-runs. V2 also recomputes them from the member totals in TypeScript (rules `top_n_share` and `hhi`).
+- **Hand-computed** on the members above: top-3 share = (50 + 30 + 10) ÷ 100 × 100 = **90%**. HHI = 0.5² + 0.3² + 0.1² + 0.06² + 0.04² = 0.25 + 0.09 + 0.01 + 0.0036 + 0.0016 = **0.3552**.
+- **Agreement.** PR 9 moves `concentration.v1` (§3) onto these exact shares: positive members, no cap, and "(other)" not counted as a member. The finding and the section then agree.
+
+### 11.3 Concentration trend
+
+The per-period HHI facts (and the per-period top-1 share facts) go through `trend.v1` (§3: Theil–Sen slope, Mann–Kendall p < 0.05, 4+ periods), reusing V2's `theil_sen` and `mann_kendall` rules over those facts.
+
+**Hand-computed:** HHI 0.20, 0.22, 0.25, 0.27, 0.30.
+
+- The ten pairwise slopes are 0.02, 0.025, 0.02333…, 0.025, 0.03, 0.025, 0.02666…, 0.02, 0.025 and 0.03. Sorted, the 5th and 6th are both 0.025, so the Theil–Sen slope is **0.025** per period.
+- Mann–Kendall: all 10 pairs rise, so S = 10. Var(S) = n(n − 1)(2n + 5) ÷ 18 = 5·4·15 ÷ 18 = 16.667. z = (S − 1) ÷ √Var = 9 ÷ 4.0825 = 2.2045. The two-sided p is **0.0275** < 0.05: a rising trend.
+
+### 11.4 Single-customer dependence (`dependence.v1`)
+
+A `concentration_risk` finding on the customer entity (or the dimension the business model leads with, semantics §4). It fires when the top member's share in the latest period is ≥ 30%, and either of these holds:
+
+1. that share was below 30% at the start of the `ttm` window and the HHI trend is rising (p < 0.05); or
+2. the top member's own value is shrinking (its `trend.v1` slope < 0 with p < 0.05).
+
+Its claims cite the share facts, the trend facts and the member's value facts. Analyst-grade's third condition ("also overdue") waits for M16's receivables pack.
+
+## 12. Scorecard
+
+The scorecard is a report section built by code at no model cost, including in small-model mode (analyst-grade §3.5). It is not a list of findings.
+
+- **Rows:** each pack KPI (§8.1), then margin and margin % when they exist, then every other confirmed or assumed sum, count or ratio metric (for example a `period_summary` table's measures), up to 12 rows.
+- **Period:** the report's last complete period.
+- **Cells**, each a fact:
+  - **Value:** the measured fact for the period.
+  - **vs baseline:** the change against the previous period, or the trailing mean of 3 when the previous period has no value (§2's rules 2 and 3), and the method. The change Δ is `delta`. Δ% is `pct_change`, stated only when the base is positive (§2). Same-period-last-year is not used here because it has its own column.
+  - **vs same period last year:** Δ and Δ% against the period 12 months earlier at month grain, 4 at quarter grain, or 1 at year grain. Otherwise it is n/a with a reason code: `too_few_periods` (fewer than 13 months, 5 quarters or 2 years), or `grain_not_comparable` at week and day grain.
+  - **Material:** baselines.ts `materiality()` applied to the baseline change, using the noise band (a fact: `fn: noise_band`, inputs the series' points, the last change left out) and the series mean (a fact: `fn: mean`). It is `null` with fewer than 6 periods (no band). It is a flag, not a number: V2 recomputes it from those facts (agent-and-verifier §7).
+
+**Hand-computed** on coffee-roaster-v1 (`evals/datasets/coffee-roaster-v1/answers.yaml`, months 2026-01 … 2026-06; the last is 2026-06):
+
+| Metric | Value | vs previous (May) | Band | Material | vs last year |
+|---|---|---|---|---|---|
+| revenue | 37,000 | +1,200; 37,000 ÷ 35,800 − 1 = +3.352% | 3,113.46 | no (\|1,200\| ≤ band; 3.35% < 5%) | n/a, `too_few_periods` |
+| orders | 1,040 | +35; +3.483% | 81.543 | no | n/a |
+| refund rate | 3.4% | +0.5 pp; 3.4 ÷ 2.9 − 1 = +17.24% | 0.44478 | yes | n/a |
+
+Working for the revenue band:
+
+- The changes between months are +1,700, +1,200, −7,900, −400 and +1,200. The last one is the change being tested, so it is left out.
+- The median of the other four is (−400 + 1,200) ÷ 2 = 400. Their absolute deviations are 1,300, 800, 8,300 and 800, with median (800 + 1,300) ÷ 2 = 1,050.
+- So the band is 2 × 1.4826 × 1,050 = 3,113.46.
+
+Working for the refund rate:
+
+- The changes are −0.1, +0.2, +0.1 and +1.6, with +0.5 left out. Their median is 0.15, the median absolute deviation is (0.05 + 0.25) ÷ 2 = 0.15, and the band is 2 × 1.4826 × 0.15 = 0.44478.
+- \|0.5\| > 0.44478, 17.24% ≥ 5%, and 0.5 ≥ 1% of the mean 1.8167. So the change is material.
+
+**Tests (PR 10):** this table from the dataset's monthly ground truth, the not-run entries for a table with and without cost, an HTML snapshot, and the schema drift check.
+
+## 13. Analyses not run
+
+This is a deterministic list built from each pack's requirements (§8–§12). It costs no model call. Each entry has:
+
+- `analysis`: the id;
+- `reason_code`;
+- `reason`: one sentence;
+- `needs`: the missing roles or kinds.
+
+The `reason` carries **no numerals**: V1's rule applies, so "fewer than 13 months" is written "not enough history for a year-on-year comparison", and the threshold lives in the code.
+
+| analysis | reason_code | When |
+|---|---|---|
+| `gross_margin`, `pvm_margin.v1` | `no_cost_role` | no `unit_cost` or `cost_amount` |
+| `pvm_margin.v1`, `pvm.v1` | `no_quantity_role`, `no_price_role`, `no_item_dimension` | the role is missing |
+| `contribution_margin` | `no_variable_cost` | always in M15 (no variable-cost role) |
+| `pareto.v1`, `concentration` | `no_dimension` | no dimension with an entity or grouping role |
+| `pareto.v1` (`ttm_prev`) | `too_few_periods` | the data doesn't cover the 12 months before the window |
+| `yoy` | `too_few_periods`, `grain_not_comparable` | §12 |
+| `kpi.<id>` (for example `kpi.aov`) | `no_order_id`, `no_customer_role`, `no_quantity_role`, `no_refund_role`, `no_discount_role`, `no_status_role` | the KPI's role is missing (§8.1) |
+| `kpi.new_customers` | `no_history` | stated for the first period only |
+
+An analysis that the business model's order skipped is not "not run": every unlocked pack runs.
+
+## 14. Fact labels
+
+Labels are fixed here so that golden items (accuracy §1) and the report can name facts before the engine produces them. `<p>` is a period at the job grain (`2026-03`, `2025-Q4`), or a calendar year (`2019`). Fact labels end with their period, so V1's bare-year rule (`periodYears`) keeps working. `<dim>` is the entity (`customer`, `product`, `supplier`) or the role (`channel`, `location`, `salesperson`, `product_group`). When two columns of a table hold the same one, the second is `<dim>~<column>`.
+
+| Fact | Label | Example |
+|---|---|---|
+| a measured metric (unchanged) | `<metric>_<p>`, `<metric>[<dimension>=<member>]_<p>` | `revenue_2010-11`, `aov_2010-11` |
+| gross margin, margin %, cost | `gross_margin_<p>`, `gross_margin_pct_<p>`, `cost_<p>`, with `[<dimension>=<member>]` per member | `gross_margin_2026-03`, `gross_margin_pct[product=A]_2026-04` |
+| a margin PVM effect | `pvm_margin.<effect>_<p>`, effect ∈ volume, mix, price, cost, new, lost, unpriced; `<p>` is the later period | `pvm_margin.cost_2026-04` |
+| a Pareto class | `pareto.<a\|b\|c>_<count\|value\|share>.<dim>_<ttm\|ttm_prev>` | `pareto.a_count.customer_ttm` |
+| the Pareto extras | `pareto.members.<dim>_<w>`, `pareto.nonpositive_count.<dim>_<w>`, `pareto.nonpositive_value.<dim>_<w>`, `pareto.unkeyed_value.<dim>_<w>` | `pareto.unkeyed_value.customer_ttm` |
+| a top-N share | `top<1\|3\|5\|10>_share.<dim>_<p\|ttm>` | `top5_share.supplier_2019` |
+| HHI | `hhi.<dim>_<p\|ttm>` | `hhi.supplier_2019-07` |
+| the concentration trend | `hhi.<dim>.trend.slope`, `hhi.<dim>.trend.p_value`; `top1_share.<dim>.trend.slope`, `top1_share.<dim>.trend.p_value` | `hhi.supplier.trend.slope` |
+| a scorecard cell | `scorecard.<metric>.<vs_base\|vs_base_pct\|yoy\|yoy_pct\|band\|mean>_<p>` | `scorecard.revenue.vs_base_pct_2026-06` |
+| a `concentration` tool result | the labels above with `_<from>_<to>` for an arbitrary range, `_<year>` when the range is exactly a calendar year, and `_<p>` for one period | `top3_share.customer_2011-01_2011-06` |
+| a role identity rate | `role_identity.<gross\|net\|margin\|dates\|balance>.<table>` | `role_identity.net.t_orders` |
+
+- **Unqualified margin labels** belong to the report's margin metric (`gross_margin`). A second margin metric (another table) uses its own metric id in place of `gross_margin`, and `pvm_margin.<effect>[<metric>]_<p>` for its PVM.
+- **A confirmed metric keeps its id.** When dedupe (§8.1) keeps the user's id for a pack KPI (hotel bookings' `room_revenue` for `revenue`), the labels use that id.
+- **Uniqueness.** Each label in this section names one fact in a report. The factbook refuses to create a second fact with one of these labels and a different value (an engine bug, like a V2 mismatch).

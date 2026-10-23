@@ -31,12 +31,19 @@ metrics:
     denominator: { metric: revenue }
     unit: percent
     status: assumed
+roles:                                   # additive (M15): confirmed or assumed column roles, docs/specs/semantics.md
+  - { table: t_sales, column: unit_cost, role: unit_cost, status: confirmed }
+  - { table: t_sales, column: std_cost, role: none, status: confirmed }    # dropped by the user
+business_model: { model: wholesale, status: assumed }                     # semantics §4
 ```
+
+`roles` and `business_model` are optional. A file without them (every file before M15) still loads, and the detector's proposals are then used as assumptions.
 
 ## 2. Drafting
 
+0. **Code drafts the KPI pack first** (M15). From the confirmed or assumed roles and table kinds (semantics §1–§3), code drafts the sales KPI pack and margin (analysis-library §8.1, §9): `revenue`, `orders`, `units`, `aov`, `customers`, `new_customers`, `returning_customers`, `refund_rate`, `cancellation_rate`, `discount_rate`, `cost`, `gross_margin` and `gross_margin_pct`. Each is drafted only when its roles exist. These drafts don't depend on a model, so a small model can't miss them, and they go through the same validation (step 3).
 1. Build a compact profile digest: table names, columns, types and sample values. Use at most 5 sample values per column. Any value that looks like a person's name or contact detail is masked.
-2. The extractor-tier model proposes metric YAML, guided by a library of common business metrics: revenue, orders, average order value, units, gross margin, refunds/returns rate, customer count, new vs returning, wholesale vs retail share, cost lines, inventory days.
+2. The extractor-tier model proposes metric YAML, **added after the code's drafts** (from M15 it may add business-specific metrics next to the pack, and its drafts are deduped against the pack by definition: the same type, table, expression and filters, analysis-library §8.1; a duplicate keeps the code's id unless the user confirmed another). The digest lists each column's role. The model is guided by a library of common business metrics: revenue, orders, average order value, units, gross margin, refunds/returns rate, customer count, new vs returning, wholesale vs retail share, cost lines, inventory days.
 3. **Code validates every proposal**:
    - tables and columns exist;
    - types fit the aggregation;
@@ -46,17 +53,20 @@ metrics:
    - a ratio doesn't divide a quantity by itself: the same metric on both sides, the same table + expression + filters, or a table term equal to the metric on the other side (a plain sum over its table's date column). It is always 1, so it is rejected: `ratio "x" divides "revenue" by itself (always 1)`. A derived metric whose expression is a top-level division of two identical expressions (`revenue / revenue`) is rejected the same way. Found on construction_supplier-v1 with a real model (M13h).
    Invalid proposals are dropped with a reason. The model is never trusted to be right.
 4. **Grouping dimensions.** Code adds every grouping column of the table to a drafted sum, count or average: categories with 2 to 2,000 values, except a refund or return status column. Models often list too few, and a metric without the customer dimension can't name the client behind a drop (M13a). The analysis keeps the top 50 members plus "(other)". The prompt also asks for transaction tables over per-period summary sheets.
-5. Deterministic fallbacks apply when the model is unavailable (or nothing it proposes is valid): columns named like `amount|revenue|sum|выручка|сумма|tushum` with a currency type become `revenue` candidates. A table with no such column but a price-named currency column and a quantity-named number column (invoice lines) gets `revenue = sum(quantity * price)`, so cancellation lines with negative quantities net out.
+5. Deterministic fallbacks apply when the model is unavailable (or nothing it proposes is valid): columns named like `amount|revenue|sum|выручка|сумма|tushum` with a currency type become `revenue` candidates. A table with no such column but a price-named currency column and a quantity-named number column (invoice lines) gets `revenue = sum(quantity * price)`, so cancellation lines with negative quantities net out. From M15 (PR 5) these name guesses read roles instead (`amount`; `quantity` and `unit_price`), and the code-drafted pack (step 0) makes most of them redundant.
 
 6. **Saved per job.** A job writes `metrics.drafted.json` to its folder right after drafting, before anything else can fail: the drafts as proposed (the model's, or the fallback's), the accepted definitions, the rejected ones with their reasons, the assumptions, the source and, when the fallback replaced an all-invalid model draft, that model draft with its reasons. A model's draft can't be re-created, so a later failure is traced from this file. `aa eval --keep-reports` keeps it next to each report. It is a debug artifact with no stable schema: its fields may change between versions, and nothing reads it back.
 
 ## 3. Confirmation
 
-- **CLI:** an interactive review that shows each metric in plain words ("Revenue = sum of `amount` where status is not refunded, per month, in UZS") with accept / edit / drop options. `--yes` accepts everything as `assumed`.
-- **API:** `GET /v1/jobs/{id}/metrics` returns the draft. `POST /v1/jobs/{id}/metrics` with YAML confirms it, and the job then continues.
-- **MCP:** a `confirm_metrics` tool takes the YAML. If the job was started with `auto_confirm=true`, every definition is `assumed`.
-- **Recording:** each assumed definition becomes an `Assumption` in the report and is attached to every finding using it.
-- **Reuse:** confirmed definitions can be saved to `./agentic-analytics.metrics.yaml` and reused on the next run (P2: per-client memory).
+Metrics and column roles are confirmed **on one screen** (analyst-grade §6.2; semantics §5). The roles come first, because a changed role changes which metrics code drafts.
+
+- **CLI:** an interactive review that shows the columns that have a role, one line each with its evidence, plus each table's kind and the business model. Below them it shows each metric in plain words ("Revenue = sum of `amount` where status is not refunded, per month, in UZS"). Every item has accept / edit / drop options. Editing a role re-drafts the code's metrics before the metric list is shown again. `--yes` accepts everything (roles, kinds, business model and metrics) as `assumed`.
+- **API:** `GET /v1/jobs/{id}/metrics` returns the draft with its roles, table kinds and business model. `POST /v1/jobs/{id}/metrics` with YAML (including an optional `roles:` block, §1) confirms it, and the job then continues. A role outside the vocabulary or a column that doesn't exist is refused with a typed error (`UNKNOWN_ROLE`, `UNKNOWN_COLUMN`; interfaces §1).
+- **MCP:** a `confirm_metrics` tool takes the YAML, roles included. If the job was started with `auto_confirm=true`, every definition and role is `assumed`.
+- **Recording:** each assumed definition becomes an `Assumption` in the report and is attached to every finding using it. So does each assumed role that an analysis reads ("Column ‘Std cost’ read as unit cost").
+- **Roles not posted** stay as the detector proposed them, with `status: assumed`.
+- **Reuse:** confirmed definitions and roles can be saved to `./agentic-analytics.metrics.yaml` and reused on the next run (P2: per-client memory).
 
 ## 4. Compilation
 

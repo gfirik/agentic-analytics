@@ -1,4 +1,4 @@
-# Spec: accuracy measurement (M14)
+# Spec: accuracy measurement (M14, M15)
 
 The tools that put the engine's accuracy in numbers (docs/plans/analyst-grade.md §4, docs/plans/m14.md). Each section lands with the code that implements it; sections for the ablation and the held-out sets are added by their PRs.
 
@@ -13,8 +13,14 @@ A golden set is a YAML file per dataset, `evals/golden/<dataset>/golden.yaml` (d
 - `sql`: the query that computes the expected answer, written apart from the engine. For the reviewed sets (M14 PR 3 onward) it reads the raw source files (`read_csv` in a separate DuckDB) or the dataset's own ground truth, so an ingest or profile bug can't show in both the expected and the actual value;
 - `split`: `dev` or `heldout`;
 - `review`: `reviewed_by`, `date`, `method` (`independent_sql` or `published_figure`) and `agrees`. On a trap, which has no answer to re-derive, `independent_sql` means the reviewer read the file's columns itself and agrees none of them answers the question.
+- `capability` (M15, PR 3): `kpi`, `margin`, `pareto`, `driver` or `other`. It is required on every item, and the M15 bars are computed per capability (§2). Existing items are tagged by rule, and the independent golden reviewer checks the tags:
+  - `kpi`: the value of a KPI in a period, or its change against a previous or same-last-year period;
+  - `margin`: anything about margin, including the "no cost column" traps;
+  - `pareto`: shares of the top members or of a class, and concentration;
+  - `driver`: the top driver of a change;
+  - `other`: everything else.
 
-A file is validated on load: duplicate ids, a trap not answered through `ask`, and kind/source pairs that could never pass (a numeric item read from a driver, a categorical one from a fact) are refused.
+A file is validated on load: duplicate ids, a trap not answered through `ask` (or, from M15, `not_run`), and kind/source pairs that could never pass (a numeric item read from a driver, a categorical one from a fact) are refused.
 
 ## 2. Golden set: scoring
 
@@ -25,11 +31,16 @@ Free text is never judged. Each item names the one place its answer is read from
 | `fact` | the report fact with that `label` | its value within tolerance | — |
 | `driver` | the report's finding about a change in `metric` (no member) at `period`, by the eval's subject matcher (the period the change is at, not its before side); its first `drivers` entry | — | the driver's label |
 | `ask` | the `aa ask` answer's first claim | a fact the first claim cites, within tolerance | the one member the first claim's facts name; several members, or none, is a miss |
+| `not_run` (M15) | the report's `analyses_not_run` entry whose `analysis` equals the item's `analysis` (analysis-library §13) | — | — |
 
 A `driver` source names no member yet; a member-level driver item would add one.
 
+**`not_run` (M15).** A trap whose right answer is "this can't be computed from the data" may name a source `{ kind: not_run, analysis: "<id>" }`, for example `gross_margin` on a file with no cost column. It passes when the report lists that analysis under "Analyses not run" with a reason. This is a structured refusal of the analysis, not a caveat beside claims. It fails when the entry is missing, and also when the report states a fact of that analysis anyway (for example a `gross_margin_<p>` fact), since the report would then contradict itself. Only `trap` items may use it. New items written before the engine exists name their `fact` source by the labels fixed in analysis-library §14.
+
+**Per-capability rates (M15).** `summarizeGolden` also reports, per `capability`, the counted items, the passes and the pass rate over one split. The M15 table prints, for `kpi`, `margin` and `pareto`, the rate, the M14 baseline rate and the bar `max(baseline + 15 pp, 85%)`, with the counts beside them, nothing rounded up (docs/plans/m15.md A4).
+
 - **Refusal:** an answer with no verified claim (with or without `notCovered`). `notCovered` beside verified claims is a caveat, not a refusal.
-- **Traps** are answered through `ask` and pass only on a refusal; an answer with claims is a miss. An answerable `ask` item that is refused is a miss, and one answered with the right cited fact plus a caveat passes. The report has no separate caveat field yet; the plan's "a caveat field" is `notCovered` until one exists.
+- **Traps** are answered through `ask` and pass only on a refusal (or, from M15, through `not_run`, below); an answer with claims is a miss. An answerable `ask` item that is refused is a miss, and one answered with the right cited fact plus a caveat passes. The report has no separate caveat field yet; the plan's "a caveat field" is `notCovered` until one exists.
 - **What counts toward the bars:** an item counts only when it is reviewed and its review `agrees`. `summarizeGolden(scores, split?)` reports numeric and categorical items, traps, and the number not counted, separately, for one split when given (the §4.7 numeric bar is on the held-out split).
 
 ## 3. Golden set: review
@@ -52,7 +63,7 @@ The two real sets (M14 PR 3) cover totals by period, a share or concentration (t
 
 The hotel set (M14 PR 4) adds a rate business: room revenue (ADR × nights over the bookings not cancelled, by arrival month, as the real tier's confirmed metric defines it), cancellation rates by hotel, deposit type and market segment, a channel's share of bookings, which hotel earned more in a month, a month-over-month change, and traps for a profit margin (no costs in the file) and a forecast. Its 11 items were reviewed by a separate agent on 2026-10-22 (all agree, so all count), not yet by the maintainer. EIA-861M is DEFERRED: www.eia.gov did not answer from the machine that built the set, so no file is pinned and its questions are a draft (`evals/golden/eia-861m/draft.yaml`, no `expected` filled in) that nothing loads. **Golden v1 has three real datasets until EIA-861M is pinned** (the command is in STATE "Deferred checks").
 
-- **Runner.** `bun run eval:golden -- [--dataset <id>] [--split dev|heldout] [--model baseline|configured|<provider:model>]` (`aa eval --suite golden`) runs the dataset's engine job on the derived file as the real tier does (its answer file gives the file and options, and the confirmed metrics where it has them), asks each `ask` item's question of the finished job (`aa ask`), scores every item and prints one line per item and the bars' counts. It writes the run to `evals/results/golden/<date>-<model>-golden-<split>.json` and `.md` (`goldenMarkdown`); scripted-baseline and held-out runs are gitignored, so a held-out result is never committed. RESULTS.md doesn't read that folder: golden results reach it through the baseline report (§10). It needs `bun run eval:real:fetch` first (`NO_DATA` otherwise); CI has no data, so the real-data tests are skipped there and the runner is tested on the example workbook.
+- **Runner.** `bun run eval:golden -- [--dataset <id>] [--split dev|heldout] [--model baseline|configured|<provider:model>]` (`aa eval --suite golden`) runs the dataset's engine job on the derived file as the real tier does (its answer file gives the file and options, and the confirmed metrics where it has them), asks each `ask` item's question of the finished job (`aa ask`), scores every item and prints one line per item and the bars' counts. It writes the run to `evals/results/golden/<date>-<model>-golden-<split>.json` and `.md` (`goldenMarkdown`). From M15 (PR 3), each result records `engine_commit`, the commit of the engine that produced the reports (`git rev-parse HEAD`, plus `-dirty` when the tree has changes), so a baseline can be tied to the engine it measured; scripted-baseline and held-out runs are gitignored, so a held-out result is never committed. RESULTS.md doesn't read that folder: golden results reach it through the baseline report (§10). It needs `bun run eval:real:fetch` first (`NO_DATA` otherwise); CI has no data, so the real-data tests are skipped there and the runner is tested on the example workbook.
 - **Scripted baseline.** The baseline has no script for follow-up questions, so every `ask` item, traps included, is "no answer", a miss. Its passes are the `fact` items and the `driver` items whose finding carries drivers: NZ G3 passes; retail G7 misses ("no driver"), because its December 2010 orders finding is an anomaly.v1 finding, which attaches no drivers (a known engine gap, STATE). The hotel set has no driver item (the engine picks the dimension a driver is read from, and a question can't fairly name one the engine didn't choose); its two `fact` items pass.
 - **Held-out rule.** `heldout.yaml` is read only by release runs (`--split heldout`), and only `evals/runner` maps a split to its file. A test walks packages/ and apps/ and fails if: a file under packages/ imports the eval runner; any file names `heldout.yaml` or the evals/golden folder (spelled as a path or as `"evals", "golden"` segments); or a file under apps/ other than the CLI (`apps/cli/src/main.ts`, the release-run entry, allow-listed by name) uses the golden API (`GOLDEN_DIR`, `goldenFile`, `loadGoldenSet`, `runGoldenSet`, `goldenEvalCommand`, `goldenDatasets`) or a `"heldout"` literal. That keeps the engine packages from reading the golden questions or answers by any route the test can see; it is a static check, not a sandbox. Development runs use the dev split only.
 
@@ -196,3 +207,23 @@ The M14 baseline report (docs/plans/m14.md PR 8) is a dated snapshot, published 
 - **Generation.** `resultsPage` (evals/runner) appends `baselineReport(dir)`: every `.md` in that folder in name order, each heading two levels down. The folder is committed and no run writes to it, so a local golden, repeat or ablation run never changes RESULTS.md, and `bun run readme:check` gives the same page on every clone.
 - **What it holds.** Golden v1's dev split only (held-out items are scored in release runs, M21), the scripted consistency run on smoke, and the scripted ablation on smoke and golden v1, each paired difference with its 95% bootstrap interval (§5). Scripted runs are labelled harness checks; the report says "the engine adds accuracy" nowhere, since canned answers can't show it (§8.5). The held-out generated set (§9) is not in it.
 - **Real-model runs.** Golden v1 on the configured routes, consistency over 5 runs and the ablation on a free model are DEFERRED to the nightly runs (docs/progress/STATE.md "Deferred checks"). When one lands, its page and JSON are copied into the folder beside the scripted one, and the runs table in `0-runs.md` gains its row.
+
+## 11. Role detection (`aa eval --suite roles`, M15)
+
+This measures the role detector (semantics §2) against a hand-labelled answer file (docs/plans/m15.md A1). It needs no model.
+
+- **Labels.** `evals/roles/labels.yaml` (Zod schema, loaded by the eval runner) has one entry per dataset, table and column. Each entry gives `role` (from semantics §1, or `none`), an optional `accept` list of other roles that are also right, and the table's `kind` (semantics §3).
+  - The 30 generated businesses share two header layouts (the `Orders` sheet and the `Costs` sheet). Their labels are written once per layout, with the list of datasets that use it, and the harness expands them per dataset. A test checks that each dataset's real headers match its layout.
+  - Each entry records `reviewed_by`, `date` and `agrees`.
+- **Who labels.** One session writes the labels from the raw files and the vocabulary, before the detector exists (PR 3). A separate subagent that hasn't seen the rationale re-labels every column. A third, fresh one settles disagreements, and a column it can't settle gets both roles in `accept`. The labels are agent-reviewed, not maintainer-reviewed, and every result says so.
+- **What is scored.** The detector's top proposal before confirmation, with no model: ties go to the higher score, then to the column order. A column is right when the proposal is its `role` or in its `accept` list. A column labelled `none` is right when the detector proposes no role. Every column of every dataset counts.
+- **Rates printed:**
+  - the pooled per-column rate over the real datasets plus the 30 (the acceptance figure, ≥ 95%);
+  - the real datasets alone;
+  - each source group;
+  - the distinct (layout, column) count, so the 30's shared layouts can't hide a weak real-data score.
+
+  A real-only rate below 95% is a known gap even when the pooled bar passes. coffee-roaster-v1 and the margin dataset are reported as their own groups, outside the pool.
+- **Table kinds** are scored the same way and reported with no bar.
+- **The model's tie-break** is measured separately (`--model`), as information beside the deterministic figure, in the nightly slot.
+- **Runs.** `bun run eval:roles` scores everything. It needs `bun run eval:real:fetch` for the real datasets, and without the data they are reported as `NO_DATA`. `bun run eval:roles -- --only generated` runs in CI with no download. A hand-computed accuracy test on a 6-column fixture checks the scorer. For example, proposals right on 5 columns of 6, where one right column is a `none` that got no role and the wrong one proposes `quantity` for a column labelled `product_id`, give 5 ÷ 6 = 83.33%.
