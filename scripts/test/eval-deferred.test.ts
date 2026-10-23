@@ -49,6 +49,8 @@ describe("eval-deferred.sh", () => {
     const repo = fakeRepo();
     const r = night(repo);
     expect(r.status).toBe(0);
+    // The queue's comments (one has an apostrophe) are skipped quietly: xargs once choked on it.
+    expect(r.stderr).not.toMatch(/xargs|unmatched/);
     // The golden run reads the real data, fetched first.
     expect(calls(repo)).toEqual(["eval:real:fetch", "eval -- --suite golden --model openai-compatible:groq:llama-3.3-70b-versatile"]);
     expect(done(repo)).toBe("golden-v1");
