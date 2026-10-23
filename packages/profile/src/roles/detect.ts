@@ -122,6 +122,8 @@ interface Counts {
   total: number;
   matched: number;
   later?: number;
+  /** The rate DuckDB computed with the fact's own SQL (`rateOf`): the value the report carries. */
+  rate: number;
   q: Sql;
 }
 
@@ -177,7 +179,7 @@ export async function detectRoles(
       columns,
       matched: n.matched,
       total: n.total,
-      rate: n.total ? (n.matched / n.total) * 100 : 0,
+      rate: n.rate,
       holds: identityHolds(n.matched, n.total),
       sql: rateOf(n.q),
     };
@@ -190,7 +192,11 @@ export async function detectRoles(
   };
   const count = async (q: Sql): Promise<Counts> => {
     const r = await ws.one<{ total: number; matched: number; later?: number }>(q);
+    // The reported rate is what the fact's SQL returns, not a division here (AGENTS.md section 2.1); no rows give 0.
+    const w = rateOf(q);
+    const v = await ws.one<{ value: number | null }>({ text: w.text, params: w.params } as Sql);
     return {
+      rate: Number(v?.value ?? 0),
       total: Number(r?.total ?? 0),
       matched: Number(r?.matched ?? 0),
       ...(r?.later !== undefined ? { later: Number(r.later) } : {}),

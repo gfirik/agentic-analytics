@@ -432,6 +432,11 @@ describe("inferBusinessModel (§4)", () => {
       const row = await c.ws.one<{ value: number }>({ text: f.sql.text, params: f.sql.params as never });
       expect(Number(row?.value)).toBeCloseTo(f.value, 9);
     }
+    // an identity's reported rate is the SQL's own result, not a JS division (AGENTS.md 2.1)
+    for (const id of c.r.identities) {
+      const row = await c.ws.one<{ value: number }>({ text: id.sql.text, params: id.sql.params as never });
+      expect(id.rate).toBe(Number(row?.value));
+    }
     // evidence text has no numerals; a measured one carries its fact key as a placeholder
     expect(s.roles.flatMap((x) => x.evidence).every((e) => !/\d/.test(e.text.replace(/\{\{[^}]*\}\}/g, "").replace(/"[^"]*"/g, "")))).toBe(
       true,
