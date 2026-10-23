@@ -16,6 +16,9 @@
 //                                                the tour at its first stop and a middle stop, explore with a
 //                                                station's card open, and on the phone the Explore button
 //                                                (machine-<width>[x<height>]-<what>.png)
+//   tsx scripts/site-screenshots.ts --layout before|after --out dir → §1, §2 and §4 of / whole, at 1920×1080,
+//                                                1440×900, 1366×768 and 390×844, light (site v5 section layout:
+//                                                sections-<tag>-<id>-<width>.png)
 //   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification on load, then the walkthrough
 //                                                stepped by scrolling through the pinned exhibit, and a hover
 //                                                (needs ffmpeg; without it hero.webm is kept)
@@ -39,6 +42,7 @@ const { values } = parseArgs({
     hero: { type: "boolean", default: false },
     story: { type: "boolean", default: false },
     machine: { type: "boolean", default: false },
+    layout: { type: "string" },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
@@ -169,6 +173,28 @@ try {
           const fig = page.locator(sel).first();
           if (await fig.count()) await fig.screenshot({ ...shot, path: join(out, `${slug}-fig-${name}-${w}.jpg`) });
         }
+      }
+      await ctx.close();
+    }
+  } else if (values.layout) {
+    // Site v5 section layout: each of §1, §2 and §4 whole, the same names before and after, so they compare by name.
+    for (const [width, height] of [
+      [1920, 1080],
+      [1440, 900],
+      [1366, 768],
+      [390, 844],
+    ] as const) {
+      const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, colorScheme: "light" });
+      const page = await ctx.newPage();
+      await page.goto(`${base}/`, { waitUntil: "networkidle" });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      for (const id of ["how", "why", "quickstart"]) {
+        const section = page.locator(`#${id}`);
+        await section.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(900);
+        await section.screenshot({ path: join(out, `sections-${values.layout}-${id}-${width}.png`) });
       }
       await ctx.close();
     }
