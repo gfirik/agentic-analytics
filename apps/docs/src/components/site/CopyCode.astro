@@ -1,0 +1,15 @@
+---
+// Copy on click for every code block and copyable value on the page (DESIGN.md §6 "Copy", site v5 PR 3). Goes in the
+// <head>: the inline line marks the root before first paint, so the CSS reserves each button's room before anything
+// is drawn (no layout shift when the buttons arrive); the module adds the buttons once the page is parsed. Without JS
+// neither runs, and the blocks stay plain selectable text with no buttons.
+---
+
+<script is:inline>
+  document.documentElement.setAttribute("data-aa-copy", "");
+</script>
+<script>
+  import { initCopy } from "./copy.ts";
+
+  initCopy();
+</script>

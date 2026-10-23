@@ -253,3 +253,142 @@ table.aa-ledger {
     translate: none;
   }
 }
+
+/* ── Copy on click (site v5 PR 3, DESIGN.md §6 "Copy") ──
+   The buttons exist only with JS (copy.ts adds them); an inline script in the head marks the root with
+   data-aa-copy before first paint, so the room each button needs is reserved before anything is drawn and the page
+   never shifts when they arrive. Without JS the blocks are plain selectable text with no room reserved. */
+.aa-copy-host {
+  position: relative;
+}
+.aa-copy-wrap {
+  min-width: 0;
+}
+.aa-copy-wrap:has(> .aa-learn-sql) {
+  max-width: 34rem;
+}
+.aa-copy-btn {
+  position: absolute;
+  top: var(--aa-space-1);
+  right: var(--aa-space-1);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--aa-rule-strong);
+  border-radius: var(--aa-radius);
+  background: var(--aa-raised);
+  color: var(--aa-ink-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--aa-fast) var(--aa-ease),
+    border-color var(--aa-fast) var(--aa-ease);
+}
+.aa-copy-btn svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.aa-copy-btn:hover,
+.aa-copy-btn[data-state] {
+  color: var(--aa-ink);
+  border-color: var(--aa-ink);
+}
+.aa-copy-btn:focus-visible {
+  outline: 2px solid var(--aa-ink);
+  outline-offset: 2px;
+}
+/* "Copied" (or "Selected", when the browser allowed neither way to copy) is generated content in a tag that opens to
+   the button's left over what is beside it: the button keeps its box, so nothing moves. */
+.aa-copy-btn::after {
+  content: attr(data-say);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + var(--aa-space-1));
+  translate: 0 -50%;
+  padding: 5px 6px;
+  border: 1px solid var(--aa-ink);
+  border-radius: var(--aa-radius-chip);
+  background: var(--aa-raised);
+  color: var(--aa-ink);
+  font: 500 var(--aa-text-label) / 1 var(--aa-font-mono);
+  letter-spacing: var(--aa-label-tracking);
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--aa-fast) var(--aa-ease);
+}
+.aa-copy-btn[data-state]::after {
+  opacity: 1;
+}
+/* An inline value's button: a 20px box at the value's end, with a 28px hit box (::before) that stays inside the
+   value's box (so it never makes its cell scroll). A block's is 24px, which
+   also fits inside Expressive Code's 30px title bar. */
+.aa-copy-btn.aa-copy-inline {
+  top: 50%;
+  right: 4px;
+  translate: 0 -50%;
+  width: 20px;
+  height: 20px;
+  border-color: var(--aa-rule);
+  border-radius: var(--aa-radius-chip);
+}
+.aa-copy-btn.aa-copy-inline::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+.aa-copy-btn.aa-copy-inline svg {
+  width: 12px;
+  height: 12px;
+}
+.aa-copy-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.aa-copy-scratch {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  font-size: 16px;
+  pointer-events: none;
+}
+:root[data-aa-copy] [data-copy-on],
+:root[data-aa-copy] pre:not(.aa-nocopy),
+:root[data-aa-copy] code[data-copy] {
+  cursor: copy;
+}
+/* An inline value is a box of its own with room for its button at the end. */
+:root[data-aa-copy] code[data-copy] {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  padding-inline-end: 1.75rem;
+  vertical-align: bottom;
+}
+/* Blocks whose text would run under the button keep it clear. */
+:root[data-aa-copy] :is(.aa-code pre, .aa-proof-code, .aa-stage-code, .aa-note-sql, .aa-learn-sql, .aa-term pre) {
+  padding-inline-end: 2.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aa-copy-btn,
+  .aa-copy-btn::after {
+    transition: none;
+  }
+}

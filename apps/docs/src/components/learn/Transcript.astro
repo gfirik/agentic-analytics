@@ -24,7 +24,7 @@ const body = [...(found > 0 ? [`… (${found} lines before)`] : []), ...shown, .
 ---
 <figure class="aa-term">
   <figcaption class="aa-term-label">Recorded output, offline run</figcaption>
-  <pre tabindex="0" aria-label={`Terminal output of: ${t.command}`}><span class="aa-term-cmd">$ {t.command}</span>
+  <pre tabindex="0" aria-label={`Terminal output of: ${t.command}`} data-copy={t.command}><span class="aa-term-cmd">$ {t.command}</span>
 {body}</pre>
   {t.normalised.length > 0 && <p class="aa-term-note">Replaced in the recording because they change on every run: {t.normalised.join(", ")}.</p>}
 </figure>

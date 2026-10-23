@@ -4,6 +4,7 @@
 import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import rehypeCopyValues from "./scripts/rehype-copy-values.ts";
 
 const SITE = "https://gfirik.github.io";
 const BASE = "/agentic-analytics";
@@ -19,6 +20,8 @@ export default defineConfig({
   trailingSlash: "ignore",
   // Inline each page's CSS: no stylesheet request blocks the first paint (Lighthouse ≥ 95 on / and the Learn pages, M13i).
   build: { inlineStylesheets: "always" },
+  // Commands and variable names in docs tables get a copy button (DESIGN.md §6 "Copy").
+  markdown: { rehypePlugins: [rehypeCopyValues] },
   integrations: [
     starlight({
       title: "agentic-analytics",
@@ -53,6 +56,9 @@ export default defineConfig({
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/gfirik/agentic-analytics" }],
       expressiveCode: {
         themes: ["github-light"],
+        // The site's own copy button replaces Expressive Code's (DESIGN.md §6 "Copy"): one look and one rule for what is
+        // copied on every block, with a fallback where the Clipboard API is missing.
+        frames: { showCopyToClipboardButton: false },
         minSyntaxHighlightingColorContrast: 5,
         customizeTheme: (theme) => {
           const bg = RAISED;
