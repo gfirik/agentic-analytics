@@ -172,7 +172,7 @@ const doors = [
               ))
             }
           </ul>
-          <div class="aa-hero-cmd-frame">
+          <div class="aa-hero-cmd-frame" data-copy-host>
             <div class="aa-hero-cmd">
               <pre aria-label="Install command"><code>git clone <span class="aa-url">https://github.com/<wbr /><span class="aa-nowrap">{GITHUB_URL.replace("https://github.com/", "")}</span></span>
 cd agentic-analytics && bun install</code></pre>
@@ -264,7 +264,7 @@ cd agentic-analytics && bun install</code></pre>
               <p class="aa-proof-def">
                 <code>{metric.id}</code>: {metric.formula}, per {metric.grain} · {metric.status} · compiles to
               </p>
-              <pre class="aa-proof-code"><code>{compiled.lines.join("\n")}</code></pre>
+              <pre class="aa-proof-code" data-language="sql"><code>{compiled.lines.join("\n")}</code></pre>
             </div>
             <a class="aa-more" href={withBase("how-it-works/metrics/")}>The metric layer</a>
           </li>
@@ -414,7 +414,7 @@ cd agentic-analytics && bun install</code></pre>
         <ol class="aa-steps">
           <li class="aa-step">
             <p class="aa-label">Step 1 · Install</p>
-            <div class="aa-code">
+            <div class="aa-code" data-copy-host>
               <pre tabindex="0" aria-label="Install"><code>git clone \
   <span class="aa-url">https://github.com/<wbr /><span class="aa-nowrap">gfirik/agentic-analytics</span></span>
 cd agentic-analytics
@@ -425,7 +425,7 @@ bun run aa doctor</code></pre>
           </li>
           <li class="aa-step">
             <p class="aa-label">Step 2 · Model</p>
-            <div class="aa-code">
+            <div class="aa-code" data-copy-host>
               <pre tabindex="0" aria-label="Choose a model"><code><span class="c"># Ollama, or a free endpoint in .env</span>
 cp .env.example .env</code></pre>
             </div>
@@ -435,7 +435,7 @@ cp .env.example .env</code></pre>
           </li>
           <li class="aa-step">
             <p class="aa-label">Step 3 · Analyze</p>
-            <div class="aa-code">
+            <div class="aa-code" data-copy-host>
               <pre tabindex="0" aria-label="Analyze the example"><code>bun run aa analyze \
   examples/coffee-roaster --open
 <span class="c"># no model yet? replay it offline</span>
@@ -454,8 +454,8 @@ AA_DEMO_MODEL=scripted \
                 >Releases</a
               >
             </p>
-            <ul class="aa-binaries">{binaries.map((b) => <li><code>{b}</code></li>)}</ul>
-            <p class="aa-small"><code>docker compose up</code> · API, viewer and MCP on <code>http://127.0.0.1:8080</code></p>
+            <ul class="aa-binaries">{binaries.map((b) => <li><code data-copy>{b}</code></li>)}</ul>
+            <p class="aa-small"><code data-copy>docker compose up</code> · API, viewer and MCP on <code data-copy>http://127.0.0.1:8080</code></p>
           </div>
           <div class="aa-quick-doors">
             <p class="aa-label">Four doors, one engine</p>
@@ -467,7 +467,7 @@ AA_DEMO_MODEL=scripted \
                       {d.name}
                     </a>
                     <span class="aa-door-does">{d.does}</span>
-                    <code class="aa-door-cmd">{d.cmd.split(" ").flatMap((w, i) => (i ? [" ", <span class="aa-nowrap">{w}</span>] : [<span class="aa-nowrap">{w}</span>]))}</code>
+                    <code class="aa-door-cmd" data-copy>{d.cmd.split(" ").flatMap((w, i) => (i ? [" ", <span class="aa-nowrap">{w}</span>] : [<span class="aa-nowrap">{w}</span>]))}</code>
                   </li>
                 ))
               }
@@ -792,6 +792,12 @@ AA_DEMO_MODEL=scripted \
     display: inline-block;
     max-width: calc(100% - 10ch);
     vertical-align: top;
+  }
+  /* The copy button (copy.ts) sits in the box's bottom right, beside the short "cd … && bun install" line, so the
+     clone line keeps its full width (two lines at 1440) and nothing wraps differently with JS. */
+  .aa-hero-cmd-frame :global(.aa-copy-btn) {
+    top: auto;
+    bottom: var(--aa-space-1);
   }
   .aa-hero-cmd .aa-nowrap {
     white-space: nowrap;
@@ -1344,6 +1350,16 @@ AA_DEMO_MODEL=scripted \
     font-size: var(--aa-text-code);
     color: var(--aa-ink);
     overflow-wrap: normal;
+  }
+  /* With JS each command carries its copy button at its end (copy.ts): the command takes its own width, so the
+     button sits beside it, and the column grows by the button's room so no command wraps differently. */
+  :global(:root[data-aa-copy]) .aa-door-cmd {
+    justify-self: start;
+  }
+  @media (min-width: 56.0625rem) {
+    :global(:root[data-aa-copy]) .aa-doors li {
+      grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 15.5rem);
+    }
   }
   @media (max-width: 56rem) {
     .aa-doors li {

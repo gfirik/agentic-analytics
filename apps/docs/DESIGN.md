@@ -252,7 +252,18 @@ The scale (rem, root 16px; mobile values apply under 640px):
   - hover changes tone (and the arrow's position) only; a press moves the button down 1px. Never its size. No transform under reduced motion.
 - **Code:**
   - Expressive Code with `github-light` only, re-based onto `raised` (so its contrast correction targets our real background);
-  - a hairline frame, a mono body at `--aa-text-code`, a mono caption label, no window dots.
+  - a hairline frame, a mono body at `--aa-text-code`, a mono caption label, no window dots;
+  - Expressive Code's own copy button is off (`frames.showCopyToClipboardButton: false`): its blocks take the site's copy button (below), so every block on the site copies the same way.
+- **Copy** (`components/site/copy.ts`, `CopyCode.astro` in the head of the site layout and of Starlight; site v5 PR 3). Every code block and every copyable value, on the landing page and every docs and Learn page:
+  - **What gets a button:** every `<pre>` (the hero's install line, §4's steps, §2's SQL, the pipeline stages' SQL, the exhibit notes' SQL, Expressive Code blocks, Learn's transcripts and fact-ledger SQL, the React islands' blocks once hydrated; not Mermaid's source fallback, `.aa-nocopy`), and inline values marked `data-copy`: on the landing page the binaries' names, the Docker line, the API address and the four doors' commands; in docs tables, inline code that is a command (`aa …`, `bun …`, `docker …`, `git …`, `curl …`) or an environment variable's name (`GROQ_API_KEY`), marked at build time by `scripts/rehype-copy-values.ts`.
+  - **The button:** a real `<button>` (`aria-label` "Copy" plus the block's label), 24px square in the block's top right (in Expressive Code's title bar when there is one; the hero's in its bottom right, beside the short `cd` line, so the clone line keeps its width), a 14px two-sheet icon in `ink-2` on `raised`, a 1px `rule-strong` hairline, 4px radius; hover and the copied state turn icon and hairline `ink`; the site's 2px ink focus ring. An inline value's is a 20px box at the value's end with a 28px hit box inside the value's box. Always shown (touch has no hover). Ink and greys only: no accent, and never green (copying verifies nothing).
+  - **Feedback:** "Copied" in a hairline label tag that opens to the button's left (generated content, opacity only, so the button keeps its box and nothing moves), and announced in one polite live region (`#aa-copy-live`); both clear after 1.5s. If neither way of copying is allowed, the block's text is selected and the tag says "Selected" (announced: press Ctrl+C or Cmd+C).
+  - **A click on the block copies it too**, except a click that ends a drag-selection or a double click (they select), and a click on a link or control inside it. The cursor over a block is `copy`.
+  - **What is copied (the runnable text):** the text as shown, without the button, line-number gutters or screen-reader labels; in shell blocks (no language, or `bash`, `sh`, `console`, `plaintext`, …) a leading `$ ` prompt is dropped from each line and a line ending in an unescaped `\` is joined with the next into one line (`git clone \ ⏎ https://…` copies as `git clone https://…`); separate commands stay separate lines, each runnable; `#` comment lines are kept (a shell ignores them, and they say what the next line does); trailing spaces and blank edges are trimmed. SQL, JSON and YAML blocks are copied as shown. A transcript copies its command only (`data-copy`). An inline value copies its text on one line.
+  - **The clipboard:** `navigator.clipboard.writeText`, and where it is missing or refuses (an insecure origin, a denied permission) a hidden read-only textarea and `document.execCommand("copy")`, with focus returned to the button.
+  - **The wrapper:** a `<pre>` with no host of its own (no Expressive Code frame, no `data-copy-host`, not in a React island) is wrapped in a positioned `div` that takes over the pre's margins inline, so the wrap, which can land after first paint on a slow device, moves nothing (a browser test compares every box with and without the wrappers).
+  - **No layout shift:** an inline script in the head marks the root (`data-aa-copy`) before first paint, so the CSS reserves each button's room (right padding on the blocks whose text would run under it, the inline values' end padding, the doors' wider command column) before anything is drawn; the buttons are absolutely placed in that room.
+  - **Without JS** nothing is marked or reserved and no button is rendered: the blocks are plain selectable text.
 - **Horizontal scroll boxes** (`.aa-scroll-x`: the status strip; the hero's install line wraps instead since site v5 PR 2): one line that scrolls sideways on narrow screens, a labelled focusable region. No scrollbar (in CSS from the start, so the box's height never changes); the edge with more to read fades over `--aa-space-7` with a transparency mask (not a coloured gradient), set by a small script (`ScrollFade.astro`, in the site layout); without JS there is no fade, and keyboard and touch scrolling work as before. Focused (the box or a link in it), the mask is off, so the focus ring shows (WCAG 2.4.7). A frame (hairline, background) sits on a wrapper, not on the masked box, so it never fades. Text in the fade is scroll-off content: axe doesn't evaluate masks, and it isn't meant to read as body text.
 - **Diagrams:**
   - Mermaid is initialised with the token colours and Plex Sans.
@@ -362,6 +373,7 @@ Site v4 PR 3 brought tasteful motion to the whole landing page under the rules o
 12. Is it checked at 1920, 1440, 1100, 1000, 390 and 360px (screenshots at 1920, 1440 and 390 in the PR), with no horizontal scroll at any of them and CLS under 0.05?
 13. Motion (site v4 PR 3): does anything new animate only `transform` and `opacity` (colour on hover), stay still while on the first screen, run once, end on the real value, and render its final state with reduced motion and without JS (§2.5, §7)? A new landing section opts into the reveal with `data-reveal`.
 14. Hero field (site v5): is the net still paused off-screen and in a hidden tab (with no pause control), at most 30 fps, absent under reduced motion and without JS, and does the hero keep its box while it starts (`site.spec.ts`, "hero field")? Does all text over the glow keep AA (§3, "hero glow")? Are the proof chips' figures still the generated data's ("hero proof chips")?
+15. Copy (site v5 PR 3): does every new code block (any `<pre>`) and every copyable command or variable name get the copy button, copy exactly the runnable text, and stay plain text without JS (`site.spec.ts`, "copy on click")?
 
 ## 11. Site v3 (October 2026): what the review found, and what it settled
 
@@ -433,3 +445,15 @@ The maintainer, from the live page: §1, §2 and §4 had the heading on the left
 - **§4:** the head across the top, the three steps side by side, then the binaries beside the four doors.
 - **unchanged:** §3 (already a band), the hero and the machine's release into §1, the copy, the colours, and every layout under 1100px (390 identical before and after).
 - **no sticky heads remain** on the landing page below the hero; the rule above is checked in the browser suite instead.
+
+### PR 3: copy on click, everywhere
+
+The maintainer's spec: every command on the site can be copied with one click, on the landing page and on every docs and Learn page (§6 "Copy"):
+
+- **a visible copy button on every block** and on every copyable value (the binaries, the Docker line, the doors' commands, commands and variable names in docs tables), and a click on the block itself copies it, without breaking text selection or links;
+- **"Copied"** shown on the button and announced in a polite live region, reverting after 1.5s, with no layout shift (the room is reserved before first paint);
+- **the runnable text** only: no prompts, gutters or button text, `\` continuations joined, separate commands kept on separate lines, comments kept;
+- **the Clipboard API with a textarea fallback**, keyboard operable, always visible on touch, absent without JS;
+- **Expressive Code's own button is off**, so docs blocks use the same button and rules (its default also dropped comments from terminal frames, ours keeps them);
+- light only, ink and greys; no new dependency (the script and the rehype plugin are the site's own).
+

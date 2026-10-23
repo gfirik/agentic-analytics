@@ -52,7 +52,7 @@ export default function Mermaid({ code, title }: { code: string; title: string }
   return (
     <figure className="aa-diagram" aria-label={title}>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: mermaid renders our own committed diagram source with securityLevel strict */}
-      {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <pre>{code}</pre>}
+      {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <pre className="aa-nocopy">{code}</pre>}
       <figcaption>{title}</figcaption>
     </figure>
   );

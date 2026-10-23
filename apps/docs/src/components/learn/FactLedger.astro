@@ -33,7 +33,7 @@ const params = (p: unknown) => JSON.stringify(p);
               {f.computation.kind === "sql" ? (
                 <details>
                   <summary>SQL, run in DuckDB</summary>
-                  <pre class="aa-learn-sql">{f.computation.sql}</pre>
+                  <pre class="aa-learn-sql" data-language="sql">{f.computation.sql}</pre>
                   <p class="aa-learn-params">parameters: <code>{params(f.computation.params)}</code></p>
                 </details>
               ) : (

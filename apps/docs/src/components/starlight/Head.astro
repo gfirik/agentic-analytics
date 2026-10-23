@@ -1,8 +1,10 @@
 ---
-// Starlight's head, plus the site's font preloads (FontPreloads.astro).
+// Starlight's head, plus the site's font preloads (FontPreloads.astro) and copy on click (CopyCode.astro).
 import Default from "@astrojs/starlight/components/Head.astro";
+import CopyCode from "../site/CopyCode.astro";
 import FontPreloads from "../site/FontPreloads.astro";
 ---
 
 <Default><slot /></Default>
 <FontPreloads serifOnly />
+<CopyCode />

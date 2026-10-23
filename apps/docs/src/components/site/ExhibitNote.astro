@@ -50,20 +50,20 @@ const check = `<svg class="aa-check" viewBox="0 0 16 16" aria-hidden="true" focu
 {n.sql && foldSql ? (
   <details class="aa-note-fold" data-fold>
     <summary class="aa-note-cap">SQL, run in DuckDB <span class="aa-note-show">· show</span><span class="aa-note-hide">· hide</span></summary>
-    <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
+    <pre class="aa-note-sql" data-language="sql"><code set:html={sqlHtml(n.sql)} /></pre>
     {n.params?.length ? <p class="aa-note-params">{n.params.map(([k, val]) => `${k} = ${val}`).join(" · ")}</p> : null}
   </details>
 ) : n.sql ? (
   <>
     <p class="aa-note-cap">SQL, run in DuckDB</p>
-    <pre class="aa-note-sql"><code set:html={sqlHtml(n.sql)} /></pre>
+    <pre class="aa-note-sql" data-language="sql"><code set:html={sqlHtml(n.sql)} /></pre>
     {n.params?.length ? <p class="aa-note-params">{n.params.map(([k, val]) => `${k} = ${val}`).join(" · ")}</p> : null}
   </>
 ) : null}
 {n.fn ? (
   <>
     <p class="aa-note-cap">Function, in code</p>
-    <pre class="aa-note-sql"><code set:html={`<span class="t-fn">${escapeHtml(n.fn)}</span>(${(n.inputs ?? []).map((i) => i.id).join(", ")})`} /></pre>
+    <pre class="aa-note-sql" data-language="sql"><code set:html={`<span class="t-fn">${escapeHtml(n.fn)}</span>(${(n.inputs ?? []).map((i) => i.id).join(", ")})`} /></pre>
     <table class="aa-note-table">
       <caption class="aa-sr">Inputs</caption>
       <thead>

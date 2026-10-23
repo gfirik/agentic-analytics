@@ -102,7 +102,7 @@ const a = run.action;
                 {run.metric.currency ? ` · ${run.metric.currency}` : ""} · <span class="aa-stage-status">{run.metric.status}</span>
               </p>
               <p class="aa-stage-note">Drafted in plain words and YAML, confirmed or assumed, then compiled to SQL:</p>
-              <pre class="aa-stage-code" tabindex="0" aria-label="Compiled SQL"><code>{compiled.lines.join("\n")}</code></pre>
+              <pre class="aa-stage-code" data-language="sql" tabindex="0" aria-label="Compiled SQL"><code>{compiled.lines.join("\n")}</code></pre>
             </>
           ) : s.node === "SQL" ? (
             <table class="aa-ledger aa-stage-sql">
