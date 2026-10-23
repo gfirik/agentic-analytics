@@ -1678,7 +1678,7 @@
         "detail": "no finding at 2011-12"
       }
     ],
-    "realFile": "evals/results/2026-10-22-baseline-real.json"
+    "realFile": "evals/results/2026-10-23-baseline-real.json"
   },
   "retrieval": {
     "query": "wholesale price increase standing order paused",

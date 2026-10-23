@@ -1,0 +1,83 @@
+# Montgomery County, MD: Warehouse and Retail Sales (public domain), calendar years 2017-2020: one line per supplier ×
+# item × month with retail sales, retail transfers and warehouse (wholesale) sales. Ground truth: DuckDB over the
+# derived file, FILE = evals/real/data/montgomery-warehouse-sales.csv. No expected number comes from the engine.
+#
+# The file has NO date column (calendar_year and cal_month_num are two integers), NO price and NO cost column. M15's
+# role detector (PR 4) is what reads year + month as a period; until then the tier checks only that the job completes
+# and verifies. The checks that need a period or a concentration function (December peak, top-N share, HHI trend,
+# item-type mix) are the ground truth below, and the golden items PR 3 writes use the same SQL.
+dataset: montgomery-warehouse-sales
+file: montgomery-warehouse-sales.csv
+options:
+  today: "2026-10-16"
+  currency: USD
+
+ground_truth:
+  - id: G1
+    about: Shape of the file, missing values and negative adjustments
+    sql: >-
+      SELECT count(*) AS rows, count(DISTINCT supplier) AS suppliers, count(DISTINCT item_code) AS items,
+             count(*) FILTER (WHERE supplier IS NULL) AS null_supplier, count(*) FILTER (WHERE item_type IS NULL) AS null_type,
+             count(*) FILTER (WHERE rtl_sales::DOUBLE < 0) AS neg_rtl_sales,
+             count(*) FILTER (WHERE rtl_transfers::DOUBLE < 0) AS neg_rtl_transfers,
+             count(*) FILTER (WHERE whs_sales::DOUBLE < 0) AS neg_whs_sales
+      FROM read_csv('FILE', all_varchar = true)
+    result: "rows 307645; suppliers 396; items 34056; null_supplier 167; null_type 1; neg_rtl_sales 113; neg_rtl_transfers 1016; neg_whs_sales 717"
+  - id: G2
+    about: Which months the file has (it is not a complete calendar)
+    sql: >-
+      SELECT calendar_year, list(DISTINCT cal_month_num::INT ORDER BY cal_month_num::INT) AS months
+      FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY 1
+    result: "2017: 6-12; 2018: 1-2; 2019: 1-11; 2020: 1, 3, 7, 9 (the county published no other months)"
+  - id: G3
+    about: Retail sales by month, the December peak (only 2017 has a December)
+    sql: >-
+      SELECT calendar_year, arg_max(cal_month_num::INT, s) AS peak_month, round(max(s), 2) AS peak
+      FROM (SELECT calendar_year, cal_month_num, sum(rtl_sales::DOUBLE) AS s FROM read_csv('FILE', all_varchar = true) GROUP BY 1, 2)
+      GROUP BY 1 ORDER BY 1
+    result: >-
+      2017 December (12) 131634.49, which is 33.9% above November 98316.19; 2018 Feb 77804.13 (Jan-Feb only);
+      2019 November 101631.31 (no December in the file); 2020 March 109411.29 (4 months only)
+  - id: G4
+    about: Item-type mix of retail sales in 2019 (Jan-Nov) and of warehouse sales
+    sql: >-
+      WITH t AS (SELECT item_type, sum(rtl_sales::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true) WHERE calendar_year = '2019' GROUP BY 1)
+      SELECT item_type, round(v, 2) AS v, round(v / sum(v) OVER () * 100, 2) AS pct FROM t ORDER BY v DESC
+    result: >-
+      retail 2019: LIQUOR 357077.43 (37.19%), WINE 325112.78 (33.86%), BEER 262479.70 (27.34%), NON-ALCOHOL 13984.73
+      (1.46%), STR_SUPPLIES 1276.51 (0.13%), REF 260.05 (0.03%); warehouse sales (whs_sales) 2019 are BEER 83.57%,
+      WINE 15.05%, KEGS 1.61%, LIQUOR 1.40%: the two channels have opposite mixes
+  - id: G5
+    about: Supplier concentration of retail sales per year, by top-5 share and HHI (sum of squared shares)
+    sql: >-
+      WITH s AS (SELECT calendar_year AS y, supplier, sum(rtl_sales::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true) GROUP BY 1, 2),
+           t AS (SELECT y, sum(v) AS tot FROM s GROUP BY 1),
+           r AS (SELECT s.*, tot, row_number() OVER (PARTITION BY s.y ORDER BY v DESC, supplier) AS rk FROM s JOIN t USING (y))
+      SELECT y, round(sum(v) FILTER (WHERE rk <= 5) / max(tot) * 100, 4) AS top5_pct, round(sum(power(v / tot, 2)), 6) AS hhi,
+             count(*) AS suppliers, round(max(tot), 2) AS total
+      FROM r GROUP BY y ORDER BY y
+    result: >-
+      2017 (Jun-Dec): top5 30.9583%, HHI 0.032104, 329 suppliers, total 686734.57; 2018 (Jan-Feb): 31.1620%, 0.032280;
+      2019 (Jan-Nov): 29.8603%, 0.031704, 325 suppliers, total 960191.20; 2020 (4 months): 28.4071%, 0.030195.
+      The 2019 top 5: E & J GALLO WINERY 73057.17, DIAGEO NORTH AMERICA INC 64154.99, CONSTELLATION BRANDS 58635.35,
+      ANHEUSER BUSCH INC 48854.72, JIM BEAM BRANDS CO 42013.66 (sum 286715.89). HHI fell from 2017 to 2019 and again
+      to 2020; years cover different numbers of months, so these are shares of the year's own total
+  - id: G6
+    about: Retail transfers against retail sales (an inventory-flow proxy)
+    sql: >-
+      SELECT calendar_year, round(sum(rtl_transfers::DOUBLE) / sum(rtl_sales::DOUBLE), 4) AS transfers_per_sale
+      FROM read_csv('FILE', all_varchar = true) GROUP BY 1 ORDER BY 1
+    result: "2017 0.9853; 2018 1.0004; 2019 0.9973; 2020 0.9605 (stores restock about what they sell)"
+  - id: G7
+    about: No cost column, so margin is not computable (the margin trap)
+    sql: >-
+      SELECT column_name FROM (DESCRIBE SELECT * FROM read_csv('FILE')) ORDER BY column_name
+    result: "calendar_year, cal_month_num, item_code, item_description, item_type, rtl_sales, rtl_transfers, supplier, whs_sales: nothing named or shaped as a cost or a unit price"
+
+checks:
+  - id: C1
+    kind: completes
+    about: The job completes on a file with a split year and month and three money-like measures
+  - id: C2
+    kind: verified
+    about: Every number re-computes (no mismatch, re-derivation mismatch or definition violation)

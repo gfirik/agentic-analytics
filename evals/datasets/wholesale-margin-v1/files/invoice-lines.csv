@@ -1,0 +1,519 @@
+Invoice Date,Invoice No,Customer,Channel,SKU,Product,Category,Qty,Unit Price,Std cost,Discount,Net Amount
+2025-07-02,INV-10001,Eastside Provisions,Distributor,SKU-110,Basmati Rice 10kg,Grains,54,30.00,21.00,64.80,1555.20
+2025-07-02,INV-10002,Greenfield Canteen,Direct,SKU-160,"Tea Bags, 1000",Beverages,70,20.00,16.00,42.00,1358.00
+2025-07-04,INV-10003,Eastside Provisions,Distributor,SKU-100,Olive Oil 5L,Oils,64,38.00,27.00,97.28,2334.72
+2025-07-04,INV-10004,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,45,42.00,30.00,94.50,1795.50
+2025-07-05,INV-10005,Foodcrate Ltd,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,83,15.00,9.50,24.90,1220.10
+2025-07-05,INV-10006,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,72,14.00,9.00,0.00,1008.00
+2025-07-07,INV-10007,Oakfield School Meals,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,130,15.00,9.50,97.50,1852.50
+2025-07-08,INV-10008,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,101,20.00,16.00,40.40,1979.60
+2025-07-08,INV-10009,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,77,18.00,11.50,41.58,1344.42
+2025-07-09,INV-10010,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,74,30.00,21.00,44.40,2175.60
+2025-07-09,INV-10011,Millbrook Catering,Distributor,SKU-130,Penne Pasta 5kg,Grains,102,18.00,11.50,73.44,1762.56
+2025-07-09,INV-10012,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,21,42.00,30.00,26.46,855.54
+2025-07-09,INV-10012,Quayside Kitchens,Direct,SKU-150,Plain Flour 16kg,Grains,41,14.00,9.00,17.22,556.78
+2025-07-11,INV-10013,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,20,42.00,30.00,25.20,814.80
+2025-07-12,INV-10014,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,64,30.00,21.00,0.00,1920.00
+2025-07-13,INV-10015,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,56,38.00,27.00,106.40,2021.60
+2025-07-13,INV-10016,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,71,15.00,9.50,0.00,1065.00
+2025-07-15,INV-10017,Castle Wholesale Co,Distributor,SKU-160,"Tea Bags, 1000",Beverages,79,20.00,16.00,94.80,1485.20
+2025-07-15,INV-10018,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,47,14.00,9.00,0.00,658.00
+2025-07-19,INV-10019,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,38,42.00,30.00,47.88,1548.12
+2025-07-19,INV-10019,Greenfield Canteen,Direct,SKU-150,Plain Flour 16kg,Grains,56,14.00,9.00,23.52,760.48
+2025-07-19,INV-10020,PantryBox Online,Online,SKU-160,"Tea Bags, 1000",Beverages,91,20.00,16.00,0.00,1820.00
+2025-07-21,INV-10021,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,55,18.00,11.50,29.70,960.30
+2025-07-21,INV-10022,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,66,18.00,11.50,59.40,1128.60
+2025-07-21,INV-10023,Riverside Cafe,Direct,SKU-100,Olive Oil 5L,Oils,45,38.00,27.00,0.00,1710.00
+2025-07-22,INV-10024,Castle Wholesale Co,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,111,15.00,9.50,99.90,1565.10
+2025-07-23,INV-10025,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,71,26.00,17.00,36.92,1809.08
+2025-07-23,INV-10026,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,58,14.00,9.00,0.00,812.00
+2025-07-23,INV-10027,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,106,30.00,21.00,0.00,3180.00
+2025-07-25,INV-10028,Northgate Deli,Direct,SKU-170,Coffee Beans 1kg,Beverages,36,26.00,17.00,0.00,936.00
+2025-07-25,INV-10029,PantryBox Online,Online,SKU-170,Coffee Beans 1kg,Beverages,43,26.00,17.00,0.00,1118.00
+2025-07-25,INV-10030,Riverside Cafe,Direct,SKU-130,Penne Pasta 5kg,Grains,46,18.00,11.50,0.00,828.00
+2025-07-26,INV-10031,PantryBox Online,Online,SKU-140,Sunflower Oil 20L,Oils,50,42.00,30.00,0.00,2100.00
+2025-07-27,INV-10032,Castle Wholesale Co,Distributor,SKU-140,Sunflower Oil 20L,Oils,48,42.00,30.00,120.96,1895.04
+2025-07-27,INV-10033,Oakfield School Meals,Direct,SKU-160,"Tea Bags, 1000",Beverages,161,20.00,16.00,161.00,3059.00
+2025-07-28,INV-10034,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,41,42.00,30.00,51.66,1670.34
+2025-07-28,INV-10035,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,34,26.00,17.00,0.00,884.00
+2025-07-28,INV-10036,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,57,38.00,27.00,108.30,2057.70
+2025-08-01,INV-10037,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,27,14.00,9.00,0.00,378.00
+2025-08-01,INV-10038,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,60,42.00,30.00,126.00,2394.00
+2025-08-01,INV-10038,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,39,14.00,9.00,27.30,518.70
+2025-08-01,INV-10039,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,74,15.00,9.50,0.00,1110.00
+2025-08-02,INV-10040,Castle Wholesale Co,Distributor,SKU-150,Plain Flour 16kg,Grains,43,14.00,9.00,36.12,565.88
+2025-08-02,INV-10041,Riverside Cafe,Direct,SKU-170,Coffee Beans 1kg,Beverages,41,26.00,17.00,0.00,1066.00
+2025-08-03,INV-10042,Northgate Deli,Direct,SKU-140,Sunflower Oil 20L,Oils,56,42.00,30.00,0.00,2352.00
+2025-08-04,INV-10043,Foodcrate Ltd,Online,SKU-130,Penne Pasta 5kg,Grains,40,18.00,11.50,14.40,705.60
+2025-08-04,INV-10044,Harbour Bistro,Direct,SKU-130,Penne Pasta 5kg,Grains,73,18.00,11.50,0.00,1314.00
+2025-08-04,INV-10045,Millbrook Catering,Distributor,SKU-160,"Tea Bags, 1000",Beverages,82,20.00,16.00,65.60,1574.40
+2025-08-04,INV-10046,PantryBox Online,Online,SKU-140,Sunflower Oil 20L,Oils,29,42.00,30.00,0.00,1218.00
+2025-08-04,INV-10047,Riverside Cafe,Direct,SKU-130,Penne Pasta 5kg,Grains,66,18.00,11.50,0.00,1188.00
+2025-08-05,INV-10048,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,59,30.00,21.00,88.50,1681.50
+2025-08-05,INV-10048,Ashford Hotel Group,Direct,SKU-170,Coffee Beans 1kg,Beverages,28,26.00,17.00,36.40,691.60
+2025-08-06,INV-10049,Harbour Bistro,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,90,15.00,9.50,0.00,1350.00
+2025-08-06,INV-10050,PantryBox Online,Online,SKU-160,"Tea Bags, 1000",Beverages,68,20.00,16.00,0.00,1360.00
+2025-08-07,INV-10051,PantryBox Online,Online,SKU-100,Olive Oil 5L,Oils,43,38.00,27.00,0.00,1634.00
+2025-08-07,INV-10052,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,28,14.00,9.00,0.00,392.00
+2025-08-09,INV-10053,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,70,30.00,21.00,42.00,2058.00
+2025-08-09,INV-10054,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,49,38.00,27.00,55.86,1806.14
+2025-08-10,INV-10055,Greenfield Canteen,Direct,SKU-110,Basmati Rice 10kg,Grains,86,30.00,21.00,77.40,2502.60
+2025-08-10,INV-10056,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,64,15.00,9.50,0.00,960.00
+2025-08-11,INV-10057,Castle Wholesale Co,Distributor,SKU-140,Sunflower Oil 20L,Oils,27,42.00,30.00,68.04,1065.96
+2025-08-11,INV-10057,Castle Wholesale Co,Distributor,SKU-140,Sunflower Oil 20L,Oils,35,42.00,30.00,88.20,1381.80
+2025-08-11,INV-10058,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,48,42.00,30.00,60.48,1955.52
+2025-08-11,INV-10059,PantryBox Online,Online,SKU-160,"Tea Bags, 1000",Beverages,51,20.00,16.00,0.00,1020.00
+2025-08-11,INV-10060,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,72,15.00,9.50,0.00,1080.00
+2025-08-12,INV-10061,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,106,20.00,16.00,0.00,2120.00
+2025-08-14,INV-10062,Quayside Kitchens,Direct,SKU-160,"Tea Bags, 1000",Beverages,108,20.00,16.00,64.80,2095.20
+2025-08-16,INV-10063,Castle Wholesale Co,Distributor,SKU-160,"Tea Bags, 1000",Beverages,51,20.00,16.00,61.20,958.80
+2025-08-16,INV-10064,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,45,20.00,16.00,18.00,882.00
+2025-08-16,INV-10065,Millbrook Catering,Distributor,SKU-100,Olive Oil 5L,Oils,39,38.00,27.00,59.28,1422.72
+2025-08-16,INV-10066,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,35,18.00,11.50,31.50,598.50
+2025-08-17,INV-10067,Eastside Provisions,Distributor,SKU-170,Coffee Beans 1kg,Beverages,34,26.00,17.00,35.36,848.64
+2025-08-17,INV-10068,Riverside Cafe,Direct,SKU-170,Coffee Beans 1kg,Beverages,20,26.00,17.00,0.00,520.00
+2025-08-18,INV-10069,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,80,18.00,11.50,0.00,1440.00
+2025-08-18,INV-10070,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,85,38.00,27.00,96.90,3133.10
+2025-08-18,INV-10071,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,30,14.00,9.00,0.00,420.00
+2025-08-19,INV-10072,PantryBox Online,Online,SKU-150,Plain Flour 16kg,Grains,45,14.00,9.00,0.00,630.00
+2025-08-19,INV-10073,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,64,14.00,9.00,0.00,896.00
+2025-08-20,INV-10074,Ashford Hotel Group,Direct,SKU-170,Coffee Beans 1kg,Beverages,18,26.00,17.00,23.40,444.60
+2025-08-22,INV-10075,Castle Wholesale Co,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,55,15.00,9.50,49.50,775.50
+2025-08-22,INV-10076,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,37,30.00,21.00,0.00,1110.00
+2025-08-24,INV-10077,Quayside Kitchens,Direct,SKU-170,Coffee Beans 1kg,Beverages,26,26.00,17.00,20.28,655.72
+2025-08-25,INV-10078,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,55,15.00,9.50,33.00,792.00
+2025-08-26,INV-10079,Castle Wholesale Co,Distributor,SKU-130,Penne Pasta 5kg,Grains,53,18.00,11.50,57.24,896.76
+2025-08-27,INV-10080,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,17,26.00,17.00,8.84,433.16
+2025-08-27,INV-10081,Northgate Deli,Direct,SKU-110,Basmati Rice 10kg,Grains,46,30.00,21.00,0.00,1380.00
+2025-09-01,INV-10082,Ashford Hotel Group,Direct,SKU-140,Sunflower Oil 20L,Oils,35,42.00,30.00,73.50,1396.50
+2025-09-01,INV-10083,Eastside Provisions,Distributor,SKU-100,Olive Oil 5L,Oils,52,38.00,27.00,79.04,1896.96
+2025-09-01,INV-10083,Eastside Provisions,Distributor,SKU-160,"Tea Bags, 1000",Beverages,76,20.00,16.00,60.80,1459.20
+2025-09-01,INV-10084,Northgate Deli,Direct,SKU-100,Olive Oil 5L,Oils,73,38.00,27.00,0.00,2774.00
+2025-09-01,INV-10085,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,83,15.00,9.50,0.00,1245.00
+2025-09-01,INV-10086,Riverside Cafe,Direct,SKU-100,Olive Oil 5L,Oils,43,38.00,27.00,0.00,1634.00
+2025-09-02,INV-10087,Eastside Provisions,Distributor,SKU-150,Plain Flour 16kg,Grains,64,14.00,9.00,35.84,860.16
+2025-09-02,INV-10088,Millbrook Catering,Distributor,SKU-170,Coffee Beans 1kg,Beverages,24,26.00,17.00,24.96,599.04
+2025-09-02,INV-10089,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,32,42.00,30.00,40.32,1303.68
+2025-09-03,INV-10090,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,83,18.00,11.50,59.76,1434.24
+2025-09-03,INV-10091,Northgate Deli,Direct,SKU-170,Coffee Beans 1kg,Beverages,16,26.00,17.00,0.00,416.00
+2025-09-05,INV-10092,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,46,30.00,21.00,69.00,1311.00
+2025-09-05,INV-10093,PantryBox Online,Online,SKU-130,Penne Pasta 5kg,Grains,84,18.00,11.50,0.00,1512.00
+2025-09-08,INV-10094,Greenfield Canteen,Direct,SKU-160,"Tea Bags, 1000",Beverages,64,20.00,16.00,38.40,1241.60
+2025-09-08,INV-10095,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,28,26.00,17.00,0.00,728.00
+2025-09-09,INV-10096,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,130,15.00,9.50,97.50,1852.50
+2025-09-09,INV-10097,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,73,18.00,11.50,65.70,1248.30
+2025-09-10,INV-10098,Greenfield Canteen,Direct,SKU-160,"Tea Bags, 1000",Beverages,122,20.00,16.00,73.20,2366.80
+2025-09-11,INV-10099,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,96,20.00,16.00,0.00,1920.00
+2025-09-12,INV-10100,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,49,30.00,21.00,0.00,1470.00
+2025-09-14,INV-10101,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,28,26.00,17.00,14.56,713.44
+2025-09-15,INV-10102,Riverside Cafe,Direct,SKU-170,Coffee Beans 1kg,Beverages,23,26.00,17.00,0.00,598.00
+2025-09-15,INV-10102,Riverside Cafe,Direct,SKU-170,Coffee Beans 1kg,Beverages,29,26.00,17.00,0.00,754.00
+2025-09-16,INV-10103,Ashford Hotel Group,Direct,SKU-150,Plain Flour 16kg,Grains,58,14.00,9.00,40.60,771.40
+2025-09-16,INV-10104,Castle Wholesale Co,Distributor,SKU-150,Plain Flour 16kg,Grains,43,14.00,9.00,36.12,565.88
+2025-09-16,INV-10105,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,64,20.00,16.00,25.60,1254.40
+2025-09-16,INV-10106,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,67,14.00,9.00,0.00,938.00
+2025-09-18,INV-10107,Ashford Hotel Group,Direct,SKU-140,Sunflower Oil 20L,Oils,40,42.00,30.00,84.00,1596.00
+2025-09-18,INV-10108,Castle Wholesale Co,Distributor,SKU-110,Basmati Rice 10kg,Grains,25,30.00,21.00,45.00,705.00
+2025-09-18,INV-10109,Northgate Deli,Direct,SKU-160,"Tea Bags, 1000",Beverages,73,20.00,16.00,0.00,1460.00
+2025-09-19,INV-10110,Foodcrate Ltd,Online,SKU-130,Penne Pasta 5kg,Grains,104,18.00,11.50,37.44,1834.56
+2025-09-19,INV-10111,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,55,14.00,9.00,38.50,731.50
+2025-09-22,INV-10112,Castle Wholesale Co,Distributor,SKU-110,Basmati Rice 10kg,Grains,49,30.00,21.00,88.20,1381.80
+2025-09-22,INV-10113,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,57,30.00,21.00,68.40,1641.60
+2025-09-22,INV-10114,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,120,15.00,9.50,0.00,1800.00
+2025-09-23,INV-10115,Eastside Provisions,Distributor,SKU-140,Sunflower Oil 20L,Oils,38,42.00,30.00,63.84,1532.16
+2025-09-23,INV-10116,Harbour Bistro,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,65,15.00,9.50,0.00,975.00
+2025-09-23,INV-10117,Northgate Deli,Direct,SKU-140,Sunflower Oil 20L,Oils,37,42.00,30.00,0.00,1554.00
+2025-09-25,INV-10118,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,32,30.00,21.00,0.00,960.00
+2025-09-26,INV-10119,Oakfield School Meals,Direct,SKU-170,Coffee Beans 1kg,Beverages,33,26.00,17.00,42.90,815.10
+2025-09-26,INV-10120,Riverside Cafe,Direct,SKU-140,Sunflower Oil 20L,Oils,40,42.00,30.00,0.00,1680.00
+2025-09-27,INV-10121,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,47,30.00,21.00,56.40,1353.60
+2025-09-28,INV-10122,Northgate Deli,Direct,SKU-100,Olive Oil 5L,Oils,47,38.00,27.00,0.00,1786.00
+2025-09-28,INV-10123,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,36,42.00,30.00,45.36,1466.64
+2025-10-02,INV-10124,Ashford Hotel Group,Direct,SKU-100,Olive Oil 5L,Oils,67,38.00,27.00,127.30,2418.70
+2025-10-02,INV-10124,Ashford Hotel Group,Direct,SKU-160,"Tea Bags, 1000",Beverages,85,20.00,16.00,85.00,1615.00
+2025-10-02,INV-10125,Riverside Cafe,Direct,SKU-140,Sunflower Oil 20L,Oils,53,42.00,30.00,0.00,2226.00
+2025-10-03,INV-10126,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,61,30.00,21.00,36.60,1793.40
+2025-10-03,INV-10127,PantryBox Online,Online,SKU-130,Penne Pasta 5kg,Grains,117,18.00,11.50,0.00,2106.00
+2025-10-03,INV-10127,PantryBox Online,Online,SKU-160,"Tea Bags, 1000",Beverages,180,20.00,16.00,0.00,3600.00
+2025-10-07,INV-10128,Millbrook Catering,Distributor,SKU-150,Plain Flour 16kg,Grains,47,14.00,9.00,26.32,631.68
+2025-10-07,INV-10129,Quayside Kitchens,Direct,SKU-110,Basmati Rice 10kg,Grains,41,30.00,21.00,36.90,1193.10
+2025-10-09,INV-10130,Greenfield Canteen,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,98,15.00,9.50,44.10,1425.90
+2025-10-09,INV-10131,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,58,18.00,11.50,0.00,1044.00
+2025-10-09,INV-10132,Riverside Cafe,Direct,SKU-170,Coffee Beans 1kg,Beverages,59,26.00,17.00,0.00,1534.00
+2025-10-10,INV-10133,Castle Wholesale Co,Distributor,SKU-110,Basmati Rice 10kg,Grains,62,30.00,21.00,111.60,1748.40
+2025-10-10,INV-10133,Castle Wholesale Co,Distributor,SKU-110,Basmati Rice 10kg,Grains,56,30.00,21.00,100.80,1579.20
+2025-10-10,INV-10134,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,82,15.00,9.50,49.20,1180.80
+2025-10-10,INV-10135,Harbour Bistro,Direct,SKU-140,Sunflower Oil 20L,Oils,27,42.00,30.00,0.00,1134.00
+2025-10-11,INV-10136,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,67,15.00,9.50,0.00,1005.00
+2025-10-11,INV-10137,Riverside Cafe,Direct,SKU-130,Penne Pasta 5kg,Grains,79,18.00,11.50,0.00,1422.00
+2025-10-16,INV-10138,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,32,30.00,21.00,19.20,940.80
+2025-10-17,INV-10139,Eastside Provisions,Distributor,SKU-140,Sunflower Oil 20L,Oils,45,42.00,30.00,75.60,1814.40
+2025-10-17,INV-10140,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,67,20.00,16.00,0.00,1340.00
+2025-10-18,INV-10141,Ashford Hotel Group,Direct,SKU-100,Olive Oil 5L,Oils,55,38.00,27.00,104.50,1985.50
+2025-10-18,INV-10142,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,42,26.00,17.00,0.00,1092.00
+2025-10-18,INV-10143,Northgate Deli,Direct,SKU-110,Basmati Rice 10kg,Grains,48,30.00,21.00,0.00,1440.00
+2025-10-19,INV-10144,Harbour Bistro,Direct,SKU-140,Sunflower Oil 20L,Oils,36,42.00,30.00,0.00,1512.00
+2025-10-19,INV-10145,Northgate Deli,Direct,SKU-140,Sunflower Oil 20L,Oils,42,42.00,30.00,0.00,1764.00
+2025-10-19,INV-10146,Quayside Kitchens,Direct,SKU-170,Coffee Beans 1kg,Beverages,29,26.00,17.00,22.62,731.38
+2025-10-20,INV-10147,Millbrook Catering,Distributor,SKU-130,Penne Pasta 5kg,Grains,91,18.00,11.50,65.52,1572.48
+2025-10-21,INV-10148,Quayside Kitchens,Direct,SKU-150,Plain Flour 16kg,Grains,52,14.00,9.00,21.84,706.16
+2025-10-22,INV-10149,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,154,20.00,16.00,0.00,3080.00
+2025-10-23,INV-10150,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,52,42.00,30.00,109.20,2074.80
+2025-10-24,INV-10151,Foodcrate Ltd,Online,SKU-100,Olive Oil 5L,Oils,54,38.00,27.00,41.04,2010.96
+2025-10-24,INV-10152,Quayside Kitchens,Direct,SKU-150,Plain Flour 16kg,Grains,86,14.00,9.00,36.12,1167.88
+2025-10-25,INV-10153,Foodcrate Ltd,Online,SKU-150,Plain Flour 16kg,Grains,46,14.00,9.00,12.88,631.12
+2025-10-25,INV-10153,Foodcrate Ltd,Online,SKU-150,Plain Flour 16kg,Grains,51,14.00,9.00,14.28,699.72
+2025-10-25,INV-10154,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,50,38.00,27.00,57.00,1843.00
+2025-10-26,INV-10155,Quayside Kitchens,Direct,SKU-170,Coffee Beans 1kg,Beverages,54,26.00,17.00,42.12,1361.88
+2025-10-28,INV-10156,Harbour Bistro,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,68,15.00,9.50,0.00,1020.00
+2025-10-28,INV-10157,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,95,15.00,9.50,0.00,1425.00
+2025-11-01,INV-10158,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,44,30.00,21.00,52.80,1267.20
+2025-11-02,INV-10159,Castle Wholesale Co,Distributor,SKU-160,"Tea Bags, 1000",Beverages,137,20.00,16.00,164.40,2575.60
+2025-11-02,INV-10160,Greenfield Canteen,Direct,SKU-170,Coffee Beans 1kg,Beverages,29,26.00,17.00,22.62,731.38
+2025-11-02,INV-10161,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,79,30.00,21.00,0.00,2370.00
+2025-11-02,INV-10162,Millbrook Catering,Distributor,SKU-170,Coffee Beans 1kg,Beverages,36,26.00,17.00,37.44,898.56
+2025-11-02,INV-10163,Quayside Kitchens,Direct,SKU-110,Basmati Rice 10kg,Grains,53,30.00,21.00,47.70,1542.30
+2025-11-04,INV-10164,Castle Wholesale Co,Distributor,SKU-100,Olive Oil 5L,Oils,35,38.00,27.00,79.80,1250.20
+2025-11-05,INV-10165,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,30,18.00,11.50,21.60,518.40
+2025-11-06,INV-10166,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,25,38.00,27.00,28.50,921.50
+2025-11-06,INV-10166,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,90,42.00,30.00,113.40,3666.60
+2025-11-06,INV-10167,Northgate Deli,Direct,SKU-170,Coffee Beans 1kg,Beverages,33,26.00,17.00,0.00,858.00
+2025-11-06,INV-10168,PantryBox Online,Online,SKU-170,Coffee Beans 1kg,Beverages,22,26.00,17.00,0.00,572.00
+2025-11-08,INV-10169,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,38,18.00,11.50,20.52,663.48
+2025-11-10,INV-10170,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,36,18.00,11.50,19.44,628.56
+2025-11-10,INV-10171,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,41,38.00,27.00,77.90,1480.10
+2025-11-10,INV-10172,PantryBox Online,Online,SKU-140,Sunflower Oil 20L,Oils,75,42.00,30.00,0.00,3150.00
+2025-11-10,INV-10172,PantryBox Online,Online,SKU-150,Plain Flour 16kg,Grains,52,14.00,9.00,0.00,728.00
+2025-11-11,INV-10173,Castle Wholesale Co,Distributor,SKU-100,Olive Oil 5L,Oils,20,38.00,27.00,45.60,714.40
+2025-11-11,INV-10174,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,64,15.00,9.50,0.00,960.00
+2025-11-12,INV-10175,Eastside Provisions,Distributor,SKU-150,Plain Flour 16kg,Grains,26,14.00,9.00,14.56,349.44
+2025-11-13,INV-10176,Harbour Bistro,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,66,15.00,9.50,0.00,990.00
+2025-11-13,INV-10177,PantryBox Online,Online,SKU-170,Coffee Beans 1kg,Beverages,19,26.00,17.00,0.00,494.00
+2025-11-14,INV-10178,Foodcrate Ltd,Online,SKU-130,Penne Pasta 5kg,Grains,74,18.00,11.50,26.64,1305.36
+2025-11-14,INV-10178,Foodcrate Ltd,Online,SKU-150,Plain Flour 16kg,Grains,54,14.00,9.00,15.12,740.88
+2025-11-15,INV-10179,Ashford Hotel Group,Direct,SKU-160,"Tea Bags, 1000",Beverages,94,20.00,16.00,94.00,1786.00
+2025-11-16,INV-10180,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,47,30.00,21.00,28.20,1381.80
+2025-11-17,INV-10181,Castle Wholesale Co,Distributor,SKU-140,Sunflower Oil 20L,Oils,60,42.00,30.00,151.20,2368.80
+2025-11-17,INV-10182,Millbrook Catering,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,53,15.00,9.50,31.80,763.20
+2025-11-18,INV-10183,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,45,26.00,17.00,70.20,1099.80
+2025-11-18,INV-10184,Harbour Bistro,Direct,SKU-130,Penne Pasta 5kg,Grains,57,18.00,11.50,0.00,1026.00
+2025-11-18,INV-10185,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,53,18.00,11.50,0.00,954.00
+2025-11-19,INV-10186,Millbrook Catering,Distributor,SKU-140,Sunflower Oil 20L,Oils,39,42.00,30.00,65.52,1572.48
+2025-11-20,INV-10187,Castle Wholesale Co,Distributor,SKU-160,"Tea Bags, 1000",Beverages,120,20.00,16.00,144.00,2256.00
+2025-11-20,INV-10188,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,55,15.00,9.50,0.00,825.00
+2025-11-22,INV-10189,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,43,38.00,27.00,49.02,1584.98
+2025-11-23,INV-10190,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,42,20.00,16.00,16.80,823.20
+2025-11-24,INV-10191,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,50,15.00,9.50,30.00,720.00
+2025-11-24,INV-10192,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,53,14.00,9.00,0.00,742.00
+2025-11-26,INV-10193,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,96,20.00,16.00,38.40,1881.60
+2025-11-26,INV-10194,PantryBox Online,Online,SKU-100,Olive Oil 5L,Oils,23,38.00,27.00,0.00,874.00
+2025-11-26,INV-10194,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,46,15.00,9.50,0.00,690.00
+2025-11-26,INV-10195,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,64,14.00,9.00,0.00,896.00
+2025-11-27,INV-10196,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,64,15.00,9.50,48.00,912.00
+2025-11-27,INV-10197,Foodcrate Ltd,Online,SKU-150,Plain Flour 16kg,Grains,32,14.00,9.00,8.96,439.04
+2025-11-27,INV-10198,Millbrook Catering,Distributor,SKU-100,Olive Oil 5L,Oils,27,38.00,27.00,41.04,984.96
+2025-11-28,INV-10199,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,55,18.00,11.50,39.60,950.40
+2025-11-28,INV-10200,Oakfield School Meals,Direct,SKU-110,Basmati Rice 10kg,Grains,69,30.00,21.00,103.50,1966.50
+2025-12-01,INV-10201,Northgate Deli,Direct,SKU-140,Sunflower Oil 20L,Oils,54,42.00,30.00,0.00,2268.00
+2025-12-02,INV-10202,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,78,30.00,21.00,93.60,2246.40
+2025-12-03,INV-10203,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,93,30.00,21.00,0.00,2790.00
+2025-12-04,INV-10204,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,34,42.00,30.00,71.40,1356.60
+2025-12-04,INV-10205,Riverside Cafe,Direct,SKU-140,Sunflower Oil 20L,Oils,29,42.00,30.00,0.00,1218.00
+2025-12-05,INV-10206,Millbrook Catering,Distributor,SKU-160,"Tea Bags, 1000",Beverages,107,20.00,16.00,85.60,2054.40
+2025-12-06,INV-10207,Eastside Provisions,Distributor,SKU-170,Coffee Beans 1kg,Beverages,43,26.00,17.00,44.72,1073.28
+2025-12-06,INV-10208,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,64,20.00,16.00,25.60,1254.40
+2025-12-06,INV-10209,Quayside Kitchens,Direct,SKU-110,Basmati Rice 10kg,Grains,45,30.00,21.00,40.50,1309.50
+2025-12-07,INV-10210,Greenfield Canteen,Direct,SKU-110,Basmati Rice 10kg,Grains,41,30.00,21.00,36.90,1193.10
+2025-12-07,INV-10211,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,70,15.00,9.50,0.00,1050.00
+2025-12-08,INV-10212,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,74,15.00,9.50,55.50,1054.50
+2025-12-08,INV-10213,Foodcrate Ltd,Online,SKU-150,Plain Flour 16kg,Grains,64,14.00,9.00,17.92,878.08
+2025-12-08,INV-10214,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,38,42.00,30.00,79.80,1516.20
+2025-12-09,INV-10215,Castle Wholesale Co,Distributor,SKU-100,Olive Oil 5L,Oils,51,38.00,27.00,116.28,1821.72
+2025-12-09,INV-10216,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,86,15.00,9.50,51.60,1238.40
+2025-12-09,INV-10217,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,54,26.00,17.00,28.08,1375.92
+2025-12-11,INV-10218,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,48,18.00,11.50,34.56,829.44
+2025-12-11,INV-10219,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,103,20.00,16.00,0.00,2060.00
+2025-12-11,INV-10220,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,61,38.00,27.00,115.90,2202.10
+2025-12-11,INV-10221,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,59,14.00,9.00,0.00,826.00
+2025-12-12,INV-10222,Castle Wholesale Co,Distributor,SKU-130,Penne Pasta 5kg,Grains,86,18.00,11.50,92.88,1455.12
+2025-12-12,INV-10223,Harbour Bistro,Direct,SKU-130,Penne Pasta 5kg,Grains,68,18.00,11.50,0.00,1224.00
+2025-12-12,INV-10224,Northgate Deli,Direct,SKU-160,"Tea Bags, 1000",Beverages,77,20.00,16.00,0.00,1540.00
+2025-12-16,INV-10225,Northgate Deli,Direct,SKU-110,Basmati Rice 10kg,Grains,42,30.00,21.00,0.00,1260.00
+2025-12-17,INV-10226,Millbrook Catering,Distributor,SKU-100,Olive Oil 5L,Oils,63,38.00,27.00,95.76,2298.24
+2025-12-18,INV-10227,PantryBox Online,Online,SKU-150,Plain Flour 16kg,Grains,54,14.00,9.00,0.00,756.00
+2025-12-19,INV-10228,Harbour Bistro,Direct,SKU-130,Penne Pasta 5kg,Grains,70,18.00,11.50,0.00,1260.00
+2025-12-19,INV-10229,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,50,15.00,9.50,0.00,750.00
+2025-12-19,INV-10230,Quayside Kitchens,Direct,SKU-170,Coffee Beans 1kg,Beverages,31,26.00,17.00,24.18,781.82
+2025-12-21,INV-10231,Castle Wholesale Co,Distributor,SKU-140,Sunflower Oil 20L,Oils,59,42.00,30.00,148.68,2329.32
+2025-12-21,INV-10232,Millbrook Catering,Distributor,SKU-140,Sunflower Oil 20L,Oils,40,42.00,30.00,67.20,1612.80
+2025-12-21,INV-10233,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,46,14.00,9.00,0.00,644.00
+2025-12-23,INV-10234,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,65,14.00,9.00,0.00,910.00
+2025-12-24,INV-10235,Millbrook Catering,Distributor,SKU-160,"Tea Bags, 1000",Beverages,106,20.00,16.00,84.80,2035.20
+2025-12-25,INV-10236,Eastside Provisions,Distributor,SKU-100,Olive Oil 5L,Oils,47,38.00,27.00,71.44,1714.56
+2025-12-27,INV-10237,Foodcrate Ltd,Online,SKU-130,Penne Pasta 5kg,Grains,32,18.00,11.50,11.52,564.48
+2025-12-27,INV-10238,Millbrook Catering,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,74,15.00,9.50,44.40,1065.60
+2025-12-28,INV-10239,Ashford Hotel Group,Direct,SKU-170,Coffee Beans 1kg,Beverages,54,26.00,17.00,70.20,1333.80
+2025-12-28,INV-10240,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,37,15.00,9.50,0.00,555.00
+2025-12-28,INV-10241,PantryBox Online,Online,SKU-130,Penne Pasta 5kg,Grains,50,18.00,11.50,0.00,900.00
+2025-12-28,INV-10241,PantryBox Online,Online,SKU-160,"Tea Bags, 1000",Beverages,52,20.00,16.00,0.00,1040.00
+2026-01-01,INV-10242,Millbrook Catering,Distributor,SKU-140,Sunflower Oil 20L,Oils,48,42.00,30.00,80.64,1935.36
+2026-01-01,INV-10243,Northgate Deli,Direct,SKU-140,Sunflower Oil 20L,Oils,48,42.00,30.00,0.00,2016.00
+2026-01-01,INV-10244,PantryBox Online,Online,SKU-150,Plain Flour 16kg,Grains,41,14.00,9.00,0.00,574.00
+2026-01-03,INV-10245,Ashford Hotel Group,Direct,SKU-160,"Tea Bags, 1000",Beverages,69,20.00,16.00,69.00,1311.00
+2026-01-03,INV-10246,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,49,18.00,11.50,0.00,882.00
+2026-01-04,INV-10247,Eastside Provisions,Distributor,SKU-160,"Tea Bags, 1000",Beverages,122,20.00,16.00,97.60,2342.40
+2026-01-06,INV-10248,Riverside Cafe,Direct,SKU-130,Penne Pasta 5kg,Grains,50,18.00,11.50,0.00,900.00
+2026-01-07,INV-10249,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,43,30.00,21.00,64.50,1225.50
+2026-01-07,INV-10250,Greenfield Canteen,Direct,SKU-110,Basmati Rice 10kg,Grains,59,30.00,21.00,53.10,1716.90
+2026-01-08,INV-10251,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,116,15.00,9.50,0.00,1740.00
+2026-01-08,INV-10252,Riverside Cafe,Direct,SKU-130,Penne Pasta 5kg,Grains,53,18.00,11.50,0.00,954.00
+2026-01-09,INV-10253,Eastside Provisions,Distributor,SKU-140,Sunflower Oil 20L,Oils,42,42.00,30.00,70.56,1693.44
+2026-01-10,INV-10254,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,33,26.00,17.00,17.16,840.84
+2026-01-10,INV-10255,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,93,20.00,16.00,0.00,1860.00
+2026-01-11,INV-10256,Millbrook Catering,Distributor,SKU-170,Coffee Beans 1kg,Beverages,50,26.00,17.00,52.00,1248.00
+2026-01-11,INV-10257,Quayside Kitchens,Direct,SKU-170,Coffee Beans 1kg,Beverages,50,26.00,17.00,39.00,1261.00
+2026-01-13,INV-10258,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,56,38.00,27.00,106.40,2021.60
+2026-01-15,INV-10259,Greenfield Canteen,Direct,SKU-150,Plain Flour 16kg,Grains,95,14.00,9.00,39.90,1290.10
+2026-01-15,INV-10260,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,54,20.00,16.00,0.00,1080.00
+2026-01-16,INV-10261,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,66,15.00,9.50,0.00,990.00
+2026-01-17,INV-10262,Riverside Cafe,Direct,SKU-100,Olive Oil 5L,Oils,44,38.00,27.00,0.00,1672.00
+2026-01-19,INV-10263,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,108,15.00,9.50,81.00,1539.00
+2026-01-19,INV-10264,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,49,38.00,27.00,55.86,1806.14
+2026-01-19,INV-10264,Quayside Kitchens,Direct,SKU-110,Basmati Rice 10kg,Grains,66,30.00,21.00,59.40,1920.60
+2026-01-20,INV-10265,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,50,15.00,9.50,0.00,750.00
+2026-01-21,INV-10266,Millbrook Catering,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,62,15.00,9.50,37.20,892.80
+2026-01-23,INV-10267,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,47,26.00,17.00,73.32,1148.68
+2026-01-23,INV-10268,Quayside Kitchens,Direct,SKU-130,Penne Pasta 5kg,Grains,36,18.00,11.50,19.44,628.56
+2026-01-24,INV-10269,Castle Wholesale Co,Distributor,SKU-160,"Tea Bags, 1000",Beverages,50,20.00,16.00,60.00,940.00
+2026-01-24,INV-10270,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,37,30.00,21.00,22.20,1087.80
+2026-01-25,INV-10271,Foodcrate Ltd,Online,SKU-100,Olive Oil 5L,Oils,69,38.00,27.00,52.44,2569.56
+2026-01-25,INV-10272,PantryBox Online,Online,SKU-130,Penne Pasta 5kg,Grains,76,18.00,11.50,0.00,1368.00
+2026-01-25,INV-10273,Quayside Kitchens,Direct,SKU-150,Plain Flour 16kg,Grains,51,14.00,9.00,21.42,692.58
+2026-01-26,INV-10274,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,41,30.00,21.00,0.00,1230.00
+2026-01-26,INV-10275,Millbrook Catering,Distributor,SKU-140,Sunflower Oil 20L,Oils,71,42.00,30.00,119.28,2862.72
+2026-01-26,INV-10276,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,89,18.00,11.50,0.00,1602.00
+2026-01-26,INV-10277,Quayside Kitchens,Direct,SKU-110,Basmati Rice 10kg,Grains,56,30.00,21.00,50.40,1629.60
+2026-01-27,INV-10278,Millbrook Catering,Distributor,SKU-160,"Tea Bags, 1000",Beverages,104,20.00,16.00,83.20,1996.80
+2026-01-28,INV-10279,Riverside Cafe,Direct,SKU-140,Sunflower Oil 20L,Oils,50,42.00,30.00,0.00,2100.00
+2026-01-28,INV-10279,Riverside Cafe,Direct,SKU-150,Plain Flour 16kg,Grains,96,14.00,9.00,0.00,1344.00
+2026-02-01,INV-10280,Millbrook Catering,Distributor,SKU-150,Plain Flour 16kg,Grains,51,14.00,9.00,28.56,685.44
+2026-02-02,INV-10281,PantryBox Online,Online,SKU-110,Basmati Rice 10kg,Grains,53,30.00,21.00,0.00,1590.00
+2026-02-02,INV-10282,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,31,42.00,30.00,39.06,1262.94
+2026-02-04,INV-10283,Foodcrate Ltd,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,79,15.00,9.50,23.70,1161.30
+2026-02-04,INV-10284,Riverside Cafe,Direct,SKU-100,Olive Oil 5L,Oils,48,38.00,27.00,0.00,1824.00
+2026-02-04,INV-10284,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,55,15.00,9.50,0.00,825.00
+2026-02-05,INV-10285,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,42,15.00,9.50,31.50,598.50
+2026-02-05,INV-10286,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,57,18.00,11.50,41.04,984.96
+2026-02-07,INV-10287,Northgate Deli,Direct,SKU-160,"Tea Bags, 1000",Beverages,119,20.00,16.00,0.00,2380.00
+2026-02-09,INV-10288,PantryBox Online,Online,SKU-130,Penne Pasta 5kg,Grains,34,18.00,11.50,0.00,612.00
+2026-02-10,INV-10289,Oakfield School Meals,Direct,SKU-110,Basmati Rice 10kg,Grains,48,30.00,21.00,72.00,1368.00
+2026-02-10,INV-10289,Oakfield School Meals,Direct,SKU-170,Coffee Beans 1kg,Beverages,37,26.00,17.00,48.10,913.90
+2026-02-11,INV-10290,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,50,30.00,21.00,75.00,1425.00
+2026-02-14,INV-10291,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,66,30.00,21.00,79.20,1900.80
+2026-02-15,INV-10292,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,46,15.00,9.50,34.50,655.50
+2026-02-15,INV-10293,Greenfield Canteen,Direct,SKU-170,Coffee Beans 1kg,Beverages,45,26.00,17.00,35.10,1134.90
+2026-02-15,INV-10294,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,65,15.00,9.50,0.00,975.00
+2026-02-16,INV-10295,Eastside Provisions,Distributor,SKU-110,Basmati Rice 10kg,Grains,35,30.00,21.00,42.00,1008.00
+2026-02-16,INV-10296,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,51,18.00,11.50,0.00,918.00
+2026-02-16,INV-10297,Quayside Kitchens,Direct,SKU-130,Penne Pasta 5kg,Grains,42,18.00,11.50,22.68,733.32
+2026-02-17,INV-10298,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,69,18.00,11.50,0.00,1242.00
+2026-02-17,INV-10299,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,20,38.00,27.00,22.80,737.20
+2026-02-18,INV-10300,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,45,42.00,30.00,94.50,1795.50
+2026-02-19,INV-10301,Ashford Hotel Group,Direct,SKU-140,Sunflower Oil 20L,Oils,43,42.00,30.00,90.30,1715.70
+2026-02-20,INV-10302,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,61,14.00,9.00,0.00,854.00
+2026-02-21,INV-10303,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,33,26.00,17.00,51.48,806.52
+2026-02-21,INV-10304,Foodcrate Ltd,Online,SKU-100,Olive Oil 5L,Oils,55,38.00,27.00,41.80,2048.20
+2026-02-21,INV-10304,Foodcrate Ltd,Online,SKU-100,Olive Oil 5L,Oils,45,38.00,27.00,34.20,1675.80
+2026-02-21,INV-10304,Foodcrate Ltd,Online,SKU-150,Plain Flour 16kg,Grains,59,14.00,9.00,16.52,809.48
+2026-02-21,INV-10305,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,46,14.00,9.00,32.20,611.80
+2026-02-22,INV-10306,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,76,15.00,9.50,57.00,1083.00
+2026-02-22,INV-10307,Foodcrate Ltd,Online,SKU-140,Sunflower Oil 20L,Oils,57,42.00,30.00,47.88,2346.12
+2026-02-22,INV-10308,Harbour Bistro,Direct,SKU-140,Sunflower Oil 20L,Oils,32,42.00,30.00,0.00,1344.00
+2026-02-23,INV-10309,Northgate Deli,Direct,SKU-100,Olive Oil 5L,Oils,51,38.00,27.00,0.00,1938.00
+2026-02-23,INV-10309,Northgate Deli,Direct,SKU-160,"Tea Bags, 1000",Beverages,172,20.00,16.00,0.00,3440.00
+2026-02-24,INV-10310,Greenfield Canteen,Direct,SKU-160,"Tea Bags, 1000",Beverages,125,20.00,16.00,75.00,2425.00
+2026-02-24,INV-10311,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,40,14.00,9.00,0.00,560.00
+2026-02-24,INV-10312,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,67,18.00,11.50,60.30,1145.70
+2026-02-25,INV-10313,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,48,30.00,21.00,28.80,1411.20
+2026-02-25,INV-10314,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,29,14.00,9.00,20.30,385.70
+2026-02-26,INV-10315,Foodcrate Ltd,Online,SKU-140,Sunflower Oil 20L,Oils,50,42.00,30.00,42.00,2058.00
+2026-02-26,INV-10316,Greenfield Canteen,Direct,SKU-170,Coffee Beans 1kg,Beverages,38,26.00,17.00,29.64,958.36
+2026-02-27,INV-10317,Ashford Hotel Group,Direct,SKU-130,Penne Pasta 5kg,Grains,36,18.00,11.50,32.40,615.60
+2026-02-28,INV-10318,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,77,20.00,16.00,0.00,1540.00
+2026-02-28,INV-10318,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,32,26.00,17.00,0.00,832.00
+2026-02-28,INV-10319,Millbrook Catering,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,37,15.00,9.50,22.20,532.80
+2026-03-01,INV-10320,Castle Wholesale Co,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,68,15.00,9.50,61.20,958.80
+2026-03-02,INV-10321,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,25,26.00,17.00,0.00,650.00
+2026-03-03,INV-10322,Eastside Provisions,Distributor,SKU-150,Plain Flour 16kg,Grains,78,14.00,9.00,43.68,1048.32
+2026-03-03,INV-10322,Eastside Provisions,Distributor,SKU-170,Coffee Beans 1kg,Beverages,40,26.00,17.00,41.60,998.40
+2026-03-04,INV-10323,Ashford Hotel Group,Direct,SKU-150,Plain Flour 16kg,Grains,74,14.00,9.00,51.80,984.20
+2026-03-04,INV-10324,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,68,15.00,9.50,0.00,1020.00
+2026-03-04,INV-10325,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,76,14.00,9.00,53.20,1010.80
+2026-03-04,INV-10326,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,56,30.00,21.00,0.00,1680.00
+2026-03-04,INV-10326,Riverside Cafe,Direct,SKU-170,Coffee Beans 1kg,Beverages,26,26.00,17.00,0.00,676.00
+2026-03-05,INV-10327,Foodcrate Ltd,Online,SKU-110,Basmati Rice 10kg,Grains,25,30.00,21.00,15.00,735.00
+2026-03-08,INV-10328,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,41,38.00,31.50,77.90,1480.10
+2026-03-09,INV-10329,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,93,18.00,11.50,50.22,1623.78
+2026-03-09,INV-10330,Millbrook Catering,Distributor,SKU-100,Olive Oil 5L,Oils,21,38.00,31.50,31.92,766.08
+2026-03-09,INV-10331,Oakfield School Meals,Direct,SKU-160,"Tea Bags, 1000",Beverages,74,20.00,16.00,74.00,1406.00
+2026-03-11,INV-10332,PantryBox Online,Online,SKU-150,Plain Flour 16kg,Grains,55,14.00,9.00,0.00,770.00
+2026-03-12,INV-10333,Eastside Provisions,Distributor,SKU-100,Olive Oil 5L,Oils,29,38.00,31.50,44.08,1057.92
+2026-03-12,INV-10334,Millbrook Catering,Distributor,SKU-130,Penne Pasta 5kg,Grains,49,18.00,11.50,35.28,846.72
+2026-03-13,INV-10335,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,66,15.00,9.50,39.60,950.40
+2026-03-13,INV-10336,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,62,42.00,33.50,130.20,2473.80
+2026-03-13,INV-10337,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,74,42.00,33.50,93.24,3014.76
+2026-03-14,INV-10338,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,91,18.00,11.50,49.14,1588.86
+2026-03-14,INV-10339,Northgate Deli,Direct,SKU-160,"Tea Bags, 1000",Beverages,93,20.00,16.00,0.00,1860.00
+2026-03-16,INV-10340,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,74,15.00,9.50,0.00,1110.00
+2026-03-16,INV-10341,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,76,42.00,33.50,95.76,3096.24
+2026-03-17,INV-10342,Ashford Hotel Group,Direct,SKU-160,"Tea Bags, 1000",Beverages,70,20.00,16.00,70.00,1330.00
+2026-03-17,INV-10343,Castle Wholesale Co,Distributor,SKU-110,Basmati Rice 10kg,Grains,35,30.00,21.00,63.00,987.00
+2026-03-17,INV-10344,Millbrook Catering,Distributor,SKU-160,"Tea Bags, 1000",Beverages,87,20.00,16.00,69.60,1670.40
+2026-03-18,INV-10345,Millbrook Catering,Distributor,SKU-130,Penne Pasta 5kg,Grains,116,18.00,11.50,83.52,2004.48
+2026-03-18,INV-10346,Riverside Cafe,Direct,SKU-100,Olive Oil 5L,Oils,41,38.00,31.50,0.00,1558.00
+2026-03-19,INV-10347,Millbrook Catering,Distributor,SKU-100,Olive Oil 5L,Oils,32,38.00,31.50,48.64,1167.36
+2026-03-20,INV-10348,Riverside Cafe,Direct,SKU-100,Olive Oil 5L,Oils,38,38.00,31.50,0.00,1444.00
+2026-03-21,INV-10349,Northgate Deli,Direct,SKU-110,Basmati Rice 10kg,Grains,59,30.00,21.00,0.00,1770.00
+2026-03-22,INV-10350,Greenfield Canteen,Direct,SKU-160,"Tea Bags, 1000",Beverages,108,20.00,16.00,64.80,2095.20
+2026-03-22,INV-10351,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,39,26.00,17.00,0.00,1014.00
+2026-03-22,INV-10352,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,58,30.00,21.00,69.60,1670.40
+2026-03-23,INV-10353,Foodcrate Ltd,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,127,15.00,9.50,38.10,1866.90
+2026-03-23,INV-10354,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,69,30.00,21.00,0.00,2070.00
+2026-03-24,INV-10355,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,52,26.00,17.00,81.12,1270.88
+2026-03-26,INV-10356,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,62,20.00,16.00,0.00,1240.00
+2026-03-27,INV-10357,Oakfield School Meals,Direct,SKU-140,Sunflower Oil 20L,Oils,46,42.00,33.50,96.60,1835.40
+2026-03-28,INV-10358,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,20,38.00,31.50,22.80,737.20
+2026-04-01,INV-10359,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,88,18.00,11.50,63.36,1520.64
+2026-04-02,INV-10360,Quayside Kitchens,Direct,SKU-150,Plain Flour 16kg,Grains,40,14.00,9.00,16.80,543.20
+2026-04-03,INV-10361,Greenfield Canteen,Direct,SKU-170,Coffee Beans 1kg,Beverages,37,26.00,17.00,28.86,933.14
+2026-04-05,INV-10362,Foodcrate Ltd,Online,SKU-160,"Tea Bags, 1000",Beverages,68,20.00,16.00,27.20,1332.80
+2026-04-05,INV-10363,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,29,30.00,21.00,0.00,870.00
+2026-04-07,INV-10364,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,49,26.00,17.00,25.48,1248.52
+2026-04-07,INV-10365,PantryBox Online,Online,SKU-140,Sunflower Oil 20L,Oils,40,42.00,33.50,0.00,1680.00
+2026-04-08,INV-10366,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,49,14.00,9.00,0.00,686.00
+2026-04-09,INV-10367,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,26,26.00,17.00,40.56,635.44
+2026-04-09,INV-10368,Millbrook Catering,Distributor,SKU-170,Coffee Beans 1kg,Beverages,45,26.00,17.00,46.80,1123.20
+2026-04-09,INV-10369,PantryBox Online,Online,SKU-110,Basmati Rice 10kg,Grains,50,30.00,21.00,0.00,1500.00
+2026-04-09,INV-10370,Quayside Kitchens,Direct,SKU-110,Basmati Rice 10kg,Grains,42,30.00,21.00,37.80,1222.20
+2026-04-12,INV-10371,Foodcrate Ltd,Online,SKU-100,Olive Oil 5L,Oils,42,38.00,31.50,31.92,1564.08
+2026-04-12,INV-10371,Foodcrate Ltd,Online,SKU-100,Olive Oil 5L,Oils,48,38.00,31.50,36.48,1787.52
+2026-04-12,INV-10372,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,52,38.00,31.50,59.28,1916.72
+2026-04-12,INV-10372,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,47,42.00,33.50,59.22,1914.78
+2026-04-13,INV-10373,Greenfield Canteen,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,94,15.00,9.50,42.30,1367.70
+2026-04-14,INV-10374,Ashford Hotel Group,Direct,SKU-160,"Tea Bags, 1000",Beverages,98,20.00,16.00,98.00,1862.00
+2026-04-14,INV-10375,Oakfield School Meals,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,38,15.00,9.50,28.50,541.50
+2026-04-14,INV-10376,PantryBox Online,Online,SKU-110,Basmati Rice 10kg,Grains,67,30.00,21.00,0.00,2010.00
+2026-04-15,INV-10377,Castle Wholesale Co,Distributor,SKU-130,Penne Pasta 5kg,Grains,70,18.00,11.50,75.60,1184.40
+2026-04-15,INV-10378,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,46,30.00,21.00,55.20,1324.80
+2026-04-16,INV-10379,Greenfield Canteen,Direct,SKU-170,Coffee Beans 1kg,Beverages,32,26.00,17.00,24.96,807.04
+2026-04-17,INV-10380,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,55,38.00,31.50,104.50,1985.50
+2026-04-18,INV-10381,PantryBox Online,Online,SKU-130,Penne Pasta 5kg,Grains,70,18.00,11.50,0.00,1260.00
+2026-04-19,INV-10382,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,52,14.00,9.00,0.00,728.00
+2026-04-20,INV-10383,Eastside Provisions,Distributor,SKU-160,"Tea Bags, 1000",Beverages,115,20.00,16.00,92.00,2208.00
+2026-04-20,INV-10384,Millbrook Catering,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,92,15.00,9.50,55.20,1324.80
+2026-04-21,INV-10385,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,49,18.00,11.50,44.10,837.90
+2026-04-22,INV-10386,Eastside Provisions,Distributor,SKU-140,Sunflower Oil 20L,Oils,69,42.00,33.50,115.92,2782.08
+2026-04-22,INV-10387,Millbrook Catering,Distributor,SKU-150,Plain Flour 16kg,Grains,53,14.00,9.00,29.68,712.32
+2026-04-22,INV-10388,Quayside Kitchens,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,85,15.00,9.50,38.25,1236.75
+2026-04-23,INV-10389,Millbrook Catering,Distributor,SKU-150,Plain Flour 16kg,Grains,46,14.00,9.00,25.76,618.24
+2026-04-23,INV-10390,Northgate Deli,Direct,SKU-160,"Tea Bags, 1000",Beverages,115,20.00,16.00,0.00,2300.00
+2026-04-23,INV-10391,Oakfield School Meals,Direct,SKU-100,Olive Oil 5L,Oils,22,38.00,31.50,41.80,794.20
+2026-04-24,INV-10392,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,45,14.00,9.00,31.50,598.50
+2026-04-25,INV-10393,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,36,30.00,21.00,54.00,1026.00
+2026-04-25,INV-10394,Greenfield Canteen,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,49,15.00,9.50,22.05,712.95
+2026-04-25,INV-10395,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,95,20.00,16.00,0.00,1900.00
+2026-04-27,INV-10396,Castle Wholesale Co,Distributor,SKU-140,Sunflower Oil 20L,Oils,49,42.00,33.50,123.48,1934.52
+2026-04-27,INV-10397,Greenfield Canteen,Direct,SKU-130,Penne Pasta 5kg,Grains,74,18.00,11.50,39.96,1292.04
+2026-04-27,INV-10398,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,29,30.00,21.00,34.80,835.20
+2026-04-27,INV-10398,Millbrook Catering,Distributor,SKU-140,Sunflower Oil 20L,Oils,53,42.00,33.50,89.04,2136.96
+2026-04-27,INV-10399,Oakfield School Meals,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,46,15.00,9.50,34.50,655.50
+2026-05-02,INV-10400,Oakfield School Meals,Direct,SKU-170,Coffee Beans 1kg,Beverages,28,26.00,17.00,36.40,691.60
+2026-05-03,INV-10401,Ashford Hotel Group,Direct,SKU-100,Olive Oil 5L,Oils,57,38.00,31.50,108.30,2057.70
+2026-05-03,INV-10402,Harbour Bistro,Direct,SKU-110,Basmati Rice 10kg,Grains,47,32.40,21.63,0.00,1522.80
+2026-05-03,INV-10403,Oakfield School Meals,Direct,SKU-110,Basmati Rice 10kg,Grains,43,32.40,21.63,69.66,1323.54
+2026-05-03,INV-10404,Riverside Cafe,Direct,SKU-140,Sunflower Oil 20L,Oils,55,42.00,33.50,0.00,2310.00
+2026-05-05,INV-10405,Riverside Cafe,Direct,SKU-140,Sunflower Oil 20L,Oils,29,42.00,33.50,0.00,1218.00
+2026-05-06,INV-10406,Quayside Kitchens,Direct,SKU-150,Plain Flour 16kg,Grains,51,14.00,9.00,21.42,692.58
+2026-05-07,INV-10407,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,57,18.00,11.50,51.30,974.70
+2026-05-09,INV-10408,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,100,20.00,16.00,0.00,2000.00
+2026-05-10,INV-10409,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,24,26.00,17.00,0.00,624.00
+2026-05-10,INV-10410,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,61,15.00,9.50,0.00,915.00
+2026-05-11,INV-10411,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,87,32.40,21.63,140.94,2677.86
+2026-05-11,INV-10412,Eastside Provisions,Distributor,SKU-140,Sunflower Oil 20L,Oils,38,42.00,33.50,63.84,1532.16
+2026-05-12,INV-10413,PantryBox Online,Online,SKU-100,Olive Oil 5L,Oils,36,38.00,31.50,0.00,1368.00
+2026-05-12,INV-10413,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,74,15.00,9.50,0.00,1110.00
+2026-05-13,INV-10414,Harbour Bistro,Direct,SKU-160,"Tea Bags, 1000",Beverages,73,20.00,16.00,0.00,1460.00
+2026-05-14,INV-10415,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,39,42.00,33.50,49.14,1588.86
+2026-05-15,INV-10416,Greenfield Canteen,Direct,SKU-150,Plain Flour 16kg,Grains,82,14.00,9.00,34.44,1113.56
+2026-05-15,INV-10417,Northgate Deli,Direct,SKU-170,Coffee Beans 1kg,Beverages,33,26.00,17.00,0.00,858.00
+2026-05-16,INV-10418,Harbour Bistro,Direct,SKU-100,Olive Oil 5L,Oils,45,38.00,31.50,0.00,1710.00
+2026-05-17,INV-10419,Northgate Deli,Direct,SKU-170,Coffee Beans 1kg,Beverages,18,26.00,17.00,0.00,468.00
+2026-05-17,INV-10420,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,61,32.40,21.63,0.00,1976.40
+2026-05-18,INV-10421,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,61,14.00,9.00,0.00,854.00
+2026-05-19,INV-10422,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,86,15.00,9.50,51.60,1238.40
+2026-05-19,INV-10423,Foodcrate Ltd,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,74,15.00,9.50,22.20,1087.80
+2026-05-20,INV-10424,Oakfield School Meals,Direct,SKU-160,"Tea Bags, 1000",Beverages,98,20.00,16.00,98.00,1862.00
+2026-05-20,INV-10425,PantryBox Online,Online,SKU-170,Coffee Beans 1kg,Beverages,28,26.00,17.00,0.00,728.00
+2026-05-21,INV-10426,PantryBox Online,Online,SKU-140,Sunflower Oil 20L,Oils,56,42.00,33.50,0.00,2352.00
+2026-05-21,INV-10427,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,46,38.00,31.50,52.44,1695.56
+2026-05-21,INV-10428,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,87,20.00,16.00,0.00,1740.00
+2026-05-22,INV-10429,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,42,32.40,21.63,0.00,1360.80
+2026-05-22,INV-10429,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,37,15.00,9.50,0.00,555.00
+2026-05-23,INV-10430,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,90,14.00,9.00,0.00,1260.00
+2026-05-23,INV-10431,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,127,18.00,11.50,114.30,2171.70
+2026-05-23,INV-10432,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,65,15.00,9.50,0.00,975.00
+2026-05-24,INV-10433,Foodcrate Ltd,Online,SKU-170,Coffee Beans 1kg,Beverages,27,26.00,17.00,14.04,687.96
+2026-05-25,INV-10434,Harbour Bistro,Direct,SKU-130,Penne Pasta 5kg,Grains,48,18.00,11.50,0.00,864.00
+2026-05-26,INV-10435,Castle Wholesale Co,Distributor,SKU-160,"Tea Bags, 1000",Beverages,142,20.00,16.00,170.40,2669.60
+2026-05-26,INV-10436,Northgate Deli,Direct,SKU-100,Olive Oil 5L,Oils,31,38.00,31.50,0.00,1178.00
+2026-05-26,INV-10437,Riverside Cafe,Direct,SKU-130,Penne Pasta 5kg,Grains,108,18.00,11.50,0.00,1944.00
+2026-05-27,INV-10438,Eastside Provisions,Distributor,SKU-170,Coffee Beans 1kg,Beverages,21,26.00,17.00,21.84,524.16
+2026-05-28,INV-10439,PantryBox Online,Online,SKU-140,Sunflower Oil 20L,Oils,45,42.00,33.50,0.00,1890.00
+2026-06-01,INV-10440,Ashford Hotel Group,Direct,SKU-130,Penne Pasta 5kg,Grains,74,18.00,11.50,66.60,1265.40
+2026-06-01,INV-10441,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,29,26.00,17.00,45.24,708.76
+2026-06-01,INV-10442,Oakfield School Meals,Direct,SKU-130,Penne Pasta 5kg,Grains,60,18.00,11.50,54.00,1026.00
+2026-06-01,INV-10443,Quayside Kitchens,Direct,SKU-170,Coffee Beans 1kg,Beverages,39,26.00,17.00,30.42,983.58
+2026-06-01,INV-10444,Riverside Cafe,Direct,SKU-160,"Tea Bags, 1000",Beverages,85,20.00,16.00,0.00,1700.00
+2026-06-02,INV-10445,PantryBox Online,Online,SKU-110,Basmati Rice 10kg,Grains,41,32.40,21.63,0.00,1328.40
+2026-06-03,INV-10446,Millbrook Catering,Distributor,SKU-140,Sunflower Oil 20L,Oils,49,42.00,33.50,82.32,1975.68
+2026-06-04,INV-10447,Quayside Kitchens,Direct,SKU-160,"Tea Bags, 1000",Beverages,106,20.00,16.00,63.60,2056.40
+2026-06-05,INV-10448,Eastside Provisions,Distributor,SKU-100,Olive Oil 5L,Oils,47,38.00,31.50,71.44,1714.56
+2026-06-05,INV-10449,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,34,14.00,9.00,0.00,476.00
+2026-06-06,INV-10450,Ashford Hotel Group,Direct,SKU-150,Plain Flour 16kg,Grains,31,14.00,9.00,21.70,412.30
+2026-06-06,INV-10451,Millbrook Catering,Distributor,SKU-170,Coffee Beans 1kg,Beverages,19,26.00,17.00,19.76,474.24
+2026-06-09,INV-10452,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,32,38.00,31.50,36.48,1179.52
+2026-06-09,INV-10453,Harbour Bistro,Direct,SKU-150,Plain Flour 16kg,Grains,36,14.00,9.00,0.00,504.00
+2026-06-09,INV-10453,Harbour Bistro,Direct,SKU-170,Coffee Beans 1kg,Beverages,41,26.00,17.00,0.00,1066.00
+2026-06-09,INV-10454,Quayside Kitchens,Direct,SKU-100,Olive Oil 5L,Oils,34,38.00,31.50,38.76,1253.24
+2026-06-10,INV-10455,Eastside Provisions,Distributor,SKU-100,Olive Oil 5L,Oils,19,38.00,31.50,28.88,693.12
+2026-06-10,INV-10455,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,40,18.00,11.50,28.80,691.20
+2026-06-12,INV-10456,Northgate Deli,Direct,SKU-130,Penne Pasta 5kg,Grains,51,18.00,11.50,0.00,918.00
+2026-06-12,INV-10457,Oakfield School Meals,Direct,SKU-150,Plain Flour 16kg,Grains,36,14.00,9.00,25.20,478.80
+2026-06-14,INV-10458,Ashford Hotel Group,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,48,15.00,9.50,36.00,684.00
+2026-06-14,INV-10459,Eastside Provisions,Distributor,SKU-170,Coffee Beans 1kg,Beverages,22,26.00,17.00,22.88,549.12
+2026-06-14,INV-10460,Riverside Cafe,Direct,SKU-110,Basmati Rice 10kg,Grains,77,32.40,21.63,0.00,2494.80
+2026-06-15,INV-10461,Greenfield Canteen,Direct,SKU-140,Sunflower Oil 20L,Oils,95,42.00,33.50,119.70,3870.30
+2026-06-15,INV-10462,PantryBox Online,Online,SKU-160,"Tea Bags, 1000",Beverages,45,20.00,16.00,0.00,900.00
+2026-06-16,INV-10463,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,40,38.00,31.50,45.60,1474.40
+2026-06-16,INV-10464,Harbour Bistro,Direct,SKU-130,Penne Pasta 5kg,Grains,81,18.00,11.50,0.00,1458.00
+2026-06-16,INV-10465,Millbrook Catering,Distributor,SKU-110,Basmati Rice 10kg,Grains,38,32.40,21.63,49.25,1181.95
+2026-06-17,INV-10466,Castle Wholesale Co,Distributor,SKU-170,Coffee Beans 1kg,Beverages,32,26.00,17.00,49.92,782.08
+2026-06-17,INV-10467,Northgate Deli,Direct,SKU-150,Plain Flour 16kg,Grains,44,14.00,9.00,0.00,616.00
+2026-06-18,INV-10468,Ashford Hotel Group,Direct,SKU-160,"Tea Bags, 1000",Beverages,78,20.00,16.00,78.00,1482.00
+2026-06-18,INV-10469,Castle Wholesale Co,Distributor,SKU-150,Plain Flour 16kg,Grains,44,14.00,9.00,36.96,579.04
+2026-06-18,INV-10470,Quayside Kitchens,Direct,SKU-140,Sunflower Oil 20L,Oils,72,42.00,33.50,90.72,2933.28
+2026-06-19,INV-10471,Quayside Kitchens,Direct,SKU-160,"Tea Bags, 1000",Beverages,94,20.00,16.00,56.40,1823.60
+2026-06-20,INV-10472,PantryBox Online,Online,SKU-110,Basmati Rice 10kg,Grains,54,32.40,21.63,0.00,1749.60
+2026-06-21,INV-10473,Eastside Provisions,Distributor,SKU-120,"Chopped Tomatoes, case of 6",Pantry,86,15.00,9.50,51.60,1238.40
+2026-06-21,INV-10474,Riverside Cafe,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,88,15.00,9.50,0.00,1320.00
+2026-06-22,INV-10475,Ashford Hotel Group,Direct,SKU-100,Olive Oil 5L,Oils,28,38.00,31.50,53.20,1010.80
+2026-06-22,INV-10476,Northgate Deli,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,80,15.00,9.50,0.00,1200.00
+2026-06-23,INV-10477,Ashford Hotel Group,Direct,SKU-110,Basmati Rice 10kg,Grains,40,32.40,21.63,64.80,1231.20
+2026-06-23,INV-10478,Foodcrate Ltd,Online,SKU-140,Sunflower Oil 20L,Oils,51,42.00,33.50,42.84,2099.16
+2026-06-24,INV-10479,Castle Wholesale Co,Distributor,SKU-150,Plain Flour 16kg,Grains,53,14.00,9.00,44.52,697.48
+2026-06-24,INV-10480,Eastside Provisions,Distributor,SKU-130,Penne Pasta 5kg,Grains,51,18.00,11.50,36.72,881.28
+2026-06-24,INV-10481,Greenfield Canteen,Direct,SKU-120,"Chopped Tomatoes, case of 6",Pantry,41,15.00,9.50,18.45,596.55
+2026-06-25,INV-10482,PantryBox Online,Online,SKU-110,Basmati Rice 10kg,Grains,34,32.40,21.63,0.00,1101.60
+2026-06-26,INV-10483,Greenfield Canteen,Direct,SKU-100,Olive Oil 5L,Oils,24,38.00,31.50,27.36,884.64
+2026-06-27,INV-10484,Oakfield School Meals,Direct,SKU-160,"Tea Bags, 1000",Beverages,83,20.00,16.00,83.00,1577.00
+2026-06-27,INV-10485,PantryBox Online,Online,SKU-120,"Chopped Tomatoes, case of 6",Pantry,45,15.00,9.50,0.00,675.00

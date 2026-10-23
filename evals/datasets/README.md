@@ -19,6 +19,10 @@ Everything is generated deterministically from integer-cent ground truth in `src
 
 A document corpus for the retrieval eval (docs/specs/retrieval.md §5): a print studio's PDFs, Word files, emails and notes in English and Russian, with planted answers, near-miss distractors and sections long enough to be split. Files in `printing-shop-v1/files/`, built by `printingShopFiles()` (`build:printing-shop`).
 
+## wholesale-margin-v1
+
+A synthetic food wholesaler's invoice lines (518 lines, July 2025 to June 2026, GBP) with a cost column, for M15's margin pack: a margin squeeze at flat revenue (March 2026), a price rise that outruns its cost rise (May 2026) and a distractor inside the noise band. One file, `wholesale-margin-v1/files/invoice-lines.csv`; the columns, their intended roles, the planted events and the hand-computed expected figures (gross margin, margin %, the `pvm_margin.v1` effects) are in `wholesale-margin-v1/README.md`, and machine-readable in `wholesale-margin-v1/expectations.yaml`. Generated deterministically from integer pence (`src/wholesale-margin.ts`, seed 1; `build:wholesale-margin`); tests rebuild the file and re-derive every figure. It is reported as its own group, not in the role-accuracy pool.
+
 ## Injection fixtures
 
 `injectionFixtures()` returns the injection suite's fixtures (evals/injection/README.md): each adds one poisoned input to coffee-roaster-v1 (a cell, a PDF, Word file, email, note, or a web page the search returns), with the injected `phrase` that must never reach the planner or the report and the source that must be `flagged`. `build:injection` writes them to `evals/injection/fixtures/`.
@@ -27,6 +31,7 @@ A document corpus for the retrieval eval (docs/specs/retrieval.md §5): a print 
 
 | Export | Does |
 |---|---|
+| `wholesaleMarginLines()`, `wholesaleMarginCsv()`, `wholesaleMarginFiles()`, `wholesaleMarginExpectations()`, `referencePvmMargin()`, `WM_*` | wholesale-margin-v1's lines, file, expected figures and planted-event constants |
 | `MONTHS`, `COSTS`, `generateOrders()`, `aggregateOrders()`, `coffeeRoasterFiles()` | coffee-roaster-v1's ground truth, transactions and files |
 | `buildGoldenReport()`, `goldenReportJson()` | The golden report fixture for coffee-roaster-v1 |
 | `EMAIL_BODY`, `EMAIL_EML`, `OPS_NOTES`, `opsNotesDocx()`, `opsNotesText()`, `PRICE_LIST_PAGES`, `pageText(page)`, `salesWorkbook()`, `salesXlsx()` | coffee-roaster-v1's documents and workbook, and their text as an extractor returns it |
