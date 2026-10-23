@@ -38,6 +38,8 @@ jobs:
     # README asset checks in a real browser (docs/DOCS-SITE.md §3): hero motion, <picture> variants, citation click.
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PW_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -52,22 +54,12 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      # The runner's Ubuntu mirror sometimes stalls apt for ten minutes or more (three site-browser runs on
-      # 2026-10-22 hit the job timeout inside this step, not in the tests): apt gives up on a silent connection after
-      # 20s and moves on, a failed install is tried again, and the step is capped so it cannot eat the job.
-      - name: Install Chromium and its system libraries
-        timeout-minutes: 9
-        run: |
-          printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null
-          for attempt in 1 2 3; do
-            bunx playwright install --with-deps chromium && exit 0
-            echo "playwright install attempt $attempt failed; retrying"
-          done
-          exit 1
+      # The runner's own Google Chrome, not Playwright's Chromium: `playwright install --with-deps` pulls system
+      # packages from the runner's Ubuntu mirror, which on 2026-10-22/23 stalled or crawled at ~40 KB/s and timed the
+      # job out four times (apt timeouts and retries didn't help: it was slow, not silent). The image ships Chrome and
+      # its libraries; locally the suites run the same way (PW_CHANNEL=chrome).
+      - name: Use the runner's Chrome
+        run: google-chrome --version
       - run: bun run readme:check:browser
 
   site-browser:
@@ -75,6 +67,8 @@ jobs:
     # and dark, no horizontal scroll at 360 px, JS-off and reduced-motion behaviour, favicons, OG image and sitemap.
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PW_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -89,21 +83,11 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      # The runner's Ubuntu mirror sometimes stalls apt for ten minutes or more (three site-browser runs on
-      # 2026-10-22 hit the job timeout inside this step, not in the tests): apt gives up on a silent connection after
-      # 20s and moves on, a failed install is tried again, and the step is capped so it cannot eat the job.
-      - name: Install Chromium and its system libraries
-        timeout-minutes: 9
-        run: |
-          printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null
-          for attempt in 1 2 3; do
-            bunx playwright install --with-deps chromium && exit 0
-            echo "playwright install attempt $attempt failed; retrying"
-          done
-          exit 1
+      # The runner's own Google Chrome, not Playwright's Chromium: `playwright install --with-deps` pulls system
+      # packages from the runner's Ubuntu mirror, which on 2026-10-22/23 stalled or crawled at ~40 KB/s and timed the
+      # job out four times (apt timeouts and retries didn't help: it was slow, not silent). The image ships Chrome and
+      # its libraries; locally the suites run the same way (PW_CHANNEL=chrome).
+      - name: Use the runner's Chrome
+        run: google-chrome --version
       - run: bun run --filter @agentic-analytics/docs build
       - run: bun run site:check:browser
