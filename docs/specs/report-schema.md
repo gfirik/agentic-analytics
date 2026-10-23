@@ -22,7 +22,14 @@ Report = {
   open_questions: OpenQuestion[],
   facts: Fact[],                 // every number referenced anywhere
   verification: VerificationSummary,
-  evidence?: Evidence[]         // additive (M1): source excerpts the HTML shows offline, see §5a
+  evidence?: Evidence[],        // additive (M1): source excerpts the HTML shows offline, see §5a
+  // additive (M15), see §5b; each is optional, so every v1 report stays valid
+  roles?: ColumnRole[],
+  table_kinds?: TableKind[],
+  business_model?: BusinessModel,
+  scorecard?: Scorecard,
+  concentration?: Concentration[],
+  analyses_not_run?: NotRun[]
 }
 ```
 
@@ -131,10 +138,73 @@ Integrity rules beyond the JSON Schema (`checkReportIntegrity`): ids are unique;
 
 Prose states a decline as a magnitude: "Revenue fell {{N14}}" where N14 is `abs` of the signed change, never a signed value after "fell".
 
+## 5b. Business semantics, scorecard and analyses not run (additive in M15)
+
+These fields are specified here before the code. Each one lands with its PR, in Zod (`packages/schema/src/report.ts`) with the JSON Schema regenerated: `roles`, `table_kinds` and `business_model` in PR 5, `concentration` in PR 9, `scorecard` and `analyses_not_run` in PR 10. All are optional, and nothing is renamed or removed, so the schema stays `agentic-analytics.report/v1`.
+
+```ts
+// semantics §1–§2: one entry per column that has a role (columns with role "none" are left out)
+ColumnRole = {
+  table_id: string, column: string,
+  role: Role,                               // the vocabulary in semantics §1 (a Zod enum)
+  status: "confirmed"|"assumed",
+  source: "detector"|"model"|"user",
+  evidence: RoleEvidence[],
+  assumption?: string                       // Assumption id, when assumed and read by an analysis
+}
+RoleEvidence = { kind: "name"|"type"|"pattern"|"identity"|"tie_break"|"user", text: string, fact?: string /* identity rate fact id */ }
+
+// semantics §3
+TableKind = { table_id: string, kind: "sales_lines"|"invoices"|"bills"|"inventory_snapshot"|"bank_cash"|"budget_plan"|"period_summary"|"other",
+              evidence: string[] /* the roles that matched */ }
+
+// semantics §4: always an assumption, never a number
+BusinessModel = { model: "retail"|"wholesale"|"subscription"|"services"|"unknown", status: "confirmed"|"assumed",
+                  assumption: string /* Assumption id */, signals: { text: string, fact?: string }[] }
+
+// analysis-library §12
+Scorecard = { period: string, rows: ScorecardRow[] }
+ScorecardRow = {
+  metric_id: string,
+  value: string,                                            // fact id
+  vs_base: { method: "previous_period"|"trailing_mean_3", periods: string[], change: string, change_pct?: string } | { na: NotRunReason },
+  yoy: { period: string, change: string, change_pct?: string } | { na: NotRunReason },
+  material: boolean | null,                                 // null with fewer than 6 periods (no noise band)
+  materiality_inputs?: { band?: string, mean: string }      // fact ids V2 recomputes `material` from
+}
+
+// analysis-library §11: one entry per (metric, dimension)
+Concentration = {
+  metric_id: string, dimension: string /* entity or role, §14 */, column: string,
+  pareto: { window: "ttm"|"ttm_prev", from: string, to: string,
+            classes: { class: "A"|"B"|"C", count: string, value: string, share: string }[],   // fact ids
+            members: string, nonpositive_count?: string, nonpositive_value?: string, unkeyed_value?: string }[],
+  shares: { period: string, top1?: string, top3?: string, top5?: string, top10?: string, hhi: string }[],
+  trend?: { hhi_slope: string, hhi_p: string, top1_slope?: string, top1_p?: string },
+  dependence?: string                                         // Finding id of a dependence.v1 finding
+}
+
+// analysis-library §13: no numbers, so V1's free-numeral rule applies to `reason`
+NotRunReason = "no_cost_role"|"no_quantity_role"|"no_price_role"|"no_item_dimension"|"no_variable_cost"|"no_dimension"
+             | "too_few_periods"|"grain_not_comparable"|"no_order_id"|"no_customer_role"|"no_refund_role"
+             | "no_discount_role"|"no_status_role"|"no_history"
+NotRun = { analysis: string, reason_code: NotRunReason, reason: string, needs: string[] }
+```
+
+**Integrity (`checkReportIntegrity`) gains:**
+
+- every fact id in these fields resolves;
+- every `ColumnRole.table_id` names a source's table;
+- every `assumption` id resolves;
+- `scorecard.rows[].metric_id` resolves to `report.metrics`;
+- `reason`, `RoleEvidence.text` and `signals[].text` are human-readable text fields with no free numerals (§5a).
+
+Role scores are not in the report: they rank candidates inside the detector (semantics §6).
+
 ## 6. HTML report requirements
 
 - **One self-contained file.** Inline CSS and JS, no external requests, works offline.
-- **Order:** headline and summary, data-quality banner if any high-severity issues, findings, recommendations, open questions, assumptions, metric definitions, sources, verification panel.
+- **Order:** headline and summary, data-quality banner if any high-severity issues, the scorecard (M15), findings, recommendations, concentration (M15, when it ran), open questions, analyses not run (M15), assumptions, metric definitions with column roles and table kinds (M15), sources, verification panel. A section with nothing to show is left out.
 - **Clicking a number** shows its computation (SQL, inputs, definition).
 - **Clicking a citation** shows the source:
   - table citations render the cited rows with the cells highlighted;

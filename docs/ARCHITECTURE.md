@@ -125,7 +125,7 @@ The facts-only boundary: after DECOMPOSE, the model only receives a **fact sheet
 | `store` | Open, create and close job workspaces; migrations; typed query helpers | ARCHITECTURE §3 |
 | `core` | Pipeline state machine, job runner (in-process queue), checkpoints, event bus, structured logging | ARCHITECTURE §2 |
 | `ingest` | Type sniffing, SheetJS grid read, table-region detection, CSV, DOCX, PDF, EML, Docling client | specs/ingestion-and-profiling.md |
-| `profile` | Profiling, normalization, entity matching, quality findings | specs/ingestion-and-profiling.md |
+| `profile` | Profiling, normalization, entity matching, quality findings; column roles, table kinds and business model (M15) | specs/ingestion-and-profiling.md, specs/semantics.md |
 | `metrics` | Draft, validate and compile metric definitions | specs/metric-layer.md |
 | `analysis` | Measure, insight templates, decomposition, baselines, Simpson guard, impact-range math | specs/analysis-library.md |
 | `retrieval` | Chunking, embeddings, FTS, vector search, RRF fusion, rerank, citation spans | specs/retrieval.md |

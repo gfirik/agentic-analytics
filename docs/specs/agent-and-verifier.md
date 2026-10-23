@@ -23,6 +23,15 @@ After DECOMPOSE, `agent/factsheet.ts` builds the planner's only numeric input, a
 
 Each item has a fact ID (`N…`), a value with its unit, and a short label. The planner never sees raw tables.
 
+From M15 the fact sheet also carries:
+
+- the column roles and table kinds (role names, not values);
+- the business model, as an assumption;
+- the scorecard rows and the concentration facts, so EXPLAIN can cite them;
+- the "Analyses not run" entries, so the planner says "margin can't be computed: no cost column" instead of guessing.
+
+None of these needs a model call to build.
+
 ## 3. Tools available to the planner
 
 The planner has fixed tools only; there is no code execution.
@@ -35,6 +44,7 @@ The planner has fixed tools only; there is no code execution.
 | `search_documents(query, filters?)` | Retrieval lane, returning extracts (not raw text) |
 | `search_web(query)` | Web lane, only when enabled, returning external extracts |
 | `compare_benchmark(fact_id, extract_id)` | Web lane: reads the number range quoted in an external extract (e.g. "1–2%") into `external_quote` facts and runs `benchmark_gap.v1` against a fact of the same unit |
+| `concentration(metric_id, dimension, from, to)` | M15. Runs the fixed Pareto and concentration templates (analysis-library §11) for one metric and dimension over a period range, and returns their facts: the top-1/3/5/10 shares, HHI, the class counts and values, and the member count. The metric must be additive. The dimension must be a confirmed or assumed dimension of that metric, and `from`/`to` must be job periods with `from ≤ to`. All three are validated, then passed as SQL parameters, never interpolated. Anything else is refused with a typed error (`UNKNOWN_DIMENSION`, `BAD_PERIOD`, `NOT_ADDITIVE`). It lets `aa ask` answer share questions with facts. |
 | `propose_scenario(type, params, because[])` | Computes an impact range in code (analysis-library §5) |
 | `ask_user(question)` | Adds an open question (non-blocking in v0.1) |
 
@@ -137,6 +147,13 @@ All passes run on the draft report. Results are written to the `verification` ta
   - `scenario_param` is checked against the scenario's bounds;
   - `external_quote` is re-parsed from its stored text;
   - `abs` is |a|, and `abs_exceeds` is 1 when |a| > |b|, else 0 (analysis-library §4.1).
+  - M15 adds these rules (each lands with its function, and its hand-computed test also runs through V2):
+    - `gross_margin`: a − b over [revenue, cost] (analysis-library §9);
+    - `gross_margin_pct`: (a − b) ÷ a × 100 over [revenue, cost], a mismatch when a ≤ 0, since such a fact is never created;
+    - `pvm_margin.v1`: the effect named by the label (analysis-library §14). Volume, mix, price and cost read the common items in groups of six (r₀, q₀, cost₀, r₁, q₁, cost₁); new reads pairs (r₁, cost₁); lost reads pairs (r₀, cost₀); unpriced reads groups of four (r₀, cost₀, r₁, cost₁) (analysis-library §10);
+    - `pareto_class`, `top_n_share` and `hhi` on the `sql` facts of `pareto.sql.ts` and `concentration.sql.ts`. Besides re-running the template, V2 reads the member totals with a plain group-by and recomputes the class counts and values, the top-N shares and the HHI in TypeScript, so a bug in the template's window logic is a mismatch (analysis-library §11);
+    - `noise_band`: 2 × 1.4826 × MAD of the inputs' consecutive changes, the last change left out (analysis-library §2, §12);
+    - the scorecard's `material` flag: recomputed with baselines.ts `materiality()` from the row's change, change %, band and mean facts; a different flag is a mismatch.
   A function without a rule counts as a mismatch. Cited input rows must exist in their table.
 - **V3** re-derives the headline measures, i.e. total facts of sum/count metrics referenced by finding claims or the headline. The alternate path is the metric grouped by its first dimension, summed in code. Ratios with metric numerator and denominator are re-derived the same way. Member-level facts are checked by V2 only.
 - **V1**'s claim rules (free numerals, unknown placeholders, digits in quotes, the decline sign, "more than the whole") also hold for every other text the report shows: a finding title that breaks them is replaced by a neutral title, an action drops its recommendation, a `not_advised` is left out, and a broken headline falls back to the first finding title that kept its wording. A free numeral is any decimal digit in any script that isn't a placeholder, quoted source text or a date. A date has a month next to it ("March 15, 2026", "12th April", "MAY 2026"; "may" alone is a verb), or an ISO, quarter, half or week form ("2026-04", "2025-Q4", "Q1 2026", "2025-W51"), or the Russian/Uzbek year forms. A bare year ("in 2026", "2025 vs 2026") is a date only if it is one of the job's own period years, read from the period part of its fact labels (`periodYears`); the agent's own checks, which don't know the job, accept no bare year, and the prompts say so.
@@ -146,6 +163,8 @@ All passes run on the draft report. Results are written to the `verification` ta
   - a measured fact's SQL and parameters are re-compiled from its definition for its period and member filter, and must be identical (period and filters);
   - the lexicon uses metric labels and ids: a claim that names metrics, none of which its facts (all of them together) are measured from, is a violation. Derived facts are followed back through their inputs to the measured facts.
   - a word of decline (EN/RU/UZ: fell, dropped, упал, kamaydi…) followed by a negative fact placeholder is a violation: a decline is stated as a magnitude.
+  - a function fact that carries a derived or ratio `metric_id` (`gross_margin`, `gross_margin_pct`) must have inputs measured from that definition's terms, for the same period and member. Otherwise it is a violation (M15).
+  - **role check (M15):** a claim that names margin must read a cost role. The margin lexicon is EN margin, gross profit, markup; RU маржа, маржинальность, валовая прибыль; UZ marja, yalpi foyda. At least one of the claim's facts, followed back through its inputs, must be measured from a metric whose definition reads a column with role `unit_cost` or `cost_amount` and status `confirmed` or `assumed` (semantics §5). A margin claim on a table with no cost role, or on a cost column the user dropped, is a violation and the claim is dropped. This is the engine side of the "no cost column" golden traps.
 - **V5:**
   - a fact's cited rows must be rows its metric actually reads for that period and member, found again with the metric's own row query (an engine bug otherwise, like V2);
   - every quote must occur in its source's stored text;
@@ -179,6 +198,7 @@ Selected automatically from the model profile, or with `--small-model`:
 - the explanation template is stricter, a fill-in-the-blanks structured output: code runs one document search per finding (no tool loop), and the model only picks a title and which extracts relate to the change (with `correlated` or `document_supported`), which code turns into sentences that quote the source;
 - the search query is the metric's label, the top member of each contribution split other than "(other)" (the best split's first, at most 3), the period, and the change type's event words (`smallModeQuery`). A quality rate (a percent metric whose id or label has the word refund, return, defect or complaint; not "returning", and not churn, which moves with prices and lost customers) gets "supplier switch quality defect complaint"; any other change gets "price increase paused order lost customer launch". The extractor keeps only what it judges relevant to the query. Without event words it dropped a supplier switch as unrelated to "Refund Rate 2026-06", and a query naming only the channel missed the customer's email (M14a);
 - web is off unless explicitly enabled;
+- the role detector's tie-break is skipped (the top score wins), and the KPI pack, the scorecard, Pareto and concentration, and "Analyses not run" are built by code, so they cost no model call (analyst-grade §3.5);
 - the DECIDE request has an input budget (§8.1).
 
 The engine stays fully correct in this mode because all numbers and decompositions are deterministic.
