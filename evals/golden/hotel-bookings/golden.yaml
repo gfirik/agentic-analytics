@@ -13,6 +13,7 @@
 dataset: hotel-bookings
 items:
   - id: G1
+    capability: kpi
     question: What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)?
     kind: numeric
     expected: 1809324.75
@@ -25,6 +26,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G2
+    capability: kpi
     question: What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)?
     kind: numeric
     expected: 1970181.6
@@ -37,6 +39,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G3
+    capability: kpi
     question: What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)?
     kind: numeric
     expected: 41.73
@@ -48,6 +51,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G4
+    capability: other
     question: Which deposit type has the highest cancellation rate, both hotels and all arrival dates together?
     kind: categorical
     expected: Non Refund
@@ -58,6 +62,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G5
+    capability: kpi
     question: By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (May minus April, EUR)?
     kind: numeric
     expected: 118669.91
@@ -71,6 +76,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G6
+    capability: pareto
     question: What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included?
     kind: numeric
     expected: 81.98
@@ -82,6 +88,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G7
+    capability: other
     question: Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel?
     kind: categorical
     expected: Resort Hotel
@@ -93,6 +100,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G8
+    capability: margin
     question: What was the gross operating profit margin of the two hotels in 2016?
     kind: trap
     reason: >-
@@ -101,3 +109,22 @@ items:
     source: { kind: ask }
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  # M15 addition (docs/plans/m15.md PR 3), written before any M15 engine code; reviewed 2026-10-23 by a separate
+  # subagent that re-derived the answer blind and agrees. The cancellation rate is the share of bookings with IsCanceled = 1
+  # by arrival month, in percent; `scorecard.cancellation_rate.yoy_<p>` is the change against the same month a year earlier.
+  - id: G12
+    capability: kpi
+    question: >-
+      By how many percentage points did the cancellation rate (the share of bookings cancelled, by arrival month, both
+      hotels together) change from August 2016 to August 2017, the last month in the data?
+    kind: numeric
+    expected: 0.8273
+    tolerance: { abs: 0.01 }
+    source: { kind: fact, label: scorecard.cancellation_rate.yoy_2017-08 }
+    columns: [ArrivalDate, IsCanceled]
+    sql: >-
+      SELECT round(100 * (avg(IsCanceled::INTEGER) FILTER (WHERE left(ArrivalDate, 7) = '2017-08')
+                          - avg(IsCanceled::INTEGER) FILTER (WHERE left(ArrivalDate, 7) = '2016-08')), 4)
+      FROM read_csv('FILE', all_varchar = true)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }

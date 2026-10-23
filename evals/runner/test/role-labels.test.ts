@@ -23,7 +23,7 @@ describe("role labels", () => {
     const roles = [...vocab.matchAll(/^\|[^|]*\| `([a-z_]+)` \|/gm)].map((m) => m[1]);
     expect(roles).toEqual([...ROLES]);
     const kinds = spec.slice(spec.indexOf("## 3. Table kinds"), spec.indexOf("**What each kind unlocks"));
-    expect([...kinds.matchAll(/^\| \d \| `([a-z_]+)` \|/gm)].map((m) => m[1])).toEqual(TABLE_KINDS.filter((k) => k !== "other").concat("other"));
+    expect([...kinds.matchAll(/^\| \d \| `([a-z_]+)` \|/gm)].map((m) => m[1])).toEqual([...TABLE_KINDS]);
   });
 
   it("counts: 55 real columns, 360 generated, 12 distinct generated", () => {
@@ -69,7 +69,8 @@ describe("role labels", () => {
     });
 
   it("refuses a repeated header, an unknown role and an accept that repeats the role", () => {
-    const base = (cols: string) => `version: 1\nentries:\n  - { id: a, group: real, datasets: [d], table: t, kind: sales_lines, columns: [${cols}] }\n`;
+    const base = (cols: string) =>
+      `version: 1\nentries:\n  - { id: a, group: real, datasets: [d], table: t, kind: sales_lines, columns: [${cols}] }\n`;
     expect(() => parseRoleLabels(base("{ header: A, role: amount }, { header: A, role: quantity }"))).toThrow(/duplicate header/);
     expect(() => parseRoleLabels(base("{ header: A, role: money }"))).toThrow(/invalid role labels/);
     expect(() => parseRoleLabels(base("{ header: A, role: amount, accept: [amount] }"))).toThrow(/repeats/);

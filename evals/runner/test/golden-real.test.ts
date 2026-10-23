@@ -35,6 +35,9 @@ const DATASETS = Object.keys(FILES);
 const SPLITS: GoldenSplit[] = ["dev", "heldout"];
 const hasData = (d: string) => existsSync(join(DATA, FILES[d] as string));
 
+/** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass. */
+const M15_ITEMS: Record<string, string[]> = { "online-retail-ii": ["G12", "G13", "G14"], "hotel-bookings": ["G12"] };
+
 describe("the real datasets' golden sets", () => {
   it("each file parses, holds only its own split, and every answerable item has its SQL and columns", () => {
     for (const dataset of DATASETS) {
@@ -99,10 +102,14 @@ describe("the real datasets' golden sets", () => {
           answersDir: ANSWERS,
         });
         expect(r.completed, dataset).toBe(true);
+        // M15 items name facts of packs the M14 engine does not have (analysis-library §14), so they miss on this engine:
+        // that is the baseline (evals/results/m15/), and they are pinned here until the packs land.
+        const m15 = M15_ITEMS[dataset] ?? [];
         expect(
-          r.items.filter((i) => i.source === "fact" && !i.pass).map((i) => `${i.id}: ${i.got}`),
+          r.items.filter((i) => i.source === "fact" && !i.pass && !m15.includes(i.id)).map((i) => `${i.id}: ${i.got}`),
           dataset,
         ).toEqual([]);
+        for (const i of r.items.filter((x) => m15.includes(x.id))) expect(i.pass, `${dataset} ${i.id} (M15 item)`).toBe(false);
         // The driver items, pinned so a change shows: NZ's April 2020 change carries its drivers; retail's December
         // 2010 orders finding is an anomaly.v1 finding, which attaches none (a known engine gap, STATE).
         const drivers = Object.fromEntries(r.items.filter((i) => i.source === "driver").map((i) => [i.id, i]));
@@ -128,9 +135,9 @@ describe("the golden runner (CI, on the example workbook)", () => {
   };
   const SET = `dataset: coffee-roaster
 items:
-  - { id: G1, question: What was revenue in April 2026?, kind: numeric, expected: 36200, tolerance: { abs: 0.5 },
+  - { id: G1, question: What was revenue in April 2026?, capability: kpi, kind: numeric, expected: 36200, tolerance: { abs: 0.5 },
       source: { kind: fact, label: revenue_2026-04 }, columns: [Amount, Date, Status], split: dev }
-  - { id: G2, question: What will revenue be next year?, kind: trap, reason: No forecasts are made., source: { kind: ask }, split: dev }
+  - { id: G2, question: What will revenue be next year?, capability: other, kind: trap, reason: No forecasts are made., source: { kind: ask }, split: dev }
 `;
 
   it("runs the job as the real tier does, asks the ask items, scores and prints each item", async () => {
@@ -173,10 +180,10 @@ items:
       ]);
       // The baseline has no script for follow-up questions: a trap it can't answer is a miss, not a refusal.
       expect(r?.items[1]?.got).toMatch(/^no answer \(/);
-      expect(r?.summary).toEqual({ numericCategorical: { passed: 0, of: 0 }, traps: { passed: 0, of: 0 }, notCounted: 2 });
+      expect(r?.summary).toMatchObject({ numericCategorical: { passed: 0, of: 0 }, traps: { passed: 0, of: 0 }, notCounted: 2 });
       expect(lines[0]).toMatch(/^coffee-roaster \(dev, baseline\): 1\/2 pass · /);
       expect(lines[1]).toMatch(/^ {2}G1 +pass numeric +fact +expected 36200; got 36200(\.\d+)? — What was revenue in April 2026\?$/);
-      expect(lines.at(-2)).toContain("2 not counted");
+      expect(lines.find((l) => l.includes("counted toward the bars"))).toContain("2 not counted");
     } finally {
       rmSync(g, { recursive: true, force: true });
     }

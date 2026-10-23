@@ -16,7 +16,17 @@ const Source = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("driver"), metric: z.string().min(1), period: z.string().min(1) }),
   /** The `aa ask` answer's first claim and the facts it cites; a trap passes only on an answer with no verified claim. */
   z.object({ kind: z.literal("ask") }),
+  /**
+   * A trap whose right answer is "this analysis can't be run on this data" (accuracy.md §2): it passes when the report's
+   * "Analyses not run" lists `analysis` with a reason, and states no fact of that analysis.
+   */
+  z.object({ kind: z.literal("not_run"), analysis: z.string().min(1) }),
 ]);
+
+/** What an item exercises (accuracy.md §1); the M15 bars are computed per capability. */
+export const CAPABILITIES = ["kpi", "margin", "pareto", "driver", "other"] as const;
+export const Capability = z.enum(CAPABILITIES);
+export type Capability = z.infer<typeof Capability>;
 
 const Review = z.object({
   reviewed_by: z.string().min(1),
@@ -30,6 +40,7 @@ const Review = z.object({
 const Base = {
   id: z.string().regex(/^G\d+$/),
   question: z.string().min(5),
+  capability: Capability,
   source: Source,
   /** The columns the question is about (the ablation's support set reads source cells from these only). */
   columns: z.array(z.string()).default([]),
@@ -58,8 +69,10 @@ export const GoldenSet = z.object({ dataset: z.string().min(1), items: z.array(G
   for (const [i, item] of s.items.entries()) {
     if (ids.has(item.id)) ctx.addIssue({ code: "custom", path: ["items", i, "id"], message: `duplicate id ${item.id}` });
     ids.add(item.id);
-    if (item.kind === "trap" && item.source.kind !== "ask")
-      ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "a trap is answered through ask (a refusal)" });
+    if (item.kind === "trap" && item.source.kind !== "ask" && item.source.kind !== "not_run")
+      ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "a trap is answered through ask (a refusal) or not_run" });
+    if (item.kind !== "trap" && item.source.kind === "not_run")
+      ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "only a trap may use the not_run source" });
     // Combinations that could never pass are authoring slips: refused at load, not reported as engine misses.
     if (item.kind === "numeric" && item.source.kind === "driver")
       ctx.addIssue({ code: "custom", path: ["items", i, "source"], message: "a driver answers categorical items only" });
@@ -83,6 +96,7 @@ export interface GoldenScore {
   readonly id: string;
   readonly kind: GoldenItem["kind"];
   readonly split: GoldenItem["split"];
+  readonly capability: Capability;
   readonly pass: boolean;
   /** What the engine answered, for the results page. */
   readonly got: string;
@@ -105,8 +119,17 @@ export function withinTolerance(got: number, expected: number, tol: { abs: numbe
  */
 export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answer): GoldenScore {
   const counts = item.review?.agrees === true;
-  const out = (pass: boolean, got: string): GoldenScore => ({ id: item.id, kind: item.kind, split: item.split, pass, got, counts });
+  const out = (pass: boolean, got: string): GoldenScore => ({
+    id: item.id,
+    kind: item.kind,
+    split: item.split,
+    capability: item.capability,
+    pass,
+    got,
+    counts,
+  });
   const src = item.source;
+  if (src.kind === "not_run") return out(...scoreNotRun(src.analysis, report));
   if (item.kind === "trap") {
     if (!answer) return out(false, "no answer");
     const refused = answer.claims.length === 0;
@@ -146,6 +169,31 @@ export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answe
   return out(members[0] === item.expected.toLowerCase(), members[0] as string);
 }
 
+/**
+ * The `not_run` source (accuracy.md §2): the report's `analyses_not_run` entry for `analysis` must exist with a reason,
+ * and no fact of that analysis may be stated (a report that refuses an analysis and also states it contradicts itself).
+ * `analyses_not_run` is read as unknown: the report schema gains the field in M15 PR 10, and before then every
+ * report has none, so a not_run item is a miss, which is the M14 baseline.
+ */
+export function scoreNotRun(analysis: string, report: Report): [boolean, string] {
+  const list: unknown = (report as { analyses_not_run?: unknown }).analyses_not_run;
+  const entries = Array.isArray(list) ? list : [];
+  const entry = entries.find(
+    (e): e is { analysis: string; reason?: unknown } =>
+      typeof e === "object" && e !== null && (e as { analysis?: unknown }).analysis === analysis,
+  );
+  if (!entry) return [false, `no "Analyses not run" entry for ${analysis}`];
+  if (typeof entry.reason !== "string" || !entry.reason.trim()) return [false, `${analysis} is listed without a reason`];
+  // Fact labels of an analysis start with its id without a version suffix (`pvm_margin.v1` → `pvm_margin.`).
+  const stem = analysis.replace(/\.v\d+$/, "");
+  // A period (or year) follows the stem after "_", so `gross_margin_pct_2026-03` is another analysis's fact, not this one's.
+  const stated = report.facts.find(
+    (f) => f.label === stem || new RegExp(`^${stem.replace(/[.\\[\]]/g, "\\$&")}(_\\d|[.\\[])`).test(f.label),
+  );
+  if (stated) return [false, `listed as not run, yet the report states ${stated.label}`];
+  return [true, `not run: ${entry.reason.trim()}`];
+}
+
 /** The member of a measured fact's label (`revenue[channel=wholesale]_2026-04` → wholesale); one filter only. */
 function memberOf(label: string): string | undefined {
   const m = /\[([^=\],]+)=([^\],]+)\]/.exec(label);
@@ -159,6 +207,8 @@ export interface GoldenSummary {
   readonly traps: { readonly passed: number; readonly of: number };
   /** Items scored but not counted (unreviewed, or the reviewer disagreed). */
   readonly notCounted: number;
+  /** Counted items per capability: how many, and how many passed (traps included). */
+  readonly byCapability: Readonly<Record<Capability, { readonly passed: number; readonly of: number }>>;
 }
 
 /** The bars' counts for one split (the §4.7 numeric bar is on the held-out split), or both when none is given. */
@@ -171,7 +221,18 @@ export function summarizeGolden(all: readonly GoldenScore[], split?: GoldenItem[
     numericCategorical: { passed: answers.filter((s) => s.pass).length, of: answers.length },
     traps: { passed: traps.filter((s) => s.pass).length, of: traps.length },
     notCounted: scores.length - counted.length,
+    byCapability: Object.fromEntries(
+      CAPABILITIES.map((c) => {
+        const mine = counted.filter((s) => s.capability === c);
+        return [c, { passed: mine.filter((s) => s.pass).length, of: mine.length }];
+      }),
+    ) as GoldenSummary["byCapability"],
   };
+}
+
+/** A capability's bar (docs/plans/m15.md A4): the M14 baseline rate + 15 percentage points, or 85%, whichever is higher. */
+export function capabilityBar(baselineRate: number): number {
+  return Math.max(baselineRate + 0.15, 0.85);
 }
 
 /** A small seeded PRNG (mulberry32): the bootstrap must give the same interval on every run. */

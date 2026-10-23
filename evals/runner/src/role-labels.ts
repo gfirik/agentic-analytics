@@ -100,21 +100,19 @@ const Entry = z.object({
   review: Review.optional(),
 });
 
-export const RoleLabels = z
-  .object({ version: z.literal(1), entries: z.array(Entry).min(1) })
-  .superRefine((l, ctx) => {
-    const ids = new Set<string>();
-    for (const [i, e] of l.entries.entries()) {
-      if (ids.has(e.id)) ctx.addIssue({ code: "custom", path: ["entries", i, "id"], message: `duplicate entry ${e.id}` });
-      ids.add(e.id);
-      const seen = new Set<string>();
-      for (const [j, c] of e.columns.entries()) {
-        if (seen.has(c.header))
-          ctx.addIssue({ code: "custom", path: ["entries", i, "columns", j, "header"], message: `duplicate header ${c.header} in ${e.id}` });
-        seen.add(c.header);
-      }
+export const RoleLabels = z.object({ version: z.literal(1), entries: z.array(Entry).min(1) }).superRefine((l, ctx) => {
+  const ids = new Set<string>();
+  for (const [i, e] of l.entries.entries()) {
+    if (ids.has(e.id)) ctx.addIssue({ code: "custom", path: ["entries", i, "id"], message: `duplicate entry ${e.id}` });
+    ids.add(e.id);
+    const seen = new Set<string>();
+    for (const [j, c] of e.columns.entries()) {
+      if (seen.has(c.header))
+        ctx.addIssue({ code: "custom", path: ["entries", i, "columns", j, "header"], message: `duplicate header ${c.header} in ${e.id}` });
+      seen.add(c.header);
     }
-  });
+  }
+});
 export type RoleLabels = z.infer<typeof RoleLabels>;
 export type RoleLabelEntry = RoleLabels["entries"][number];
 

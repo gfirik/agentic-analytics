@@ -6,6 +6,7 @@
 dataset: coffee-roaster-v1
 items:
   - id: G1
+    capability: kpi
     question: What was revenue in April 2026?
     kind: numeric
     expected: 36200
@@ -17,6 +18,7 @@ items:
       AND (status IS NULL OR status <> 'refunded')
     split: dev
   - id: G2
+    capability: kpi
     question: What was revenue in March 2026?
     kind: numeric
     expected: 44100
@@ -28,6 +30,7 @@ items:
       AND (status IS NULL OR status <> 'refunded')
     split: dev
   - id: G3
+    capability: driver
     question: Which channel drove the April revenue drop?
     kind: categorical
     expected: wholesale
@@ -39,6 +42,7 @@ items:
       ORDER BY sum(CASE WHEN strftime("date", '%Y-%m') = '2026-04' THEN amount ELSE -amount END) LIMIT 1
     split: dev
   - id: G4
+    capability: kpi
     question: By how much did revenue fall from March to April 2026?
     kind: numeric
     expected: -7900
@@ -50,12 +54,14 @@ items:
       WHERE NOT _is_total AND (status IS NULL OR status <> 'refunded') AND strftime("date", '%Y-%m') IN ('2026-03', '2026-04')
     split: dev
   - id: G5
+    capability: other
     question: What will revenue be next year?
     kind: trap
     reason: The data ends in June 2026 and the engine makes no forecasts; the right answer is a refusal.
     source: { kind: ask }
     split: dev
   - id: G6
+    capability: kpi
     question: What was revenue in May 2026?
     kind: numeric
     expected: 35800

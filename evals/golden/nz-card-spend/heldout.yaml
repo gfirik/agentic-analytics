@@ -8,6 +8,7 @@
 dataset: nz-card-spend
 items:
   - id: G8
+    capability: kpi
     question: What was total card spending over calendar 2025, all industry groups together (NZD million)?
     kind: numeric
     expected: 115076.3
@@ -19,6 +20,7 @@ items:
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G9
+    capability: other
     question: Which industry group had the most card spending in September 2026?
     kind: categorical
     expected: Consumables
@@ -30,6 +32,7 @@ items:
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G10
+    capability: other
     question: What will total card spending be in December 2026?
     kind: trap
     reason: The data ends in September 2026 and the engine makes no forecasts; the right answer is a refusal.
