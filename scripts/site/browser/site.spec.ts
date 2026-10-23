@@ -702,9 +702,7 @@ test("results: metrics as rows and runs as columns, no sideways scroll at 1440 o
   await ctx.close();
 });
 
-test("landing section heads: label, h2, one-sentence lead; at 1440 a wide row's head beside its visual, a band's h2 on one line", async ({
-  page,
-}) => {
+test("landing section heads: label, h2, one-sentence lead; at 1440 each section a band, its head above its content", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(LANDING, { waitUntil: "networkidle" });
   await page.evaluate(() => document.fonts.ready);
@@ -721,17 +719,13 @@ test("landing section heads: label, h2, one-sentence lead; at 1440 a wide row's 
     const [h, lh] = await head
       .locator("h2")
       .evaluate((el) => [el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el).lineHeight)]);
-    // Site v4: §3 is a full-width band, its h2 on one line; §1, §2 and §4 are wide rows, the head (h2 in at most two
-    // lines) in the left column and the visual to its right, both starting at the row's top.
-    if (id === "results") expect(h, `${id} h2 on one line`).toBeLessThan((lh ?? 0) * 1.5);
-    else {
-      expect(h, `${id} h2 in at most two lines`).toBeLessThan((lh ?? 0) * 2.5);
-      const [headBox, visualBox] = await page
-        .locator(`#${id} .aa-split`)
-        .evaluate((row) => [...row.children].slice(0, 2).map((c) => c.getBoundingClientRect().toJSON() as DOMRect));
-      expect(visualBox?.left ?? 0, `${id} visual right of its head`).toBeGreaterThan(headBox?.right ?? 0);
-      expect(Math.abs((visualBox?.top ?? 0) - (headBox?.top ?? 0)), `${id} same row`).toBeLessThan(1);
-    }
+    // Site v5: §1–§4 are full-width bands, the head across the top (its h2 on one line at 1440) and every other part
+    // of the section below it, never beside it (a head column left a large empty block, DESIGN.md §5).
+    expect(h, `${id} h2 on one line`).toBeLessThan((lh ?? 0) * 1.5);
+    const [headBox, ...rest] = await page
+      .locator(`#${id} .aa-band`)
+      .evaluate((band) => [...band.children].map((c) => c.getBoundingClientRect().toJSON() as DOMRect));
+    for (const box of rest) expect(box.top, `${id}: content below its head`).toBeGreaterThanOrEqual(headBox?.bottom ?? 0);
   }
 });
 
@@ -2325,7 +2319,7 @@ test.describe("motion", () => {
   });
 
   test("no layout shift from any of it: CLS under 0.05 through the whole landing page (1440, 390)", async ({ browser }) => {
-    type Shift = { value: number; time: number; mine: boolean; sticky: boolean; pinned: boolean; sources: string[] };
+    type Shift = { value: number; time: number; mine: boolean; pinned: boolean; sources: string[] };
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 390, height: 844 },
@@ -2359,17 +2353,6 @@ test.describe("motion", () => {
                   const host = el?.closest(".aa-hero-row");
                   return Boolean(host) && getComputedStyle(host as Element).position === "sticky";
                 }),
-              // A sticky row head (§1, §2 from 1100px) moves with the scroll by design once it reaches the end of
-              // its row; that is position, not animation, so those shifts are told apart by identity. Those heads are
-              // also reveal parts, so their reveal goes unchecked here at 1440; it is still checked at 390 (nothing is
-              // sticky there) and on the heads that aren't sticky (#results, #quickstart).
-              sticky:
-                els.length > 0 &&
-                els.every(
-                  (el) =>
-                    Boolean(el?.closest(".aa-cell-head")) &&
-                    getComputedStyle(el?.closest(".aa-cell-head") as Element).position === "sticky",
-                ),
               sources: e.sources.map((s, i) => {
                 const el = els[i];
                 const r = (q: Rect) => `${Math.round(q.x)},${Math.round(q.y)} ${Math.round(q.width)}×${Math.round(q.height)}`;
@@ -2408,8 +2391,8 @@ test.describe("motion", () => {
       for (const s of shifts.filter((x) => x.mine || cls >= 0.05))
         console.log(`shift ${s.value.toFixed(6)} at ${Math.round(s.time)} ms: ${s.sources.join("; ")}`);
       expect(
-        shifts.filter((s) => s.mine && !s.sticky && !s.pinned),
-        `${viewport.width}: shifts in the revealed parts, the stages or the exhibit (sticky heads excepted)`,
+        shifts.filter((s) => s.mine && !s.pinned),
+        `${viewport.width}: shifts in the revealed parts, the stages or the exhibit`,
       ).toEqual([]);
       expect(cls, `${viewport.width}`).toBeLessThan(0.05);
       await ctx.close();
@@ -2417,43 +2400,129 @@ test.describe("motion", () => {
   });
 });
 
-test("a sticky row head is alone in its grid column, so it never slides over a neighbour (1100, 1440)", async ({ page }) => {
-  for (const width of [1100, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
+// Site v5 (the maintainer's review): §1, §2 and §4 had the head on the left and the content on the right, a large empty
+// column beside tall visuals. They are full-width bands now (DESIGN.md §5). This measures the rule itself: at several
+// scroll positions through each section, no rectangle wider than 40% and taller than 35% of the viewport is empty of
+// content inside the section's visible part. Content is text (its line boxes), media and controls, framed or filled
+// boxes, and rules (a border counts as its own strip, so a ruled list's lines count but its empty middle doesn't; a
+// hairline drawn by a pseudo-element counts as its element's box). Graph paper behind a head is decoration, not content.
+test("no large empty block in §1, §2 and §4 at any scroll position (1920×1080, 1440×900, 1366×768)", async ({ browser }) => {
+  for (const viewport of [
+    { width: 1920, height: 1080 },
+    { width: 1440, height: 900 },
+    { width: 1366, height: 768 },
+  ]) {
+    const ctx = await browser.newContext({ viewport });
+    const page = await ctx.newPage();
     await page.goto(LANDING, { waitUntil: "networkidle" });
-    const clashes = await page.locator(".aa-split > .aa-cell-head").evaluateAll((heads) =>
-      heads.flatMap((head) => {
-        if (getComputedStyle(head).position !== "sticky") return [];
-        const h = head.getBoundingClientRect();
-        // Any sibling whose box shares the head's columns: the sticky head would move over it.
-        return [...(head.parentElement?.children ?? [])]
-          .filter((el) => el !== head)
-          .filter((el) => {
-            const r = el.getBoundingClientRect();
-            return r.width > 0 && r.left < h.right - 1 && r.right > h.left + 1;
-          })
-          .map((el) => `${head.closest("section")?.id}: ${el.className}`);
-      }),
-    );
-    expect(clashes, `width ${width}`).toEqual([]);
-    // §1 and §2 keep their sticky heads; §4's isn't sticky.
-    expect(
-      await page
-        .locator("#how .aa-cell-head")
-        .first()
-        .evaluate((el) => getComputedStyle(el).position),
-    ).toBe("sticky");
-    expect(
-      await page
-        .locator("#why .aa-cell-head")
-        .first()
-        .evaluate((el) => getComputedStyle(el).position),
-    ).toBe("sticky");
-    expect(
-      await page
-        .locator("#quickstart .aa-cell-head")
-        .first()
-        .evaluate((el) => getComputedStyle(el).position),
-    ).not.toBe("sticky");
+    await page.evaluate(() => document.fonts.ready);
+    for (const id of ["how", "why", "quickstart"]) {
+      const [top, bottom] = await page
+        .locator(`#${id} .aa-cell`)
+        .evaluate((el) => [el.getBoundingClientRect().top + window.scrollY, el.getBoundingClientRect().bottom + window.scrollY]);
+      // From the section's top entering the screen's middle to its bottom reaching it, a quarter screen at a time.
+      const ys: number[] = [];
+      for (let y = top - viewport.height / 2; y <= bottom - viewport.height / 2; y += viewport.height / 4) ys.push(Math.round(y));
+      ys.push(Math.round(bottom - viewport.height / 2));
+      for (const y of ys) {
+        await page.evaluate((v) => window.scrollTo(0, v), Math.max(0, y));
+        // Waits for state, not time: a part still revealing (opacity under 1) reads as empty until it lands.
+        await expect
+          .poll(
+            () =>
+              page.evaluate((sid) => {
+                const cell = document.querySelector(`#${sid} .aa-cell`) as HTMLElement;
+                const c = cell.getBoundingClientRect();
+                const vw = document.documentElement.clientWidth;
+                const vh = window.innerHeight;
+                const box = { l: Math.max(0, c.left), t: Math.max(0, c.top), r: Math.min(vw, c.right), b: Math.min(vh, c.bottom) };
+                const W = vw * 0.4;
+                const H = vh * 0.35;
+                if (box.r - box.l < W || box.b - box.t < H) return "";
+                const rects: { l: number; t: number; r: number; b: number }[] = [];
+                const add = (r: { left: number; top: number; right: number; bottom: number }) => {
+                  if (r.right > r.left && r.bottom > r.top) rects.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+                };
+                const shown = (el: Element) => {
+                  if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
+                  for (let a: Element | null = el; a && a !== cell; a = a.parentElement)
+                    if (Number(getComputedStyle(a).opacity) <= 0.5) return false;
+                  return true;
+                };
+                const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+                for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+                  if (!n.textContent?.trim() || !n.parentElement || !shown(n.parentElement)) continue;
+                  const range = document.createRange();
+                  range.selectNodeContents(n);
+                  for (const r of range.getClientRects()) add(r);
+                }
+                for (const el of cell.querySelectorAll("*")) {
+                  if (!shown(el)) continue;
+                  const r = el.getBoundingClientRect();
+                  if (el.matches("img, svg, canvas, video, pre, button, input, table")) {
+                    add(r);
+                    continue;
+                  }
+                  // A rule drawn by a pseudo-element (the section label's hairline) spans its element's box.
+                  const ruled = (["::before", "::after"] as const).some((pe) => {
+                    const ps = getComputedStyle(el, pe);
+                    return ps.content !== "none" && (ps.borderTopStyle !== "none" || ps.borderBottomStyle !== "none");
+                  });
+                  if (ruled) add(r);
+                  const cs = getComputedStyle(el);
+                  const filled = cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent";
+                  const bw = (side: string) =>
+                    cs.getPropertyValue(`border-${side}-style`) === "none"
+                      ? 0
+                      : Number.parseFloat(cs.getPropertyValue(`border-${side}-width`));
+                  const [bt, br, bb, bl] = [bw("top"), bw("right"), bw("bottom"), bw("left")];
+                  if (filled || (bt && br && bb && bl)) add(r);
+                  else {
+                    if (bt) add({ left: r.left, top: r.top, right: r.right, bottom: r.top + bt });
+                    if (bb) add({ left: r.left, top: r.bottom - bb, right: r.right, bottom: r.bottom });
+                    if (bl) add({ left: r.left, top: r.top, right: r.left + bl, bottom: r.bottom });
+                    if (br) add({ left: r.right - br, top: r.top, right: r.right, bottom: r.bottom });
+                  }
+                }
+                // An 8px occupancy grid over the visible part, then a W×H window slid over it with 2D prefix sums.
+                const S = 8;
+                const cols = Math.ceil((box.r - box.l) / S);
+                const rows = Math.ceil((box.b - box.t) / S);
+                const occ = new Uint8Array(cols * rows);
+                for (const q of rects) {
+                  const c0 = Math.max(0, Math.floor((q.l - box.l) / S));
+                  const c1 = Math.min(cols, Math.ceil((q.r - box.l) / S));
+                  const r0 = Math.max(0, Math.floor((q.t - box.t) / S));
+                  const r1 = Math.min(rows, Math.ceil((q.b - box.t) / S));
+                  for (let y = r0; y < r1; y++) occ.fill(1, y * cols + c0, y * cols + Math.max(c0, c1));
+                }
+                const P = new Int32Array((cols + 1) * (rows + 1));
+                for (let y = 0; y < rows; y++)
+                  for (let x = 0; x < cols; x++)
+                    P[(y + 1) * (cols + 1) + x + 1] =
+                      (occ[y * cols + x] ?? 0) +
+                      (P[y * (cols + 1) + x + 1] ?? 0) +
+                      (P[(y + 1) * (cols + 1) + x] ?? 0) -
+                      (P[y * (cols + 1) + x] ?? 0);
+                const w = Math.ceil(W / S);
+                const h = Math.ceil(H / S);
+                for (let y = 0; y + h <= rows; y++)
+                  for (let x = 0; x + w <= cols; x++) {
+                    const sum =
+                      (P[(y + h) * (cols + 1) + x + w] ?? 0) -
+                      (P[y * (cols + 1) + x + w] ?? 0) -
+                      (P[(y + h) * (cols + 1) + x] ?? 0) +
+                      (P[y * (cols + 1) + x] ?? 0);
+                    if (sum === 0)
+                      return `empty ${Math.round(W)}×${Math.round(H)} at ${Math.round(box.l + x * S)},${Math.round(box.t + y * S)}`;
+                  }
+                return "";
+              }, id),
+            { message: `#${id} at ${viewport.width}×${viewport.height}, scrolled to ${y}`, timeout: 5_000 },
+          )
+          .toBe("");
+      }
+    }
+    await ctx.close();
   }
 });

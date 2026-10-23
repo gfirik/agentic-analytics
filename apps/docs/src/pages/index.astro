@@ -1,6 +1,6 @@
 ---
-// The landing page (DESIGN.md §4–§6): the cover sheet of an audited working paper. One long 1440px frame of wide
-// rows (site v4), the hero field (site v5) and graph paper behind the section heads, one live exhibit, and four sections. Every
+// The landing page (DESIGN.md §4–§6): the cover sheet of an audited working paper. One long 1440px frame: the hero's
+// wide row (site v4) and full-width bands below it (site v5), the hero field (site v5) and graph paper behind the section heads, one live exhibit, and four sections. Every
 // figure comes from generated data: the recorded engine run on examples/coffee-roaster (src/data/exhibit.json,
 // landing.json, and the pipeline scene's docs/assets/readme/pipeline.json) and the committed eval results
 // (src/data/evals.json, scored by the eval runner's summarize()). Nothing is typed by hand.
@@ -209,7 +209,7 @@ cd agentic-analytics && bun install</code></pre>
     </section>
 
     <section id="how" class="aa-sheet" data-reveal aria-labelledby="aa-how-title">
-      <div class="aa-cell aa-split">
+      <div class="aa-cell aa-band">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={1} text="How it works" />
           {/* Site v5 PR 2: the machine above says what each station does, so this head no longer repeats "files in, a
@@ -224,7 +224,7 @@ cd agentic-analytics && bun install</code></pre>
     </section>
 
     <section id="why" class="aa-sheet" data-reveal aria-labelledby="aa-why-title">
-      <div class="aa-cell aa-split">
+      <div class="aa-cell aa-band">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={2} text="Why it's different" />
           <h2 id="aa-why-title" class="aa-h2 aa-center">Built so you don't have to take its word for it.</h2>
@@ -405,7 +405,7 @@ cd agentic-analytics && bun install</code></pre>
     </section>
 
     <section id="quickstart" class="aa-sheet" data-reveal aria-labelledby="aa-quick-title">
-      <div class="aa-cell aa-split aa-quick-row">
+      <div class="aa-cell aa-band aa-quick-row">
         <div class="aa-cell-head aa-grid-field">
           <SectionLabel n={4} text="Quickstart" />
           <h2 id="aa-quick-title" class="aa-h2 aa-center">Run it on the example, then on your files.</h2>
@@ -526,11 +526,10 @@ AA_DEMO_MODEL=scripted \
     content: none;
   }
 
-  /* Graph paper behind the hero statement and the section heads only (decorative), full-bleed: it runs out to the
-     screen's edges and fades to the plain page through a CSS mask. It sits under the content, never behind the visuals
-     or long text. Stacked (under 1100px) a head is centred, so its field spans the screen's width over the head's
-     height; in a wide row the head is the left column, so its field runs from the screen's left edge to the middle of
-     the gap before the visual. Its width uses 50vw / 100vw, which include a classic (non-overlay) scrollbar's width,
+  /* Graph paper behind the section heads only (decorative; the hero has its own field), full-bleed: it runs out to
+     the screen's edges and fades to the plain page through a CSS mask. It sits under the content, never behind the
+     visuals or long text. Every head is a band's (site v5), so its field spans the screen's width over the head's
+     height. Its width uses 50vw / 100vw, which include a classic (non-overlay) scrollbar's width,
      so the field can reach a few pixels past the viewport: .aa-paper's overflow-x: clip hides that, and the
      no-sideways-scroll browser tests hold with it. */
   .aa-grid-field {
@@ -552,8 +551,9 @@ AA_DEMO_MODEL=scripted \
     pointer-events: none;
   }
 
-  /* Wide rows (site v4): from 1100px a section is one row of two columns, the text on the left (its 56ch measure) and
-     a large visual on the right; below that they stack, the head centred above its visual. */
+  /* The wide row (site v4): from 1100px one row of two columns, the text on the left (its 56ch measure) and a large
+     visual on the right; below that they stack, centred. Since site v5 only the hero uses it: §1–§4 are full-width
+     bands (below). */
   .aa-split {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -567,13 +567,6 @@ AA_DEMO_MODEL=scripted \
       grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
       gap: var(--aa-space-8);
       align-items: start;
-    }
-    .aa-split > .aa-grid-field::before {
-      /* From the screen's left edge (past the gutter and the margin outside the frame) to the middle of the gap. */
-      inset: calc(-1 * var(--aa-space-8)) calc(-1 * var(--aa-space-6))
-        calc(-1 * var(--aa-space-8)) calc(-1 * (var(--aa-gutter) + max(0px, (100vw - var(--aa-container)) / 2)));
-      -webkit-mask-image: radial-gradient(ellipse 70% 75% at 62% 45%, #000 30%, transparent 100%);
-      mask-image: radial-gradient(ellipse 70% 75% at 62% 45%, #000 30%, transparent 100%);
     }
   }
 
@@ -925,6 +918,10 @@ AA_DEMO_MODEL=scripted \
   .aa-center {
     margin-inline: auto;
   }
+  /* A section lead never leaves one word on its last line (§1's "run." did once the head ran full width). */
+  .aa-cell-head > .aa-lead {
+    text-wrap: pretty;
+  }
   @media (min-width: 68.75rem) {
     .aa-cell-head {
       justify-items: start;
@@ -938,20 +935,22 @@ AA_DEMO_MODEL=scripted \
     }
   }
 
-  /* In a wide row the visual is taller than its head, so the head stays in view beside it while the row scrolls by
-     (site v4 PR 3). Position only: nothing animates. Only §1 and §2, whose heads are alone in their column: a sticky
-     grid item is held within the whole grid, so §4's head would slide over the binaries list below it. A new section joins
-     only if its head is alone in its column (the "sticky row head is alone" browser test checks). */
-  @media (min-width: 68.75rem) {
-    :is(#how, #why) .aa-split > .aa-cell-head {
-      position: sticky;
-      top: var(--aa-space-7);
-    }
+  /* Full-width bands (site v5): §1–§4 put the head across the top and the content full width below it, the content
+     using the width in columns of its own. Beside a tall visual, a head column left a large empty block at every
+     scroll position, sticky or not (the "no large empty block" browser test checks). Stacked, a band is the same
+     grid as a wide row was: head, then content, a gap apart. */
+  .aa-band {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--aa-space-7);
+  }
+  .aa-band > * {
+    min-width: 0;
   }
 
-  /* §2: three proofs. Stacked under 52rem; three cells side by side to 1100px, their five parts on rows shared across
-     the cells (subgrid), so the example boxes line up and match in height (site v3, finding 13); in the wide row, three
-     ruled rows, the words on the left and the example on the right. */
+  /* §2: three proofs. Stacked under 52rem; from there three cells side by side across the band, their five parts on
+     rows shared across the cells (subgrid), so the example boxes line up and match in height (site v3, finding 13).
+     Site v5: the wide row's three ruled rows beside the head are gone with the head column. */
   .aa-proofs {
     list-style: none;
     margin: 0;
@@ -968,7 +967,7 @@ AA_DEMO_MODEL=scripted \
   .aa-proof + .aa-proof {
     border-top: 1px solid var(--aa-rule);
   }
-  @media (min-width: 52rem) and (max-width: 68.6875rem) {
+  @media (min-width: 52rem) {
     .aa-proofs {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -990,20 +989,7 @@ AA_DEMO_MODEL=scripted \
   }
   @media (min-width: 68.75rem) {
     .aa-proof {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-      grid-template-rows: auto auto auto 1fr;
-      column-gap: var(--aa-space-6);
-    }
-    .aa-proof > :not(.aa-proof-ex) {
-      grid-column: 1;
-    }
-    .aa-proof > .aa-proof-ex {
-      grid-column: 2;
-      grid-row: 1 / span 4;
-      align-self: start;
-    }
-    .aa-proof > .aa-more {
-      align-self: end;
+      padding-inline: var(--aa-space-6);
     }
   }
   .aa-proofs p:not(.aa-label) {
@@ -1234,13 +1220,10 @@ AA_DEMO_MODEL=scripted \
     max-width: 72ch;
   }
 
-  /* §3: a full-width band, the head over the table. */
-  .aa-results-body {
-    margin-top: var(--aa-space-7);
-  }
+  /* §3: a full-width band, the head over the table (the band's gap above it). */
 
-  /* §4: a wide row. The head and the binaries on the left; the three steps and the four doors on the right. Stacked:
-     head, steps, binaries, doors. */
+  /* §4: a full-width band (site v5). The head across the top, the three steps side by side under it (from 56rem), then
+     the binaries and the four doors side by side (from 1100px). Stacked: head, steps, binaries, doors. */
   .aa-quick-row {
     grid-template-areas: "head" "steps" "bins" "doors";
   }
@@ -1265,7 +1248,7 @@ AA_DEMO_MODEL=scripted \
   .aa-step + .aa-step {
     border-top: 1px solid var(--aa-rule);
   }
-  @media (min-width: 56rem) and (max-width: 68.6875rem) {
+  @media (min-width: 56rem) {
     .aa-steps {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -1283,25 +1266,13 @@ AA_DEMO_MODEL=scripted \
       border-left: 1px solid var(--aa-rule);
     }
   }
-  /* In the wide row each step is a ruled row: its label and note on the left, the commands on the right. */
+  /* From 1100px the binaries (a short list) and the doors (a wider one) share the row under the steps, about 2:3, so
+     neither leaves the other's side empty. */
   @media (min-width: 68.75rem) {
     .aa-quick-row {
-      /* The binaries sit under the head, beside the end of the steps; the doors follow the steps. */
-      grid-template-areas: "head steps" "bins steps" ". doors";
-      grid-template-rows: min-content 1fr auto;
-    }
-    .aa-step {
-      grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
-      grid-template-rows: auto 1fr;
-      column-gap: var(--aa-space-5);
-    }
-    .aa-step > .aa-label,
-    .aa-step > .aa-small {
-      grid-column: 1;
-    }
-    .aa-step > .aa-code {
-      grid-column: 2;
-      grid-row: 1 / span 2;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      grid-template-areas: "head head" "steps steps" "bins doors";
+      column-gap: var(--aa-space-8);
     }
   }
   /* Commands are broken at a flag or a "\\" and fit their cell. The clone URL may be longer than a column: it wraps
