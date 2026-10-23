@@ -381,9 +381,12 @@ test("hero: keyboard scrolling (Page Down, Space) steps the pinned walkthrough, 
   for (let i = 1; i < seen.length; i++) expect(seen[i] ?? 0).toBeGreaterThan(seen[i - 1] ?? 0);
   await expect(status).toContainText(`${steps.length}/${steps.length}`);
   await expect(page.locator(`.aa-exhibit a.aa-chip[data-note="${steps[steps.length - 1]}"]`)).toHaveAttribute("aria-current", "step");
-  // Page Up goes back.
-  await page.keyboard.press("PageUp");
-  await expect.poll(() => shownStep(page), { timeout: 3_000 }).toBeLessThan(steps.length);
+  // Page Up goes back. The press that reached the last step can land up to a screen past it (into the engine machine's
+  // band since #92, where three may be starting), so one Page Up isn't always back over step 4's line: press until it is.
+  await expect(async () => {
+    await page.keyboard.press("PageUp");
+    await expect.poll(() => shownStep(page), { timeout: 1_500 }).toBeLessThan(steps.length);
+  }).toPass({ timeout: 10_000 });
   // Every figure stays reachable by Tab, and focusing one opens its note.
   await page.locator('.aa-exhibit a.aa-chip[data-note="N12"]').focus();
   await expect(page.locator("#aa-note-N12")).toHaveClass(/is-open/);
@@ -1560,11 +1563,26 @@ test.describe("engine machine", () => {
     await expect(page.locator(".aa-engine-view canvas")).toBeVisible();
 
     // Hovering a station's label shows its card (the list's own entry) and presses it; the card links its Learn page.
-    await scrollToY(page, atStop(await band(page), 0));
+    // At Analysis's own stop, once the tour has reached it and the camera has settled, as the tour tests do.
+    const b = await band(page);
+    await scrollToY(page, atStop(b, stopOf(b, "analysis")));
+    const kickerAtStop = new RegExp(`^Stop ${stopOf(b, "analysis")} of `);
+    await expect(page.locator("[data-card-kicker]")).toHaveText(kickerAtStop, { timeout: 10_000 });
+    await page.waitForTimeout(1000);
     const analysis = page.locator('[data-tag][data-id="analysis"]');
     await expect(analysis).toBeVisible();
-    await analysis.hover();
+    await expect(analysis).not.toHaveClass(/\bis-far\b/);
+    // The mouse goes straight to the label, not through locator.hover(): the labels drift with the camera, so they are
+    // never "stable" to Playwright, which then scrolls the label into view, and for a label in the sticky stage that
+    // scrolls the page back up the band, to another stop, which resets the hover (main after #92).
+    const at = await analysis.boundingBox();
+    if (!at) throw new Error("no label");
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
     await expect(analysis).toHaveAttribute("aria-pressed", "true");
+    // The hover holds while the drift slides the label under the still mouse.
+    await page.waitForTimeout(1500);
+    await expect(analysis).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-card-kicker]")).not.toHaveText(kickerAtStop);
     await expect(page.locator('[data-tag][aria-pressed="true"]')).toHaveCount(1);
     const card = page.locator("[data-card]");
     await expect(card.locator("[data-card-title]")).toHaveText(
@@ -1579,6 +1597,17 @@ test.describe("engine machine", () => {
         .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.station ?? "")),
     );
 
+    // Let the labels' colour and opacity transitions land first: on CI axe once measured the pressed label halfway
+    // through its 150ms change and reported its contrast (main after #92).
+    await page.waitForFunction(
+      () =>
+        document
+          .getAnimations()
+          .filter((a) => a.playState === "running")
+          .every((a) => !((a.effect as KeyframeEffect | null)?.target as Element | null)?.closest?.(".aa-engine")),
+      undefined,
+      { polling: "raf", timeout: 3_000 },
+    );
     const axe = await new AxeBuilder({ page }).include(".aa-engine").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
     expect(requests.filter(offOrigin)).toEqual([]);
