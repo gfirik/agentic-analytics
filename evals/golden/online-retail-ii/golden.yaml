@@ -11,6 +11,7 @@
 dataset: online-retail-ii
 items:
   - id: G1
+    capability: kpi
     question: What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010?
     kind: numeric
     expected: 140447.11
@@ -23,6 +24,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G2
+    capability: kpi
     question: How many distinct invoices (cancellation invoices included) were there in December 2010?
     kind: numeric
     expected: 201
@@ -34,6 +36,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G3
+    capability: kpi
     question: What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011?
     kind: numeric
     expected: 145480.93
@@ -46,6 +49,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G4
+    capability: kpi
     question: By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011?
     kind: numeric
     expected: 37570.84
@@ -58,6 +62,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G5
+    capability: pareto
     question: >-
       What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with
       no customer ID stay in the total.
@@ -74,6 +79,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G6
+    capability: kpi
     question: By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier?
     kind: numeric
     expected: 3.58
@@ -87,6 +93,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G7
+    capability: driver
     question: Which country accounted for most of the fall in invoices from November to December 2010?
     kind: categorical
     expected: United Kingdom
@@ -100,6 +107,7 @@ items:
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G8
+    capability: margin
     question: What was the gross margin on 2011 sales?
     kind: trap
     reason: >-
@@ -108,3 +116,48 @@ items:
     source: { kind: ask }
     split: dev
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
+  # M15 additions (docs/plans/m15.md PR 3), written before any M15 engine code. Their `fact` labels are those fixed in
+  # analysis-library §14. Reviewed 2026-10-23 by a separate subagent that re-derived each answer blind, with its own script, and agrees.
+  - id: G12
+    capability: kpi
+    question: >-
+      What was the average order value in November 2010: net sales (quantity × price over all lines, cancellations,
+      postage, fees and manual adjustments included) divided by the number of distinct invoices (cancellation invoices
+      included)?
+    kind: numeric
+    expected: 383.74
+    tolerance: { abs: 0.05 }
+    source: { kind: fact, label: aov_2010-11 }
+    columns: [Invoice, Quantity, Price, InvoiceDate]
+    sql: >-
+      SELECT round(sum(Quantity::DOUBLE * Price::DOUBLE) / count(DISTINCT Invoice), 2) FROM read_csv('FILE', all_varchar = true)
+      WHERE left(InvoiceDate, 7) = '2010-11'
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }
+  - id: G13
+    capability: pareto
+    question: >-
+      Rank customers by their net sales (quantity × price, cancellations netted in) over the 12 months from January to
+      December 2011 and keep only customers with positive net sales. How many customers does class A hold, where class A is
+      the customers whose cumulative share of the total, counted from the largest down, is at most 80%?
+    kind: numeric
+    expected: 432
+    tolerance: { abs: 0 }
+    source: { kind: fact, label: pareto.a_count.customer_ttm }
+    columns: [Customer ID, Quantity, Price, InvoiceDate]
+    sql: >-
+      WITH m AS (SELECT "Customer ID" AS c, sum(Quantity::DOUBLE * Price::DOUBLE) AS v FROM read_csv('FILE', all_varchar = true)
+                 WHERE left(InvoiceDate, 4) = '2011' AND "Customer ID" <> '' GROUP BY 1 HAVING sum(Quantity::DOUBLE * Price::DOUBLE) > 0),
+           o AS (SELECT v, sum(v) OVER (ORDER BY v DESC, c) / sum(v) OVER () * 100 AS s FROM m)
+      SELECT count(*) FROM o WHERE s <= 80 * (1 + 1e-12)
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }
+  - id: G14
+    capability: margin
+    question: What was the gross margin (net sales minus the cost of the goods sold) in November 2010?
+    kind: trap
+    reason: The file has selling prices only (Price) and no cost, so no gross margin can be computed.
+    source: { kind: not_run, analysis: gross_margin }
+    columns: [Price, Quantity]
+    split: dev
+    review: { reviewed_by: agent (autonomous mode), date: 2026-10-23, method: independent_sql, agrees: true }

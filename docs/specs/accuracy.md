@@ -53,11 +53,13 @@ Under the autonomy rule (STATE, 2026-10-21) the agent stands in for the maintain
 
 | Dataset | Dev (`golden.yaml`) | Held-out (`heldout.yaml`) | Traps | Sources |
 |---|---|---|---|---|
-| `online-retail-ii` (UCI Online Retail II, the 10% invoice sample) | 8 | 3 | 2 | 2 `fact`, 1 `driver`, 8 `ask` |
+| `online-retail-ii` (UCI Online Retail II, the 10% invoice sample) | 11 | 3 | 3 | 4 `fact`, 1 `driver`, 8 `ask`, 1 `not_run` (M15: AOV, class-A customers, a gross-margin `not_run` trap) |
 | `nz-card-spend` (Stats NZ card spending by industry group) | 7 | 3 | 2 | 2 `fact`, 1 `driver`, 7 `ask` |
-| `hotel-bookings` (Data in Brief hotel booking demand, both hotels in one file) | 8 | 3 | 2 | 2 `fact`, 9 `ask` |
+| `hotel-bookings` (Data in Brief hotel booking demand, both hotels in one file) | 9 | 4 | 2 | 4 `fact`, 9 `ask` (M15: the cancellation-rate year-on-year change in dev, the top-3 agent share held out) |
 | `eia-861m` (EIA monthly retail sales by state and sector) | pending | pending | 2 drafted | DEFERRED: no file pinned yet, 10 questions drafted in `draft.yaml`, nothing loaded or scored |
 | `coffee-roaster` (CI fixture, §3) | 6 | 0 | 1 | not reviewed, never counted |
+
+**M15 additions (PR 3).** Every item carries a `capability` (§1). Five items were written before any M15 engine code, each re-derived by a separate subagent that saw only the question and the raw file (all five agreed; it also tagged all 43 items (coffee-roaster fixture included) and matched every tag): retail G12 (average order value, `aov_2010-11`), G13 (class-A customer count, `pareto.a_count.customer_ttm`) and G14 (a gross-margin trap on `not_run`), hotel G12 (the cancellation rate's year-on-year change in percentage points, `scorecard.cancellation_rate.yoy_2017-08`) and held-out G13 (the top-3 agent share of 2016 room revenue, `top3_share.salesperson_2016`). Items on the margin dataset and Montgomery County follow when M15 PR 2 merges. The M14-engine baseline per capability is committed in `evals/results/m15/` (PR 3). The cancellation-rate label's scale (percent) is the pack KPI's; PR 10 may re-point it if the confirmed `cancellation_rate` metric keeps its fractional unit.
 
 The two real sets (M14 PR 3) cover totals by period, a share or concentration (the top ten customers' share of 2010 sales; one industry group's share of 2025 spending), the highest month, a period-over-period change, a same-month-a-year-earlier comparison, the top driver of a change, and traps the data can't answer (a margin with no cost column, an average transaction value with no transaction count, a forecast). Each answerable item's `sql` reads the raw derived file (`read_csv('FILE', all_varchar = true)` in a separate DuckDB, FILE being the file in evals/real/data), never the engine's workspace or its normalisation; a test runs every query and checks it returns `expected` and that `columns` are the file's own headers. An item counts only once its `review` record agrees (§3); all 21 were reviewed on 2026-10-22, by an agent, not yet by the maintainer.
 

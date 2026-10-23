@@ -24,6 +24,9 @@ export {
   selectDatasets,
 } from "./cli.ts";
 export {
+  CAPABILITIES,
+  Capability,
+  capabilityBar,
   GoldenItem,
   type GoldenScore,
   GoldenSet,
@@ -32,10 +35,16 @@ export {
   pairedBootstrap,
   parseGoldenSet,
   scoreGoldenItem,
+  scoreNotRun,
   summarizeGolden,
   withinTolerance,
 } from "./golden.ts";
 export {
+  CapabilityBaseline,
+  type CapabilityCounts,
+  capabilityCounts,
+  capabilityLines,
+  engineCommit,
   GOLDEN_DIR,
   type GoldenEvalArgs,
   type GoldenItemResult,
@@ -49,7 +58,9 @@ export {
   goldenLines,
   goldenMarkdown,
   goldenPath,
+  loadCapabilityBaseline,
   loadGoldenSet,
+  M15_BASELINE_FILE,
   runGoldenSet,
 } from "./golden-run.ts";
 export {
@@ -86,6 +97,17 @@ export {
   repeatMarkdown,
   snapshotOf,
 } from "./repeat.ts";
+export {
+  countRoleLabels,
+  expandRoleLabels,
+  headerDifferences,
+  loadRoleLabels,
+  parseRoleLabels,
+  ROLE_LABELS_FILE,
+  ROLES,
+  RoleLabels,
+  TABLE_KINDS,
+} from "./role-labels.ts";
 export {
   allGeneratedDatasets,
   keepDraftedMetrics,

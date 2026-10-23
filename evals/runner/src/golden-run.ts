@@ -3,15 +3,20 @@
 // job (`aa ask`), and scores every item with scoreGoldenItem. The golden files live beside this package
 // (evals/golden/<dataset>/), and only this module maps a split to its file: nothing under packages/ or apps/ names
 // the held-out file (a test checks).
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Answer, askJob } from "@agentic-analytics/core";
 import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import type { Embedder } from "@agentic-analytics/retrieval";
+import { z } from "zod";
 import { baselineModel } from "./baseline.ts";
 import { EvalRunError } from "./errors.ts";
 import {
+  CAPABILITIES,
+  Capability,
+  capabilityBar,
   type GoldenItem,
   type GoldenScore,
   type GoldenSet,
@@ -107,6 +112,7 @@ export async function runGoldenSet(o: GoldenRunOptions): Promise<GoldenRunResult
           id: item.id,
           kind: item.kind,
           split: item.split,
+          capability: item.capability,
           pass: false,
           got: "no report",
           counts: item.review?.agrees === true,
@@ -176,6 +182,8 @@ export interface GoldenEvalArgs {
   /** Where the results go: `<resultsDir>/golden/<date>-<model>-golden-<split>.json` and `.md` (none when absent). */
   readonly resultsDir?: string;
   readonly now?: () => Date;
+  /** The engine commit to record; the checkout's by default. */
+  readonly engineCommit?: string;
 }
 
 /** A golden run over its datasets, as written to `<results dir>/golden/`. */
@@ -184,7 +192,75 @@ export interface GoldenSuiteResult {
   readonly split: GoldenSplit;
   readonly model: string;
   readonly date: string;
+  /** The commit of the engine that produced the reports (`git rev-parse HEAD`, `-dirty` with uncommitted changes). */
+  readonly engine_commit: string;
   readonly runs: readonly GoldenRunResult[];
+}
+
+/** Counted items and passes per capability, pooled over the runs of one split. */
+export type CapabilityCounts = Record<Capability, { passed: number; of: number }>;
+
+export function capabilityCounts(runs: readonly GoldenRunResult[]): CapabilityCounts {
+  const out = Object.fromEntries(CAPABILITIES.map((c) => [c, { passed: 0, of: 0 }])) as CapabilityCounts;
+  for (const r of runs)
+    for (const c of CAPABILITIES) {
+      out[c].passed += r.summary.byCapability[c].passed;
+      out[c].of += r.summary.byCapability[c].of;
+    }
+  return out;
+}
+
+/** The committed M14-engine baseline per capability (evals/results/m15/0-baseline-m14-engine.json). */
+export const CapabilityBaseline = z.object({
+  engine_commit: z.string().min(1),
+  date: z.iso.date(),
+  split: z.enum(["dev", "heldout"]),
+  model: z.string().min(1),
+  capabilities: z.record(Capability, z.object({ passed: z.number().int().nonnegative(), of: z.number().int().nonnegative() })),
+});
+export type CapabilityBaseline = z.infer<typeof CapabilityBaseline>;
+
+/** evals/results/m15 in a checkout. */
+export const M15_RESULTS_DIR = join(import.meta.dirname, "..", "..", "results", "m15");
+export const M15_BASELINE_FILE = join(M15_RESULTS_DIR, "0-baseline-m14-engine.json");
+
+export function loadCapabilityBaseline(file: string = M15_BASELINE_FILE): CapabilityBaseline | undefined {
+  if (!existsSync(file)) return undefined;
+  const parsed = CapabilityBaseline.safeParse(JSON.parse(readFileSync(file, "utf8")));
+  if (!parsed.success) throw new EvalRunError("BAD_RESULTS", `invalid capability baseline ${file}: ${parsed.error.issues[0]?.message}`);
+  return parsed.data;
+}
+
+const pct = (passed: number, of: number) => (of ? `${((100 * passed) / of).toFixed(1)}%` : "n/a");
+
+/**
+ * The M15 per-capability rows for kpi, margin and pareto (accuracy.md §2): counted items, passes, the rate, the M14
+ * baseline's rate and the bar `max(baseline + 15 pp, 85%)`. Nothing is rounded up: a capability with few items moves in
+ * big steps, so the counts are printed beside the rates.
+ */
+export function capabilityLines(runs: readonly GoldenRunResult[], baseline?: CapabilityBaseline): string[] {
+  const now = capabilityCounts(runs);
+  const lines = ["capability   passed/counted   rate     M14 baseline          bar (max(baseline + 15 pp, 85%))"];
+  for (const c of ["kpi", "margin", "pareto"] as const) {
+    const b = baseline?.capabilities[c];
+    const bRate = b && b.of ? b.passed / b.of : undefined;
+    const bar = bRate === undefined ? "n/a" : `${(100 * capabilityBar(bRate)).toFixed(1)}%`;
+    lines.push(
+      `${pad(c, 12)} ${pad(`${now[c].passed}/${now[c].of}`, 16)} ${pad(pct(now[c].passed, now[c].of), 8)} ${pad(b ? `${b.passed}/${b.of} = ${pct(b.passed, b.of)}` : "n/a", 21)} ${bar}`,
+    );
+  }
+  return lines;
+}
+
+/** `git rev-parse HEAD` of the checkout, plus `-dirty` when the working tree has changes; "unknown" outside a checkout. */
+export function engineCommit(cwd: string = join(import.meta.dirname, "..", "..", "..")): string {
+  try {
+    const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const head = git("rev-parse", "HEAD");
+    return git("status", "--porcelain", "--untracked-files=no") ? `${head}-dirty` : head;
+  } catch {
+    return "unknown";
+  }
 }
 
 /** `<results dir>/golden/<date>-<model>-golden-<split>` (without the extension). */
@@ -201,9 +277,12 @@ export function goldenMarkdown(r: GoldenSuiteResult): string {
   const out = [
     `# Golden v1: ${r.model} · ${r.split} split · ${r.date}`,
     "",
+    `Engine commit: ${r.engine_commit}.`,
+    "",
     `Items are agent-reviewed, not maintainer-reviewed. An item counts toward the bars only when its independent re-derivation agreed. ${r.model === "baseline" ? "The baseline is the scripted heuristic with no language model: it answers no follow-up question, so every `ask` item (traps included) is a miss, never n/a." : ""}`.trimEnd(),
     "",
   ];
+  out.push("## Capabilities", "", "```", ...capabilityLines(r.runs, loadCapabilityBaseline()), "```", "");
   for (const d of r.runs) {
     const s = d.summary;
     out.push(
@@ -251,9 +330,17 @@ export async function goldenEvalCommand(
     for (const line of goldenLines(r)) d.print(line);
     out.push(r);
   }
+  for (const line of capabilityLines(out, loadCapabilityBaseline())) d.print(line);
   if (a.resultsDir) {
     const date = (a.now ?? (() => new Date()))().toISOString().slice(0, 10);
-    const result: GoldenSuiteResult = { suite: "golden", split: a.split, model: a.model, date, runs: out };
+    const result: GoldenSuiteResult = {
+      suite: "golden",
+      split: a.split,
+      model: a.model,
+      date,
+      engine_commit: a.engineCommit ?? engineCommit(),
+      runs: out,
+    };
     const base = goldenPath(a.resultsDir, date, a.model, a.split);
     mkdirSync(join(a.resultsDir, "golden"), { recursive: true });
     writeFileSync(`${base}.json`, `${JSON.stringify(result, null, 2)}\n`);

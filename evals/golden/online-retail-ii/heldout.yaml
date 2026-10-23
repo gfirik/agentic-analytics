@@ -7,6 +7,7 @@
 dataset: online-retail-ii
 items:
   - id: G9
+    capability: kpi
     question: What were total net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in calendar 2010?
     kind: numeric
     expected: 853618.8
@@ -19,6 +20,7 @@ items:
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G10
+    capability: other
     question: Outside the United Kingdom, which country had the highest net sales in 2011?
     kind: categorical
     expected: Netherlands
@@ -31,6 +33,7 @@ items:
     split: heldout
     review: { reviewed_by: agent (autonomous mode), date: 2026-10-22, method: independent_sql, agrees: true }
   - id: G11
+    capability: other
     question: What will net sales be in January 2012?
     kind: trap
     reason: The data ends on 2011-12-09 and the engine makes no forecasts; the right answer is a refusal.
