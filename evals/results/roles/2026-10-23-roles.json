@@ -1,33 +1,38 @@
 {
   "suite": "roles",
   "date": "2026-10-23",
-  "engine_commit": "d860886cf38a76435eba5e9cf4e1d1b9f262885f",
+  "engine_commit": "48d68fe1063376409b5a6b7415028b0ee6e48625",
   "model": "none (deterministic detector)",
   "pooled": {
-    "correct": 415,
-    "total": 415,
+    "correct": 436,
+    "total": 436,
     "rate": 100
   },
   "byGroup": {
     "real": {
-      "correct": 55,
-      "total": 55,
+      "correct": 64,
+      "total": 64,
       "rate": 100
     },
     "generated": {
       "correct": 360,
       "total": 360,
       "rate": 100
+    },
+    "synthetic": {
+      "correct": 12,
+      "total": 12,
+      "rate": 100
     }
   },
   "real": {
-    "correct": 55,
-    "total": 55,
+    "correct": 64,
+    "total": 64,
     "rate": 100
   },
   "distinct": {
-    "correct": 67,
-    "total": 67,
+    "correct": 88,
+    "total": 88,
     "rate": 100
   },
   "bar": 95,
@@ -228,6 +233,18 @@
     {
       "dataset": "saas-v3",
       "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "montgomery-warehouse-sales",
+      "group": "real",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "dataset": "wholesale-margin-v1",
+      "group": "synthetic",
       "correct": 12,
       "total": 12
     }
