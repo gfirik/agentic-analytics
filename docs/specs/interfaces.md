@@ -45,7 +45,7 @@ The binary is `agentic-analytics`, with the short alias `aa`.
 | `aa mcp` | Starts the MCP server on stdio |
 | `aa doctor` | Checks Node, DuckDB, model providers, SearXNG and Docling; calls each role's model (planner, extractor, judge) once; `--models` lists every reachable provider's model ids; prints fixes |
 | `aa eval [--suite smoke\|full\|real] [--model baseline\|configured\|<provider:model>]` | Runs the eval suites and updates `evals/RESULTS.md` |
-| `aa eval --suite roles [--only generated\|real\|<id,…>] [--model …]` | M15: scores the role detector against `evals/roles/labels.yaml` (accuracy §11); no model unless `--model` is given (`bun run eval:roles`) |
+| `aa eval --suite roles [--only generated\|real\|<id,…>]` | M15: scores the role detector against `evals/roles/labels.yaml` (accuracy §11); no model (`bun run eval:roles`); the model tie-break's own measurement comes with the nightly slot |
 | `aa eval --suite smoke\|full [--label "<name>"] [--note "<text>"] [--only <id,…> --results-dir <dir>]` | `--label` names the run's model row and results file (a self-hosted run, e.g. the Kaggle vLLM notebook); `--note` is shown above its table; `--only` runs some datasets (a chunk; its `--results-dir` must be outside `evals/results`), joined with `bun run eval:merge` (EVALS.md §3) |
 | `aa eval --suite real --answers <dir> [--data <dir>] [--results-dir <dir>]` | The real-data checks on your own files and answer files; results to `./eval-results` by default (EVALS.md §3) |
 | `aa jobs ls\|rm\|resume` | Manages jobs |

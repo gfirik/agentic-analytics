@@ -109,6 +109,18 @@ export {
   TABLE_KINDS,
 } from "./role-labels.ts";
 export {
+  type ColumnScore,
+  type DistinctMiss,
+  type Rate,
+  ROLES_BAR,
+  type RolesArgs,
+  type RolesResult,
+  rolesLines,
+  runRolesSuite,
+  scoreTable,
+  summarizeRoles,
+} from "./roles-run.ts";
+export {
   allGeneratedDatasets,
   keepDraftedMetrics,
   mergeResults,
