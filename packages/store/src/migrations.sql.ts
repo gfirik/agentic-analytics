@@ -88,4 +88,18 @@ export const MIGRATIONS: readonly Migration[] = [
     // or by the extractor's own flag. Their text never reaches the extractor again and they appear in data quality.
     statements: ["CREATE TABLE quarantine (source_id VARCHAR PRIMARY KEY, reason VARCHAR NOT NULL, detected_by VARCHAR NOT NULL)"],
   },
+  {
+    version: 6,
+    name: "profile roles",
+    // The role detector's proposals and candidates, and the table kinds PR 5 fills (docs/specs/semantics.md §2.5).
+    statements: [
+      `CREATE TABLE profile_roles (
+        table_id VARCHAR NOT NULL, column_name VARCHAR NOT NULL, role VARCHAR NOT NULL, score DOUBLE NOT NULL,
+        status VARCHAR NOT NULL, source VARCHAR NOT NULL, evidence_json JSON, PRIMARY KEY (table_id, column_name))`,
+      `CREATE TABLE profile_role_candidates (
+        table_id VARCHAR NOT NULL, column_name VARCHAR NOT NULL, role VARCHAR NOT NULL, score DOUBLE NOT NULL,
+        PRIMARY KEY (table_id, column_name, role))`,
+      "CREATE TABLE profile_table_kinds (table_id VARCHAR PRIMARY KEY, kind VARCHAR NOT NULL, evidence_json JSON)",
+    ],
+  },
 ];

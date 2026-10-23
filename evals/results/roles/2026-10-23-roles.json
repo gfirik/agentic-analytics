@@ -1,0 +1,255 @@
+{
+  "suite": "roles",
+  "date": "2026-10-23",
+  "engine_commit": "48d68fe1063376409b5a6b7415028b0ee6e48625",
+  "model": "none (deterministic detector)",
+  "pooled": {
+    "correct": 436,
+    "total": 436,
+    "rate": 100
+  },
+  "byGroup": {
+    "real": {
+      "correct": 64,
+      "total": 64,
+      "rate": 100
+    },
+    "generated": {
+      "correct": 360,
+      "total": 360,
+      "rate": 100
+    },
+    "synthetic": {
+      "correct": 12,
+      "total": 12,
+      "rate": 100
+    }
+  },
+  "real": {
+    "correct": 64,
+    "total": 64,
+    "rate": 100
+  },
+  "distinct": {
+    "correct": 88,
+    "total": 88,
+    "rate": 100
+  },
+  "bar": 95,
+  "pass": true,
+  "datasets": [
+    {
+      "dataset": "online-retail-ii",
+      "group": "real",
+      "correct": 8,
+      "total": 8
+    },
+    {
+      "dataset": "nz-card-spend",
+      "group": "real",
+      "correct": 14,
+      "total": 14
+    },
+    {
+      "dataset": "hotel-bookings",
+      "group": "real",
+      "correct": 33,
+      "total": 33
+    },
+    {
+      "dataset": "agency-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "agency-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "agency-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "clinic-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "clinic-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "clinic-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "coffee_roaster-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "coffee_roaster-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "coffee_roaster-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "construction_supplier-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "construction_supplier-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "construction_supplier-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "distributor-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "distributor-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "distributor-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "logistics-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "logistics-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "logistics-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "online_store-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "online_store-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "online_store-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "printing_shop-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "printing_shop-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "printing_shop-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "restaurant-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "restaurant-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "restaurant-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "saas-v1",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "saas-v2",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "saas-v3",
+      "group": "generated",
+      "correct": 12,
+      "total": 12
+    },
+    {
+      "dataset": "montgomery-warehouse-sales",
+      "group": "real",
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "dataset": "wholesale-margin-v1",
+      "group": "synthetic",
+      "correct": 12,
+      "total": 12
+    }
+  ],
+  "misses": [],
+  "skipped": [],
+  "note": "Labels are agent-reviewed, not maintainer-reviewed (evals/roles/README.md). The detector's proposal before confirmation, with no model."
+}

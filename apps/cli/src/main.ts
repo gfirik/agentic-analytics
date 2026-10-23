@@ -5,7 +5,15 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLogger, type JobDeps, JobManager, type JobOptions, jsonLines } from "@agentic-analytics/core";
 import { coffeePlanner } from "@agentic-analytics/core/testing";
-import { evalCommand, evalMatrix, evalRepeat, goldenEvalCommand, realEvalCommand, repeatPassed } from "@agentic-analytics/eval-runner";
+import {
+  evalCommand,
+  evalMatrix,
+  evalRepeat,
+  goldenEvalCommand,
+  realEvalCommand,
+  repeatPassed,
+  runRolesSuite,
+} from "@agentic-analytics/eval-runner";
 import { mcpHttpHandler, serveStdio } from "@agentic-analytics/mcp";
 import type { ReviewChoice, ReviewIO } from "@agentic-analytics/metrics";
 import {
@@ -370,7 +378,7 @@ const jobs = defineCommand({
  */
 function generatedSuite(suite: string | undefined): "smoke" | "full" | "heldout" {
   if (suite === undefined || suite === "smoke" || suite === "full" || suite === "heldout") return suite ?? "smoke";
-  throw new Error(`--suite must be smoke, full, heldout, real or golden, not "${suite}"`);
+  throw new Error(`--suite must be smoke, full, heldout, real, golden or roles, not "${suite}"`);
 }
 
 const evalCmd = defineCommand({
@@ -379,7 +387,7 @@ const evalCmd = defineCommand({
     suite: {
       type: "string",
       description:
-        "smoke (4 datasets), full (the 30 development datasets), heldout (the held-out generated set; release runs only), real (public datasets; run `bun run eval:real:fetch` first) or golden (the real datasets' golden sets); default smoke",
+        "smoke (4 datasets), full (the 30 development datasets), heldout (the held-out generated set; release runs only), real (public datasets; run `bun run eval:real:fetch` first) golden (the real datasets' golden sets) or roles (the role detector against the hand labels; no model); default smoke",
     },
     model: {
       type: "string",
@@ -439,6 +447,13 @@ const evalCmd = defineCommand({
     const model = args.model ?? "baseline";
     if ((args.answers || args.data) && args.suite !== "real") throw new Error("--answers and --data go with --suite real");
     if ((args.dataset || args.split) && args.suite !== "golden") throw new Error("--dataset and --split go with --suite golden");
+    if (
+      args.suite === "roles" &&
+      ((args.model && args.model !== "baseline") || args["keep-reports"] || args["small-model"] || args["replay-drafts"] || args.models)
+    )
+      throw new Error(
+        "--suite roles scores the detector with no model and takes --only (generated, real, or dataset ids) and --results-dir; the model tie-break's own measurement (roles-m15) is queued for the nightly slot",
+      );
     if (args.suite === "golden" && (args["keep-reports"] || args["small-model"] || args["replay-drafts"] || args["results-dir"]))
       throw new Error("--suite golden takes --dataset, --split, --model and --embedder only (it writes evals/results/golden/)");
     if (
@@ -452,8 +467,9 @@ const evalCmd = defineCommand({
     );
     const checkoutResults = fileURLToPath(new URL("../../../evals/results", import.meta.url));
     // A chunk is a partial run: it must never become the published row in evals/results.
+    // (--suite roles reads --only as a group or dataset ids and writes its own folder: no chunk is merged later.)
     const refused =
-      onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults) ??
+      (args.suite === "roles" ? undefined : onlyProblem(args.only, args["results-dir"], process.cwd(), checkoutResults)) ??
       replayProblem(args["replay-drafts"], args["results-dir"], process.cwd(), checkoutResults);
     if (refused) throw new Error(refused);
     const only = args.only === undefined ? undefined : onlyIds(args.only);
@@ -506,6 +522,19 @@ const evalCmd = defineCommand({
         deps,
       );
       process.exitCode = runs.every((r) => (r.repeat ? repeatPassed(r.repeat) : r.result?.bars.every((b) => b.pass !== false))) ? 0 : 1;
+      return;
+    }
+    if (args.suite === "roles") {
+      const r = await runRolesSuite(
+        {
+          resultsDir: where.dir,
+          ...(only?.length ? { only } : {}),
+          dataDir: fileURLToPath(new URL("../../../evals/real/data", import.meta.url)),
+          datasetsDir: fileURLToPath(new URL("../../../evals/datasets", import.meta.url)),
+        },
+        print,
+      );
+      process.exitCode = r.pass ? 0 : 1;
       return;
     }
     if (args.suite === "golden") {

@@ -63,7 +63,7 @@ export function repeatArgs(a: {
     throw new EvalRunError("USAGE", `--repeat takes a whole number ≥ 2, not "${a.repeat}"`);
   // The generated-data suites repeat; the real tier and the golden sets have their own runners (an unknown suite
   // name is refused where the command picks the suite).
-  if (a.suite === "real" || a.suite === "golden")
+  if (a.suite === "real" || a.suite === "golden" || a.suite === "roles")
     throw new EvalRunError("USAGE", `--repeat runs --suite smoke, full or heldout, not ${a.suite}`);
   if (a.passes !== undefined)
     throw new EvalRunError("USAGE", "--repeat runs N whole runs in one go: drop --passes (a run carried over nights can't be repeated)");

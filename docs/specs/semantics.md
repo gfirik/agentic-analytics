@@ -54,22 +54,29 @@ Each column of each table gets one role (or `none`). The vocabulary is fixed her
 
 **Entities.** Some roles name the same business entity, and packs group by the entity: `customer` and `customer_id` are the entity *customer*; `product` and `product_id` are *product*; `supplier` and `supplier_id` are *supplier*. A pack that needs "a customer dimension" accepts either role, and prefers the id when both exist (names drift, codes don't). Fact labels name the entity, not the column (analysis-library §14).
 
-## 2. The role detector (`detectRoles(ws, table)`)
+## 2. The role detector (`detectRoles(ws, table, profile, options?)`)
 
-It runs after PROFILE. For each column it returns a ranked list of candidates `{ role, score, evidence[] }`. The detector is deterministic: the same profile gives the same candidates.
+It runs after PROFILE, on the table's `ColumnProfile`s. For each column it returns a ranked list of candidates `{ role, score, evidence[] }`, the proposal, and the identities it measured. The detector is deterministic: the same profile gives the same candidates. Source: `packages/profile/src/roles/`.
 
 ### 2.1 Signals and score
 
-Each candidate's score is the sum of four signals, capped at 1. The weights below are the initial values. PR 4 records the values as built in this section.
+Each candidate's score is the sum of its signals' weights, capped at 1. The weights are the values as built (PR 4). A candidate needs name or value evidence; the type gate alone creates none.
 
 | Signal | Weight | Source |
 |---|---|---|
-| **Name** | exact synonym 0.5; a synonym as a whole token of the header 0.35 | the header, lower-cased, with punctuation and case-joins split (`UnitPrice` → `unit price`), matched against the synonym list (§2.3) |
-| **Type** | a gate, plus 0.1 | the profile's inferred type (ingestion-and-profiling §5). A role whose typical types (§1) exclude the column's type is not a candidate at all: a text column is never `quantity`. |
-| **Value pattern** | up to 0.2 | the profile's statistics: a date column whose values are on or after another date column's on ≥ 95% of rows is a `due_date` candidate against that `issue_date`; whole numbers with few distinct values (≤ 1% of rows, or ≤ 50) look like a code, not a `quantity`; a numeric column whose values are mostly negative where another is positive suggests a signed `amount` (bank) or a `discount` stored as a negative |
+| **Name** | the whole header is a synonym 0.5; the header *ends with* a synonym (its head word) 0.35; a synonym is inside the header but not its head 0.15 | the header, lower-cased, with punctuation and case-joins split (`UnitPrice` → `unit price`), a trailing index dropped (`Series_title_2`), matched against the synonym list (§2.3). `customer type` ends in `type`, so `customer` scores 0.15 there and the column is not a customer. A header `<entity> + id/code/no/number` is the entity's id role at the same weights (`Customer ID` → `customer_id` 0.5), and a bare entity word on an id or integer column is its code too. |
+| **Type** | a gate, plus 0.1 | the profile's inferred type (ingestion-and-profiling §5). A role whose typical types (§1) exclude the column's type is not a candidate at all: a text column is never `quantity`, a category never a `period` (`ArrivalDateMonth` is a part of a date, not a label). Id roles admit id, integer, text and category columns (a stock code is often a category); amount-like roles admit integer columns (whole-currency sheets); a `status` may be a 0/1 integer with at most 10 distinct values. |
+| **Value pattern** | 0.2 on a role that has name evidence; 0.3 on its own for two residual roles | `quantity` +0.2 unless the column looks like a code (whole numbers, ≤ 50 distinct values and ≤ 1% of rows); `status` +0.2 with ≤ 10 distinct values; `currency` +0.2 when the top values are three-letter codes. On their own: a varying numeric column nothing else explains is a `measure` (0.3 + type 0.1 = 0.4) and a varying category column is a `dimension` (0.3 + 0.1), so the proposal threshold is met and any name evidence outranks them. The profile's own date column gets `transaction_date` +0.3. |
 | **Cross-column identity** | 0.3 | the identities in §2.2, checked in SQL |
 
 A column's proposal is its top candidate when that score is ≥ 0.4. Otherwise it is `none`. Ties are broken by the higher score, then by the role's order in §1, then by the column's position in the table. A column with no evidence at all gets no role.
+
+Rules as built that the table above doesn't show (the synonym additions in §2.3 were chosen while the role labels were in view; the rules below name no column):
+
+- **Empty or constant columns have no role.** A column with no values, or one value over at least 100 rows, or all-distinct whole numbers over at least 100 rows (a key or index), is a technical column (`none`). Over fewer rows the equality proves nothing: twelve or twenty-four equal monthly rents are a flat cost, still a `measure`.
+- **Period parts.** In a table with no date column, an integer column whose values all lie in 1900–2100 and whose header has a year word (`year`, `yr`, `год`, `yil`) is a `period` (score 0.75: name 0.35, range 0.2, no date column 0.2), and so is an integer column of values 1–12 with a month word (`month`, `mon`, `месяц`, `oy`) when such a year column exists. Together they are one period: `TableRoles.period_parts = { year, month? }` names the two columns, and PR 5 (period handling) and PR 9 read the pair from there, a year alone meaning annual rows. With a date column the numbers are only parts of it and keep their other roles (`ArrivalDateYear`). A header with a year word anywhere (`year_built`) on such a column also qualifies; accepted, since a table with no date column and a year-range integer is rarely anything but a period or a dimension, and the user confirms roles. A month number with no year column beside it, a 1–12 quantity with no month word and a year-range amount with no year word are not periods.
+- **One transaction date per table.** When several date columns score for `transaction_date`, the highest keeps it and the others lose it (`ReservationStatusDate` next to `ArrivalDate`). A date with a due/issue name or an identity (§2.2) keeps that role.
+- **Model tie-break:** §2.4, off by default.
 
 ### 2.2 Cross-column identities (SQL, `roles.sql.ts`)
 
@@ -81,7 +88,7 @@ Identities are checked in DuckDB with parameterized templates over the table's n
 | net line | \|q × p − d − a\| ≤ tol(a) on ≥ 95% of such rows | the same, plus `discount`; `amount` is net of the discount |
 | margin | needs a cost candidate: \|a − q × c − m\| ≤ tol(m) on ≥ 95% of rows | a column `m` as a margin (recorded as `measure`; margin is computed, never read from the file) |
 | dates | due ≥ issue on ≥ 95% of rows where both are non-null | `issue_date`, `due_date` |
-| balance | balanceᵢ − balanceᵢ₋₁ = amountᵢ on ≥ 95% of consecutive rows in file order | `balance`, signed `amount` (bank/cash) |
+| balance | balanceᵢ − balanceᵢ₋₁ = amountᵢ on ≥ 95% of consecutive rows in file order | `balance`, signed `amount` (bank/cash). **Not built in PR 4:** no M15 pack reads a `bank_cash` table (M16 adds it); the name signal covers `balance` meanwhile. |
 
 **Tolerance per row:** tol(a) = max(half a minor unit, 0.5% × \|a\|). Half a minor unit is 0.005 for currencies with two decimals, and 0.5 for currencies with none (for example JPY). Rows with a null in any term don't count either way.
 
@@ -90,6 +97,8 @@ Identities are checked in DuckDB with parameterized templates over the table's n
 - *Tolerance.* q = 3, p = 33.33, a = 100.00: 3 × 33.33 = 99.99, \|99.99 − 100.00\| = 0.01 ≤ max(0.005, 0.5% × 100.00 = 0.50) = 0.50, so the row matches. q = 3, p = 0.33, a = 1.00: 3 × 0.33 = 0.99, \|0.99 − 1.00\| = 0.01 > max(0.005, 0.5% × 1.00 = 0.005) = 0.005, so the row doesn't match.
 - *Threshold.* 19 matching rows of 20 → 19 ÷ 20 = 95% ≥ 95%: the identity holds. 18 of 20 → 90% < 95%: it doesn't hold, and the roles it would support get no identity points.
 - *Gross vs net.* On the 10-line KPI fixture (analysis-library §8.2), lines 6 and 9 carry a discount (20.00 and 30.00), so q × p − a is 20.00 and 30.00 there. The gross identity holds on 8 of 10 rows (80%, rejected). The net identity holds on 10 of 10 (100%, accepted), so `amount` is read as net of discount.
+
+As built: an identity needs at least 5 rows where every term is non-null; it is measured for the top two candidates of each role (so at most a handful of queries); for the dates identity, a column equal to the issue date on every row is a copy and gets no points; the margin identity is tried against the first 12 numeric columns (in table order) not already used by the line identities; a fact per check keeps the best-measured pairing. The result carries each identity as `{ check, fact: "role_identity.<check>.<table>", columns, matched, total, rate, holds }`; PR 5 writes them as facts.
 
 An identity below 95% is evidence against the roles it would support, never a hard rule: messy files (cancellations, rounding, returns) can still get their roles from names and types.
 
@@ -115,6 +124,8 @@ Synonyms live in code (`packages/profile/src/roles/synonyms.ts`), in English, Ru
 | `status` | status, state, is_canceled, cancelled | статус, состояние | holat |
 | `supplier` | supplier, vendor | поставщик | yetkazib beruvchi |
 
+As built the list also carries `company` under `customer` (a booking's company is its account), `agent` under `salesperson`, `nights` under `quantity`, `bookings`, `visits` and `visitors` under `count`, `margin` and `profit` under `measure` (so the margin identity can name a column), `category`, `item type` and `family` under `product_group`, and Uzbek in Cyrillic script beside the Latin forms. Entity words (`customer`, `client`, `product`, `supplier`, `order`, `invoice`) plus an id suffix (`id`, `code`, `no`, `number`, and their RU/UZ forms) name the entity's id role without being listed.
+
 "Std cost" is listed under `unit_cost`, so a name rule alone can't misread it as a standard deviation. The margin dataset of PR 2 plants this header on purpose.
 
 ### 2.4 The model's tie-break
@@ -130,6 +141,7 @@ When the top two candidates of a column are within 0.1 of each other, and a mode
 
 Roles are stored in the workspace next to the profile (a migration adds them):
 
+- (migration 6 creates all three tables; PR 4 fills the first two, PR 5 the third)
 - `profile_roles(table_id, column_name, role, score, status, source, evidence_json)`, where `status` is `proposed | confirmed | assumed` and `source` is `detector | model | user`;
 - `profile_role_candidates(table_id, column_name, role, score)`;
 - `profile_table_kinds(table_id, kind, evidence_json)`.

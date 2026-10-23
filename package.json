@@ -31,6 +31,7 @@
     "eval:merge": "tsx evals/runner/scripts/merge.ts",
     "eval:real:fetch": "tsx evals/real/scripts/fetch.ts",
     "eval:real": "node apps/cli/bin/aa.js eval --suite real",
+    "eval:roles": "node apps/cli/bin/aa.js eval --suite roles",
     "eval:golden": "node apps/cli/bin/aa.js eval --suite golden",
     "eval:ablation": "tsx evals/ablation/scripts/ablation.ts",
     "readme:assets": "tsx scripts/readme-assets/assets.ts --write",
