@@ -130,7 +130,7 @@ bun run dev                     # API on :8080
 
 The maintainer's laptop runs out of RAM when agents work in parallel. These rules apply to every agent and session:
 
-- **Agents:** at most one background agent at a time besides the main session (§9 "Token budget"). Queue the rest: nothing is skipped, only serialized.
+- **Agents:** at most one background agent at a time besides the main session, or three under the v0.1 finish plan (§9 "Token budget"). Queue the rest: nothing is skipped, only serialized.
 - **Heavy jobs one at a time** across all agents and worktrees: `scripts/gate.sh`, full test runs, builds (including the docs build), evals and Playwright.
   - `gate.sh` takes a machine-wide lock by itself.
   - Run other heavy commands through it too, e.g. `bash scripts/heavy.sh bun run eval -- --suite smoke` or `bash scripts/heavy.sh bun run site:check:browser`.
@@ -150,7 +150,21 @@ These limits keep model spend down. Where they are tighter than a rule above, th
 
 1. **One background agent** at a time besides the main session.
 2. **One PR at a time, end to end.** Don't start the next PR until the current one is merged.
+
+Items 1 and 2 are replaced for M15 and the v0.1 finish by the plan below; items 3 and 4 still hold.
 3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. Reviewer and QA subagents run on a smaller model (Sonnet), not the largest.
 4. **No real-model runs** (Groq or any hosted endpoint) except the nightly eval. A targeted check is allowed only when a PR can't be judged otherwise, and the PR says why.
 
 The daily Telegram summary continues.
+
+### The v0.1 finish plan (set by the maintainer, 2026-10-23)
+
+For M15 and the run to v0.1 it replaces items 1 and 2 above.
+
+- **Roles.** The main session (Opus) plans, coordinates, reviews every PR and merges. Builders are subagents on Sonnet.
+- **Up to three background agents at once.** Builders, reviewers and QA all count. Check free RAM (`free -m`) before starting a third.
+- **Parallel where independent.** M15 PRs 2 and 3 run together; PRs 7, 8 and 9 run together once PRs 4 and 5 are merged. Dependent PRs run one at a time. Heavy jobs (gate, full tests, builds, evals) stay one at a time on the lock.
+- **Reviews.** Engine and numeric PRs get the Sonnet `spec-reviewer` and `qa` as before, plus the main session's own review of the diff before merging.
+- **Stalls.** If a background agent shows no progress for 30 minutes, the main session checks it and takes over the work itself.
+- **After M15 PR 11, a final v0.1 review** by the main session: whole-codebase code quality, a security review, spec against code, docs and README accuracy, and a fresh-clone install plus quickstart run from scratch. Findings are fixed in small PRs. Then `docs/LAUNCH-v0.1.md` gets the launch checklist, and work stops for the maintainer's yes on the v0.1.0 tag.
+- **A Telegram after each merge.**
