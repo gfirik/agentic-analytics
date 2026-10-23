@@ -329,12 +329,12 @@ Baseline: the scripted heuristic, no language model. On real files it drafts met
 
 #### Hotel booking demand datasets (Data in Brief (Elsevier), CC BY 4.0)
 
-Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 27.4 s · 4/6 checks pass.
+Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 26.2 s · 4/6 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on 119,390 bookings with the published padding and "NULL" text left in | yes | report with 5 findings, 3 data-quality items |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 106 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 107 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
 | C3: The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2) | yes | 2015 peak 2015-08; 2016 peak 2016-08; 2017 peak 2017-08; 3/3 values equal SQL |
 | C4: The autumn fall is not reported as news: bookings in November are below October in both years (G2) | **no** | 1 of 5 findings: F2 2015-10→2015-11 (contribution.v1) |
 | C5: Missing values: Children is NA in 4 bookings (G1) | yes | Q3 missing_value: 4 rows (N624), SQL 4; cites rows 40602, 40669, 40681… |
@@ -344,7 +344,7 @@ Metrics: room_revenue, room_nights, bookings, cancellation_rate. Data-quality ki
 
 #### Warehouse and Retail Sales (Montgomery County, Maryland), 2017–2020 (Montgomery County, MD (Department of Liquor Control, on data.montgomerycountymd.gov), Public domain)
 
-Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain). File read: `montgomery-warehouse-sales.csv` (SHA-256 `b1f5450e132c…`). Completed in 147.8 s · 2/2 checks pass.
+Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain). File read: `montgomery-warehouse-sales.csv` (SHA-256 `b1f5450e132c…`). Completed in 141.7 s · 2/2 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -355,7 +355,7 @@ Metrics: none. Data-quality kinds: unparseable_value, missing_id, missing_value.
 
 #### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
 
-This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 8.0 s · 5/5 checks pass.
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 6.7 s · 5/5 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -369,12 +369,12 @@ Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 15.8 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 13.9 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on a real 105,797-line file | yes | report with 2 findings, 3 data-quality items |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 31 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 32 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
 | C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id: 2089 rows (N120), SQL 2089; cites rows 58, 117, 118… |
 | C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity: 2431 rows (N121), SQL 2431; cites rows 58, 117, 118… |
 | C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id: 21051 rows (N122), SQL 21051; cites rows 156, 157, 158… |

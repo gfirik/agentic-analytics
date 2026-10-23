@@ -1946,7 +1946,7 @@
       {
         "check": "V2",
         "name": "recompute",
-        "run": 100,
+        "run": 101,
         "failed": 0
       },
       {
@@ -2011,7 +2011,7 @@
       }
     ],
     "summary": {
-      "numbers_checked": 100,
+      "numbers_checked": 101,
       "numbers_mismatched": 0,
       "citations_checked": 6,
       "claims_shipped": 16
@@ -2096,7 +2096,7 @@
       "high": "N351",
       "horizon": "next quarter"
     },
-    "facts": 100
+    "facts": 101
   },
   "router": {
     "spec": "openai-compatible:groq:openai/gpt-oss-120b | openai-compatible:cerebras:gpt-oss-120b",
@@ -2527,7 +2527,7 @@
         "[1/1] coffee-roaster: 6/6 checks pass · … s",
         "",
         "coffee-roaster C1 pass: The job completes on the workbook — report with 5 findings, 2 data-quality items",
-        "coffee-roaster C2 pass: Every number re-computes — 100 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition",
+        "coffee-roaster C2 pass: Every number re-computes — 101 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition",
         "coffee-roaster C3 pass: Revenue fell in April (G1: 44,100 → 36,200) — F1: A change in revenue",
         "coffee-roaster C4 pass: March's rise (G1: 42,900 → 44,100, +2.8%) is too small to report — no finding at 2026-03",
         "coffee-roaster C5 pass: The ×1000 packaging cost in the Monthly sheet (G2) — Q2 unit_error cites rows 3…",
@@ -3109,7 +3109,7 @@
         },
         {
           "label": "facts to recompute",
-          "value": "100"
+          "value": "101"
         }
       ],
       "steps": [
@@ -3122,7 +3122,7 @@
         },
         {
           "label": "V2 recompute",
-          "detail": "100 checks, 0 failed",
+          "detail": "101 checks, 0 failed",
           "outputs": [
             1
           ]
@@ -3178,7 +3178,7 @@
         },
         {
           "label": "V2",
-          "value": "100/100",
+          "value": "101/101",
           "note": "all passed"
         },
         {
@@ -3235,7 +3235,7 @@
         },
         {
           "label": "facts",
-          "value": "100"
+          "value": "101"
         }
       ],
       "steps": [
