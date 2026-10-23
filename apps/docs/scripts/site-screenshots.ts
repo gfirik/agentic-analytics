@@ -12,6 +12,10 @@
 //                                                the pinned hero at each step and the release into the engine
 //                                                machine, also at 1366×768 and 1280×720; at 390 the stacked tap
 //                                                list (pr2-<width>[x<height>]-<what>.png)
+//   tsx scripts/site-screenshots.ts --machine --out dir → the engine machine (site v5): at 1920, 1440, 1366×768 and 390
+//                                                the tour at its first stop and a middle stop, explore with a
+//                                                station's card open, and on the phone the Explore button
+//                                                (machine-<width>[x<height>]-<what>.png)
 //   tsx scripts/site-screenshots.ts --record   → hero.gif: the hero's verification on load, then the walkthrough
 //                                                stepped by scrolling through the pinned exhibit, and a hover
 //                                                (needs ffmpeg; without it hero.webm is kept)
@@ -34,6 +38,7 @@ const { values } = parseArgs({
     sections: { type: "boolean", default: false },
     hero: { type: "boolean", default: false },
     story: { type: "boolean", default: false },
+    machine: { type: "boolean", default: false },
   },
 });
 const base = (values.url as string).replace(/\/$/, "");
@@ -74,7 +79,11 @@ const smoothScroll = async (page: Page, y: number) => {
   }
 };
 
-const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
+// WebGL without a GPU (the engine machine): SwiftShader, as in the browser tests.
+const browser = await chromium.launch({
+  ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
+  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+});
 try {
   if (values.hero) {
     // The first screen as a reader sees it: motion on, after the replay has landed.
@@ -211,6 +220,67 @@ try {
     await page.waitForTimeout(400);
     await page.screenshot({ path: join(out, "pr2-390-tap.png") });
     await ctx.close();
+  } else if (values.machine) {
+    // The engine machine's modes for review (live: a capable device, motion on).
+    for (const [width, height] of [
+      [1920, 1080],
+      [1440, 900],
+      [1366, 768],
+      [390, 844],
+    ] as const) {
+      const tag = height === 768 ? `${width}x${height}` : `${width}`;
+      const phone = width < 900;
+      const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, hasTouch: phone });
+      const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
+        Object.defineProperty(navigator, "deviceMemory", { get: () => 8 });
+      });
+      await page.goto(`${base}/`, { waitUntil: "networkidle" });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      // Where the camera holds at stop k (0 is the home view): the middle of its share of the band.
+      const at = (k: number) =>
+        page.evaluate((k) => {
+          const track = document.querySelector<HTMLElement>("[data-track]");
+          const stage = document.querySelector<HTMLElement>("[data-engine-stage]");
+          if (!track || !stage) return 0;
+          const shares = Number(getComputedStyle(track.closest("[data-machine]") as Element).getPropertyValue("--aa-engine-stops"));
+          return Math.round(
+            track.getBoundingClientRect().top + window.scrollY + ((k + 0.5) * (track.offsetHeight - stage.offsetHeight)) / shares,
+          );
+        }, k);
+      const go = async (k: number, wait = 1400) => {
+        await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), await at(k));
+        await page.waitForTimeout(wait);
+      };
+      await go(0, 400);
+      await page.waitForSelector('[data-machine][data-gl="on"]', { timeout: 30_000 });
+      await go(0);
+      await page.screenshot({ path: join(out, `machine-${tag}-home.png`) });
+      await go(1);
+      await page.screenshot({ path: join(out, `machine-${tag}-stop1.png`) });
+      await go(4);
+      await page.screenshot({ path: join(out, `machine-${tag}-stop4.png`) });
+      if (phone) {
+        await page.locator("[data-explore]").tap();
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: join(out, `machine-${tag}-explore.png`) });
+      } else {
+        // Explore with a station's card open: a click on the station just under its label.
+        const label = await page.locator('[data-tag][data-id="analysis"]').boundingBox();
+        const want = await page.locator('.aa-stations li[data-station="analysis"] .aa-station-title').textContent();
+        for (let dy = 20; label && dy <= 200; dy += 15) {
+          await page.mouse.click(label.x + label.width / 2, label.y + label.height + dy);
+          if ((await page.locator("[data-card-title]").textContent()) === want) break;
+        }
+        await page.mouse.move(label ? label.x + label.width / 2 : width / 3, height * 0.55);
+        await page.waitForTimeout(900);
+        await page.screenshot({ path: join(out, `machine-${tag}-explore.png`) });
+      }
+      await ctx.close();
+    }
   } else if (values.record) {
     // The one moment of motion: load (the replay runs once, ≤ 2.5 s), then hover two figures in turn.
     const tmp = join(out, ".video");

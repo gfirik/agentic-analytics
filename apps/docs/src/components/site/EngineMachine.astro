@@ -2,21 +2,26 @@
 // <EngineMachine />: the engine drawn as a factory line, live in its own band under the hero (DESIGN.md §6 "Engine
 // machine", the one 3D exception of §1, §2.6 and §9; its motion in §7). The still frame (rendered at build time from the
 // same scene by scripts/site-assets.ts) shows at once; three.js (machine-3d.ts, its own chunk) starts on idle after load
-// once the band is near, and draws over it. As the reader scrolls through the band, a sticky stage stays put and the camera moves from station
-// to station; hovering (or tapping) a station shows its card. The labels, the card and the station list are this HTML.
+// once the band is near, and draws over it. Site v5: the stage fills the screen and stays put while the reader scrolls
+// through the band (the tour: seven stops, the camera easing between them); a click on the canvas (or the Explore
+// button on phones) hands the camera to the reader (explore: rotate, zoom, pan, pick a station), and Back to tour, Esc
+// or a click outside hands it back. The section's head (the "head" slot) sits over the stage's top left at the home
+// view and fades as the tour starts. The labels, the card, the buttons and the station list are this HTML.
 // Without JS, under reduced motion and on weak devices it is the still frame with the station list, and three never
 // loads. Every station, its stages and its figures come from the recorded run (engine-machine.ts).
 import { getCollection } from "astro:content";
 import pipeline from "../../../../../docs/assets/readme/pipeline.json";
 import type { PipelineData } from "../pipeline-scene.ts";
-import { type LearnStage, learnPath, machineStations, STILLS, type Station, sceneInput, sidePieces, tourOrder } from "./engine-machine.ts";
+import { type LearnStage, learnPath, machineStations, STILLS, type Station, sceneInput, sidePieces, tourStops } from "./engine-machine.ts";
 import { withBase } from "./site.ts";
 
 const run = pipeline as unknown as PipelineData;
 const stations = machineStations(run);
 const sides = sidePieces(run);
-const tour = tourOrder(stations);
-const data = { scene: sceneInput(run), tour };
+const tour = tourStops(stations);
+const data = { scene: sceneInput(run), tour: tour.map((t) => ({ key: t.key, members: t.members })) };
+const pieces = [...stations, ...sides];
+const pieceOf = (key: string) => pieces.find((p) => p.key === key);
 
 // The Learn pages' own titles, so a link reads as the page it opens (and a missing page fails the build).
 const learnPages = await getCollection("docs", (e) => e.id.startsWith("learn/stages/"));
@@ -33,10 +38,16 @@ const and = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.sl
 const kicker = (s: Station) =>
   // The stages, unless the only one is the station's own name ("Verify · Verify").
   `${s.n ? `Station ${s.n}` : "Beside the line"} · ${s.info.name}${s.stages.length && !(s.stages.length === 1 && s.stages[0]?.toLowerCase() === s.info.name.toLowerCase()) ? ` · ${s.stages.join(" · ")}` : ""}`;
+/** A group stop's kicker: its stations' numbers only, so it stays one line (the card's title and list name the rest). */
+const groupKicker = (members: readonly string[]) => {
+  const ns = members.map((k) => pieceOf(k)?.n).filter((n): n is string => !!n);
+  return ns.length > 1 ? `Stations ${ns[0]}–${ns.at(-1)}` : ns.length ? `Station ${ns[0]}` : "Beside the line";
+};
+const groupLearn = (members: readonly string[]) => [...new Set(members.flatMap((k) => (pieceOf(k)?.info.learn ?? []) as LearnStage[]))];
 const stillAlt = `The engine drawn as a factory line: ${stations.length} stations on a conveyor from the doors to the report, the job's database file in front and the model room behind glass. Every station is described in "Every station, as a list" below.`;
 ---
 
-<div class="aa-engine" data-machine style={`--aa-engine-stops: ${tour.length + 1}`}>
+<div class="aa-engine" data-machine data-view="tour" style={`--aa-engine-stops: ${tour.length + 1}`}>
   <script is:inline>
     // Before first paint, so the band's height never changes after it: "live" (a tall band with a sticky stage, the
     // list folded) for a capable device; "still" (the still frame and the open list) under reduced motion, on a weak
@@ -48,6 +59,9 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
       root.setAttribute("data-mode", weak || reduced ? "still" : "live");
     })(document.currentScript.parentElement);
   </script>
+  <div class="aa-engine-head" data-head>
+    <div class="aa-engine-head-in"><slot name="head" /></div>
+  </div>
   <div class="aa-engine-track" data-track>
     <div class="aa-engine-stage" data-engine-stage>
       <div class="aa-engine-view" data-viewport>
@@ -59,7 +73,7 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
         </picture>
         <div class="aa-engine-tags" data-tags>
           {
-            [...stations, ...sides].map((s) => (
+            pieces.map((s) => (
               <button type="button" class:list={["aa-engine-tag", { "is-side": !s.n }]} data-tag data-id={s.key} aria-pressed="false">
                 {s.n ? <span class="aa-engine-tag-n">{s.n}</span> : null}
                 <span class="aa-engine-tag-t">{s.info.simple}</span>
@@ -67,9 +81,16 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
             ))
           }
         </div>
+        <p class="aa-engine-hint" aria-hidden="true">Click to explore</p>
+        <div class="aa-engine-modes">
+          <button type="button" class="aa-button aa-button-secondary aa-engine-mode" data-explore aria-controls="aa-engine-card">
+            Explore
+          </button>
+          <button type="button" class="aa-button aa-button-secondary aa-engine-mode" data-back hidden>Back to tour</button>
+        </div>
         <div class="aa-engine-progress" aria-hidden="true"><i data-bar></i></div>
       </div>
-      <div class="aa-engine-card" data-card>
+      <div class="aa-engine-card" id="aa-engine-card" data-card>
         <p class="aa-label aa-engine-card-kicker" data-card-kicker>How to read the machine</p>
         <p class="aa-engine-card-title" data-card-title>Files in on the left, a checked report out on the right</p>
         <div class="aa-engine-card-body" data-card-body>
@@ -79,13 +100,53 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
               then computed again by the verifier.
             </p>
             <p>The long tank in front is the job's database file, where every station saves its work; the room at the back holds the models.</p>
-            <p class="aa-engine-live-only">Scroll to move down the line, or point at a station to see what it does.</p>
+            <p class="aa-engine-live-only">Scroll to move down the line, or explore the machine yourself.</p>
           </div>
         </div>
       </div>
+      <p class="aa-engine-sr" aria-live="polite" data-announce></p>
     </div>
   </div>
   <script type="application/json" data-machine-data set:html={JSON.stringify(data)} />
+  {/* The card's content for each stop that shows several pieces, and for explore's start (hidden: the card clones
+      it); a single piece's stop shows that piece's own entry from the list. */}
+  {
+    tour.map((t, i) =>
+      t.members.length > 1 ? (
+        <div hidden data-stop-card={i + 1}>
+          <p data-k>{groupKicker(t.members)}</p>
+          <p data-t>{t.title}</p>
+          <div class="aa-station-body">
+            <ul class="aa-engine-members">
+              {t.members.map((k) => (
+                <li>
+                  <span class="aa-engine-member">{pieceOf(k)?.info.simple}</span>
+                  <span class="aa-engine-member-lead"> {pieceOf(k)?.info.plain[0]}</span>
+                </li>
+              ))}
+            </ul>
+            <p class="aa-station-learn">
+              Learn:{" "}
+              {groupLearn(t.members).map((slug, j) => (
+                <>
+                  {j > 0 ? " · " : null}
+                  <a href={withBase(learnPath(slug))}>{learnTitle(slug)}</a>
+                </>
+              ))}
+            </p>
+          </div>
+        </div>
+      ) : null,
+    )
+  }
+  <div hidden data-explore-card>
+    <p data-k>Explore</p>
+    <p data-t>Turn it, zoom in, pick a station</p>
+    <div class="aa-station-body">
+      <p>Drag to turn the machine, scroll or pinch to zoom, and right-drag or use two fingers to move it. Choose any station to see what it does.</p>
+      <p>Back to tour (or Esc) returns to the stop you scrolled to.</p>
+    </div>
+  </div>
 
   <details class="aa-engine-list" id="aa-engine-list" open>
     <summary>Every station, as a list</summary>
@@ -158,10 +219,12 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
 </div>
 
 <script>
-  import type { Live, MachineData } from "./machine-3d.ts";
+  import type { Live, MachineData, Mode } from "./machine-3d.ts";
 
   const PHONE = "(max-width: 39.99rem)";
   const WIDE = "(min-width: 60rem)";
+  /** Phones and touch screens (site v5): no hover hint, an Explore button instead of a click on the canvas. */
+  const TOUCH = "(max-width: 56.24rem), (pointer: coarse)";
 
   const webgl = () => {
     try {
@@ -196,71 +259,190 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
       );
       io.observe(el);
     });
+  const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
   for (const root of document.querySelectorAll<HTMLElement>("[data-machine]")) {
     if (root.dataset.mode !== "live") continue;
     const track = root.querySelector<HTMLElement>("[data-track]");
     const stage = root.querySelector<HTMLElement>("[data-engine-stage]");
+    const viewport = root.querySelector<HTMLElement>("[data-viewport]");
+    const head = root.querySelector<HTMLElement>(".aa-engine-head-in");
     const card = root.querySelector<HTMLElement>("[data-card]");
     const list = root.querySelector<HTMLElement>(".aa-engine-list");
     const bar = root.querySelector<HTMLElement>("[data-bar]");
+    const exploreBtn = root.querySelector<HTMLButtonElement>("[data-explore]");
+    const backBtn = root.querySelector<HTMLButtonElement>("[data-back]");
+    const announcer = root.querySelector<HTMLElement>("[data-announce]");
     const json = root.querySelector("script[data-machine-data]")?.textContent;
-    if (!track || !stage || !card || !list || !bar || !json) continue;
+    if (!track || !stage || !viewport || !head || !card || !list || !bar || !exploreBtn || !backBtn || !announcer || !json) continue;
     const data = JSON.parse(json) as MachineData;
-    const kickerEl = card.querySelector<HTMLElement>("[data-card-kicker]");
-    const titleEl = card.querySelector<HTMLElement>("[data-card-title]");
-    const bodyEl = card.querySelector<HTMLElement>("[data-card-body]");
+    let kickerEl = card.querySelector<HTMLElement>("[data-card-kicker]");
+    let titleEl = card.querySelector<HTMLElement>("[data-card-title]");
+    let bodyEl = card.querySelector<HTMLElement>("[data-card-body]");
     const overview = bodyEl?.firstElementChild?.cloneNode(true) ?? null;
     const overviewHead = [kickerEl?.textContent ?? "", titleEl?.textContent ?? ""] as const;
     const stops = data.tour.length;
+    const wide = () => matchMedia(WIDE).matches;
 
-    // The card: the station's own entry in the list (cloned), or the overview at the home view.
+    // The card: a piece's own entry in the list (cloned), a stop's group (its template), explore's start, or the
+    // overview at the home view.
     let shown: string | null = "";
+    // The card's kicker, title and body are replaced by new nodes, not edited in place: a title that wraps to another
+    // line would otherwise move the body under it, which counts as a layout shift; new content is not a shift.
+    const fresh = <T extends HTMLElement>(el: T) => {
+      const n = el.cloneNode(false) as T;
+      el.replaceWith(n);
+      return n;
+    };
+    const fill = (kicker: string, title: string, body: Node | null) => {
+      if (!kickerEl || !titleEl || !bodyEl) return;
+      kickerEl = fresh(kickerEl);
+      titleEl = fresh(titleEl);
+      bodyEl = fresh(bodyEl);
+      kickerEl.textContent = kicker;
+      titleEl.textContent = title;
+      bodyEl.replaceChildren(...(body ? [body] : []));
+      card.scrollTop = 0;
+    };
+    const fromTemplate = (sel: string, id: string, prefix?: string) => {
+      const c = root.querySelector<HTMLElement>(sel);
+      if (!c || shown === id) return;
+      shown = id;
+      const k = c.querySelector("[data-k]")?.textContent ?? "";
+      fill(prefix ? `${prefix} · ${k}` : k, c.querySelector("[data-t]")?.textContent ?? "", c.querySelector(".aa-station-body")?.cloneNode(true) ?? null);
+    };
     const show = (key: string | null, prefix?: string) => {
-      if (key === shown || !kickerEl || !titleEl || !bodyEl) return;
-      shown = key;
+      const id = `${prefix ?? ""}|${key ?? ""}`;
+      if (id === shown) return;
       if (!key) {
-        kickerEl.textContent = overviewHead[0];
-        titleEl.textContent = overviewHead[1];
-        bodyEl.replaceChildren(...(overview ? [overview.cloneNode(true)] : []));
+        shown = id;
+        fill(overviewHead[0], overviewHead[1], overview ? overview.cloneNode(true) : null);
         return;
       }
       const li = list.querySelector<HTMLElement>(`[data-station="${key}"]`);
       if (!li) return;
+      shown = id;
       const k = li.querySelector(".aa-station-kicker")?.textContent ?? "";
-      kickerEl.textContent = prefix ? `${prefix} · ${k}` : k;
-      titleEl.textContent = li.querySelector(".aa-station-title")?.textContent ?? "";
-      const body = li.querySelector(".aa-station-body")?.cloneNode(true);
-      bodyEl.replaceChildren(...(body ? [body] : []));
+      fill(prefix ? `${prefix} · ${k}` : k, li.querySelector(".aa-station-title")?.textContent ?? "", li.querySelector(".aa-station-body")?.cloneNode(true) ?? null);
     };
 
-    // The scroll: how far through the band the reader is, in stops (0 is the home view).
+    // The scroll: how far through the band the reader is, in stops (0 is the home view). Each stop, the home view
+    // included, holds an equal share of the band.
     let live: Live | null = null;
+    let view: Mode = "tour";
     let stop = -1;
     let hover: string | null = null;
     const span = () => Math.max(1, track.offsetHeight - stage.offsetHeight);
+    const stickyTop = () => parseFloat(getComputedStyle(stage).top) || 0;
     const progress = () => {
-      const top = track.getBoundingClientRect().top - (parseFloat(getComputedStyle(stage).top) || 0);
+      const top = track.getBoundingClientRect().top - stickyTop();
       return Math.min(1, Math.max(0, -top / span()));
+    };
+    const showStop = (s: number) => {
+      const t = s === 0 ? null : data.tour[s - 1];
+      if (!t) {
+        show(null);
+        live?.highlight([]);
+        return;
+      }
+      const prefix = `Stop ${s} of ${stops}`;
+      if (t.members.length > 1) fromTemplate(`[data-stop-card="${s}"]`, `stop|${s}`, prefix);
+      else show(t.key, prefix);
+      live?.highlight(t.members);
     };
     const update = () => {
       const p = progress();
-      const f = p * stops;
+      const f = clamp(p * (stops + 1) - 0.5, 0, stops);
       bar.style.transform = `scaleX(${p.toFixed(4)})`;
+      // The head sits over the home view and fades as the tour starts (opacity only).
+      root.style.setProperty("--aa-engine-head-o", (1 - clamp(f / 0.45, 0, 1)).toFixed(3));
+      if (view === "explore") return;
       live?.setProgress(f);
       const s = Math.round(f);
       if (s !== stop) {
         stop = s;
         hover = null;
-        const key = s === 0 ? null : (data.tour[s - 1] ?? null);
-        show(key, key ? `Stop ${s} of ${stops}` : undefined);
-        live?.highlight(key);
+        showStop(s);
       }
     };
+
+    // Explore (site v5): the reader turns, zooms and pans the machine; the scroll is paused under it.
+    let exploreY = 0;
+    const announce = (text: string) => {
+      announcer.textContent = text;
+    };
+    const touch = () => matchMedia(TOUCH).matches;
+    const pick = (key: string | null) => {
+      if (!key || key === hover) return;
+      hover = key;
+      show(key);
+      live?.highlight([key]);
+    };
+    const enter = (key: string | null) => {
+      if (!live || view === "explore") return;
+      const fromButton = document.activeElement === exploreBtn;
+      view = "explore";
+      root.dataset.view = "explore";
+      live.setMode("explore");
+      exploreY = scrollY;
+      hover = null;
+      if (key) pick(key);
+      else {
+        fromTemplate("[data-explore-card]", "explore");
+        live.highlight([]);
+      }
+      backBtn.hidden = false;
+      exploreBtn.hidden = true;
+      if (fromButton) backBtn.focus();
+      announce("Explore mode: drag to turn the machine, scroll or pinch to zoom, and choose a station to see what it does. Back to tour or Escape returns.");
+    };
+    const leave = () => {
+      if (!live || view !== "explore") return;
+      const hadFocus = document.activeElement === backBtn;
+      view = "tour";
+      root.dataset.view = "tour";
+      live.setMode("tour");
+      exploreBtn.hidden = false;
+      backBtn.hidden = true;
+      if (hadFocus) exploreBtn.focus();
+      stop = -1;
+      update();
+      announce(stop === 0 ? "Back to the tour." : `Back to the tour, stop ${stop} of ${stops}.`);
+    };
+    exploreBtn.addEventListener("click", () => enter(null));
+    backBtn.addEventListener("click", () => leave());
+    addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && view === "explore") leave();
+    });
+    // A press anywhere outside the view and the card returns to the tour.
+    addEventListener(
+      "pointerdown",
+      (e) => {
+        if (view !== "explore") return;
+        const t = e.target as Node | null;
+        if (t && (viewport.contains(t) || card.contains(t))) return;
+        leave();
+      },
+      { capture: true },
+    );
+    // In explore the wheel turns into zoom over the canvas (OrbitControls) and does nothing elsewhere on the stage, so
+    // the page doesn't scroll from under the pinned machine; a card that can scroll still scrolls.
+    stage.addEventListener(
+      "wheel",
+      (e) => {
+        if (view !== "explore") return;
+        if (card.contains(e.target as Node) && card.scrollHeight > card.clientHeight + 1) return;
+        e.preventDefault();
+      },
+      { passive: false },
+    );
+
     let ticking = false;
     addEventListener(
       "scroll",
       () => {
+        // Scrolling the page by other means (the keyboard, the scrollbar) is the tour's: it leaves explore.
+        if (view === "explore" && Math.abs(scrollY - exploreY) > 48) leave();
         if (ticking) return;
         ticking = true;
         requestAnimationFrame(() => {
@@ -273,25 +455,18 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     addEventListener("resize", update, { passive: true });
     update();
 
-    // A station picked by hover, focus or a tap shows its card and highlight until the scroll reaches another stop.
-    const pick = (key: string | null) => {
-      if (!key || key === hover) return;
-      hover = key;
-      show(key);
-      live?.highlight(key);
-    };
-    /** Scroll the page so the camera stops at this piece (the tour's position for it). */
+    /** Scroll the page so the camera stops at the stop that shows this piece. */
     const go = (key: string) => {
-      const i = data.tour.indexOf(key);
+      const i = data.tour.findIndex((t) => t.members.includes(key));
       if (i < 0) return;
-      const y = track.getBoundingClientRect().top + scrollY + ((i + 1) / stops) * span() - (parseFloat(getComputedStyle(stage).top) || 0);
+      const y = track.getBoundingClientRect().top + scrollY + ((i + 1.5) / (stops + 1)) * span() - stickyTop();
       scrollTo({ top: Math.ceil(y), behavior: "smooth" });
     };
     for (const t of root.querySelectorAll<HTMLButtonElement>("[data-tag]")) {
       const key = t.dataset.id ?? "";
       t.addEventListener("pointerenter", () => pick(key));
       t.addEventListener("focus", () => pick(key));
-      t.addEventListener("click", () => go(key));
+      t.addEventListener("click", () => (view === "explore" ? pick(key) : go(key)));
     }
 
     // three.js: on idle after load, once the band is near (within a quarter screen below the viewport; a whole screen on
@@ -308,9 +483,16 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
         live = await m.mount(stage, data, {
           detail: phone ? "lite" : "full",
           drift: !phone,
-          onHover: (k) => pick(k),
-          onPick: (k) => pick(k),
-          coveredRight: () => (matchMedia(WIDE).matches ? card.offsetWidth + 24 : 0), // the card and its 24px inset
+          onHover: (k) => {
+            if (view === "tour") pick(k);
+          },
+          onTap: (k, pointer) => {
+            if (view === "explore") pick(k);
+            else if (pointer !== "touch" && !touch()) enter(k);
+            else pick(k);
+          },
+          coveredRight: () => (wide() ? card.offsetWidth + 24 : 0), // the card and its 24px inset
+          coveredTop: () => (wide() ? head.offsetHeight : 0),
         });
         root.dataset.gl = "on";
         stop = -1;
@@ -328,17 +510,43 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
 <style>
   .aa-engine {
     --aa-engine-h: clamp(37.5rem, 100svh - 3rem, 45rem);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--aa-space-5);
     text-align: left;
   }
 
-  /* The band: with JS on a capable device it is tall, and the stage stays put inside it while the reader scrolls
-     through (one scroll span per stop, so the camera moves from station to station). Its height is set before first
-     paint, so it never shifts. Otherwise (no JS, reduced motion, a weak device) it is just the stage. */
+  /* The frame (index.astro's .aa-cell): the head and the list keep the page's 1440px frame and its side rules; the
+     live stage between them is full-bleed, with no box around it (site v5). */
+  .aa-engine-head,
+  .aa-engine-list,
+  .aa-engine:not([data-mode="live"]) .aa-engine-track {
+    max-width: var(--aa-container);
+    margin: 0 auto;
+    padding-inline: var(--aa-gutter);
+    border-inline: 1px solid var(--aa-rule);
+  }
+  .aa-engine-head {
+    padding-block: var(--aa-space-8) var(--aa-space-7);
+  }
+  .aa-engine-list {
+    padding-block: var(--aa-space-5) var(--aa-space-8);
+  }
+  .aa-engine:not([data-mode="live"]) .aa-engine-track {
+    padding-bottom: var(--aa-space-2);
+  }
+  @media (max-width: 45rem) {
+    .aa-engine-head,
+    .aa-engine-list,
+    .aa-engine:not([data-mode="live"]) .aa-engine-track {
+      border-inline: 0;
+    }
+  }
+
+  /* The band: with JS on a capable device it is tall, and the stage, a whole screen, stays put inside it while the
+     reader scrolls through (an equal share of the band per stop, the home view included, so the camera moves from
+     station to station); then it releases into the next section. Its height is set before first paint, so it never
+     shifts. Otherwise (no JS, reduced motion, a weak device) it is just the stage, in the frame. */
   .aa-engine[data-mode="live"] .aa-engine-track {
-    height: calc(var(--aa-engine-h) + var(--aa-engine-stops) * 22svh);
+    height: calc(100vh + var(--aa-engine-stops) * 25vh);
+    height: calc(100svh + var(--aa-engine-stops) * 25svh);
   }
   .aa-engine-stage {
     position: relative;
@@ -346,15 +554,15 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   }
   .aa-engine[data-mode="live"] .aa-engine-stage {
     position: sticky;
-    top: max(var(--aa-space-5), (100svh - var(--aa-engine-h)) / 2);
+    top: 0;
+    height: 100vh;
+    height: 100svh;
   }
   .aa-engine-view {
     position: absolute;
     inset: 0;
     overflow: hidden;
     background: var(--aa-page);
-    border: 1px solid var(--aa-rule);
-    border-radius: var(--aa-radius);
   }
   .aa-engine-still,
   .aa-engine-still img,
@@ -368,7 +576,8 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   .aa-engine-still img {
     object-fit: contain;
   }
-  /* The canvas fades in over the still once its first frame is drawn. */
+  /* The canvas fades in over the still once its first frame is drawn. In the tour it lets the page scroll under a
+     touch (machine-3d.ts sets touch-action: pan-y; none in explore). */
   .aa-engine-view :global(canvas) {
     animation: aa-engine-in 400ms var(--aa-ease) both;
   }
@@ -378,7 +587,43 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     }
   }
 
-  /* The station labels: buttons placed by the live view from projected coordinates; hidden until it places them. */
+  /* The head over the stage (live, from 60rem): it takes no room in the band (height 0, sticky at the top with the
+     stage), so the band starts right where the hero releases; it sits at the top left of the home view, which the
+     camera frames below it, and fades as the tour starts (--aa-engine-head-o, set from the scroll; opacity only).
+     It never takes the pointer, so the canvas under it stays live. Below 60rem it sits above the band. */
+  @media (min-width: 60rem) {
+    .aa-engine[data-mode="live"] .aa-engine-head {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      height: 0;
+      padding-block: 0;
+      border-inline: 0;
+      pointer-events: none;
+    }
+    .aa-engine[data-mode="live"] .aa-engine-head-in {
+      width: min(var(--aa-measure), 100% - 22rem - 3 * var(--aa-space-5));
+      padding-top: var(--aa-space-7);
+      opacity: var(--aa-engine-head-o, 1);
+    }
+    .aa-engine[data-mode="live"] .aa-engine-head-in :global(.aa-cell-head) {
+      justify-items: start;
+      text-align: left;
+    }
+    .aa-engine[data-mode="live"] .aa-engine-head-in :global(.aa-center) {
+      margin-inline: 0;
+    }
+    .aa-engine[data-view="explore"] .aa-engine-head-in {
+      opacity: 0;
+    }
+    /* The still frame sits where the live home view draws the machine: under the head, left of the card. */
+    .aa-engine[data-mode="live"] .aa-engine-still {
+      top: 11rem;
+    }
+  }
+
+  /* The station labels: buttons placed by the live view from projected coordinates; hidden until it places them.
+     Labels away from the stop (or, in explore, the pointer) fade out and leave the tab order (is-far). */
   .aa-engine-tags {
     position: absolute;
     inset: 0;
@@ -388,7 +633,6 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     position: absolute;
     left: 0;
     top: 0;
-    visibility: hidden;
     pointer-events: auto;
     min-height: 1.5rem;
     padding: 0.125rem 0.375rem;
@@ -402,9 +646,19 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     border-radius: var(--aa-radius-chip);
     cursor: pointer;
     transition:
+      opacity 200ms var(--aa-ease),
+      visibility 0s linear 0s,
       background-color var(--aa-fast) var(--aa-ease),
       color var(--aa-fast) var(--aa-ease),
       border-color var(--aa-fast) var(--aa-ease);
+  }
+  .aa-engine-tag.is-far {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 200ms var(--aa-ease),
+      visibility 0s linear 200ms;
   }
   .aa-engine:not([data-gl="on"]) .aa-engine-tag {
     display: none;
@@ -429,8 +683,8 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   .aa-engine-tag[aria-pressed="true"] .aa-engine-tag-n {
     color: var(--aa-page);
   }
-  /* On a narrow or wide-open view the labels show their numbers only; the name stays in the button's text for screen
-     readers and comes back on hover, focus or when pressed. */
+  /* At the home view and on a narrow view the labels show their numbers only; the name stays in the button's text for
+     screen readers and comes back on hover, focus or when pressed. */
   .aa-engine-tags.is-compact .aa-engine-tag:not(.is-side, [aria-pressed="true"], :hover, :focus-visible) .aa-engine-tag-t {
     position: absolute;
     width: 1px;
@@ -444,6 +698,71 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   .aa-engine-tags.is-compact .aa-engine-tag:focus-visible,
   .aa-engine-tags.is-compact .aa-engine-tag:hover {
     z-index: 3;
+  }
+
+  /* The modes (site v5). The hint shows over the canvas on hover with a mouse, in the tour; phones and touch screens get
+     the Explore button instead (on a desktop it shows only when it has the keyboard's focus). Back to tour shows in
+     explore everywhere. None of it until the live view runs. */
+  .aa-engine-hint {
+    position: absolute;
+    left: 50%;
+    bottom: var(--aa-space-6);
+    z-index: 3;
+    margin: 0;
+    padding: var(--aa-space-1) var(--aa-space-3);
+    translate: -50% 0;
+    font: 500 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+    letter-spacing: var(--aa-label-tracking);
+    text-transform: uppercase;
+    color: var(--aa-page);
+    background: var(--aa-ink);
+    border-radius: var(--aa-radius-chip);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--aa-fast) var(--aa-ease);
+  }
+  @media (hover: hover) and (pointer: fine) and (min-width: 56.25rem) {
+    .aa-engine[data-gl="on"][data-view="tour"] .aa-engine-view:hover .aa-engine-hint {
+      opacity: 1;
+    }
+  }
+  .aa-engine-modes {
+    position: absolute;
+    left: var(--aa-space-5);
+    bottom: var(--aa-space-5);
+    z-index: 4;
+    display: flex;
+    gap: var(--aa-space-2);
+  }
+  .aa-engine:not([data-gl="on"]) .aa-engine-modes {
+    display: none;
+  }
+  .aa-engine-mode[hidden] {
+    display: none;
+  }
+  .aa-engine-mode {
+    min-height: 2.75rem;
+  }
+  @media (hover: hover) and (pointer: fine) and (min-width: 56.25rem) {
+    .aa-engine-mode[data-explore]:not(:focus-visible) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+  }
+  .aa-engine-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* How far through the band the reader is: a 2px ink rule along the view's foot (live only). */
@@ -462,13 +781,16 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     transform: scaleX(0);
     transform-origin: left;
   }
+  .aa-engine[data-view="explore"] .aa-engine-progress {
+    opacity: 0;
+  }
   .aa-engine:not([data-mode="live"]) .aa-engine-progress,
   .aa-engine:not([data-mode="live"]) .aa-engine-live-only {
     display: none;
   }
 
-  /* The card: the station in view (or under the pointer), its kicker, title, what it does, its figures in the run and
-     its Learn pages. From 60rem it sits over the view's right side; below, under the view. */
+  /* The card: the stop in view (or the piece under the pointer, or picked in explore), its kicker, title, what it does,
+     its figures in the run and its Learn pages. From 60rem it sits over the view's right side; below, under the view. */
   .aa-engine-card {
     display: grid;
     align-content: start;
@@ -489,6 +811,26 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   }
   .aa-engine-card-body {
     margin-top: var(--aa-space-1);
+  }
+  .aa-engine-members {
+    display: grid;
+    gap: var(--aa-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aa-engine-member {
+    font-weight: 600;
+    color: var(--aa-ink);
+  }
+  .aa-engine-member::after {
+    content: ".";
+  }
+  /* In explore the card scrolls on its own, and never scrolls the page under the pinned machine. In the tour a touch on
+     it scrolls the page (no containment, or a phone's swipe on the card would go nowhere). */
+  .aa-engine[data-view="explore"] .aa-engine-card {
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   @media (min-width: 60rem) {
     /* The still frame fills the part of the view the card leaves free, as the live home view does. */
@@ -518,19 +860,27 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
       position: relative;
       height: min(30rem, 56svh);
     }
+    /* Live, the stage is the whole screen: the view over a card of fixed height, so nothing in the stage moves as the
+       card's content changes from stop to stop (layout shifts, site v4 PR 3). */
     .aa-engine[data-mode="live"] .aa-engine-track {
-      height: calc(100svh + var(--aa-engine-stops) * 18svh);
+      height: calc(100vh + var(--aa-engine-stops) * 20vh);
+      height: calc(100svh + var(--aa-engine-stops) * 20svh);
     }
     .aa-engine[data-mode="live"] .aa-engine-stage {
-      top: var(--aa-space-3);
+      grid-template-rows: minmax(0, 1fr) 14.5rem;
+      gap: 0;
     }
-    /* Live on a narrow screen the card stays short: what it does in one sentence, and its Learn pages. The list has
-       the rest. */
+    .aa-engine[data-mode="live"] .aa-engine-view {
+      height: auto;
+    }
     .aa-engine[data-mode="live"] .aa-engine-card {
-      padding: var(--aa-space-3) var(--aa-space-4);
+      overflow: hidden;
+      padding: var(--aa-space-3) var(--aa-gutter);
+      border-width: 1px 0 0;
+      border-radius: 0;
     }
-    /* The kicker on one line and the title holding two, so the card's text keeps its place as the scroll moves from
-       stop to stop: a kicker or title that wrapped differently moved the lines under it (layout shifts, site v4 PR 3). */
+    /* Live on a narrow screen the card stays short: what it does in one sentence (a group: its pieces' names), and its
+       Learn pages. The list has the rest. */
     .aa-engine[data-mode="live"] .aa-engine-card-kicker {
       white-space: nowrap;
       overflow: hidden;
@@ -539,8 +889,23 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     .aa-engine[data-mode="live"] .aa-engine-card-title {
       min-height: calc(2 * 1.4em);
     }
-    .aa-engine[data-mode="live"] .aa-engine-card :is(.aa-station-more, .aa-station-model, .aa-station-run, [data-overview] p:not(.aa-engine-live-only)) {
+    .aa-engine[data-mode="live"] .aa-engine-card :is(.aa-station-more, .aa-station-model, .aa-station-run, .aa-engine-member-lead, [data-overview] p:not(.aa-engine-live-only)) {
       display: none;
+    }
+    .aa-engine[data-mode="live"] .aa-engine-members {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--aa-space-1) var(--aa-space-3);
+    }
+    .aa-engine[data-mode="live"] .aa-engine-member {
+      font-weight: 500;
+    }
+    .aa-engine[data-mode="live"] .aa-engine-member::after {
+      content: none;
+    }
+    .aa-engine-modes {
+      left: var(--aa-gutter);
+      bottom: var(--aa-space-4);
     }
   }
 
@@ -628,7 +993,9 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .aa-engine-tag {
+    .aa-engine-tag,
+    .aa-engine-tag.is-far,
+    .aa-engine-hint {
       transition: none;
     }
     .aa-engine-view :global(canvas) {

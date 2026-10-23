@@ -25,7 +25,7 @@ import {
   STATION_OF_STAGE,
   sceneInput,
   sidePieces,
-  tourOrder,
+  tourStops,
 } from "../../apps/docs/src/components/site/engine-machine.ts";
 import { firstSentence, monthName, placeholders, sqlLines, sqlTokens } from "../../apps/docs/src/components/site/exhibit.ts";
 import { buildMachine, TONES, type Tokens } from "../../apps/docs/src/components/site/machine-scene.ts";
@@ -408,9 +408,18 @@ describe("engine machine (the same run as the pipeline stages and the exhibit)",
     const scene = sceneInput(pipeline);
     expect(scene.stations.map((s) => s.key)).toEqual(stations.map((s) => s.key));
     expect(scene.checks).toEqual(pipeline.checks.map((c) => ({ check: c.check, failed: c.failed })));
-    // The scroll tour visits every station and both side pieces once.
-    const tour = tourOrder(stations);
-    expect([...tour].sort()).toEqual([...stations.map((s) => s.key), "vault", "models"].sort());
+    // The scroll tour (site v5): about seven stops of neighbouring pieces, which together show every station and
+    // both side pieces exactly once, the stations in line order.
+    const tour = tourStops(stations);
+    expect(tour.length).toBeGreaterThanOrEqual(6);
+    expect(tour.length).toBeLessThanOrEqual(7);
+    const members = tour.flatMap((s) => s.members);
+    expect([...members].sort()).toEqual([...stations.map((s) => s.key), "vault", "models"].sort());
+    const onLine = members.filter((k) => k !== "vault" && k !== "models");
+    expect(onLine).toEqual(stations.map((s) => s.key));
+    expect(tour[0]?.members).toEqual(["doors"]);
+    expect(tour.at(-1)?.members).toEqual(["render"]);
+    for (const s of tour) expect(s.title).not.toMatch(/\d/);
   });
 
   it("each station's sheet links to Learn stage pages that exist, and every Learn stage page is linked", () => {

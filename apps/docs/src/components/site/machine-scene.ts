@@ -386,22 +386,26 @@ export interface View {
 
 /**
  * The view that fits the machine (every piece and its label anchor) into a canvas of this aspect, as large as it can
- * be drawn, from the given directions: the projected bounds, with room above for the HTML labels.
+ * be drawn, from the given directions: the projected bounds, with room above for the HTML labels. With `only`, it fits
+ * just those pieces (a tour stop's group, site v5).
  */
 export function fitView(
   b: Built,
   aspect: number,
   dirs: readonly Vector3[] = HOME_DIRS,
   margin: { readonly top: number; readonly bottom: number } = HOME_MARGIN,
+  only?: readonly string[],
 ): View {
   const points: Vector3[] = [];
   const box = new Box3();
-  for (const g of b.groups.values()) {
+  const keep = (k: string) => !only || only.includes(k);
+  for (const [k, g] of b.groups) {
+    if (!keep(k)) continue;
     box.setFromObject(g);
     for (const x of [box.min.x, box.max.x])
       for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) points.push(new Vector3(x, y, z));
   }
-  for (const a of b.anchors.values()) points.push(a.clone());
+  for (const [k, a] of b.anchors) if (keep(k)) points.push(a.clone());
   const cam = new OrthographicCamera();
   let best: View | null = null;
   for (const dir of dirs) {
