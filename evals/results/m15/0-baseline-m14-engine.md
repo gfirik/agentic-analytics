@@ -1,3 +1,5 @@
+> Superseded by `1-baseline-m14-engine-full.md` (the full M15 item set). Kept as the PR 3 record; its table covers the PR 3 item set only.
+
 # M15 baseline: the M14 engine on the M15 golden item set
 
 Measured 2026-10-23 by `bun run eval:real:fetch && bun run eval -- --suite golden --model baseline` (the scripted heuristic, no language model, dev split, counted items only). The engine is the M14 engine: `packages/` and `apps/` at engine commit `735dbe5` are identical to main `53860c7` (this branch only adds eval tooling under `evals/` and docs). The bar for each M15 capability is `max(baseline rate + 15 pp, 85%)` (docs/plans/m15.md A4); the scripted baseline answers no follow-up question, so every `ask` item is a miss. The real-model figure is DEFERRED to the nightly slot. Items are agent-reviewed, not maintainer-reviewed. Machine-readable: `0-baseline-m14-engine.json`.

@@ -1,0 +1,28 @@
+{
+  "engine_commit": "cfa7589a2edd3884ffacd615b8247746f0dbdaa9",
+  "date": "2026-10-23",
+  "split": "dev",
+  "model": "baseline",
+  "capabilities": {
+    "kpi": {
+      "passed": 6,
+      "of": 15
+    },
+    "margin": {
+      "passed": 0,
+      "of": 7
+    },
+    "pareto": {
+      "passed": 0,
+      "of": 6
+    },
+    "driver": {
+      "passed": 1,
+      "of": 2
+    },
+    "other": {
+      "passed": 0,
+      "of": 3
+    }
+  }
+}

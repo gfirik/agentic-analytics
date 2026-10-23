@@ -240,7 +240,7 @@ export function capabilityCounts(runs: readonly GoldenRunResult[]): CapabilityCo
   return out;
 }
 
-/** The committed M14-engine baseline per capability (evals/results/m15/0-baseline-m14-engine.json). */
+/** The committed M14-engine baseline per capability (evals/results/m15/1-baseline-m14-engine-full.json). */
 export const CapabilityBaseline = z.object({
   engine_commit: z.string().min(1),
   date: z.iso.date(),
@@ -252,7 +252,7 @@ export type CapabilityBaseline = z.infer<typeof CapabilityBaseline>;
 
 /** evals/results/m15 in a checkout. */
 export const M15_RESULTS_DIR = join(import.meta.dirname, "..", "..", "results", "m15");
-export const M15_BASELINE_FILE = join(M15_RESULTS_DIR, "0-baseline-m14-engine.json");
+export const M15_BASELINE_FILE = join(M15_RESULTS_DIR, "1-baseline-m14-engine-full.json");
 
 export function loadCapabilityBaseline(file: string = M15_BASELINE_FILE): CapabilityBaseline | undefined {
   if (!existsSync(file)) return undefined;
