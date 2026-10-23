@@ -20,7 +20,7 @@ import { maskSample, type RoleTieBreak, TIE_MARGIN } from "./tiebreak.ts";
 import type { Role } from "./vocabulary.ts";
 
 /** An identity holds when at least this share of the non-null rows match (§2.2), over at least `MIN_IDENTITY_ROWS`. */
-export const IDENTITY_SHARE = 0.95;
+export const IDENTITY_PERCENT = 95;
 export const MIN_IDENTITY_ROWS = 5;
 /** Candidates considered per role when pairing columns for an identity. */
 const PER_ROLE = 2;
@@ -86,7 +86,7 @@ export const halfMinorUnit = (currency?: string): number => (currency && ZERO_DE
 
 /** Whether `matched` of `total` rows reach the identity share, in integers so 19 of 20 is exactly 95%. */
 export const identityHolds = (matched: number, total: number): boolean =>
-  total >= MIN_IDENTITY_ROWS && matched * 100 >= IDENTITY_SHARE * 100 * total;
+  total >= MIN_IDENTITY_ROWS && matched * 100 >= IDENTITY_PERCENT * total;
 
 function roleColumns(table: Pick<NormalizedTable, "columns">, profile: TableProfile): RoleColumn[] {
   return profile.columns.map((p, i) => {
@@ -130,9 +130,12 @@ export async function detectRoles(
       cs = withEvidence(cs, "transaction_date", { signal: "value", text: "the table's date column", weight: WEIGHTS.residual }, c);
     cands.set(c.name, cs);
   }
+  const boosted = new Set<string>();
   const boost = (column: string, role: Role, text: string) => {
     const c = byName.get(column);
-    if (c) cands.set(column, withEvidence(cands.get(column) ?? [], role, { signal: "identity", text, weight: WEIGHTS.identity }, c));
+    // One identity point per (column, role): several holding pairings are still one piece of evidence.
+    if (c && !boosted.has(`${column}/${role}`) && boosted.add(`${column}/${role}`))
+      cands.set(column, withEvidence(cands.get(column) ?? [], role, { signal: "identity", text, weight: WEIGHTS.identity }, c));
   };
   const top = (role: Role, min = PROPOSE_AT, exclude: readonly string[] = []): string[] =>
     cols

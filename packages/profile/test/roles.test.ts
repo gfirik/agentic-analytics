@@ -189,6 +189,16 @@ describe("name, type and value signals, per role", () => {
     expect(propose(col("Rent", "integer", { rows: 12, non_null: 12, distinct: 1 }))).toBe("measure");
   });
 
+  it("the 100-row floor: a constant column is technical at 100 rows, a flat measure at 99", () => {
+    expect(propose(col("Rent", "integer", { rows: 99, non_null: 99, distinct: 1 }))).toBe("measure");
+    expect(propose(col("Rent", "integer", { rows: 100, non_null: 100, distinct: 1 }))).toBe("none");
+  });
+
+  it("market segments and room types are dimensions (a segment is not a sales channel)", () => {
+    for (const h of ["MarketSegment", "ReservedRoomType", "AssignedRoomType"])
+      expect(propose(col(h, "category", { distinct: 9 })), h).toBe("dimension");
+  });
+
   it("amount, unit price and discount are told apart by their names", () => {
     expect(propose(col("Amount", "currency"))).toBe("amount");
     expect(propose(col("Unit Price", "currency"))).toBe("unit_price");

@@ -155,7 +155,8 @@ export function scoreTable(t: DatasetTableLabels, roles: TableRoles): ColumnScor
   const byLabel = new Map(roles.columns.map((c) => [c.label, c]));
   return t.columns.map((l) => {
     const got = byLabel.get(l.header);
-    const proposed = got?.role ?? "none";
+    if (!got) throw new EvalRunError("BAD_RESULTS", `${t.dataset}/${t.table}: labelled column "${l.header}" was not profiled`);
+    const proposed = got.role;
     return {
       dataset: t.dataset,
       entry: t.entry,
@@ -165,9 +166,9 @@ export function scoreTable(t: DatasetTableLabels, roles: TableRoles): ColumnScor
       label: l.role,
       accept: l.accept,
       proposed,
-      score: got?.score ?? 0,
+      score: got.score,
       correct: proposed === l.role || l.accept.includes(proposed),
-      evidence: got?.evidence.map((e) => `${e.signal}: ${e.text}`) ?? [],
+      evidence: got.evidence.map((e) => `${e.signal}: ${e.text}`),
     };
   });
 }

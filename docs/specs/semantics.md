@@ -71,7 +71,7 @@ Each candidate's score is the sum of its signals' weights, capped at 1. The weig
 
 A column's proposal is its top candidate when that score is ≥ 0.4. Otherwise it is `none`. Ties are broken by the higher score, then by the role's order in §1, then by the column's position in the table. A column with no evidence at all gets no role.
 
-Rules as built that the table above doesn't show, each general (none names a column):
+Rules as built that the table above doesn't show (the synonym additions in §2.3 were chosen while the role labels were in view; the rules below name no column):
 
 - **Empty or constant columns have no role.** A column with no values, or one value over at least 100 rows, or all-distinct whole numbers over at least 100 rows (a key or index), is a technical column (`none`). Over fewer rows the equality proves nothing: twelve or twenty-four equal monthly rents are a flat cost, still a `measure`.
 - **One transaction date per table.** When several date columns score for `transaction_date`, the highest keeps it and the others lose it (`ReservationStatusDate` next to `ArrivalDate`). A date with a due/issue name or an identity (§2.2) keeps that role.
@@ -97,7 +97,7 @@ Identities are checked in DuckDB with parameterized templates over the table's n
 - *Threshold.* 19 matching rows of 20 → 19 ÷ 20 = 95% ≥ 95%: the identity holds. 18 of 20 → 90% < 95%: it doesn't hold, and the roles it would support get no identity points.
 - *Gross vs net.* On the 10-line KPI fixture (analysis-library §8.2), lines 6 and 9 carry a discount (20.00 and 30.00), so q × p − a is 20.00 and 30.00 there. The gross identity holds on 8 of 10 rows (80%, rejected). The net identity holds on 10 of 10 (100%, accepted), so `amount` is read as net of discount.
 
-As built: an identity needs at least 5 rows where every term is non-null; it is measured for the top two candidates of each role (so at most a handful of queries); for the dates identity, a column equal to the issue date on every row is a copy and gets no points; the margin identity is tried against numeric columns not already used by the line identities; a fact per check keeps the best-measured pairing. The result carries each identity as `{ check, fact: "role_identity.<check>.<table>", columns, matched, total, rate, holds }`; PR 5 writes them as facts.
+As built: an identity needs at least 5 rows where every term is non-null; it is measured for the top two candidates of each role (so at most a handful of queries); for the dates identity, a column equal to the issue date on every row is a copy and gets no points; the margin identity is tried against the first 12 numeric columns (in table order) not already used by the line identities; a fact per check keeps the best-measured pairing. The result carries each identity as `{ check, fact: "role_identity.<check>.<table>", columns, matched, total, rate, holds }`; PR 5 writes them as facts.
 
 An identity below 95% is evidence against the roles it would support, never a hard rule: messy files (cancellations, rounding, returns) can still get their roles from names and types.
 
@@ -123,7 +123,7 @@ Synonyms live in code (`packages/profile/src/roles/synonyms.ts`), in English, Ru
 | `status` | status, state, is_canceled, cancelled | статус, состояние | holat |
 | `supplier` | supplier, vendor | поставщик | yetkazib beruvchi |
 
-As built the list also carries `company` under `customer` (a booking's company is its account), `agent` under `salesperson`, `nights` under `quantity`, `margin` and `profit` under `measure` (so the margin identity can name a column), `category`, `item type` and `family` under `product_group`, and Uzbek in Cyrillic script beside the Latin forms. Entity words (`customer`, `client`, `product`, `supplier`, `order`, `invoice`) plus an id suffix (`id`, `code`, `no`, `number`, and their RU/UZ forms) name the entity's id role without being listed.
+As built the list also carries `company` under `customer` (a booking's company is its account), `agent` under `salesperson`, `nights` under `quantity`, `bookings`, `visits` and `visitors` under `count`, `margin` and `profit` under `measure` (so the margin identity can name a column), `category`, `item type` and `family` under `product_group`, and Uzbek in Cyrillic script beside the Latin forms. Entity words (`customer`, `client`, `product`, `supplier`, `order`, `invoice`) plus an id suffix (`id`, `code`, `no`, `number`, and their RU/UZ forms) name the entity's id role without being listed.
 
 "Std cost" is listed under `unit_cost`, so a name rule alone can't misread it as a standard deviation. The margin dataset of PR 2 plants this header on purpose.
 
