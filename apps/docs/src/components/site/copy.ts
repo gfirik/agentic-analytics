@@ -117,10 +117,16 @@ function enhance(block: HTMLElement): void {
     block.classList.add("aa-copy-host");
     block.append(b);
   } else {
+    // The wrapper arrives after first paint, so it must not move anything: it takes over the pre's margins exactly
+    // (whatever rule gave them: a sibling combinator or the docs' flow spacing no longer reaches the pre inside it).
+    const m = getComputedStyle(block);
+    const margin = `${m.marginTop} ${m.marginRight} ${m.marginBottom} ${m.marginLeft}`;
     const wrap = document.createElement("div");
     wrap.className = "aa-copy-host aa-copy-wrap";
     block.replaceWith(wrap);
     wrap.append(block, b);
+    wrap.style.margin = margin;
+    block.style.margin = "0";
   }
 }
 

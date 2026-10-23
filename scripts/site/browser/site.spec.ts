@@ -2706,6 +2706,44 @@ test.describe("copy on click (site v5 PR 3)", () => {
     await ctx.close();
   });
 
+  test("the buttons and wrappers arrive after first paint and move nothing (landing and Learn pages, 1440 and 390)", async ({
+    browser,
+  }) => {
+    // Every element's box with the buttons in place, then with every wrapper undone and every button removed: equal. On a
+    // slow runner the script runs after first paint, so any difference would be a layout shift (CI caught one, 0.0021).
+    for (const width of [1440, 390]) {
+      const { ctx, page } = await copyContext(browser, { width });
+      for (const path of [LANDING, `${BASE}/learn/stages/metric-layer/`, `${BASE}/learn/stages/retrieval/`, LEARN]) {
+        await page.goto(path, { waitUntil: "networkidle" });
+        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        const moved = await page.evaluate(() => {
+          const els = [...document.querySelectorAll("main *")].filter(
+            (e) => !e.closest(".aa-copy-btn") && !e.classList.contains("aa-copy-wrap"),
+          );
+          const boxes = () =>
+            els.map((e) => {
+              const r = e.getBoundingClientRect();
+              return `${r.left.toFixed(1)},${r.top.toFixed(1)},${r.width.toFixed(1)},${r.height.toFixed(1)}`;
+            });
+          const before = boxes();
+          for (const w of document.querySelectorAll(".aa-copy-wrap")) {
+            const pre = w.querySelector("pre") as HTMLElement;
+            pre.style.margin = "";
+            w.replaceWith(pre);
+          }
+          for (const b of document.querySelectorAll(".aa-copy-btn")) b.remove();
+          const after = boxes();
+          return els
+            .filter((_, i) => before[i] !== after[i])
+            .map((e) => `${e.tagName}.${String(e.className).slice(0, 40)}`)
+            .slice(0, 5);
+        });
+        expect(moved, `${width} ${path}`).toEqual([]);
+      }
+      await ctx.close();
+    }
+  });
+
   test("every <pre> on the landing page and on sampled docs and Learn pages has a copy control; none without JS", async ({ browser }) => {
     const sample = [
       LANDING,

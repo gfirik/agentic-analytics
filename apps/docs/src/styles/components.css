@@ -261,6 +261,8 @@ table.aa-ledger {
 .aa-copy-host {
   position: relative;
 }
+/* The wrapper copy.ts puts around a <pre> that has no host of its own arrives after first paint, so it must not change
+   the layout: the script moves the pre's margins onto it (inline), and nothing else here takes space. */
 .aa-copy-wrap {
   min-width: 0;
 }
@@ -381,10 +383,8 @@ table.aa-ledger {
   padding-inline-end: 1.75rem;
   vertical-align: bottom;
 }
-/* Blocks whose text would run under the button keep it clear. Not the exhibit notes' SQL: the pinned hero is centred
-   on its height, so a clause re-wrapping in that narrower box when the mono face arrives moved the whole hero (CI's
-   fallback fonts); its first line is a short "SELECT …" clause that stays clear of the button anyway. */
-:root[data-aa-copy] :is(.aa-code pre, .aa-proof-code, .aa-stage-code, .aa-learn-sql, .aa-term pre) {
+/* Blocks whose text would run under the button keep it clear. */
+:root[data-aa-copy] :is(.aa-code pre, .aa-proof-code, .aa-stage-code, .aa-note-sql, .aa-learn-sql, .aa-term pre) {
   padding-inline-end: 2.25rem;
 }
 
