@@ -91,6 +91,10 @@ describe("sales KPI pack on the 10-line fixture", () => {
     expect(await value(ws, "new_customers", defs, catalog, "2025-12")).toBeUndefined();
     expect(await value(ws, "returning_customers", defs, catalog, "2025-12")).toBeUndefined();
     expect(await value(ws, "customers", defs, catalog, "2025-12")).toBe(2);
+    // the first line is found whatever the query's range: asking for January alone gives the same cohorts
+    const jan = async (id: string) => (await runMetric(ws, id, defs, catalog, { from: "2026-01", to: "2026-01" }))[0]?.value;
+    expect(await jan("new_customers")).toBe(3);
+    expect(await jan("returning_customers")).toBe(1);
   });
 
   it("lists what it could not draft, with the reason (cancellation: no cancel status in this table)", async () => {

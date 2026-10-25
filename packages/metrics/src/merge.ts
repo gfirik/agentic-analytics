@@ -11,7 +11,7 @@ export interface Merged {
   readonly accepted: MetricDef[];
   /** A metric that repeated an earlier one's definition: its id, the id kept, and the dimensions it added. */
   readonly merged: { readonly id: string; readonly into: string }[];
-  /** A metric dropped because its id is taken by a different definition (or it builds on one that was). */
+  /** A metric dropped because its id is taken by a different definition ; metrics that refer to the id keep the reference, which now means the earlier definition. */
   readonly dropped: { readonly id: string; readonly reasons: string[] }[];
 }
 

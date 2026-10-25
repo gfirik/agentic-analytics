@@ -182,6 +182,8 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
   const needNumeric = def.type === "sum" || def.type === "avg";
   checkTableTerm(table, def.table ?? "", def.expression, def.filters, needNumeric, reasons, "");
   if (!table) return reasons;
+  if (def.cohort && def.expression && !/^[a-z][a-z0-9_]*$/.test(def.expression.trim()))
+    reasons.push("a cohort counts one column: its expression must be a column name");
   if ((def.type === "sum" || def.type === "count" || def.type === "count_distinct") && def.unit === "percent") {
     reasons.push(`a ${def.type} of values can't be a percentage; use avg or a ratio`);
   }
