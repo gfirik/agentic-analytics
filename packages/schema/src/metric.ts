@@ -33,6 +33,12 @@ export const MetricDef = z
       .regex(/^[A-Z]{3}$/)
       .optional(),
     dimensions: z.array(z.string()).optional(),
+    /**
+     * `count_distinct` only (analysis-library §8.1): count only the values (customers) whose first line in the table
+     * falls in the period (`new`) or falls before it (`returning`). The table's first period has no history, so it
+     * is left out.
+     */
+    cohort: z.enum(["new", "returning"]).optional(),
     status: z.enum(["confirmed", "assumed"]),
   })
   .superRefine((m, ctx) => {
@@ -45,6 +51,8 @@ export const MetricDef = z
       if (m.type !== "count" && !m.expression)
         ctx.addIssue({ code: "custom", message: `${m.type} metrics need an expression`, path: ["expression"] });
     }
+    if (m.cohort && m.type !== "count_distinct")
+      ctx.addIssue({ code: "custom", message: "a cohort applies to count_distinct metrics only", path: ["cohort"] });
     if (m.unit === "currency" && !m.currency)
       ctx.addIssue({ code: "custom", message: "currency metrics need an ISO 4217 currency", path: ["currency"] });
   });

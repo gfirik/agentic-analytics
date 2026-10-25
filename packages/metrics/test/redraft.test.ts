@@ -47,7 +47,13 @@ describe("redraftMetrics", () => {
     const { catalog, withRole } = await setup();
     const proposals = [{ id: "sales", label: "Sales", type: "sum", table: "t_t1", expression: "amount", unit: "currency" }];
     const v = redraftMetrics(withRole("amount", "none"), catalog, { source: "model", proposals }, { defaultCurrency: "USD" });
-    expect(v.accepted.map((d) => [d.id, d.expression])).toEqual([["sales", "amount"]]);
+    // The pack is rebuilt from the roles (no amount role: quantity × unit price, and units); the model's draft is kept
+    // as proposed and merged after it.
+    expect(v.accepted.map((d) => [d.id, d.expression])).toEqual([
+      ["revenue", "qty * price"],
+      ["units", "qty"],
+      ["sales", "amount"],
+    ]);
   });
 
   it("with no role to draft from, nothing is drafted", async () => {

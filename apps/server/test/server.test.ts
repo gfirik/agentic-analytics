@@ -90,13 +90,31 @@ describe("HTTP API: roles on the confirm screen (M15)", () => {
     expect(revised.status).toBe(202);
     expect(((await revised.json()) as { status: string }).status).toBe("awaiting_confirmation");
     const v = await view(id);
-    expect(v.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(v.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
     expect(v.roles.find((r) => r.column === "channel")).toMatchObject({ role: "dimension", status: "confirmed", source: "user" });
     expect((await post(id, v.yaml)).status).toBe(202);
     expect((await sse(id)).at(-1)?.event).toBe("done");
     const report = (await (await app.request(`/v1/jobs/${id}/report`)).json()) as Report;
     expect(report.roles?.every((r) => r.status === "confirmed")).toBe(true);
-    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(report.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
   }, 240_000);
 });
 

@@ -253,8 +253,8 @@
         }
       }
     },
-    "N110": {
-      "id": "N110",
+    "N178": {
+      "id": "N178",
       "label": "revenue[channel=retail]_2026-03",
       "value": 28200.000000000007,
       "unit": "currency",
@@ -272,8 +272,8 @@
         }
       }
     },
-    "N111": {
-      "id": "N111",
+    "N179": {
+      "id": "N179",
       "label": "revenue[channel=retail]_2026-04",
       "value": 28800.000000000007,
       "unit": "currency",
@@ -291,8 +291,8 @@
         }
       }
     },
-    "N112": {
-      "id": "N112",
+    "N180": {
+      "id": "N180",
       "label": "revenue[channel=wholesale]_2026-03",
       "value": 15899.999999999998,
       "unit": "currency",
@@ -310,8 +310,8 @@
         }
       }
     },
-    "N113": {
-      "id": "N113",
+    "N181": {
+      "id": "N181",
       "label": "revenue[channel=wholesale]_2026-04",
       "value": 7400,
       "unit": "currency",
@@ -329,8 +329,8 @@
         }
       }
     },
-    "N115": {
-      "id": "N115",
+    "N183": {
+      "id": "N183",
       "label": "revenue[product=Filter blend 250g]_2026-03",
       "value": 10188.149999999996,
       "unit": "currency",
@@ -348,8 +348,8 @@
         }
       }
     },
-    "N116": {
-      "id": "N116",
+    "N184": {
+      "id": "N184",
       "label": "revenue[product=Filter blend 250g]_2026-04",
       "value": 9551.530000000002,
       "unit": "currency",
@@ -367,8 +367,8 @@
         }
       }
     },
-    "N117": {
-      "id": "N117",
+    "N185": {
+      "id": "N185",
       "label": "revenue[product=Drip bags x10]_2026-03",
       "value": 8797.739999999993,
       "unit": "currency",
@@ -386,8 +386,8 @@
         }
       }
     },
-    "N118": {
-      "id": "N118",
+    "N186": {
+      "id": "N186",
       "label": "revenue[product=Drip bags x10]_2026-04",
       "value": 8973.809999999996,
       "unit": "currency",
@@ -405,8 +405,8 @@
         }
       }
     },
-    "N119": {
-      "id": "N119",
+    "N187": {
+      "id": "N187",
       "label": "revenue[product=Espresso blend 250g]_2026-03",
       "value": 9214.11,
       "unit": "currency",
@@ -424,8 +424,8 @@
         }
       }
     },
-    "N120": {
-      "id": "N120",
+    "N188": {
+      "id": "N188",
       "label": "revenue[product=Espresso blend 250g]_2026-04",
       "value": 10274.660000000003,
       "unit": "currency",
@@ -443,8 +443,8 @@
         }
       }
     },
-    "N121": {
-      "id": "N121",
+    "N189": {
+      "id": "N189",
       "label": "revenue[product=Filter blend 1kg]_2026-03",
       "value": 5565.48,
       "unit": "currency",
@@ -462,8 +462,8 @@
         }
       }
     },
-    "N122": {
-      "id": "N122",
+    "N190": {
+      "id": "N190",
       "label": "revenue[product=Filter blend 1kg]_2026-04",
       "value": 3773.0099999999998,
       "unit": "currency",
@@ -481,8 +481,8 @@
         }
       }
     },
-    "N123": {
-      "id": "N123",
+    "N191": {
+      "id": "N191",
       "label": "revenue[product=Espresso blend 1kg]_2026-03",
       "value": 10334.52,
       "unit": "currency",
@@ -500,8 +500,8 @@
         }
       }
     },
-    "N124": {
-      "id": "N124",
+    "N192": {
+      "id": "N192",
       "label": "revenue[product=Espresso blend 1kg]_2026-04",
       "value": 3626.9900000000002,
       "unit": "currency",
@@ -519,8 +519,8 @@
         }
       }
     },
-    "N144": {
-      "id": "N144",
+    "N212": {
+      "id": "N212",
       "label": "contribution.v1 revenue 2026-04 by channel:delta:wholesale",
       "value": -8499.999999999998,
       "unit": "currency",
@@ -530,13 +530,13 @@
         "kind": "function",
         "fn": "delta",
         "inputs": [
-          "N113",
-          "N112"
+          "N181",
+          "N180"
         ]
       }
     },
-    "N145": {
-      "id": "N145",
+    "N213": {
+      "id": "N213",
       "label": "contribution.v1 revenue 2026-04 by channel:delta:retail",
       "value": 600,
       "unit": "currency",
@@ -546,13 +546,13 @@
         "kind": "function",
         "fn": "delta",
         "inputs": [
-          "N111",
-          "N110"
+          "N179",
+          "N178"
         ]
       }
     },
-    "N146": {
-      "id": "N146",
+    "N214": {
+      "id": "N214",
       "label": "contribution.v1 revenue 2026-04 by channel:delta:total",
       "value": -7899.999999999998,
       "unit": "currency",
@@ -562,13 +562,13 @@
         "kind": "function",
         "fn": "sum",
         "inputs": [
-          "N145",
-          "N144"
+          "N213",
+          "N212"
         ]
       }
     },
-    "N147": {
-      "id": "N147",
+    "N215": {
+      "id": "N215",
       "label": "contribution.v1 revenue 2026-04 by channel:share:wholesale",
       "value": 107.59493670886076,
       "unit": "percent",
@@ -578,13 +578,13 @@
         "kind": "function",
         "fn": "contribution.v1",
         "inputs": [
-          "N144",
-          "N146"
+          "N212",
+          "N214"
         ]
       }
     },
-    "N148": {
-      "id": "N148",
+    "N216": {
+      "id": "N216",
       "label": "contribution.v1 revenue 2026-04 by channel:share:retail",
       "value": -7.594936708860761,
       "unit": "percent",
@@ -594,13 +594,13 @@
         "kind": "function",
         "fn": "contribution.v1",
         "inputs": [
-          "N145",
-          "N146"
+          "N213",
+          "N214"
         ]
       }
     },
-    "N149": {
-      "id": "N149",
+    "N217": {
+      "id": "N217",
       "label": "contribution.v1 revenue 2026-04 by channel:magnitude:wholesale",
       "value": 8499.999999999998,
       "unit": "currency",
@@ -610,12 +610,12 @@
         "kind": "function",
         "fn": "abs",
         "inputs": [
-          "N144"
+          "N212"
         ]
       }
     },
-    "N150": {
-      "id": "N150",
+    "N218": {
+      "id": "N218",
       "label": "contribution.v1 revenue 2026-04 by channel:exceeds:wholesale",
       "value": 1,
       "unit": "other",
@@ -625,13 +625,13 @@
         "kind": "function",
         "fn": "abs_exceeds",
         "inputs": [
-          "N144",
-          "N146"
+          "N212",
+          "N214"
         ]
       }
     },
-    "N151": {
-      "id": "N151",
+    "N219": {
+      "id": "N219",
       "label": "contribution.v1 revenue 2026-04 by channel:magnitude:retail",
       "value": 600,
       "unit": "currency",
@@ -641,12 +641,12 @@
         "kind": "function",
         "fn": "abs",
         "inputs": [
-          "N145"
+          "N213"
         ]
       }
     },
-    "N163": {
-      "id": "N163",
+    "N231": {
+      "id": "N231",
       "label": "revenue__qty[product=Filter blend 250g]_2026-03",
       "value": 725,
       "unit": "count",
@@ -664,8 +664,8 @@
         }
       }
     },
-    "N164": {
-      "id": "N164",
+    "N232": {
+      "id": "N232",
       "label": "revenue__qty[product=Filter blend 250g]_2026-04",
       "value": 657,
       "unit": "count",
@@ -683,8 +683,8 @@
         }
       }
     },
-    "N165": {
-      "id": "N165",
+    "N233": {
+      "id": "N233",
       "label": "revenue__qty[product=Drip bags x10]_2026-03",
       "value": 636,
       "unit": "count",
@@ -702,8 +702,8 @@
         }
       }
     },
-    "N166": {
-      "id": "N166",
+    "N234": {
+      "id": "N234",
       "label": "revenue__qty[product=Drip bags x10]_2026-04",
       "value": 629,
       "unit": "count",
@@ -721,8 +721,8 @@
         }
       }
     },
-    "N167": {
-      "id": "N167",
+    "N235": {
+      "id": "N235",
       "label": "revenue__qty[product=Espresso blend 250g]_2026-03",
       "value": 691,
       "unit": "count",
@@ -740,8 +740,8 @@
         }
       }
     },
-    "N168": {
-      "id": "N168",
+    "N236": {
+      "id": "N236",
       "label": "revenue__qty[product=Espresso blend 250g]_2026-04",
       "value": 711,
       "unit": "count",
@@ -759,8 +759,8 @@
         }
       }
     },
-    "N169": {
-      "id": "N169",
+    "N237": {
+      "id": "N237",
       "label": "revenue__qty[product=Filter blend 1kg]_2026-03",
       "value": 25,
       "unit": "count",
@@ -778,8 +778,8 @@
         }
       }
     },
-    "N170": {
-      "id": "N170",
+    "N238": {
+      "id": "N238",
       "label": "revenue__qty[product=Filter blend 1kg]_2026-04",
       "value": 17,
       "unit": "count",
@@ -797,8 +797,8 @@
         }
       }
     },
-    "N171": {
-      "id": "N171",
+    "N239": {
+      "id": "N239",
       "label": "revenue__qty[product=Espresso blend 1kg]_2026-03",
       "value": 46,
       "unit": "count",
@@ -816,8 +816,8 @@
         }
       }
     },
-    "N172": {
-      "id": "N172",
+    "N240": {
+      "id": "N240",
       "label": "revenue__qty[product=Espresso blend 1kg]_2026-04",
       "value": 17,
       "unit": "count",
@@ -835,8 +835,8 @@
         }
       }
     },
-    "N173": {
-      "id": "N173",
+    "N241": {
+      "id": "N241",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:volume",
       "value": -1911.0692416391892,
       "unit": "currency",
@@ -846,31 +846,31 @@
         "kind": "function",
         "fn": "pvm.v1",
         "inputs": [
-          "N115",
-          "N163",
-          "N116",
-          "N164",
-          "N117",
-          "N165",
-          "N118",
-          "N166",
-          "N119",
-          "N167",
-          "N120",
-          "N168",
-          "N121",
-          "N169",
-          "N122",
-          "N170",
-          "N123",
-          "N171",
-          "N124",
-          "N172"
+          "N183",
+          "N231",
+          "N184",
+          "N232",
+          "N185",
+          "N233",
+          "N186",
+          "N234",
+          "N187",
+          "N235",
+          "N188",
+          "N236",
+          "N189",
+          "N237",
+          "N190",
+          "N238",
+          "N191",
+          "N239",
+          "N192",
+          "N240"
         ]
       }
     },
-    "N174": {
-      "id": "N174",
+    "N242": {
+      "id": "N242",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:mix",
       "value": -7170.844760355715,
       "unit": "currency",
@@ -880,31 +880,31 @@
         "kind": "function",
         "fn": "pvm.v1",
         "inputs": [
-          "N115",
-          "N163",
-          "N116",
-          "N164",
-          "N117",
-          "N165",
-          "N118",
-          "N166",
-          "N119",
-          "N167",
-          "N120",
-          "N168",
-          "N121",
-          "N169",
-          "N122",
-          "N170",
-          "N123",
-          "N171",
-          "N124",
-          "N172"
+          "N183",
+          "N231",
+          "N184",
+          "N232",
+          "N185",
+          "N233",
+          "N186",
+          "N234",
+          "N187",
+          "N235",
+          "N188",
+          "N236",
+          "N189",
+          "N237",
+          "N190",
+          "N238",
+          "N191",
+          "N239",
+          "N192",
+          "N240"
         ]
       }
     },
-    "N175": {
-      "id": "N175",
+    "N243": {
+      "id": "N243",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:price",
       "value": 1181.9140019949161,
       "unit": "currency",
@@ -914,31 +914,31 @@
         "kind": "function",
         "fn": "pvm.v1",
         "inputs": [
-          "N115",
-          "N163",
-          "N116",
-          "N164",
-          "N117",
-          "N165",
-          "N118",
-          "N166",
-          "N119",
-          "N167",
-          "N120",
-          "N168",
-          "N121",
-          "N169",
-          "N122",
-          "N170",
-          "N123",
-          "N171",
-          "N124",
-          "N172"
+          "N183",
+          "N231",
+          "N184",
+          "N232",
+          "N185",
+          "N233",
+          "N186",
+          "N234",
+          "N187",
+          "N235",
+          "N188",
+          "N236",
+          "N189",
+          "N237",
+          "N190",
+          "N238",
+          "N191",
+          "N239",
+          "N192",
+          "N240"
         ]
       }
     },
-    "N176": {
-      "id": "N176",
+    "N244": {
+      "id": "N244",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:total",
       "value": -7899.999999999988,
       "unit": "currency",
@@ -948,14 +948,14 @@
         "kind": "function",
         "fn": "sum",
         "inputs": [
-          "N173",
-          "N174",
-          "N175"
+          "N241",
+          "N242",
+          "N243"
         ]
       }
     },
-    "N268": {
-      "id": "N268",
+    "N353": {
+      "id": "N353",
       "label": "external refund rate benchmark (low)",
       "value": 1,
       "unit": "percent",
@@ -967,8 +967,8 @@
         "inputs": []
       }
     },
-    "N269": {
-      "id": "N269",
+    "N354": {
+      "id": "N354",
       "label": "external refund rate benchmark (high)",
       "value": 2,
       "unit": "percent",
@@ -980,8 +980,8 @@
         "inputs": []
       }
     },
-    "N270": {
-      "id": "N270",
+    "N355": {
+      "id": "N355",
       "label": "benchmark N64 vs W1:gap",
       "value": 1.3999999999999981,
       "unit": "percent",
@@ -992,13 +992,13 @@
         "fn": "benchmark_gap.v1",
         "inputs": [
           "N64",
-          "N268",
-          "N269"
+          "N353",
+          "N354"
         ]
       }
     },
-    "N347": {
-      "id": "N347",
+    "N432": {
+      "id": "N432",
       "label": "scenario impact.v1:recover_share:param_low",
       "value": 50,
       "unit": "percent",
@@ -1010,8 +1010,8 @@
         "inputs": []
       }
     },
-    "N348": {
-      "id": "N348",
+    "N433": {
+      "id": "N433",
       "label": "scenario impact.v1:recover_share:param_high",
       "value": 90,
       "unit": "percent",
@@ -1023,8 +1023,8 @@
         "inputs": []
       }
     },
-    "N349": {
-      "id": "N349",
+    "N434": {
+      "id": "N434",
       "label": "scenario impact.v1:recover_share:param_cost",
       "value": 6,
       "unit": "percent",
@@ -1036,8 +1036,8 @@
         "inputs": []
       }
     },
-    "N350": {
-      "id": "N350",
+    "N435": {
+      "id": "N435",
       "label": "scenario impact.v1:recover_share:impact_low",
       "value": 3994.999999999999,
       "unit": "currency",
@@ -1047,14 +1047,14 @@
         "kind": "function",
         "fn": "impact.v1:recover_share",
         "inputs": [
-          "N144",
-          "N349",
-          "N347"
+          "N212",
+          "N434",
+          "N432"
         ]
       }
     },
-    "N351": {
-      "id": "N351",
+    "N436": {
+      "id": "N436",
       "label": "scenario impact.v1:recover_share:impact_high",
       "value": 7190.999999999998,
       "unit": "currency",
@@ -1064,9 +1064,9 @@
         "kind": "function",
         "fn": "impact.v1:recover_share",
         "inputs": [
-          "N144",
-          "N349",
-          "N348"
+          "N212",
+          "N434",
+          "N433"
         ]
       }
     }
@@ -1363,13 +1363,49 @@
         "id": "revenue",
         "label": "Revenue",
         "status": "assumed",
-        "yaml": "id: revenue\nlabel: Revenue\ntype: sum\ntable: t_t1\nexpression: amount\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: currency\ncurrency: USD\ndimensions:\n  - customer\n  - channel\n  - product\nstatus: assumed\n"
+        "yaml": "id: revenue\nlabel: Revenue\ndescription: Money from sales lines (amount), leaving out refunded and cancelled lines.\ntype: sum\ntable: t_t1\nexpression: amount\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: currency\ncurrency: USD\ndimensions:\n  - customer\n  - channel\n  - product\nstatus: assumed\n"
       },
       {
         "id": "orders",
         "label": "Orders",
         "status": "assumed",
-        "yaml": "id: orders\nlabel: Orders\ntype: count_distinct\ntable: t_t1\nexpression: order_id\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: count\ndimensions:\n  - customer\n  - channel\n  - product\nstatus: assumed\n"
+        "yaml": "id: orders\nlabel: Orders\ndescription: Distinct orders with at least one revenue line.\ntype: count_distinct\ntable: t_t1\nexpression: order_id\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: count\ndimensions:\n  - customer\n  - channel\n  - product\nstatus: assumed\n"
+      },
+      {
+        "id": "units",
+        "label": "Units sold",
+        "status": "assumed",
+        "yaml": "id: units\nlabel: Units sold\ndescription: Total Qty over revenue lines.\ntype: sum\ntable: t_t1\nexpression: qty\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: count\ndimensions:\n  - customer\n  - channel\n  - product\nstatus: assumed\n"
+      },
+      {
+        "id": "customers",
+        "label": "Customers",
+        "status": "assumed",
+        "yaml": "id: customers\nlabel: Customers\ndescription: Distinct customers with at least one revenue line.\ntype: count_distinct\ntable: t_t1\nexpression: customer\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: count\ndimensions:\n  - channel\n  - product\nstatus: assumed\n"
+      },
+      {
+        "id": "new_customers",
+        "label": "New customers",
+        "status": "assumed",
+        "yaml": "id: new_customers\nlabel: New customers\ndescription: Customers whose first revenue line falls in the period.\ntype: count_distinct\ntable: t_t1\nexpression: customer\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: count\ndimensions:\n  - channel\n  - product\ncohort: new\nstatus: assumed\n"
+      },
+      {
+        "id": "returning_customers",
+        "label": "Returning customers",
+        "status": "assumed",
+        "yaml": "id: returning_customers\nlabel: Returning customers\ndescription: Customers active in the period whose first revenue line is earlier.\ntype: count_distinct\ntable: t_t1\nexpression: customer\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\ntime_column: date\nunit: count\ndimensions:\n  - channel\n  - product\ncohort: returning\nstatus: assumed\n"
+      },
+      {
+        "id": "aov",
+        "label": "Average order value",
+        "status": "assumed",
+        "yaml": "id: aov\nlabel: Average order value\ndescription: Revenue divided by orders.\ntype: ratio\nnumerator:\n  metric: revenue\ndenominator:\n  metric: orders\nunit: ratio\nstatus: assumed\n"
+      },
+      {
+        "id": "refund_rate",
+        "label": "Refund rate",
+        "status": "assumed",
+        "yaml": "id: refund_rate\nlabel: Refund rate\ndescription: Value of refunded or returned lines as a percentage of revenue.\ntype: ratio\nnumerator:\n  table: t_t1\n  expression: amount\n  filters:\n    - status IN ('refunded')\ndenominator:\n  metric: revenue\nunit: percent\nstatus: assumed\n"
       },
       {
         "id": "retail_revenue",
@@ -1382,12 +1418,6 @@
         "label": "Wholesale revenue",
         "status": "assumed",
         "yaml": "id: wholesale_revenue\nlabel: Wholesale revenue\ntype: sum\ntable: t_t1\nexpression: amount\nfilters:\n  - status IS NULL OR status NOT IN ('refunded')\n  - channel = 'wholesale'\ntime_column: date\nunit: currency\ncurrency: USD\nstatus: assumed\n"
-      },
-      {
-        "id": "refund_rate",
-        "label": "Refund rate",
-        "status": "assumed",
-        "yaml": "id: refund_rate\nlabel: Refund rate\ntype: ratio\nnumerator:\n  table: t_t1\n  expression: amount\n  filters:\n    - status IN ('refunded')\ndenominator:\n  metric: revenue\nunit: percent\nstatus: assumed\n"
       }
     ],
     "revenue": {
@@ -1442,21 +1472,21 @@
     "channel": [
       {
         "member": "wholesale",
-        "delta": "N144",
-        "share": "N147"
+        "delta": "N212",
+        "share": "N215"
       },
       {
         "member": "retail",
-        "delta": "N145",
-        "share": "N148"
+        "delta": "N213",
+        "share": "N216"
       }
     ],
-    "channelTotal": "N146",
+    "channelTotal": "N214",
     "pvm": {
-      "volume": "N173",
-      "mix": "N174",
-      "price": "N175",
-      "total": "N176"
+      "volume": "N241",
+      "mix": "N242",
+      "price": "N243",
+      "total": "N244"
     },
     "templates": [
       {
@@ -1533,48 +1563,114 @@
       },
       {
         "id": "I13",
-        "template": "trend.v1",
-        "metric": "retail_revenue",
-        "period": "2026-06"
+        "template": "trend_break.v1",
+        "metric": "customers",
+        "period": "2026-04"
       },
       {
         "id": "I14",
+        "template": "trend_break.v1",
+        "metric": "aov",
+        "period": "2026-04"
+      },
+      {
+        "id": "I15",
+        "template": "anomaly.v1",
+        "metric": "aov",
+        "period": "2026-04"
+      },
+      {
+        "id": "I16",
         "template": "trend.v1",
         "metric": "refund_rate",
         "period": "2026-06"
       },
       {
-        "id": "I15",
-        "template": "concentration.v1",
-        "metric": "revenue",
-        "period": "2026-06"
-      },
-      {
-        "id": "I16",
-        "template": "mix_shift.v1",
-        "metric": "revenue",
-        "period": "2026-06"
-      },
-      {
         "id": "I17",
-        "template": "concentration.v1",
-        "metric": "revenue",
+        "template": "trend.v1",
+        "metric": "retail_revenue",
         "period": "2026-06"
       },
       {
         "id": "I18",
-        "template": "mix_shift.v1",
+        "template": "concentration.v1",
         "metric": "revenue",
-        "period": "2026-04"
+        "period": "2026-06"
       },
       {
         "id": "I19",
         "template": "mix_shift.v1",
         "metric": "revenue",
-        "period": "2026-04"
+        "period": "2026-06"
       },
       {
         "id": "I20",
+        "template": "concentration.v1",
+        "metric": "revenue",
+        "period": "2026-06"
+      },
+      {
+        "id": "I21",
+        "template": "concentration.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I22",
+        "template": "mix_shift.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I23",
+        "template": "period_change.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I24",
+        "template": "period_change.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I25",
+        "template": "concentration.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I26",
+        "template": "concentration.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I27",
+        "template": "mix_shift.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I28",
+        "template": "period_change.v1",
+        "metric": "units",
+        "period": "2026-06"
+      },
+      {
+        "id": "I29",
+        "template": "mix_shift.v1",
+        "metric": "revenue",
+        "period": "2026-04"
+      },
+      {
+        "id": "I30",
+        "template": "mix_shift.v1",
+        "metric": "revenue",
+        "period": "2026-04"
+      },
+      {
+        "id": "I31",
         "template": "mix_shift.v1",
         "metric": "revenue",
         "period": "2026-04"
@@ -1821,7 +1917,7 @@
       "quote": "Specialty coffee roasters typically see refunds of 1–2% of sales.",
       "url": "https://coffee-benchmarks.example/refunds"
     },
-    "gap": "N270"
+    "gap": "N355"
   },
   "agent": {
     "tools": [
@@ -1852,7 +1948,7 @@
           "period": "2026-04",
           "dimension": "customer"
         },
-        "output": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N258\",\"value\":-7900,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:total\"},\"change:Hotel Group LLC\":{\"id\":\"N242\",\"value\":-8500,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:Hotel Group LLC\"},\"share:Hotel Group LLC\":{\"id\":\"N259\",\"value\":107.59,\"unit\":\"percent\",\"label\":\"drill_down…"
+        "output": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N343\",\"value\":-7900,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:total\"},\"change:Hotel Group LLC\":{\"id\":\"N327\",\"value\":-8500,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:Hotel Group LLC\"},\"share:Hotel Group LLC\":{\"id\":\"N344\",\"value\":107.59,\"unit\":\"percent\",\"label\":\"drill_down…"
       },
       {
         "step": 11,
@@ -1877,7 +1973,7 @@
           "fact_id": "N64",
           "extract_id": "E7"
         },
-        "output": "{\"external\":true,\"low\":{\"id\":\"N268\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N269\",\"value\":2,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (high)\"},\"gap\":{\"id\":\"N270\",\"value\":1.4,\"unit\":\"percent\",\"label\":\"benchmark N64 vs W1:gap\"}}"
+        "output": "{\"external\":true,\"low\":{\"id\":\"N353\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N354\",\"value\":2,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (high)\"},\"gap\":{\"id\":\"N355\",\"value\":1.4,\"unit\":\"percent\",\"label\":\"benchmark N64 vs W1:gap\"}}"
       }
     ],
     "structured": {
@@ -2036,21 +2132,21 @@
           "citations": []
         },
         {
-          "text": "By channel, “wholesale” fell {{N149}}, more than the whole drop; “retail” rose {{N151}}.",
+          "text": "By channel, “wholesale” fell {{N217}}, more than the whole drop; “retail” rose {{N219}}.",
           "facts": [
-            "N149",
-            "N151",
-            "N150"
+            "N217",
+            "N219",
+            "N218"
           ],
           "grade": "observed",
           "citations": []
         },
         {
-          "text": "By product, the price effect was {{N175}}, the volume effect {{N173}} and the mix effect {{N174}}.",
+          "text": "By product, the price effect was {{N243}}, the volume effect {{N241}} and the mix effect {{N242}}.",
           "facts": [
-            "N175",
-            "N173",
-            "N174"
+            "N243",
+            "N241",
+            "N242"
           ],
           "grade": "observed",
           "citations": []
@@ -2092,8 +2188,8 @@
     "action": {
       "id": "R1",
       "text": "Offer wholesale accounts a volume-tier discount to win back paused standing orders",
-      "low": "N350",
-      "high": "N351",
+      "low": "N435",
+      "high": "N436",
       "horizon": "next quarter"
     },
     "facts": 101
@@ -2350,7 +2446,7 @@
     "metrics": {
       "command": "bun run aa metrics examples/coffee-roaster --yes --currency USD --today 2026-07-01 --save agentic-analytics.metrics.yaml",
       "lines": [
-        "Drafted 5 metric(s) (deterministic fallback). Note: the model was unavailable (…); used deterministic fallbacks.",
+        "Drafted 10 metric(s) (deterministic fallback). Note: the model was unavailable (…); used deterministic fallbacks.",
         "  assumption: Amounts in revenue are taken to be in USD (no currency marked in the data).",
         "  assumption: Amounts in retail_revenue are taken to be in USD (no currency marked in the data).",
         "  assumption: Amounts in wholesale_revenue are taken to be in USD (no currency marked in the data).",
@@ -2363,6 +2459,30 @@
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, count(DISTINCT \"order_id\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"2026-01\",\"2026-06\"]",
         "  2026-01 980 · 2026-02 1010 · 2026-03 1050 · 2026-04 1020 · 2026-05 1005 · 2026-06 1040",
+        "Units sold = sum of qty where status is empty or status is not refunded, per month (assumed)",
+        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"qty\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
+        "  params: [\"refunded\",\"2026-01\",\"2026-06\"]",
+        "  2026-01 1990 · 2026-02 2046 · 2026-03 2123 · 2026-04 2031 · 2026-05 2101 · 2026-06 2118",
+        "Customers = number of distinct customer where status is empty or status is not refunded, per month (assumed)",
+        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, count(DISTINCT \"customer\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
+        "  params: [\"refunded\",\"2026-01\",\"2026-06\"]",
+        "  2026-01 6 · 2026-02 6 · 2026-03 6 · 2026-04 5 · 2026-05 5 · 2026-06 5",
+        "New customers = number of distinct customer whose first line is in the period where status is empty or status is not refunded, per month (assumed)",
+        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, count(DISTINCT \"customer\") AS value FROM \"t_t1\" JOIN (SELECT \"customer\" AS \"_cohort_key\", min(\"date\") AS \"_cohort_first\" FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND \"customer\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($4))) GROUP BY ALL) AS _first ON \"t_t1\".\"customer\" = _first.\"_cohort_key\" WHERE NOT _is_total AN",
+        "  params: [\"refunded\",\"2026-01\",\"2026-06\",\"refunded\"]",
+        "  2026-03 1",
+        "Returning customers = number of distinct customer whose first line is before the period where status is empty or status is not refunded, per month (assumed)",
+        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, count(DISTINCT \"customer\") AS value FROM \"t_t1\" JOIN (SELECT \"customer\" AS \"_cohort_key\", min(\"date\") AS \"_cohort_first\" FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND \"customer\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($4))) GROUP BY ALL) AS _first ON \"t_t1\".\"customer\" = _first.\"_cohort_key\" WHERE NOT _is_total AN",
+        "  params: [\"refunded\",\"2026-01\",\"2026-06\",\"refunded\"]",
+        "  2026-02 6 · 2026-03 5 · 2026-04 5 · 2026-05 5 · 2026-06 5",
+        "Average order value = Revenue ÷ Orders, per month (assumed)",
+        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL), m2 AS (SELECT strftime(\"date\", '%Y-%m') AS period, count(DISTINCT \"order_id\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"sta",
+        "  params: [\"refunded\",\"2026-01\",\"2026-06\",\"refunded\",\"2026-01\",\"2026-06\"]",
+        "  2026-01 42.0408 · 2026-02 42.4752 · 2026-03 42 · 2026-04 35.4902 · 2026-05 35.6219 · 2026-06 35.5769",
+        "Refund rate = sum of amount where status is refunded ÷ Revenue, per month, as a percentage (assumed)",
+        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND (\"status\" IN ($1)) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL), m2 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($4))) ",
+        "  params: [\"refunded\",\"2026-01\",\"2026-06\",\"refunded\",\"2026-01\",\"2026-06\"]",
+        "  2026-01 1.1 · 2026-02 1 · 2026-03 1.2 · 2026-04 1.3 · 2026-05 2.9 · 2026-06 3.4",
         "Retail revenue = sum of amount where (status is empty or status is not refunded) and channel is retail, per month, in USD (assumed)",
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND (\"channel\" = $2) AND strftime(\"date\", '%Y-%m') BETWEEN $3 AND $4 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"retail\",\"2026-01\",\"2026-06\"]",
@@ -2371,12 +2491,8 @@
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND (\"channel\" = $2) AND strftime(\"date\", '%Y-%m') BETWEEN $3 AND $4 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"wholesale\",\"2026-01\",\"2026-06\"]",
         "  2026-01 14800 · 2026-02 15300 · 2026-03 15900 · 2026-04 7400 · 2026-05 7100 · 2026-06 7300",
-        "Refund rate = sum of amount where status is refunded ÷ Revenue, per month, as a percentage (assumed)",
-        "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND (\"status\" IN ($1)) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL), m2 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($4))) ",
-        "  params: [\"refunded\",\"2026-01\",\"2026-06\",\"refunded\",\"2026-01\",\"2026-06\"]",
-        "  2026-01 1.1 · 2026-02 1 · 2026-03 1.2 · 2026-04 1.3 · 2026-05 2.9 · 2026-06 3.4",
         "",
-        "Saved 5 metric(s) to agentic-analytics.metrics.yaml"
+        "Saved 10 metric(s) to agentic-analytics.metrics.yaml"
       ],
       "normalised": [
         "the reason no model answered (it depends on your setup)"
@@ -2435,14 +2551,29 @@
         "Orders = number of distinct order_id where status is empty or status is not refunded, per month (assumed)",
         "Metric orders? [a]ccept / [e]dit / [d]rop: a",
         "",
+        "Units sold = sum of qty where status is empty or status is not refunded, per month (assumed)",
+        "Metric units? [a]ccept / [e]dit / [d]rop: a",
+        "",
+        "Customers = number of distinct customer where status is empty or status is not refunded, per month (assumed)",
+        "Metric customers? [a]ccept / [e]dit / [d]rop: a",
+        "",
+        "New customers = number of distinct customer whose first line is in the period where status is empty or status is not refunded, per month (assumed)",
+        "Metric new_customers? [a]ccept / [e]dit / [d]rop: a",
+        "",
+        "Returning customers = number of distinct customer whose first line is before the period where status is empty or status is not refunded, per month (assumed)",
+        "Metric returning_customers? [a]ccept / [e]dit / [d]rop: a",
+        "",
+        "Average order value = Revenue ÷ Orders, per month (assumed)",
+        "Metric aov? [a]ccept / [e]dit / [d]rop: a",
+        "",
+        "Refund rate = sum of amount where status is refunded ÷ Revenue, per month, as a percentage (assumed)",
+        "Metric refund_rate? [a]ccept / [e]dit / [d]rop: d",
+        "",
         "Retail revenue = sum of amount where (status is empty or status is not refunded) and channel is retail, per month, in USD (assumed)",
         "Metric retail_revenue? [a]ccept / [e]dit / [d]rop: a",
         "",
         "Wholesale revenue = sum of amount where (status is empty or status is not refunded) and channel is wholesale, per month, in USD (assumed)",
         "Metric wholesale_revenue? [a]ccept / [e]dit / [d]rop: a",
-        "",
-        "Refund rate = sum of amount where status is refunded ÷ Revenue, per month, as a percentage (assumed)",
-        "Metric refund_rate? [a]ccept / [e]dit / [d]rop: d",
         "▸ AWAIT_CONFIRM",
         "✓ AWAIT_CONFIRM (… ms)",
         "▸ MEASURE",
@@ -2693,7 +2824,7 @@
         }
       ]
     },
-    "metricsYaml": "version: 1\ngrain: month\nmetrics:\n  - id: revenue\n    label: Revenue\n    type: sum\n    table: t_t1\n    expression: amount\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: currency\n    currency: USD\n    dimensions:\n      - customer\n      - channel\n      - product\n    status: assumed\n  - id: orders\n    label: Orders\n    type: count_distinct\n    table: t_t1\n    expression: order_id\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: count\n    dimensions:\n      - customer\n      - channel\n      - product\n    status: assumed\n  - id: retail_revenue\n    label: Retail revenue\n    type: sum\n    table: t_t1\n    expression: amount\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n      - channel = 'retail'\n    time_column: date\n    unit: currency\n    currency: USD\n    status: assumed\n  - id: wholesale_revenue\n    label: Wholesale revenue\n    type: sum\n    table: t_t1\n    expression: amount\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n      - channel = 'wholesale'\n    time_column: date\n    unit: currency\n    currency: USD\n    status: assumed\n  - id: refund_rate\n    label: Refund rate\n    type: ratio\n    numerator:\n      table: t_t1\n      expression: amount\n      filters:\n        - status IN ('refunded')\n    denominator:\n      metric: revenue\n    unit: percent\n    status: assumed\n"
+    "metricsYaml": "version: 1\ngrain: month\nmetrics:\n  - id: revenue\n    label: Revenue\n    description: Money from sales lines (amount), leaving out refunded and cancelled lines.\n    type: sum\n    table: t_t1\n    expression: amount\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: currency\n    currency: USD\n    dimensions:\n      - customer\n      - channel\n      - product\n    status: assumed\n  - id: orders\n    label: Orders\n    description: Distinct orders with at least one revenue line.\n    type: count_distinct\n    table: t_t1\n    expression: order_id\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: count\n    dimensions:\n      - customer\n      - channel\n      - product\n    status: assumed\n  - id: units\n    label: Units sold\n    description: Total Qty over revenue lines.\n    type: sum\n    table: t_t1\n    expression: qty\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: count\n    dimensions:\n      - customer\n      - channel\n      - product\n    status: assumed\n  - id: customers\n    label: Customers\n    description: Distinct customers with at least one revenue line.\n    type: count_distinct\n    table: t_t1\n    expression: customer\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: count\n    dimensions:\n      - channel\n      - product\n    status: assumed\n  - id: new_customers\n    label: New customers\n    description: Customers whose first revenue line falls in the period.\n    type: count_distinct\n    table: t_t1\n    expression: customer\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: count\n    dimensions:\n      - channel\n      - product\n    cohort: new\n    status: assumed\n  - id: returning_customers\n    label: Returning customers\n    description: Customers active in the period whose first revenue line is earlier.\n    type: count_distinct\n    table: t_t1\n    expression: customer\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n    time_column: date\n    unit: count\n    dimensions:\n      - channel\n      - product\n    cohort: returning\n    status: assumed\n  - id: aov\n    label: Average order value\n    description: Revenue divided by orders.\n    type: ratio\n    numerator:\n      metric: revenue\n    denominator:\n      metric: orders\n    unit: ratio\n    status: assumed\n  - id: refund_rate\n    label: Refund rate\n    description: Value of refunded or returned lines as a percentage of revenue.\n    type: ratio\n    numerator:\n      table: t_t1\n      expression: amount\n      filters:\n        - status IN ('refunded')\n    denominator:\n      metric: revenue\n    unit: percent\n    status: assumed\n  - id: retail_revenue\n    label: Retail revenue\n    type: sum\n    table: t_t1\n    expression: amount\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n      - channel = 'retail'\n    time_column: date\n    unit: currency\n    currency: USD\n    status: assumed\n  - id: wholesale_revenue\n    label: Wholesale revenue\n    type: sum\n    table: t_t1\n    expression: amount\n    filters:\n      - status IS NULL OR status NOT IN ('refunded')\n      - channel = 'wholesale'\n    time_column: date\n    unit: currency\n    currency: USD\n    status: assumed\n"
   },
   "flows": {
     "ingest": {
@@ -2802,7 +2933,12 @@
             1,
             2,
             3,
-            4
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
           ]
         },
         {
@@ -2814,7 +2950,7 @@
           "label": "Compile",
           "detail": "Each definition becomes one parameterised SQL query, run in DuckDB.",
           "outputs": [
-            5
+            10
           ]
         }
       ],
@@ -2828,15 +2964,35 @@
           "value": "assumed"
         },
         {
+          "label": "units",
+          "value": "assumed"
+        },
+        {
+          "label": "customers",
+          "value": "assumed"
+        },
+        {
+          "label": "new_customers",
+          "value": "assumed"
+        },
+        {
+          "label": "returning_customers",
+          "value": "assumed"
+        },
+        {
+          "label": "aov",
+          "value": "assumed"
+        },
+        {
+          "label": "refund_rate",
+          "value": "assumed"
+        },
+        {
           "label": "retail_revenue",
           "value": "assumed"
         },
         {
           "label": "wholesale_revenue",
-          "value": "assumed"
-        },
-        {
-          "label": "refund_rate",
           "value": "assumed"
         },
         {
@@ -2917,15 +3073,15 @@
         },
         {
           "label": "wholesale",
-          "fact": "N144"
+          "fact": "N212"
         },
         {
           "label": "share of the drop",
-          "fact": "N147"
+          "fact": "N215"
         },
         {
           "label": "PVM mix effect",
-          "fact": "N174"
+          "fact": "N242"
         }
       ],
       "source": "facts, insights and decompositions of the run"
@@ -3052,7 +3208,7 @@
         },
         {
           "label": "benchmark gap",
-          "fact": "N270",
+          "fact": "N355",
           "note": "Specialty coffee roasters typically see refunds of 1–2% of sales."
         }
       ],
@@ -3115,7 +3271,7 @@
         },
         {
           "label": "drill_down",
-          "note": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N258\",\"value\":-7900,\"unit\":\"USD\",\"label\"…"
+          "note": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N343\",\"value\":-7900,\"unit\":\"USD\",\"label\"…"
         },
         {
           "label": "search_documents",
@@ -3127,7 +3283,7 @@
         },
         {
           "label": "compare_benchmark",
-          "note": "{\"external\":true,\"low\":{\"id\":\"N268\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N269\",\"value\":…"
+          "note": "{\"external\":true,\"low\":{\"id\":\"N353\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N354\",\"value\":…"
         }
       ],
       "source": "the planner's tool calls in the run (scripted planner)"
@@ -3309,8 +3465,8 @@
         },
         {
           "label": "R1 impact",
-          "fact": "N350",
-          "note": "to N351, next quarter"
+          "fact": "N435",
+          "note": "to N436, next quarter"
         }
       ],
       "source": "the verified report.json of the run"

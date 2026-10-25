@@ -209,7 +209,7 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
 }
 
 /** The AST of a filter or expression as text, so spacing and redundant parentheses don't make two terms differ. */
-const canonical = (text: string, parse: (t: string) => unknown): string => {
+export const canonical = (text: string, parse: (t: string) => unknown): string => {
   try {
     return JSON.stringify(parse(text));
   } catch {
@@ -222,7 +222,7 @@ const canonical = (text: string, parse: (t: string) => unknown): string => {
  * sum over its table's date column (exactly what a table term compiles to), so `{table, expression, filters}` equal to
  * `{metric: revenue}` is caught too.
  */
-function termKey(t: RatioTerm, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
+export function termKey(t: RatioTerm, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
   let table: string;
   let expression: string;
   let filters: readonly string[];

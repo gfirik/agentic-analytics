@@ -68,7 +68,16 @@ describe("MCP server", () => {
     expect(done).toMatch(/: queued|: running|: done/);
     expect((await manager.wait(id)).status).toBe("done");
     const report = (await manager.report(id)) as Report;
-    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(report.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
     expect(report.roles?.every((r) => r.status === "confirmed")).toBe(true);
   }, 240_000);
 

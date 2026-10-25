@@ -52,7 +52,7 @@ describe("aa metrics", () => {
       { files, yes: true, today: "2026-07-01", currency: "USD" },
       { out: (l) => lines.push(l), model: new FakeModel([{ role: "extractor", match: "<DATA>", object: PROPOSAL }]) },
     );
-    expect(outcome).toMatchObject({ accepted: 3, rejected: 1, source: "model" });
+    expect(outcome).toMatchObject({ accepted: 9, rejected: 3, source: "model" });
     const text = lines.join("\n");
     expect(text).toContain('rejected bogus: column "customer" is category, not a number');
     expect(text).toContain(
@@ -60,18 +60,33 @@ describe("aa metrics", () => {
     );
     expect(text).toContain("2026-03 15900 · 2026-04 7400");
     expect(text).toContain("2026-05 2.9 · 2026-06 3.4");
-    expect(parse(outcome.yaml).metrics.map((m: { id: string }) => m.id)).toEqual(["revenue", "wholesale_revenue", "refund_rate"]);
+    expect(parse(outcome.yaml).metrics.map((m: { id: string }) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+      "wholesale_revenue",
+    ]);
   });
 
   it("interactive review confirms metrics, and a saved file reloads with its statuses", async () => {
     const choices: ReviewChoice[] = ["accept", "drop", "accept", "accept", "accept"];
     const io: ReviewIO = { show: () => {}, choose: async () => choices.shift() ?? "accept", edit: async () => "" };
     const first = await runMetricsCommand({ files, yes: false, today: "2026-07-01", currency: "USD" }, { out: () => {}, io });
-    // fallback drafts revenue, orders, refund_rate, retail_revenue, wholesale_revenue; orders was dropped.
+    // fallback drafts the pack (revenue, orders, units, customers, new and returning, aov, refund_rate) and the channel slices;
+    // orders was dropped, and aov, which divides by it, is refused when the file is read back.
     // Validation orders table metrics before ratios.
     const saved = parse(first.yaml).metrics as { id: string; status: string }[];
     expect(saved.map((m) => [m.id, m.status])).toEqual([
       ["revenue", "confirmed"],
+      ["units", "confirmed"],
+      ["customers", "confirmed"],
+      ["new_customers", "confirmed"],
+      ["returning_customers", "confirmed"],
       ["retail_revenue", "confirmed"],
       ["wholesale_revenue", "confirmed"],
       ["refund_rate", "confirmed"],
@@ -81,7 +96,7 @@ describe("aa metrics", () => {
       { files, yes: true, today: "2026-07-01", metricsFile: first.yaml },
       { out: (l) => lines.push(l) },
     );
-    expect(again).toMatchObject({ source: "file", accepted: 4 });
+    expect(again).toMatchObject({ source: "file", accepted: 8 });
     expect(lines.join("\n")).not.toContain("(assumed)");
   });
 

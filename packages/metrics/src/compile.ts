@@ -47,7 +47,11 @@ export function ratioTerms(def: MetricDef): readonly [RatioTerm, RatioTerm] {
 
 /** Period key at the job grain (lexically ordered, so BETWEEN works). */
 export function periodExpr(column: string, grain: Grain): string {
-  const c = q(column);
+  return periodOf(q(column), grain);
+}
+
+/** The period key of an already-quoted date expression. */
+function periodOf(c: string, grain: Grain): string {
   switch (grain) {
     case "day":
       return `strftime(${c}, '%Y-%m-%d')`;
@@ -73,6 +77,12 @@ interface Ctx {
   readonly done: Map<string, string>;
 }
 
+/** What makes a count_distinct a cohort (analysis-library §8.1): the counted column and which side of its first line to keep. */
+interface Cohort {
+  readonly column: string;
+  readonly kind: "new" | "returning";
+}
+
 /** One aggregate over one table, grouped by period (and groups), as a CTE. Returns the CTE name. */
 function tableCte(
   ctx: Ctx,
@@ -81,6 +91,7 @@ function tableCte(
   time: string,
   aggregate: (col: (n: string) => string) => string,
   filters: readonly string[],
+  cohort?: Cohort,
 ): string {
   const existing = ctx.done.get(key);
   if (existing) return existing;
@@ -98,14 +109,46 @@ function tableCte(
     ...filters.map((f) => compileFilter(parseFilter(f), ctx.b, col)),
     ...(ctx.query.where ? [compileFilter(parseFilter(ctx.query.where), ctx.b, col)] : []),
     `${periodExpr(time, ctx.grain)} BETWEEN ${ctx.b.param(ctx.query.from)} AND ${ctx.b.param(ctx.query.to)}`,
+    ...(cohort ? cohortConditions(ctx, cohort, time, table) : []),
   ];
   const groupCols = ctx.groups.map((g) => `${q(g)}`).join(", ");
   const name = `m${ctx.ctes.length + 1}`;
   ctx.ctes.push(
-    `${name} AS (SELECT ${periodExpr(time, ctx.grain)} AS period${groupCols ? `, ${groupCols}` : ""}, ${aggregate(col)} AS value FROM ${q(table)} WHERE ${where.join(" AND ")} GROUP BY ALL)`,
+    `${name} AS (SELECT ${periodExpr(time, ctx.grain)} AS period${groupCols ? `, ${groupCols}` : ""}, ${aggregate(col)} AS value FROM ${q(table)}${cohort ? cohortJoin(ctx, cohort, time, table, filters) : ""} WHERE ${where.join(" AND ")} GROUP BY ALL)`,
   );
   ctx.done.set(key, name);
   return name;
+}
+
+const FIRST = { key: '"_cohort_key"', first: '"_cohort_first"' };
+
+/**
+ * Each counted value's first line in the table (over the same filters, whatever the query's period range), so a
+ * customer is "new" in the month of their first revenue line and "returning" after it.
+ */
+function cohortJoin(ctx: Ctx, cohort: Cohort, time: string, table: string, filters: readonly string[]): string {
+  const t = ctx.catalog.get(table);
+  const col = (n: string) => {
+    if (!t?.columns.has(n)) throw new MetricCompileError("UNKNOWN_COLUMN", `column "${n}" does not exist in ${table}`);
+    return q(n);
+  };
+  const where = [
+    "NOT _is_total",
+    `${q(time)} IS NOT NULL`,
+    `${q(cohort.column)} IS NOT NULL`,
+    ...filters.map((f) => compileFilter(parseFilter(f), ctx.b, col)),
+  ];
+  return ` JOIN (SELECT ${q(cohort.column)} AS ${FIRST.key}, min(${q(time)}) AS ${FIRST.first} FROM ${q(table)} WHERE ${where.join(" AND ")} GROUP BY ALL) AS _first ON ${q(table)}.${q(cohort.column)} = _first.${FIRST.key}`;
+}
+
+/** New: the period holds the first line. Returning: it is earlier. Neither is stated for the table's first period (no history). */
+function cohortConditions(ctx: Ctx, cohort: Cohort, time: string, table: string): string[] {
+  const period = periodExpr(time, ctx.grain);
+  const first = periodOf(`_first.${FIRST.first}`, ctx.grain);
+  return [
+    `${first} ${cohort.kind === "new" ? "=" : "<"} ${period}`,
+    `${period} > (SELECT min(${period}) FROM ${q(table)} WHERE NOT _is_total AND ${q(time)} IS NOT NULL)`,
+  ];
 }
 
 /**
@@ -214,7 +257,8 @@ function metricCte(ctx: Ctx, def: MetricDef): string {
             throw new MetricCompileError("UNSUPPORTED_TYPE", `unsupported metric type ${def.type}`);
         }
       };
-      name = tableCte(ctx, `metric:${def.id}`, table, time, aggregate, def.filters ?? []);
+      const cohort = def.cohort && def.expression ? { column: def.expression, kind: def.cohort } : undefined;
+      name = tableCte(ctx, `metric:${def.id}`, table, time, aggregate, def.filters ?? [], cohort);
       if (e)
         for (const c of exprColumns(e))
           if (def.type !== "count" && def.type !== "count_distinct" && !NUMERIC_TYPES.has(t.columns.get(c)?.type ?? "text"))
