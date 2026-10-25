@@ -13,6 +13,13 @@ Golden v1 is the **dev split** of three real datasets' golden sets (Online Retai
 
 Each difference is paired by task, with its 95% interval from the paired bootstrap (10,000 resamples, fixed seed 20261022, docs/specs/accuracy.md §5). The canned answers decide these numbers: arm A answers every other numeric item right by design, and arm B replays each item's answer SQL, which reads the raw file with `read_csv`, so the locked sandbox refuses every one (`SQL_REFUSED`: the containment working) and arm B ends in a refusal. Arm A saw a sample of each file (the cut is stated below with its numbers).
 
+**Real-model runs from the nightly deferred slot.** The slot runs one queued job a night on a Groq model of its own; from 2026-10-23 Groq serves no spare chat model, so it shares the judge's `openai/gpt-oss-20b` for every role ([Nightly deferred slot, 2026-10-23]).
+
+| Run | Command | Result |
+|---|---|---|
+| Golden v1 on gpt-oss-20b (dev split), 2026-10-23 | `bun run eval -- --suite golden --model openai-compatible:groq:openai/gpt-oss-20b` | **0/23**: every job failed before a report, so this measures the model's fit to the engine, not its accuracy. Hotel bookings and NZ card spend: the planner sent `search_documents` dates the tool's schema refuses (empty strings; `2020-03` for a month), and the job stopped. Online Retail II: a 39,207-token request against the model's free-tier limit of 8,000 tokens a minute. Page: `5-golden-dev-groq-gpt-oss-20b.md` |
+| Ablation on smoke, 2026-10-24 | `bun run eval:ablation -- --arms A,B,C --suite smoke --model openai-compatible:groq:openai/gpt-oss-20b` | **Not a result, not published**: the network was down; all 36 model calls failed (`fetch failed`, ETIMEDOUT), and the ablation runner reported 0% on every arm with 0 tokens instead of failing. Queued again |
+
 **Not run here (DEFERRED to the nightly runs, docs/progress/STATE.md "Deferred checks"):** golden v1 on the configured Groq routes (`bun run eval:real:fetch && bun run eval -- --suite golden --model configured`); consistency over 5 runs on smoke with the configured model, cache off (`bun run eval -- --suite smoke --repeat 5 --model configured`); the ablation on a free model (`bun run eval:ablation -- --arms A,B,C --suite smoke --model openai-compatible:groq:openai/gpt-oss-120b` and the same with `--suite golden`); EIA-861M's pinning and golden set.
 
 **Gaps** (docs/progress/STATE.md "Known gaps carried forward"): hotel bookings C4 and C6 in the real tier; retail golden item G7 (no driver on anomaly findings); the held-out generated set's drop (recall@5 75.0% against 96.0% on the development 30); the post-ship citation judge, deferred to M21.
