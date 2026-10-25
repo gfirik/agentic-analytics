@@ -226,17 +226,6 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   /** Phones and touch screens (site v5): no hover hint, an Explore button instead of a click on the canvas. */
   const TOUCH = "(max-width: 56.24rem), (pointer: coarse)";
 
-  const webgl = () => {
-    try {
-      const c = document.createElement("canvas");
-      const gl = c.getContext("webgl2") ?? c.getContext("webgl");
-      if (!gl) return false;
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
-      return true;
-    } catch {
-      return false;
-    }
-  };
   /** After load, when the browser is idle (with a timeout, and a plain timer where there is no requestIdleCallback). */
   const idle = () =>
     new Promise<void>((ok) => {
@@ -332,11 +321,19 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     let view: Mode = "tour";
     let stop = -1;
     let hover: string | null = null;
-    const span = () => Math.max(1, track.offsetHeight - stage.offsetHeight);
-    const stickyTop = () => parseFloat(getComputedStyle(stage).top) || 0;
+    // The band's size and the stage's sticky offset change only when the page does, so they are read on load and resize,
+    // not on every scroll frame (only the track's position is).
+    let spanPx = 1;
+    let stickyPx = 0;
+    const measure = () => {
+      spanPx = Math.max(1, track.offsetHeight - stage.offsetHeight);
+      stickyPx = parseFloat(getComputedStyle(stage).top) || 0;
+    };
+    const span = () => spanPx;
+    const stickyTop = () => stickyPx;
     const progress = () => {
-      const top = track.getBoundingClientRect().top - stickyTop();
-      return Math.min(1, Math.max(0, -top / span()));
+      const top = track.getBoundingClientRect().top - stickyPx;
+      return Math.min(1, Math.max(0, -top / spanPx));
     };
     const showStop = (s: number) => {
       const t = s === 0 ? null : data.tour[s - 1];
@@ -350,12 +347,22 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
       else show(t.key, prefix);
       live?.highlight(t.members);
     };
+    let barScale = "";
+    let headOpacity = "";
     const update = () => {
       const p = progress();
       const f = clamp(p * (stops + 1) - 0.5, 0, stops);
-      bar.style.transform = `scaleX(${p.toFixed(4)})`;
+      const scale = `scaleX(${p.toFixed(4)})`;
+      if (scale !== barScale) {
+        barScale = scale;
+        bar.style.transform = scale;
+      }
       // The head sits over the home view and fades as the tour starts (opacity only).
-      root.style.setProperty("--aa-engine-head-o", (1 - clamp(f / 0.45, 0, 1)).toFixed(3));
+      const headO = (1 - clamp(f / 0.45, 0, 1)).toFixed(3);
+      if (headO !== headOpacity) {
+        headOpacity = headO;
+        root.style.setProperty("--aa-engine-head-o", headO);
+      }
       if (view === "explore") return;
       live?.setProgress(f);
       const s = Math.round(f);
@@ -452,7 +459,13 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
       },
       { passive: true },
     );
-    addEventListener("resize", update, { passive: true });
+    const remeasure = () => {
+      measure();
+      update();
+    };
+    addEventListener("resize", remeasure, { passive: true });
+    new ResizeObserver(remeasure).observe(track);
+    measure();
     update();
 
     /** Scroll the page so the camera stops at the stop that shows this piece. */
@@ -472,12 +485,12 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
     // three.js: on idle after load, once the band is near (within a quarter screen below the viewport; a whole screen on
     // phones, which scroll faster and draw a lighter scene). Creating the WebGL context and compiling the shaders is one
     // long task on a GPU-less machine, so a reader who never comes here never pays for it, and the first screen's
-    // input stays free. If WebGL or the chunk fails, the still frame stays, with the card still following the scroll.
+    // input stays free. The one context is made by the live view itself (no throwaway probe context). If WebGL or the
+    // chunk fails, the still frame stays, with the card still following the scroll.
     const phone = matchMedia(PHONE).matches;
     const start = async () => {
       await idle();
       await near(track, phone ? "100% 0px" : "0px 0px 25% 0px");
-      if (!webgl()) return;
       try {
         const m = await import("./machine-3d.ts");
         live = await m.mount(stage, data, {
@@ -497,10 +510,14 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
         root.dataset.gl = "on";
         stop = -1;
         update();
-      } catch {
+        // Torn down with the page (not when it goes to the back/forward cache): the context, the geometry and the listeners.
+        addEventListener("pagehide", (e) => {
+          if (!e.persisted) live?.destroy();
+        });
+      } catch (e) {
         // The still frame and the scroll-linked card are the fallback, so the reader sees nothing break; the state is
-        // marked so a test (or a developer) can see the live view failed to start.
-        root.dataset.gl = "failed";
+        // marked so a test (or a developer) can see the live view failed to start (no WebGL at all is not a failure).
+        if (!(e instanceof Error && e.name === "NoWebGL")) root.dataset.gl = "failed";
       }
     };
     void start();
