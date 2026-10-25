@@ -11,7 +11,7 @@ sidebar:
 |---|---|---|
 | `analyze_files` | local file or folder paths; `objective`, `web`, `small_model`, `auto_confirm`, `currency`, `wait` | job id and status; with `wait: true`, the report summary (or the metrics to confirm) |
 | `get_report` | `job_id`, `format: summary \| json` | the summary, or the full verified report |
-| `confirm_metrics` | `job_id`, `yaml` | status; the job resumes |
+| `confirm_metrics` | `job_id`, `yaml` (metrics, and an optional `roles:` block) | status; the job resumes. With a `roles:` block and no metrics it drafts the metrics again from the new roles and returns the new screen |
 | `ask_report` | `job_id`, `question` | verified claims with facts and citations |
 | `explain_number` | `job_id`, `fact_id` | the computation behind a number |
 

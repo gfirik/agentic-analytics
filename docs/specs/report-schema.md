@@ -150,7 +150,7 @@ ColumnRole = {
   status: "confirmed"|"assumed",
   source: "detector"|"model"|"user",
   evidence: RoleEvidence[],
-  assumption?: string                       // Assumption id, when assumed and read by an analysis
+  assumption?: string                       // Assumption id, when assumed and read by an analysis (M15 PR 6: "Column “Std cost” read as unit cost."; confirmed roles have none)
 }
 RoleEvidence = { kind: "name"|"type"|"pattern"|"identity"|"tie_break"|"user", text: string, fact?: string /* identity rate fact id */ }
 

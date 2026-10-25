@@ -34,23 +34,23 @@ A definition that doesn't fit the data (a column that doesn't exist, a sum over 
 
 ## 3. Review during a job
 
-Without `--yes`, `aa analyze` stops after drafting and asks about each metric: **a**ccept, **e**dit (type or paste new YAML, then an empty line), or **d**rop.
+Without `--yes`, `aa analyze` stops after drafting and shows one screen: the column roles it detected with the evidence for each, the kind of each table, the business model, and the drafted metrics. Roles come first because a role decides which metrics are drafted. It asks once for all the roles (accept them, go through them one by one, or leave them as assumptions), once for the business model, then about each metric: **a**ccept, **e**dit (type or paste new YAML, then an empty line), or **d**rop. If you change a role, the metrics are drafted again from it before you see them.
 
 ```bash title="Terminal"
 AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --embedder hash --today 2026-07-01 --currency USD
 ```
 
-In this recording we accepted the first four and dropped `refund_rate`:
+The screen starts with the column roles, one line per column with its evidence (`t_t1.Amount → amount (header is "amount"; type currency fits)`). We accepted them, the business model and the first four metrics, and dropped `refund_rate`; the recording picks up at the table kinds:
 
-<Transcript id="review" from="AWAIT_CONFIRM" lines={22} />
+<Transcript id="review" from="Table kinds:" lines={30} />
 
 and the job went on. The end of the same run:
 
 <Transcript id="review" from="Findings:" />
 
-Compare it with the first tutorial: the refund-rate finding and its recommendation are gone, because their metric was dropped, and the note about assumed metrics is gone, because every metric was confirmed. The report records each metric's status, so a reader can always tell a confirmed definition from an assumed one.
+Compare it with the first tutorial: the refund-rate finding and its recommendation are gone, because their metric was dropped, and the note about assumed metrics is gone, because every metric was confirmed. The roles you accepted are `confirmed` in `report.json` too; with `--yes` they stay `assumed`, and each one a metric reads carries an assumption on the findings that use it. The report records each metric's status, so a reader can always tell a confirmed definition from an assumed one.
 
-You can also answer from a script (`printf 'a\na\na\na\nd\n' | …`); if the answers run out before the questions, the job stops and says so instead of guessing.
+You can also answer from a script (`printf 'a\na\na\na\na\na\nd\n' | …`); if the answers run out before the questions, the job stops and says so instead of guessing.
 
 ## What you learned
 
