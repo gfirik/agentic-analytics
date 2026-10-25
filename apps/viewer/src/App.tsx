@@ -1,7 +1,7 @@
 // The viewer (interfaces §5): upload → live progress (stages light up as they run) → metric confirmation →
 // the embedded report. Hash routes keep it a static bundle that `aa serve` can host at `/`.
-import type { JobEvent, Stage } from "@agentic-analytics/schema";
-import { type FormEvent, useEffect, useMemo, useReducer, useState } from "react";
+import type { ConfirmView, JobEvent, Stage } from "@agentic-analytics/schema";
+import { type FormEvent, useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { type Api, ApiError, createApi, errorText } from "./api.ts";
 import { initialView, type JobView, reduce, STAGES } from "./state.ts";
 
@@ -9,7 +9,7 @@ const LABELS: Record<Stage, string> = {
   INGEST: "Read files",
   PROFILE: "Profile",
   METRICS_DRAFT: "Draft metrics",
-  AWAIT_CONFIRM: "Confirm metrics",
+  AWAIT_CONFIRM: "Confirm roles and metrics",
   MEASURE: "Measure",
   DETECT: "Detect",
   DECOMPOSE: "Decompose",
@@ -222,21 +222,53 @@ export function JobPage({ api, jobId }: { api: Api; jobId: string }) {
   );
 }
 
+type RoleRow = ConfirmView["roles"][number];
+
+/** A roles block as flow-style YAML (JSON is valid YAML), so the screen can append it to the metrics text. */
+const rolesBlock = (roles: readonly { table: string; column: string; role: string }[], model: string): string =>
+  `roles: ${JSON.stringify(roles.map((r) => ({ table: r.table, column: r.column, role: r.role })))}\nbusiness_model: ${JSON.stringify({ model })}\n`;
+
+/**
+ * The confirm screen (interfaces §5, semantics §5): the column roles with their evidence, the table kinds and the business
+ * model, and the drafted metrics, on one form. Changing a role and pressing "Update the drafts" has the engine draft the
+ * metrics again from the new roles; "Confirm and continue" confirms everything shown and resumes the job.
+ */
 export function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: string; onConfirmed: () => void }) {
-  const [data, setData] = useState<{ yaml: string; metrics: { id: string; text: string }[] }>();
+  const [data, setData] = useState<ConfirmView>();
   const [yaml, setYaml] = useState("");
+  const [roles, setRoles] = useState<Record<string, string>>({});
+  const [model, setModel] = useState("");
   const [error, setError] = useState<string>();
   const [loadError, setLoadError] = useState<unknown>();
+  const [busy, setBusy] = useState(false);
+  const show = useCallback((m: ConfirmView) => {
+    setData(m);
+    setYaml(m.metrics_yaml ?? m.yaml);
+    setRoles(Object.fromEntries(m.roles.map((r) => [`${r.table}/${r.column}`, r.role])));
+    setModel(m.business_model?.model ?? "unknown");
+  }, []);
   useEffect(() => {
-    api.metrics(jobId).then((m) => {
-      setData(m);
-      setYaml(m.yaml);
-    }, setLoadError);
-  }, [api, jobId]);
+    api.metrics(jobId).then(show, setLoadError);
+  }, [api, jobId, show]);
+  const rows: RoleRow[] = data?.roles ?? [];
+  const posted = rows.map((r) => ({ table: r.table, column: r.column, role: roles[`${r.table}/${r.column}`] ?? r.role }));
+  const dirty = data !== undefined && (posted.some((r, i) => r.role !== rows[i]?.role) || model !== data.business_model?.model);
+  const update = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.confirm(jobId, `version: 1\n${rolesBlock(posted, model)}`);
+      show(await api.metrics(jobId));
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
   const confirm = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await api.confirm(jobId, yaml);
+      await api.confirm(jobId, `${yaml.trimEnd()}\n${rolesBlock(posted, model)}`);
       onConfirmed();
     } catch (err) {
       setError(errorText(err));
@@ -246,17 +278,87 @@ export function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: stri
   if (!data) return <p className="muted">Loading the drafted metrics…</p>;
   return (
     <form onSubmit={confirm} className="metrics">
-      <h2>Confirm the metric definitions</h2>
+      <h2>Confirm the column roles and metric definitions</h2>
       <p className="muted">
-        Every number in the report is computed from these. Edit the YAML to change one, or delete an entry to drop it.
+        Roles say what each column means, and they decide which analyses run. Every number in the report is computed from the metrics below.
+        Change a role, then update the drafts to see the metrics it produces.
       </p>
+      <h3>Column roles</h3>
+      {rows.length ? (
+        <table className="roles">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const key = `${r.table}/${r.column}`;
+              return (
+                <tr key={key}>
+                  <td>
+                    {r.table}.{r.label}
+                  </td>
+                  <td>
+                    <select
+                      aria-label={`Role of ${r.table}.${r.label}`}
+                      value={roles[key] ?? r.role}
+                      onChange={(e) => setRoles({ ...roles, [key]: e.target.value })}
+                    >
+                      {data.vocabulary.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>{r.status}</td>
+                  <td>{r.evidence.join("; ")}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p className="muted">No column has a role.</p>
+      )}
+      <h3>Table kinds</h3>
+      <ul>
+        {data.table_kinds.map((k) => (
+          <li key={k.table_id}>
+            {k.table}: {k.kind}
+            {k.evidence.length ? ` (from ${k.evidence.join(", ")})` : ""}
+          </li>
+        ))}
+      </ul>
+      <label>
+        Business model ({data.business_model.status}){" "}
+        <select aria-label="Business model" value={model} onChange={(e) => setModel(e.target.value)}>
+          {data.business_models.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+      </label>
+      {data.business_model.signals.length ? <p className="muted">{data.business_model.signals.join("; ")}</p> : null}
+      <button type="button" onClick={update} disabled={!dirty || busy}>
+        Update the drafts
+      </button>
+      <h3>Metrics</h3>
+      <p className="muted">Edit the YAML to change one, or delete an entry to drop it.</p>
       <ul>
         {data.metrics.map((m) => (
           <li key={m.id}>{m.text}</li>
         ))}
       </ul>
       <textarea value={yaml} onChange={(e) => setYaml(e.target.value)} rows={18} spellCheck={false} />
-      <button type="submit">Confirm and continue</button>
+      <button type="submit" disabled={dirty}>
+        Confirm and continue
+      </button>
       {error ? <p className="error">{error}</p> : null}
     </form>
   );

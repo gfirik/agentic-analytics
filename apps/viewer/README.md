@@ -1,6 +1,6 @@
 # @agentic-analytics/viewer
 
-The web viewer (Vite + React). It has an upload page, a live job view whose pipeline stages light up as they run, a metric confirmation form and the embedded report.
+The web viewer (Vite + React). It has an upload page, a live job view whose pipeline stages light up as they run, one confirmation form for the column roles (a select each, with evidence), the table kinds, the business model and the drafted metrics (changing a role and pressing "Update the drafts" shows the metrics drafted from it), and the embedded report.
 
 - **Status:** built in M10.
 - **Spec:** docs/specs/interfaces.md §5

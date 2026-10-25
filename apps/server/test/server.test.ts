@@ -37,6 +37,69 @@ async function sse(id: string): Promise<{ event: string; data: { type: string } 
     }));
 }
 
+describe("HTTP API: roles on the confirm screen (M15)", () => {
+  const post = (id: string, body: string) =>
+    app.request(`/v1/jobs/${id}/metrics`, { method: "POST", body, headers: { "content-type": "application/yaml" } });
+  const view = async (id: string) =>
+    (await (await app.request(`/v1/jobs/${id}/metrics`)).json()) as {
+      yaml: string;
+      metrics: { id: string }[];
+      roles: { table: string; column: string; role: string; status: string; source: string }[];
+      table_kinds: { table: string; kind: string }[];
+      business_model: { status: string };
+    };
+  let id: string;
+
+  it("the awaiting-confirmation job serves metrics, roles with evidence, table kinds and the business model", async () => {
+    const res = await app.request("/v1/jobs", { method: "POST", body: upload({ currency: "USD", auto_confirm: false }) });
+    id = ((await res.json()) as { job_id: string }).job_id;
+    expect((await sse(id)).at(-1)?.event).toBe("awaiting_confirmation");
+    const v = await view(id);
+    expect(v.roles.find((r) => r.table === "t_t1" && r.column === "qty")).toMatchObject({
+      role: "quantity",
+      status: "assumed",
+      source: "detector",
+    });
+    expect(v.table_kinds[0]).toEqual({ table: "t_t1", table_id: "T1", kind: "sales_lines", evidence: expect.any(Array) });
+    expect(v.business_model.status).toBe("assumed");
+    // the response shape is in the generated OpenAPI document
+    const spec = (await (await app.request("/openapi.json")).json()) as {
+      paths: Record<
+        string,
+        { get?: { responses: Record<string, { content: { "application/json": { schema: { properties: object } } } }> } }
+      >;
+    };
+    const props = spec.paths["/v1/jobs/{id}/metrics"]?.get?.responses["200"]?.content["application/json"].schema.properties;
+    expect(Object.keys(props ?? {})).toEqual(expect.arrayContaining(["roles", "table_kinds", "business_model", "vocabulary"]));
+  }, 180_000);
+
+  it("refuses an unknown role or column with a typed 400 and applies nothing", async () => {
+    const unknownRole = await post(id, "version: 1\nroles:\n  - { table: t_t1, column: qty, role: wizard }\n");
+    expect(unknownRole.status).toBe(400);
+    expect(((await unknownRole.json()) as { error: { code: string } }).error.code).toBe("UNKNOWN_ROLE");
+    const unknownColumn = await post(id, "version: 1\nroles:\n  - { table: t_t1, column: nope, role: quantity }\n");
+    expect(unknownColumn.status).toBe(400);
+    expect(((await unknownColumn.json()) as { error: { code: string } }).error.code).toBe("UNKNOWN_COLUMN");
+    expect((await view(id)).roles.every((r) => r.status === "assumed")).toBe(true);
+  });
+
+  it("a roles-only body re-drafts the metrics and keeps waiting; the full body confirms roles and resumes", async () => {
+    const before = await view(id);
+    expect(before.metrics.map((m) => m.id)).toContain("retail_revenue");
+    const revised = await post(id, "version: 1\nroles:\n  - { table: t_t1, column: channel, role: dimension }\n");
+    expect(revised.status).toBe(202);
+    expect(((await revised.json()) as { status: string }).status).toBe("awaiting_confirmation");
+    const v = await view(id);
+    expect(v.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(v.roles.find((r) => r.column === "channel")).toMatchObject({ role: "dimension", status: "confirmed", source: "user" });
+    expect((await post(id, v.yaml)).status).toBe(202);
+    expect((await sse(id)).at(-1)?.event).toBe("done");
+    const report = (await (await app.request(`/v1/jobs/${id}/report`)).json()) as Report;
+    expect(report.roles?.every((r) => r.status === "confirmed")).toBe(true);
+    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+  }, 240_000);
+});
+
 describe("HTTP API", () => {
   let id: string;
 

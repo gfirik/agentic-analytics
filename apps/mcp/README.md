@@ -11,7 +11,7 @@ The MCP server over the engine: stdio (`aa mcp`) and streamable HTTP (`aa serve`
 |---|---|---|
 | `analyze_files` | `paths` (local files or folders), `objective?`, `web?`, `small_model?`, `auto_confirm?` (default true), `currency?`, `wait?` | job id and status; with `wait: true`, the report summary (or the metrics to confirm) |
 | `get_report` | `job_id`, `format: summary \| json` | the summary text, or the full verified `report.json` |
-| `confirm_metrics` | `job_id`, `yaml` | status (the job resumes; invalid definitions are refused with reasons) |
+| `confirm_metrics` | `job_id`, `yaml` (metrics and an optional `roles:` block) | status (the job resumes; invalid definitions are refused with reasons, an unknown role or column with `UNKNOWN_ROLE` / `UNKNOWN_COLUMN`); with roles only, the new screen and the job keeps waiting |
 | `ask_report` | `job_id`, `question` | verified claims with facts and citations; dropped claims with reasons |
 | `explain_number` | `job_id`, `fact_id` | SQL and parameters (or function and inputs), definition, input rows |
 

@@ -41,6 +41,37 @@ describe("MCP server", () => {
     for (const t of tools.filter((x) => x.name !== "confirm_metrics")) expect(t.description, t.name).toMatch(/never recalculate/);
   });
 
+  it("confirm_metrics round trip: the screen lists roles before metrics, a bad role is refused, a role edit re-drafts, then it confirms", async () => {
+    const call = (name: string, args: Record<string, unknown>) => client.callTool({ name, arguments: args });
+    const start = textOf(await call("analyze_files", { paths: [input], currency: "USD", auto_confirm: false, wait: true }));
+    const id = start.split(":")[0] as string;
+    expect(start).toContain("waiting for confirmation");
+    expect(start.indexOf("Column roles")).toBeGreaterThan(-1);
+    expect(start.indexOf("Column roles")).toBeLessThan(start.indexOf("Metrics:"));
+    expect(start).toContain('  t_t1.Qty → quantity [assumed] (header is "qty"; type integer fits)');
+    expect(start).toContain("Role vocabulary: transaction_date,");
+    expect(start).toContain("Wholesale revenue = sum of amount");
+    // an unknown role is refused with its typed code, as a tool error
+    const bad = await call("confirm_metrics", { job_id: id, yaml: "version: 1\nroles:\n  - { table: t_t1, column: qty, role: wizard }\n" });
+    expect((bad as { isError?: boolean }).isError).toBe(true);
+    expect(textOf(bad)).toMatch(/^UNKNOWN_ROLE: /);
+    // a roles-only body: the metrics are drafted again from the changed role, and the job keeps waiting
+    const revised = textOf(
+      await call("confirm_metrics", { job_id: id, yaml: "version: 1\nroles:\n  - { table: t_t1, column: channel, role: dimension }\n" }),
+    );
+    expect(revised).toContain("waiting for confirmation");
+    expect(revised).not.toContain("Wholesale revenue = sum of amount");
+    expect(revised).toContain("t_t1.Channel → dimension [confirmed]");
+    // the YAML from the new screen confirms metrics and roles, and the job finishes
+    const yaml = revised.slice(revised.indexOf("version: 1"));
+    const done = textOf(await call("confirm_metrics", { job_id: id, yaml }));
+    expect(done).toMatch(/: queued|: running|: done/);
+    expect((await manager.wait(id)).status).toBe("done");
+    const report = (await manager.report(id)) as Report;
+    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(report.roles?.every((r) => r.status === "confirmed")).toBe(true);
+  }, 240_000);
+
   it("analyze_files with wait returns the summary; get_report, the resources, ask and explain work", async () => {
     const r = await client.callTool({ name: "analyze_files", arguments: { paths: [input], currency: "USD", wait: true } });
     const t = textOf(r);

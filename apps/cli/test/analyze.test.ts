@@ -38,7 +38,80 @@ describe("aa analyze", () => {
     expect(existsSync(join(tmp, "out", "agentic-analytics", "report.html"))).toBe(true);
     const report = JSON.parse(readFileSync(join(tmp, "out", "agentic-analytics", "report.json"), "utf8")) as Report;
     expect(report.metrics.every((m) => m.status === "assumed")).toBe(true);
+    // --yes keeps the proposed roles as assumptions (semantics §5), each read by a metric with its own assumption
+    expect(report.roles?.length).toBeGreaterThan(0);
+    expect(report.roles?.every((r) => r.status === "assumed")).toBe(true);
+    expect(report.roles?.find((r) => r.table_id === "T1" && r.column === "amount")?.assumption).toBeDefined();
   }, 180_000);
+
+  it("interactive review: roles and metrics on one screen; accepting everything confirms both", async () => {
+    const lines: string[] = [];
+    const asked: string[] = [];
+    const review = {
+      show: (l: string) => lines.push(l),
+      async choose(q: string): Promise<ReviewChoice> {
+        asked.push(q);
+        return "accept";
+      },
+      edit: async () => "",
+    };
+    const r = await analyzeCommand(
+      { files, options, out: join(tmp, "out-roles"), jobId: "cli-roles" },
+      { manager, print: (l) => lines.push(l), review },
+    );
+    expect(r.code).toBe(0);
+    const text = lines.join("\n");
+    // the screen lists the roles with their evidence, the table kinds and the business model before the first metric
+    expect(lines).toContain('  t_t1.Amount → amount [assumed] (header is "amount"; type currency fits)');
+    expect(lines).toContain("  t_t1: sales_lines (from transaction_date, amount, customer, product, order_id, channel)");
+    expect(text).toMatch(/Business model: \w+ \[assumed\]/);
+    expect(text.indexOf("Column roles")).toBeLessThan(text.indexOf("Revenue = sum of amount"));
+    // one question for all the roles first, then the business model, then the metrics
+    expect(asked.slice(0, 2).map((q) => q.split(/[?:(]/)[0])).toEqual(["Column roles", "Business model subscription"]);
+    expect(asked.some((q) => q.startsWith("Role "))).toBe(false);
+    expect(asked.indexOf("Metric revenue?")).toBe(2);
+    const report = JSON.parse(readFileSync(r.reportPath as string, "utf8")) as Report;
+    expect(report.roles?.every((x) => x.status === "confirmed")).toBe(true);
+    expect(report.business_model?.status).toBe("confirmed");
+    await manager.delete(r.jobId);
+  }, 180_000);
+
+  it("interactive review: changing a role re-drafts the metrics before they are shown; an unknown role is refused and asked again", async () => {
+    const lines: string[] = [];
+    const asked: string[] = [];
+    let edits = 0;
+    const review = {
+      show: (l: string) => lines.push(l),
+      async choose(q: string): Promise<ReviewChoice> {
+        asked.push(q);
+        // The first time through, go through the roles one by one and edit the channel's; the second time, accept everything.
+        if (edits < 2 && q.startsWith("Column roles:")) return "edit";
+        return q === "Role t_t1.Channel?" && edits < 2 ? "edit" : "accept";
+      },
+      // First a role that is not in the vocabulary (refused), then a valid one.
+      async edit() {
+        return ++edits === 1 ? "wizard" : "role: dimension";
+      },
+    };
+    const r = await analyzeCommand(
+      { files, options, out: join(tmp, "out-edit"), jobId: "cli-role-edit" },
+      { manager, print: (l) => lines.push(l), review },
+    );
+    expect(r.code).toBe(0);
+    expect(lines.some((l) => l.startsWith('Not accepted: "wizard" is not a role of the vocabulary'))).toBe(true);
+    expect(lines).toContain("Metrics drafted again from your role changes:");
+    // the per-channel revenue metrics are not drafted any more, so they are never asked about
+    expect(asked).not.toContain("Metric wholesale_revenue?");
+    expect(asked).toContain("Metric revenue?");
+    const report = JSON.parse(readFileSync(r.reportPath as string, "utf8")) as Report;
+    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(report.roles?.find((x) => x.table_id === "T1" && x.column === "channel")).toMatchObject({
+      role: "dimension",
+      source: "user",
+      status: "confirmed",
+    });
+    await manager.delete(r.jobId);
+  }, 240_000);
 
   it("interactive review: a bad edit is refused and reviewed again; dropped metrics leave the report", async () => {
     const lines: string[] = [];
@@ -87,7 +160,7 @@ describe("aa analyze", () => {
     );
     expect(r.code).toBe(1);
     expect(asked).toBe(2);
-    expect(lines).toContain("The review ended before every metric was answered; the job is waiting for its metrics.");
+    expect(lines).toContain("The review ended before every metric was answered; the job is waiting for its roles and metrics.");
     await manager.delete(r.jobId);
   }, 60_000);
 

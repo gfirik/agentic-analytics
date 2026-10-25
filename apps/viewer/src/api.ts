@@ -1,11 +1,13 @@
 // The viewer's API calls (interfaces §1). Events are read from the SSE endpoint with fetch (not EventSource), so a
 // bearer token can be sent when the API requires one.
-import type { JobEvent } from "@agentic-analytics/schema";
+import type { ConfirmView, JobEvent } from "@agentic-analytics/schema";
 
 export interface Api {
   createJob(files: readonly File[], options: Record<string, unknown>): Promise<string>;
   follow(jobId: string, onEvent: (e: JobEvent) => void, signal?: AbortSignal): Promise<void>;
-  metrics(jobId: string): Promise<{ yaml: string; metrics: { id: string; status: string; text: string }[] }>;
+  /** The confirm screen: metrics, column roles with evidence, table kinds and the business model (interfaces §5). */
+  metrics(jobId: string): Promise<ConfirmView>;
+  /** Confirms (a body with metrics) or revises (a body with roles only) and resumes or keeps waiting. */
   confirm(jobId: string, yaml: string): Promise<void>;
   reportHtml(jobId: string): Promise<string>;
   jobs(): Promise<{ job_id: string; status: string; updated_at: string }[]>;
