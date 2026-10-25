@@ -369,7 +369,10 @@
       (canvas as Debug).aaFrames = frames;
     };
 
-    const running = () => onScreen && !document.hidden && !reduce.matches;
+    // The 3D machine and this net never animate together: while the machine's stage is mostly on screen it sets
+    // data-aa-machine on <html> (machine-3d.ts) and the net rests until it leaves.
+    const machineOn = () => document.documentElement.hasAttribute("data-aa-machine");
+    const running = () => onScreen && !document.hidden && !reduce.matches && !machineOn();
     const sync = () => {
       const go = running();
       if (go && !raf) {
@@ -397,6 +400,7 @@
         { rootMargin: "0px" },
       ).observe(field);
       document.addEventListener("visibilitychange", sync);
+      document.addEventListener("aa:machine", sync);
       // Switched to reduced motion mid-visit: stop and clear (the static field remains).
       reduce.addEventListener("change", () => {
         if (!reduce.matches) return;

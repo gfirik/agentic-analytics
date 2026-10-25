@@ -1674,15 +1674,21 @@ test.describe("engine machine", () => {
       [390, 844],
     ] as const) {
       const b = await live(page, w, h);
-      await page.waitForTimeout(800);
+      // Waited for, not read once: the labels are placed on a drawn frame and fade over 200ms, so a read right after the
+      // first frame can still see the previous layout.
+      await expect.poll(async () => (await labelBoxes(page)).overlaps, { message: `${w}×${h} home overlaps`, timeout: 10_000 }).toEqual([]);
+      await expect
+        .poll(async () => (await labelBoxes(page)).ids.length, { message: `${w}×${h} home labels`, timeout: 10_000 })
+        .toBeGreaterThanOrEqual(8);
       const home = await labelBoxes(page);
       expect(home.overlaps, `${w}×${h} home`).toEqual([]);
-      expect(home.ids.length, `${w}×${h} home`).toBeGreaterThanOrEqual(8);
       for (const k of [1, stopOf(b, "verify")]) {
         await scrollToY(page, atStop(b, k));
-        await page.waitForTimeout(1200);
+        await settled(page, () => machineFrames(page), 600);
+        await expect
+          .poll(async () => (await labelBoxes(page)).overlaps, { message: `${w}×${h} stop ${k} overlaps`, timeout: 10_000 })
+          .toEqual([]);
         const at = await labelBoxes(page);
-        expect(at.overlaps, `${w}×${h} stop ${k}`).toEqual([]);
         // The stop's pieces and their neighbours on the line, not the whole machine.
         expect(at.ids.length, `${w}×${h} stop ${k}`).toBeLessThanOrEqual(5);
       }
@@ -1957,6 +1963,156 @@ test.describe("engine machine", () => {
     await expect(stations).toHaveCount(13);
     for (const li of await stations.all()) await expect(li.locator('a[href*="/learn/stages/"]').first()).toBeVisible();
     await ctx.close();
+  });
+
+  // Performance (DESIGN.md §7, "The engine machine draws on demand"): a laptop froze under the always-running loop, the
+  // double context and the 5-million-pixel canvas. These check the rules that fixed it; the numbers come from
+  // scripts/site/perf/machine-perf.ts.
+  type Counted = { __gl: number; __raf: number };
+  const count = () => {
+    const w = window as unknown as Counted;
+    w.__gl = 0;
+    w.__raf = 0;
+    const get = HTMLCanvasElement.prototype.getContext as (...a: unknown[]) => unknown;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...rest: unknown[]) {
+      const c = get.call(this, kind, ...rest);
+      if (c && /webgl/.test(kind)) w.__gl++;
+      return c;
+    } as typeof HTMLCanvasElement.prototype.getContext;
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+      w.__raf++;
+      return raf(cb);
+    };
+  };
+  const machineFrames = (page: import("@playwright/test").Page) =>
+    page.locator(".aa-engine-canvas").evaluate((c) => (c as HTMLCanvasElement & { aaFrames?: number }).aaFrames ?? -1);
+  const netFrames = (page: import("@playwright/test").Page) =>
+    page.locator(".aa-hero-field .aa-hf-net").evaluate((c) => (c as HTMLCanvasElement & { aaFrames?: number }).aaFrames ?? 0);
+  /** Waits until `read` stops changing for `quiet` ms. */
+  const settled = async (page: import("@playwright/test").Page, read: () => Promise<number>, quiet = 1200) => {
+    await expect
+      .poll(
+        async () => {
+          const a = await read();
+          await page.waitForTimeout(quiet);
+          return (await read()) - a;
+        },
+        { timeout: 30_000, intervals: [0] },
+      )
+      .toBe(0);
+  };
+
+  test("one WebGL context for the page's life: tour, explore, tour and resizes never make another", async ({ page }) => {
+    await page.addInitScript(count);
+    const b = await live(page, 1440, 900);
+    const contexts = () => page.evaluate(() => (window as unknown as Counted).__gl);
+    expect(await contexts(), "after the first frame").toBe(1);
+    const root = page.locator("[data-machine]");
+    for (const k of [1, b.stops, 2]) {
+      await scrollToY(page, atStop(b, k));
+      await settled(page, () => machineFrames(page), 600);
+    }
+    await page.mouse.click(720, 700);
+    await expect(root).toHaveAttribute("data-view", "explore");
+    await page.mouse.move(700, 500);
+    await page.mouse.wheel(0, -200);
+    await page.keyboard.press("Escape");
+    await expect(root).toHaveAttribute("data-view", "tour");
+    for (const [w, h] of [
+      [1100, 800],
+      [1440, 900],
+      [1280, 720],
+    ] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await settled(page, () => machineFrames(page), 600);
+    }
+    await page.mouse.click(600, 600);
+    await expect(root).toHaveAttribute("data-view", "explore");
+    await page.locator("[data-back]").click();
+    await expect(root).toHaveAttribute("data-view", "tour");
+    expect(await contexts(), "after tour, explore, tour and three resizes").toBe(1);
+    expect(await page.locator("canvas.aa-engine-canvas").count()).toBe(1);
+  });
+
+  test("it draws on demand: no frame and no animation-frame loop while nothing changes, none off screen or in a hidden tab", async ({
+    page,
+  }) => {
+    await page.addInitScript(count);
+    const b = await live(page, 1440, 900);
+    const raf = () => page.evaluate(() => (window as unknown as Counted).__raf);
+    await scrollToY(page, atStop(b, 2));
+    // The camera eases to the stop, and the slow drift runs a few seconds after the last scroll; then nothing is drawn.
+    await settled(page, () => machineFrames(page), 6000);
+    const idle = await machineFrames(page);
+    const r0 = await raf();
+    await page.waitForTimeout(3000);
+    expect(await machineFrames(page), "frames drawn in 3 s of nothing").toBe(idle);
+    expect((await raf()) - r0, "animation-frame callbacks in 3 s of nothing").toBe(0);
+    expect(idle, "it did draw before").toBeGreaterThan(0);
+    // A scroll draws again (the camera moves), then it rests again.
+    await scrollToY(page, atStop(b, 4));
+    await expect.poll(() => machineFrames(page)).toBeGreaterThan(idle);
+    await settled(page, () => machineFrames(page), 6000);
+    // Off screen (the hero): no frame.
+    await scrollToY(page, 0);
+    await page.waitForTimeout(800);
+    const away = await machineFrames(page);
+    await page.waitForTimeout(1200);
+    expect(await machineFrames(page), "frames drawn while the band is off screen").toBe(away);
+    // A hidden tab: back at a stop, the camera moves, but a hidden tab draws nothing.
+    await scrollToY(page, atStop(b, 3));
+    await settled(page, () => machineFrames(page), 6000);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await scrollToY(page, atStop(b, 5));
+    await page.waitForTimeout(500);
+    const hidden = await machineFrames(page);
+    await page.waitForTimeout(1000);
+    expect(await machineFrames(page), "frames drawn in a hidden tab").toBe(hidden);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => machineFrames(page)).toBeGreaterThan(hidden);
+  });
+
+  test("the hero's net and the machine never animate together", async ({ page }) => {
+    const b = await live(page, 1440, 900);
+    const NETSEL = ".aa-hero-field .aa-hf-net";
+    const state = () => page.locator(NETSEL).getAttribute("data-state");
+    const on = () => page.evaluate(() => document.documentElement.hasAttribute("data-aa-machine"));
+    // The hero: the net runs, the machine rests.
+    await scrollToY(page, 0);
+    await expect.poll(state, { timeout: 15_000 }).toBe("running");
+    expect(await on()).toBe(false);
+    await settled(page, () => machineFrames(page), 600);
+    // The band: the machine is live, the net rests and draws nothing.
+    await scrollToY(page, atStop(b, 2));
+    await expect.poll(on).toBe(true);
+    await expect.poll(state).toBe("paused");
+    await page.waitForTimeout(300);
+    const net = await netFrames(page);
+    await page.waitForTimeout(900);
+    expect(await netFrames(page), "net frames while the machine is on screen").toBe(net);
+    // At every step of a slow scroll through the release of the hero into the band, the two are never both live.
+    await scrollToY(page, 0);
+    await expect.poll(state).toBe("running");
+    let both = 0;
+    const from = b.top - 900;
+    for (let y = from; y <= b.top + 200; y += 60) {
+      await scrollToY(page, y);
+      await page.waitForTimeout(40);
+      const [isOn, st] = [await on(), await state()];
+      if (isOn && st === "running") both++;
+    }
+    expect(both, "samples with the machine on and the net running").toBe(0);
+    // Back to the hero: the net runs again.
+    await scrollToY(page, 0);
+    await expect.poll(state).toBe("running");
+    expect(await on()).toBe(false);
   });
 });
 
