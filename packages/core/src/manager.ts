@@ -6,6 +6,10 @@ import { join } from "node:path";
 import type { InputFile } from "@agentic-analytics/ingest";
 import type { ModelClient } from "@agentic-analytics/models";
 import type { RoleErrorCode } from "@agentic-analytics/profile";
+
+const ROLE_ERROR_CODES: readonly string[] = ["UNKNOWN_ROLE", "UNKNOWN_COLUMN", "UNKNOWN_BUSINESS_MODEL"] satisfies RoleErrorCode[];
+const isRoleErrorCode = (code: string): code is RoleErrorCode => ROLE_ERROR_CODES.includes(code);
+
 import { type ConfirmView, type JobEvent, type Report, STAGES, type Stage } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { buildConfirmView, confirmJob } from "./confirm.ts";
@@ -304,8 +308,10 @@ export class JobManager {
     try {
       outcome = await confirmJob(dir, yaml);
     } catch (err) {
-      if (err instanceof JobError)
-        throw new ManagerError(err.code === "BAD_METRICS" ? "BAD_REQUEST" : (err.code as RoleErrorCode), err.message);
+      // Only a refused request maps to a client error: a bad metrics file, or a role, column or business model the
+      // job doesn't have. Any other JobError is the job's own failure and goes up unchanged.
+      if (err instanceof JobError && err.code === "BAD_METRICS") throw new ManagerError("BAD_REQUEST", err.message);
+      if (err instanceof JobError && isRoleErrorCode(err.code)) throw new ManagerError(err.code, err.message);
       throw err;
     }
     if (!outcome.resume) return this.status(id);
