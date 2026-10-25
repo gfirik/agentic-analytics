@@ -34,9 +34,11 @@ describe("normaliseDateFilter", () => {
   });
   it("returns a readable error, not a throw, for anything else", () => {
     for (const bad of ["2020-13", "2020-00", "03/2020", "2020-3", "March 2026", "2023-02-29", "2026-13-45", "20-03", "2020-03-1"]) {
-      const r = normaliseDateFilter(bad, "from");
-      expect(r.ok, bad).toBe(false);
-      if (!r.ok) expect(r.error).toContain("YYYY-MM-DD");
+      for (const edge of ["from", "to"] as const) {
+        const r = normaliseDateFilter(bad, edge);
+        expect(r.ok, bad).toBe(false);
+        if (!r.ok) expect(r.error).toContain("YYYY-MM-DD");
+      }
     }
   });
 });
