@@ -224,7 +224,8 @@ export function salesKpiPack(summary: ProfileSummary): KpiPack {
       type: "ratio",
       numerator: { metric: "revenue" },
       denominator: { metric: "orders" },
-      unit: "ratio",
+      // Money per order, in revenue's currency when the profile knows it (analysis-library §6).
+      ...(money.currency ? { unit: "currency" as const, currency: money.currency } : { unit: "ratio" as const }),
       status: "assumed",
     });
   else miss("aov", "no_order_id");

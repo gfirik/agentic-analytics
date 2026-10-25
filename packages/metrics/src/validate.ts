@@ -161,7 +161,9 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
       const same = selfRatio(def.numerator, def.denominator, byId, catalog);
       if (same) reasons.push(`ratio "${def.id}" divides "${same}" by itself (always 1)`);
     }
-    if (def.unit !== "percent" && def.unit !== "ratio") reasons.push(`a ratio's unit must be percent or ratio, not ${def.unit}`);
+    // Money per unit (average order value: revenue ÷ orders) is a currency ratio; the schema then requires its ISO code.
+    if (def.unit !== "percent" && def.unit !== "ratio" && def.unit !== "currency")
+      reasons.push(`a ratio's unit must be percent, ratio or currency, not ${def.unit}`);
     return reasons;
   }
 

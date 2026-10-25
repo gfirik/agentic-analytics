@@ -222,7 +222,7 @@ From a sales-lines table's roles, code drafts these metric definitions (metric-l
 
 - **New and returning customers** have no history before the table's first period, so they are not stated for that period. Every customer there would read as new. The not-run entry says so.
 - **As built (M15 PR 7).** `salesKpiPack` (packages/metrics) drafts the table above from the roles, on the largest dated `sales_lines` table (else `invoices`; a table of another kind with the same roles is used last, as the name-based fallback was before roles). Details the table does not show:
-  - `aov` has unit `ratio` (the validator allows `percent` or `ratio` for a ratio; the currency is the revenue's).
+  - `aov` has unit `currency` in the revenue's currency (a ratio may be `percent`, `ratio` or `currency`: money per unit is a currency ratio); when the profile knows no currency it falls back to `ratio`.
   - `new_customers` and `returning_customers` are `count_distinct` metrics with `cohort: new | returning` (metric-layer §1). The compiler joins each customer's first revenue line in the table, whatever the query's period range, and leaves the table's first period out.
   - A status column is read by its values (refund or cancellation words in English, Russian, Uzbek) or, for a 0/1 or boolean column, by its header (`is_canceled`). Several status columns each add a revenue-line filter.
   - With no `amount`, revenue is Σ `quantity` × `unit_price`, gross: the net-of-discount identity needs an amount column, so no discount is subtracted.
