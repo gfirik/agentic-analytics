@@ -2225,6 +2225,10 @@ test.describe("motion", () => {
   });
 
   test("the pipeline's connector draws in as the rail comes into view; Play and the stops still step it", async ({ page }) => {
+    // Without the 3D machine (its chunk refused, so the band keeps its still frame, DESIGN §6): mounting it creates a
+    // WebGL context, a long task on CI's software renderer, and it could land inside the draw-in's short mid-draw window
+    // and starve the frames this test samples (main CI after #109). The machine's own tests cover the machine.
+    await page.route(/machine-3d[^/]*\.js(\?|$)/, (r) => r.abort());
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(LANDING, { waitUntil: "networkidle" });
     const root = page.locator("#how .aa-stages");
@@ -2280,6 +2284,8 @@ test.describe("motion", () => {
     for (const v of values) expect(html, v).toContain(v);
     const num = (s: string) => Number(s.replace(/[^\d.]/g, "")) || 0;
     await page.setViewportSize({ width: 1440, height: 900 });
+    // Without the 3D machine, for the same reason as the connector test above: its mount could starve the count's frames.
+    await page.route(/machine-3d[^/]*\.js(\?|$)/, (r) => r.abort());
     await page.goto(LANDING);
     // Mid-count: a running value drawn over the figure, never past the recorded one, the real text underneath unchanged.
     const mid = await page.waitForFunction(
