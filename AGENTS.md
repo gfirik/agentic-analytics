@@ -66,6 +66,10 @@ Do not add LangChain, LlamaIndex, LangGraph, NestJS, Prisma, any vector database
   - Every SQL template in `packages/analysis` has a test with a hand-computed expected answer.
 - **Logging:** structured logs through `packages/core/log`, with no `console.log` in library code. Every pipeline stage emits a progress event.
 - **Comments:** explain why, not what. Every analysis method links to its spec section.
+- **Structure** (the maintainer, 2026-10-25):
+  - The rule is single responsibility, high cohesion, low coupling and no duplication: one component or module per concern (a site page in section components, an Astro component's markup apart from its script, a test file by area).
+  - Size is not a cap; it triggers a structure check. A source file past about 500 lines, or a test file past about 1,000, is checked, and split only when it holds more than one responsibility. A PR that takes a file past that size does the check, and any split, in the same PR. Generated and data files are exempt.
+  - Reviews check structure too (responsibility, cohesion, coupling, duplication and naming), not only spec conformance. Site PRs get a quick structure review by the main session as well.
 
 ## 5. Git workflow
 
