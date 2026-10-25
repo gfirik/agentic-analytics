@@ -18,6 +18,7 @@ import { type Embedder, type Reranker, searchDocuments } from "@agentic-analytic
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
+import { normaliseDateFilter } from "./dates.ts";
 import { type Extract, extractFromHits } from "./extractor.ts";
 import { type SheetFact, sheetFact } from "./factsheet.ts";
 import { ScenarioInput } from "./scenario.ts";
@@ -78,11 +79,11 @@ export interface ToolContext {
   };
 }
 
-/** A real calendar day as YYYY-MM-DD ("2026-13-45" is refused, not searched for and silently empty). */
-const isoDay = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD")
-  .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)) && new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), "a real date");
+/**
+ * A date filter as a model sends it. Deliberately lenient in the schema: a schema failure aborts the whole stage, so
+ * the handler normalises (`normaliseDateFilter`) or refuses just that call with a readable error.
+ */
+const dateFilter = z.string().max(40).describe("YYYY-MM-DD, or YYYY-MM / YYYY for a whole month or year; omit or leave empty for no limit");
 
 type ToolResult = Record<string, unknown>;
 
@@ -177,12 +178,19 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
     z.object({
       query: z.string().min(2).max(200),
       sources: z.array(z.string()).max(20).optional(),
-      // ISO days only: "March 2026" or "2026-3-1" would compare wrong and silently match nothing.
-      from: isoDay.optional(),
-      to: isoDay.optional(),
+      from: dateFilter.optional(),
+      to: dateFilter.optional(),
     }),
     budget,
-    async ({ query, sources, from, to }) => {
+    async ({ query, sources, from: rawFrom, to: rawTo }) => {
+      // "March 2026" or "2026-3-1" would compare wrong and silently match nothing, so those are refused as a tool
+      // error the planner can read and retry; "", YYYY-MM and YYYY are normalised.
+      const f = normaliseDateFilter(rawFrom, "from");
+      if (!f.ok) return { error: f.error };
+      const t = normaliseDateFilter(rawTo, "to");
+      if (!t.ok) return { error: t.error };
+      const [from, to] = [f.date, t.date];
+      if (from && to && from > to) return { error: `from ${from} is after to ${to}` };
       const r = await searchDocuments(ctx.ws, query, {
         embedder: ctx.embedder,
         ...(ctx.reranker ? { reranker: ctx.reranker } : {}),

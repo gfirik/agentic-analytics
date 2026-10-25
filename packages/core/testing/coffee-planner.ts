@@ -88,13 +88,15 @@ function extract(r: FakeRequest): unknown {
   return QUOTES.find((q) => doc.includes(q.match))?.out ?? { events: [], statements: [], suspicious_instructions: false };
 }
 
-function investigate(r: FakeRequest, web: boolean): FakeScriptStep[] {
+function investigate(r: FakeRequest, web: boolean, dates?: { from: string; to: string }): FakeScriptStep[] {
   const m = /\(([\w.]+), ([\w]+), ([\d-]+)\)/.exec(r.prompt);
   const metric = m?.[2] ?? "";
   const period = m?.[3] ?? "";
   if (metric.includes("revenue") && !metric.includes("retail"))
     return [
-      { toolCalls: [{ toolName: "search_documents", input: { query: "wholesale price increase standing order paused" } }] },
+      {
+        toolCalls: [{ toolName: "search_documents", input: { query: "wholesale price increase standing order paused", ...(dates ?? {}) } }],
+      },
       { toolCalls: [{ toolName: "drill_down", input: { metric_id: "revenue", period, dimension: "customer" } }] },
       { text: "Investigation done." },
     ];
@@ -340,13 +342,15 @@ function answer(r: FakeRequest): unknown {
  * The scripted model for a full coffee-roaster job (normal or small-model mode). `sloppyDecide` answers DECIDE as the nightly runs' real planner often did (M14a): a numeral sentence in one
  * candidate's risk, an empty not_advised, and one extra candidate whose rationale carries a free numeral.
  */
-export function coffeePlanner(options: { small?: boolean; web?: boolean; sloppyDecide?: boolean } = {}): FakeModel {
+export function coffeePlanner(
+  options: { small?: boolean; web?: boolean; sloppyDecide?: boolean; searchDates?: { from: string; to: string } } = {},
+): FakeModel {
   const small = options.small === true;
   const web = options.web === true;
   const decideAnswer = options.sloppyDecide ? sloppy : candidates;
   return new FakeModel([
     { role: "extractor", match: "<document", repeat: true, object: extract },
-    { role: "planner", match: "Investigate finding", repeat: true, steps: (r: FakeRequest) => investigate(r, web) },
+    { role: "planner", match: "Investigate finding", repeat: true, steps: (r: FakeRequest) => investigate(r, web, options.searchDates) },
     { role: "planner", match: /Write the explanation|Fill the form/, repeat: true, object: (r: FakeRequest) => explanation(r, small) },
     { role: "planner", match: "Propose the candidate actions", repeat: true, object: decideAnswer },
     { role: "planner", match: "Write the headline", repeat: true, object: headline },

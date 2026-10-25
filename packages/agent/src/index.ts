@@ -25,6 +25,7 @@ export {
   severity,
   topDrivers,
 } from "./claims.ts";
+export { type DateEdge, type NormalisedDate, normaliseDateFilter } from "./dates.ts";
 export {
   bindIds,
   DecideAnswer,
