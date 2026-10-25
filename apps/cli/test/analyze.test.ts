@@ -104,7 +104,16 @@ describe("aa analyze", () => {
     expect(asked).not.toContain("Metric wholesale_revenue?");
     expect(asked).toContain("Metric revenue?");
     const report = JSON.parse(readFileSync(r.reportPath as string, "utf8")) as Report;
-    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(report.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
     expect(report.roles?.find((x) => x.table_id === "T1" && x.column === "channel")).toMatchObject({
       role: "dimension",
       source: "user",
@@ -120,8 +129,8 @@ describe("aa analyze", () => {
     const review = {
       show: (l: string) => lines.push(l),
       async choose(q: string): Promise<ReviewChoice> {
-        // Round 1: edit revenue badly. Round 2: accept revenue, drop "orders", accept the rest.
-        const c: ReviewChoice = round === 0 && q === "Metric revenue?" ? "edit" : round === 1 && q === "Metric orders?" ? "drop" : "accept";
+        // Round 1: edit revenue badly. Round 2: accept revenue, drop "units" (nothing divides by it; dropping "orders" would also refuse aov, which needs it), accept the rest.
+        const c: ReviewChoice = round === 0 && q === "Metric revenue?" ? "edit" : round === 1 && q === "Metric units?" ? "drop" : "accept";
         answers.push(c);
         return c;
       },
@@ -137,7 +146,7 @@ describe("aa analyze", () => {
     expect(lines.some((l) => /^(Not accepted|That edit did not parse)/.test(l))).toBe(true);
     expect(r.code).toBe(0);
     const report = JSON.parse(readFileSync(r.reportPath as string, "utf8")) as Report;
-    expect(report.metrics.map((m) => m.id)).not.toContain("orders");
+    expect(report.metrics.map((m) => m.id)).not.toContain("units");
     expect(report.metrics.every((m) => m.status === "confirmed")).toBe(true);
     expect(answers).toContain("drop");
   }, 180_000);

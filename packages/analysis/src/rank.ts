@@ -105,6 +105,8 @@ export interface TopOptions {
   readonly drivers?: ReadonlyMap<Insight, ReadonlySet<string>>;
   /** The objective metric (e.g. revenue): its family leads when it moved materially (see the lead order). */
   readonly objective?: string;
+  /** Slice id to the id of the metric it slices, by definition (metrics' `sliceParents`); ids it does not name fall back to the id-suffix rule. */
+  readonly slices?: ReadonlyMap<string, string>;
 }
 
 export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions = {}): Ranked[] {
@@ -144,7 +146,7 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   // only restates it. Families keep the order of their best score.
   const families = new Map<string, Ranked[]>();
   for (const r of reps.filter((x) => !x.insight.member)) {
-    const f = metricFamily(r.insight.metric, metrics);
+    const f = metricFamily(r.insight.metric, metrics, o.slices);
     families.set(f, [...(families.get(f) ?? []), r]);
   }
   const firsts = [...families.entries()].map(([family, rs]) => {
@@ -156,7 +158,10 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   // always ranks below the whole-metric restatements (eval suite, M13a). The members the chosen changes' decompositions
   // already name as their driver are told.
   const groupOf = (r: Ranked) => groups.get(`${r.insight.series}@${r.insight.period}`) ?? [r];
-  const told = new Set(firsts.flatMap((f) => groupOf(f).flatMap((x) => [...(o.drivers?.get(x.insight) ?? [])])));
+  // A change with no measured impact (a count, an average order value: score 0) comes after every material family and may
+  // not be shown, so the members its decomposition names are not "told" by it: with the KPI pack's counts in the set, their
+  // drivers swallowed the planted member story (M15 PR 7, online_store-v3).
+  const told = new Set(firsts.filter((f) => f.score > 0).flatMap((f) => groupOf(f).flatMap((x) => [...(o.drivers?.get(x.insight) ?? [])])));
 
   // The lead order (M14a). Small-model mode explains only three findings, and with a real model drafting 8–15 metrics
   // the other families (gross margin, net profit, a second sales measure, a channel share, order counts) each restated
@@ -166,9 +171,9 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   //
   // The lead is the objective's own change when it carries at least REPRESENTATIVE_SHARE of the best family's score:
   // gross margin or net profit often scores a little higher on the same event, but the report is about revenue.
-  const objectiveFamily = o.objective === undefined ? undefined : metricFamily(o.objective, metrics);
+  const objectiveFamily = o.objective === undefined ? undefined : metricFamily(o.objective, metrics, o.slices);
   const best = firsts[0];
-  const own = firsts.find((r) => metricFamily(r.insight.metric, metrics) === objectiveFamily);
+  const own = firsts.find((r) => metricFamily(r.insight.metric, metrics, o.slices) === objectiveFamily);
   const primary = own && best && own.score >= REPRESENTATIVE_SHARE * best.score ? own : best;
   // A change in the lead's period, in any metric and either direction, is usually the lead event seen through another
   // measure (margin falls with revenue; the other channel's share rises); a change in another period is another event.
@@ -194,7 +199,7 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   const parentOf = (r: Ranked) =>
     reps.find(
       (x) =>
-        (x.insight.metric === o.objective || x.insight.metric === metricFamily(r.insight.metric, metrics)) &&
+        (x.insight.metric === o.objective || x.insight.metric === metricFamily(r.insight.metric, metrics, o.slices)) &&
         x.insight.metric !== r.insight.metric &&
         x.insight.period === r.insight.period &&
         x.insight.member?.dimension === r.insight.member?.dimension &&
@@ -208,11 +213,11 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
   const rate = rest
     .filter((r) => insightChange(r.insight)?.unit === "percent")
     .sort((a, b) => otherEventsFirst(a, b) || Math.abs(relativeChange(b)) - Math.abs(relativeChange(a)) || b.score - a.score)[0];
-  // A family first with no measured change (a count, a trend) scores 0: material families come before it, whatever
-  // the period, so normal mode's slots 4–7 aren't spent on them.
-  const others = [...rest]
-    .sort((a, b) => Number(a.score === 0) - Number(b.score === 0) || otherEventsFirst(a, b))
-    .filter((r) => r !== rate);
+  // A family first with no measured change (a count, a trend) scores 0 and comes after every material change, whatever its
+  // period or whether it restates the lead. The KPI pack adds several such families (counts, average order value, units);
+  // ahead of the material changes they took slots 4–7 and pushed the planted member story out of the top 5
+  // (online_store-v3, M15 PR 7). They stay in the list, after everything that moved.
+  const others = rest.filter((r) => r !== rate && r.score > 0).sort(otherEventsFirst);
   const lead = [...(primary ? [primary] : []), ...(rate ? [rate] : []), ...(member ? [member] : []), ...others];
   return [...lead, ...reps.filter((r) => !lead.includes(r))].slice(0, max);
 }
@@ -221,6 +226,9 @@ export function topForExplain(ranked: readonly Ranked[], max = 7, o: TopOptions 
  * The family a metric belongs to: the other metric it is a slice of (`wholesale_revenue` → `revenue`), else itself.
  * A slice id is `<prefix>_<parent>` with a non-empty prefix, as the metric drafts name channel slices.
  */
-export function metricFamily(metric: string, metrics: readonly string[]): string {
+export function metricFamily(metric: string, metrics: readonly string[], slices?: ReadonlyMap<string, string>): string {
+  // By definition first (a slice shares its root's expression and has more filters), then by id.
+  const root = slices?.get(metric);
+  if (root && metrics.includes(root)) return root;
   return metrics.find((x) => x !== metric && metric.length > x.length + 1 && metric.endsWith(`_${x}`)) ?? metric;
 }

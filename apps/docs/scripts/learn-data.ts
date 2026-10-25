@@ -586,8 +586,9 @@ async function cliRuns() {
       { OLLAMA_BASE_URL: "http://127.0.0.1:9" },
     );
     const saved = readFileSync(join(tmp, "agentic-analytics.metrics.yaml"), "utf8");
-    // The column roles (one question), the business model, then the five metrics: refund_rate is dropped.
-    const answers = ["a", "a", "a", "a", "a", "a", "d"];
+    // The column roles (one question), the business model, then the ten metrics (the KPI pack's eight, then the retail and
+    // wholesale slices): refund_rate, the eighth, is dropped.
+    const answers = ["a", "a", "a", "a", "a", "a", "a", "a", "a", "d", "a", "a"];
     const review = await aa(
       ["analyze", "examples/coffee-roaster", ...base.split(" "), "--out", out("review")],
       tmp,

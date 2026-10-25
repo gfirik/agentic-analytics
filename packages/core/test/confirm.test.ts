@@ -49,7 +49,18 @@ describe("the confirm screen shows metrics and roles together", () => {
     ]);
     expect(v.business_model.status).toBe("assumed");
     expect(v.vocabulary).toContain("unit_cost");
-    expect(v.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "retail_revenue", "wholesale_revenue", "refund_rate"]);
+    expect(v.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+      "retail_revenue",
+      "wholesale_revenue",
+    ]);
     // the YAML to post back carries the same roles, and the plain-text screen lists roles before metrics
     expect(v.yaml).toContain("roles:");
     expect(v.metrics_yaml).not.toContain("roles:");
@@ -130,7 +141,16 @@ describe("changing a role", () => {
     const s = await manager.confirm("cf-edit", "version: 1\nroles:\n  - { table: t_t1, column: channel, role: dimension }\n");
     expect(s.status).toBe("awaiting_confirmation");
     const v = await manager.metrics("cf-edit");
-    expect(v.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(v.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
     expect(salesRoles(v)).toEqual({ ...SALES_ROLES, channel: "dimension" });
     expect(v.roles.find((r) => r.column === "channel" && r.table === "t_t1")).toMatchObject({
       status: "confirmed",
@@ -150,7 +170,16 @@ describe("changing a role", () => {
     await manager.confirm("cf-edit", `${v.metrics_yaml}roles:\n  - { table: t_t1, column: channel, role: dimension }\n`);
     expect((await manager.wait("cf-edit")).status).toBe("done");
     const report = await manager.report("cf-edit");
-    expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders", "refund_rate"]);
+    expect(report.metrics.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
     const channel = report.roles?.find((r) => r.table_id === "T1" && r.column === "channel");
     expect(channel).toMatchObject({ role: "dimension", status: "confirmed", source: "user" });
     expect(channel?.assumption).toBeUndefined();

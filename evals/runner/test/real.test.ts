@@ -226,7 +226,15 @@ describe("a job on invoice lines", () => {
         ["missing_id", 2, "sql", "count"],
       ]);
       expect(report.verification.numbers_mismatched).toBe(0);
-      expect(report.metrics.map((m) => m.id)).toEqual(["revenue", "orders"]);
+      expect(report.metrics.map((m) => m.id)).toEqual([
+        "revenue",
+        "orders",
+        "units",
+        "customers",
+        "new_customers",
+        "returning_customers",
+        "aov",
+      ]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

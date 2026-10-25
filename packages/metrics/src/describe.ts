@@ -25,7 +25,7 @@ function where(filters: readonly string[] | undefined): string {
   return parts.length ? ` where ${parts.join(" and ")}` : "";
 }
 
-function aggregate(type: MetricDef["type"], expression: string | undefined): string {
+function aggregate(type: MetricDef["type"], expression: string | undefined, cohort?: MetricDef["cohort"]): string {
   const e = expression ? safe(() => describeExpr(parseExpression(expression)), expression) : "";
   switch (type) {
     case "sum":
@@ -35,6 +35,7 @@ function aggregate(type: MetricDef["type"], expression: string | undefined): str
     case "count":
       return e ? `number of rows with ${e}` : "number of rows";
     case "count_distinct":
+      if (cohort) return `number of distinct ${e} whose first line is ${cohort === "new" ? "in" : "before"} the period`;
       return `number of distinct ${e}`;
     default:
       return e;
@@ -60,7 +61,7 @@ export function describeMetric(def: MetricDef, all: readonly MetricDef[] = [], g
   } else if (def.type === "derived") {
     body = safe(() => describeExpr(parseExpression(def.expression ?? "")), def.expression ?? "");
   } else {
-    body = `${aggregate(def.type, def.expression)}${where(def.filters)}`;
+    body = `${aggregate(def.type, def.expression, def.cohort)}${where(def.filters)}`;
   }
   const status = def.status === "assumed" ? " (assumed)" : "";
   return `${def.label} = ${body}${per}${unit}${status}`;

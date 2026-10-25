@@ -40,7 +40,7 @@ Without `--yes`, `aa analyze` stops after drafting and shows one screen: the col
 AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --embedder hash --today 2026-07-01 --currency USD
 ```
 
-The screen starts with the column roles, one line per column with its evidence (`t_t1.Amount → amount (header is "amount"; type currency fits)`). We accepted them, the business model and the first four metrics, and dropped `refund_rate`; the recording picks up at the table kinds:
+The screen starts with the column roles, one line per column with its evidence (`t_t1.Amount → amount (header is "amount"; type currency fits)`). We accepted them, the business model and the first seven metrics (the sales KPI pack: revenue, orders, units, customers, new and returning customers, average order value), dropped `refund_rate`, and accepted the two channel metrics; the recording picks up at the table kinds:
 
 <Transcript id="review" from="Table kinds:" lines={30} />
 
@@ -50,7 +50,7 @@ and the job went on. The end of the same run:
 
 Compare it with the first tutorial: the refund-rate finding and its recommendation are gone, because their metric was dropped, and the note about assumed metrics is gone, because every metric was confirmed. The roles you accepted are `confirmed` in `report.json` too; with `--yes` they stay `assumed`, and each one a metric reads carries an assumption on the findings that use it. The report records each metric's status, so a reader can always tell a confirmed definition from an assumed one.
 
-You can also answer from a script (`printf 'a\na\na\na\na\na\nd\n' | …`); if the answers run out before the questions, the job stops and says so instead of guessing.
+You can also answer from a script (`printf 'a\na\na\na\na\na\na\na\na\nd\na\na\n' | …`); if the answers run out before the questions, the job stops and says so instead of guessing.
 
 ## What you learned
 

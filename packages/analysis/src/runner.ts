@@ -1,7 +1,7 @@
 // MEASURE → DETECT → DECOMPOSE (ARCHITECTURE §2; docs/specs/analysis-library.md §1–6). Reads every metric
 // through the metric compiler (SQL in DuckDB), runs the templates and decomposers, ranks the findings and
 // records every number as a fact with its computation and citations (AGENTS.md §2.1–2.2).
-import { type Catalog, type Grain, runMetric } from "@agentic-analytics/metrics";
+import { type Catalog, type Grain, runMetric, sliceParents } from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
@@ -425,7 +425,7 @@ export async function analyzeJob(
     )[0];
     if (top) drivers.set(d.insight, new Set([...(drivers.get(d.insight) ?? []), `${d.dimension}=${top.key}`]));
   }
-  const explain = topForExplain(ranked, 7, { drivers, objective }).flatMap((r) => {
+  const explain = topForExplain(ranked, 7, { drivers, objective, slices: sliceParents(defs) }).flatMap((r) => {
     const id = idOf.get(r.insight);
     return id ? [{ id, score: r.score }] : [];
   });

@@ -60,9 +60,21 @@ describe("metrics.drafted.json in the job folder", () => {
     const record = JSON.parse(readFileSync(path, "utf8")) as DraftRecord;
     expect(record.source).toBe("model");
     expect(record.proposals).toEqual(DRAFT.metrics);
-    expect(record.accepted.map((m) => m.id)).toEqual(["revenue"]);
+    // the model's `revenue` is the pack's too (the pack is merged first); the pack adds the rest
+    expect(record.accepted.map((m) => m.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+    ]);
     expect(record.rejected).toEqual([
       expect.objectContaining({ id: "revenue_share", reasons: ['ratio "revenue_share" divides "revenue" by itself (always 1)'] }),
+      // the model's `revenue` has no status filter, the pack's does: the same id with a different definition
+      expect.objectContaining({ id: "revenue", reasons: ['id "revenue" is already used by a different definition'] }),
     ]);
   }, 180_000);
 

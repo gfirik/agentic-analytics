@@ -22,15 +22,15 @@ export {
   draftPrompt,
   draftRecord,
   fallbackMetrics,
-  groupingColumns,
-  MAX_GROUPING_VALUES,
   METRIC_LIBRARY,
   type PriorDraft,
   redraftMetrics,
-  withGroupingDimensions,
 } from "./draft.ts";
 export { metricsYaml, parseConfirmYaml, parseMetricsYaml, rolesYaml } from "./file.ts";
+export { type KpiId, type KpiPack, type NotDrafted, type NotDraftedReason, type SalesBase, salesKpiPack } from "./kpi-pack.ts";
 export { describeExpr, describeFilter, type MetricLangCode, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
+export { definitionKey, type Merged, mergeMetricSets, sliceParents } from "./merge.ts";
 export { saveMetricDefs } from "./persist.ts";
+export { groupingColumns, MAX_GROUPING_VALUES, withGroupingDimensions } from "./profile-columns.ts";
 export { type ReviewChoice, type ReviewIO, type ReviewOptions, type ReviewResult, reviewMetrics } from "./review.ts";
 export { type Rejected, type ValidateOptions, type Validation, validateMetrics } from "./validate.ts";

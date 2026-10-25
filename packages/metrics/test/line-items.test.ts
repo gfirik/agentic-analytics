@@ -38,6 +38,11 @@ describe("fallback metrics on invoice lines", () => {
     expect(defs.map((d) => [d.id, d.type, d.expression])).toEqual([
       ["revenue", "sum", "quantity * price"],
       ["orders", "count_distinct", "invoice"],
+      ["units", "sum", "quantity"],
+      ["customers", "count_distinct", "customer_id"],
+      ["new_customers", "count_distinct", "customer_id"],
+      ["returning_customers", "count_distinct", "customer_id"],
+      ["aov", "ratio", undefined],
     ]);
     expect(describeMetric(defs[0] as (typeof defs)[number])).toBe("Revenue = sum of quantity × price, per month, in GBP (assumed)");
     // January: 2×1.50 + 1×4.00 + 4×1.50 − 1×1.50 + 3×4.00 = 23.50; February: 10×1.25 + 2×4.00 + 1×1.50 + 5×4.00 − 2×1.50 = 39.00

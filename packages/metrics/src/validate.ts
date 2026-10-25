@@ -161,7 +161,9 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
       const same = selfRatio(def.numerator, def.denominator, byId, catalog);
       if (same) reasons.push(`ratio "${def.id}" divides "${same}" by itself (always 1)`);
     }
-    if (def.unit !== "percent" && def.unit !== "ratio") reasons.push(`a ratio's unit must be percent or ratio, not ${def.unit}`);
+    // Money per unit (average order value: revenue ÷ orders) is a currency ratio; the schema then requires its ISO code.
+    if (def.unit !== "percent" && def.unit !== "ratio" && def.unit !== "currency")
+      reasons.push(`a ratio's unit must be percent, ratio or currency, not ${def.unit}`);
     return reasons;
   }
 
@@ -182,6 +184,8 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
   const needNumeric = def.type === "sum" || def.type === "avg";
   checkTableTerm(table, def.table ?? "", def.expression, def.filters, needNumeric, reasons, "");
   if (!table) return reasons;
+  if (def.cohort && def.expression && !/^[a-z][a-z0-9_]*$/.test(def.expression.trim()))
+    reasons.push("a cohort counts one column: its expression must be a column name");
   if ((def.type === "sum" || def.type === "count" || def.type === "count_distinct") && def.unit === "percent") {
     reasons.push(`a ${def.type} of values can't be a percentage; use avg or a ratio`);
   }
@@ -209,7 +213,7 @@ function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly Met
 }
 
 /** The AST of a filter or expression as text, so spacing and redundant parentheses don't make two terms differ. */
-const canonical = (text: string, parse: (t: string) => unknown): string => {
+export const canonical = (text: string, parse: (t: string) => unknown): string => {
   try {
     return JSON.stringify(parse(text));
   } catch {
@@ -222,7 +226,7 @@ const canonical = (text: string, parse: (t: string) => unknown): string => {
  * sum over its table's date column (exactly what a table term compiles to), so `{table, expression, filters}` equal to
  * `{metric: revenue}` is caught too.
  */
-function termKey(t: RatioTerm, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
+export function termKey(t: RatioTerm, byId: ReadonlyMap<string, MetricDef>, catalog: Catalog): string {
   let table: string;
   let expression: string;
   let filters: readonly string[];

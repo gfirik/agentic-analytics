@@ -2,12 +2,15 @@
 // code validates every proposal. When no model is available (or it fails, or nothing it proposes is valid),
 // deterministic fallbacks draft the common metrics from column names and values (§2.4).
 import type { ModelClient } from "@agentic-analytics/models";
-import type { ProfileSummary, Role } from "@agentic-analytics/profile";
+import type { ProfileSummary } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { screen } from "@agentic-analytics/schema";
 import { z } from "zod";
 import type { Catalog } from "./catalog.ts";
 import { buildDigest, type Digest } from "./digest.ts";
+import { type KpiPack, type NotDrafted, salesKpiPack } from "./kpi-pack.ts";
+import { mergeMetricSets } from "./merge.ts";
+import { withGroupingDimensions, withRole } from "./profile-columns.ts";
 import { type ValidateOptions, type Validation, validateMetrics } from "./validate.ts";
 
 /** Common business metrics the model is guided by (spec §2.2). */
@@ -44,14 +47,51 @@ export function draftPrompt(digest: Digest): string {
 
 export interface DraftResult {
   readonly source: "model" | "fallback";
-  /** The drafts as proposed, before validation: the model's metrics, or the fallback's when it ran. */
+  /** The model's drafts as proposed, before validation, or (source `fallback`) the fallback's slices. Re-validated by `redraftMetrics`. */
   readonly proposals: readonly unknown[];
+  /** The metric set: the code's KPI pack, then the model's draft (or the fallback's slices), merged by definition. */
   readonly validation: Validation;
+  /** The KPIs the pack could not draft, and why (analysis-library §8.1, §13). */
+  readonly notDrafted: readonly NotDrafted[];
+  /** Metrics merged into an earlier one with the same definition: the id dropped and the id kept. */
+  readonly merged: readonly { readonly id: string; readonly into: string }[];
   /** When the model answered but nothing it proposed was valid: its proposals and why each was rejected. */
   readonly modelDraft?: { readonly proposals: readonly unknown[]; readonly validation: Validation };
   readonly digest: Digest;
   /** Why the model path wasn't used, when the fallback ran. */
   readonly note?: string;
+}
+
+/**
+ * The metric set, in order of precedence (metric-layer §2): the KPI pack first, then the model's validated draft, or
+ * the fallback's slices when no model draft is used. Duplicates by definition are merged into the earlier metric;
+ * a model metric whose id is taken by a different definition is rejected with the reason.
+ */
+function assemble(
+  summary: ProfileSummary,
+  catalog: Catalog,
+  options: ValidateOptions,
+  model: Validation | undefined,
+): Pick<DraftResult, "validation" | "notDrafted" | "merged"> {
+  const pack = salesKpiPack(summary);
+  const packed = validateMetrics(pack.defs, catalog, options);
+  const later = model ?? validateMetrics(fallbackSlices(summary, pack), catalog, options);
+  const { accepted, merged, dropped } = mergeMetricSets([packed.accepted, later.accepted], catalog);
+  const ids = new Set(accepted.map((d) => d.id));
+  const rejected = [
+    ...packed.rejected,
+    ...later.rejected,
+    ...dropped.map((d) => ({ id: d.id, proposal: later.accepted.find((m) => m.id === d.id) ?? d.id, reasons: d.reasons })),
+  ];
+  // A metric merged or dropped for a clash keeps the earlier one's assumption only.
+  const seen = new Set<string>();
+  const assumptions = [...packed.assumptions, ...later.assumptions, ...pack.assumptions].filter((a) => {
+    const key = `${a.metric}|${a.text}`;
+    if (seen.has(key) || !(ids.has(a.metric) || !a.metric)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { validation: { accepted, rejected, assumptions }, notDrafted: pack.notDrafted, merged };
 }
 
 export async function draftMetrics(
@@ -74,10 +114,9 @@ export async function draftMetrics(
         system: DRAFT_SYSTEM,
         prompt: draftPrompt(digest),
       });
-      const drafted = validateMetrics(object.metrics, catalog, options);
-      // A model often lists too few dimensions (no customer): code adds every grouping column the profile found.
-      const validation = { ...drafted, accepted: drafted.accepted.map((d) => withGroupingDimensions(d, summary)) };
-      if (validation.accepted.length) return { source: "model", proposals: object.metrics, validation, digest };
+      const validation = validateModelDraft(object.metrics, summary, catalog, options);
+      if (validation.accepted.length)
+        return { source: "model", proposals: object.metrics, ...assemble(summary, catalog, options, validation), digest };
       modelDraft = { proposals: object.metrics, validation };
       note = `the model proposed no valid metric (${validation.rejected.length} rejected); used deterministic fallbacks`;
     } catch (err) {
@@ -86,15 +125,25 @@ export async function draftMetrics(
   } else {
     note = `${options.noModelReason ?? "no model configured"}; used deterministic fallbacks`;
   }
-  const proposals = fallbackMetrics(summary);
   return {
     source: "fallback",
-    proposals,
-    validation: validateMetrics(proposals, catalog, options),
+    proposals: fallbackMetrics(summary),
+    ...assemble(summary, catalog, options, undefined),
     digest,
     note,
     ...(modelDraft ? { modelDraft } : {}),
   };
+}
+
+/** A model's proposals, validated; code adds every grouping column of the table, which a model often lists too few of. */
+function validateModelDraft(
+  proposals: readonly unknown[],
+  summary: ProfileSummary,
+  catalog: Catalog,
+  options: ValidateOptions,
+): Validation {
+  const drafted = validateMetrics(proposals, catalog, options);
+  return { ...drafted, accepted: drafted.accepted.map((d) => withGroupingDimensions(d, summary)) };
 }
 
 /** What a re-draft reads from the first draft: how it was made and, for a model's, what it proposed. */
@@ -106,16 +155,15 @@ export interface PriorDraft {
 
 /**
  * Drafts again after a person changed roles (semantics §5, metric-layer §3), with no model call: a model's draft does
- * not depend on roles and is re-validated as it was proposed; the deterministic drafts are rebuilt from the confirmed
- * roles. The same inputs always give the same definitions.
+ * not depend on roles and is re-validated as it was proposed; the KPI pack and the fallback's slices are rebuilt from
+ * the confirmed roles, and the two are merged as in the first draft. The same inputs always give the same definitions.
  */
 export function redraftMetrics(summary: ProfileSummary, catalog: Catalog, prior: PriorDraft, options: ValidateOptions = {}): Validation {
   if (prior.source === "model" && prior.proposals) {
-    const drafted = validateMetrics(prior.proposals, catalog, options);
-    const validation = { ...drafted, accepted: drafted.accepted.map((d) => withGroupingDimensions(d, summary)) };
-    if (validation.accepted.length) return validation;
+    const model = validateModelDraft(prior.proposals, summary, catalog, options);
+    if (model.accepted.length) return assemble(summary, catalog, options, model).validation;
   }
-  return validateMetrics(fallbackMetrics(summary), catalog, options);
+  return assemble(summary, catalog, options, undefined).validation;
 }
 
 /** What a job saves as `metrics.drafted.json`: every draft before validation and what validation made of it. A debug artifact with no stable schema (metric-layer §2.6). */
@@ -126,6 +174,9 @@ export interface DraftRecord {
   readonly accepted: readonly MetricDef[];
   readonly rejected: Validation["rejected"];
   readonly assumptions: Validation["assumptions"];
+  /** KPIs the pack could not draft and why; metrics merged into an earlier one with the same definition. */
+  readonly not_drafted: readonly NotDrafted[];
+  readonly merged: DraftResult["merged"];
   /** The model's rejected draft, when the fallback replaced it. */
   readonly model_draft?: { readonly proposals: readonly unknown[]; readonly rejected: Validation["rejected"] };
 }
@@ -139,52 +190,10 @@ export function draftRecord(draft: DraftResult): DraftRecord {
     accepted: draft.validation.accepted,
     rejected: draft.validation.rejected,
     assumptions: draft.validation.assumptions,
+    not_drafted: draft.notDrafted,
+    merged: draft.merged,
     ...(draft.modelDraft ? { model_draft: { proposals: draft.modelDraft.proposals, rejected: draft.modelDraft.validation.rejected } } : {}),
   };
-}
-
-const REFUND_VALUE = /refund|return|cancel|chargeback|возврат|отмен|qaytar/i;
-
-/** Grouping columns can have many values: the analysis keeps the top members and an "(other)" bucket. */
-export const MAX_GROUPING_VALUES = 2000;
-/** A category with at least this many distinct values per row (and more than 50) is an identifier, not a grouping. */
-export const ID_LIKE_SHARE = 0.5;
-/** Below this many rows the per-row share says nothing (60 customers in 100 rows is still a grouping). */
-export const ID_LIKE_MIN_ROWS = 500;
-
-type ProfiledTable = ProfileSummary["tables"][number];
-
-/**
- * The columns a change can be explained by (customer, channel, product, …): categories with 2 to
- * MAX_GROUPING_VALUES values, except a refund/return status column (a filter rather than a grouping) and id-like columns.
- */
-export function groupingColumns(table: ProfiledTable, statusCol?: ProfiledTable["columns"][number]): string[] {
-  const status = statusCol ?? table.columns.find((c) => c.type === "category" && c.top_values.some((v) => REFUND_VALUE.test(v.value)));
-  return (
-    table.columns
-      .filter((c) => c.type === "category" && c !== status && c.distinct_count >= 2 && c.distinct_count <= MAX_GROUPING_VALUES)
-      // A column whose header addresses a model is never a grouping: its name would reach the planner as a dimension,
-      // and a definition naming it is refused, which would cost the metric itself (security §3).
-      .filter((c) => !screen(c.label) && !screen(c.name))
-      // An id-like column (an invoice number, an email: nearly one value per row) explains nothing and multiplies the
-      // member series; a grouping repeats its values across rows.
-      .filter((c) => c.distinct_count <= 50 || table.detail_rows < ID_LIKE_MIN_ROWS || c.distinct_count < ID_LIKE_SHARE * table.detail_rows)
-      .map((c) => c.name)
-  );
-}
-
-/** A drafted sum, count or average gets every grouping column of its table, after the ones it named. */
-export function withGroupingDimensions(def: MetricDef, summary: ProfileSummary): MetricDef {
-  if (!["sum", "count", "count_distinct", "avg"].includes(def.type) || !def.table) return def;
-  const table = summary.tables.find((t) => t.name === def.table);
-  if (!table) return def;
-  const have = def.dimensions ?? [];
-  // A column the metric's filter pins to one value (`channel = 'wholesale'`) has a single member, whose series is
-  // the metric itself: splitting by it only restates the whole-metric change.
-  const pinned = (c: string) =>
-    (def.filters ?? []).some((f) => new RegExp(`(^|[^\\w"])"?${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?\\s*=\\s*'`).test(f));
-  const add = groupingColumns(table).filter((c) => !have.includes(c) && !pinned(c));
-  return add.length ? { ...def, dimensions: [...have, ...add] } : def;
 }
 
 /** Cell text becomes a metric id and label here, so it must look like a plain short name (security §3 screen). */
@@ -193,87 +202,23 @@ function safeMemberName(value: string): boolean {
   return value.length <= 40 && /^[\p{L}\p{N} ._-]+$/u.test(value) && !screen(value);
 }
 
-/** The table's columns that have a role, best score first (semantics §1: roles replaced the header regexes of M4). */
-function withRole(summary: ProfileSummary, table: ProfiledTable, ...roles: Role[]): ProfiledTable["columns"] {
-  const detected = summary.semantics?.roles.find((r) => r.table_id === table.table_id);
-  if (!detected) return [];
-  return detected.columns
-    .filter((c) => roles.includes(c.role))
-    .sort((a, b) => b.score - a.score || a.position - b.position)
-    .flatMap((c) => table.columns.filter((x) => x.name === c.column));
-}
-
 /**
- * What revenue sums, in the largest dated table that has it: a money-named amount column, or else a line total,
- * quantity × unit price, for line-item tables (an invoice line with Quantity and Price but no amount column).
- */
-function salesAmount(summary: ProfileSummary): { table: ProfiledTable; expression: string; currency?: string } | undefined {
-  const tables = [...summary.tables].filter((t) => t.date_column).sort((a, b) => b.detail_rows - a.detail_rows);
-  for (const t of tables) {
-    const money = withRole(summary, t, "amount").find((c) => c.type === "currency");
-    if (money) return { table: t, expression: money.name, ...(money.currency ? { currency: money.currency } : {}) };
-  }
-  for (const t of tables) {
-    const price = withRole(summary, t, "unit_price").find((c) => c.type === "currency");
-    const qty = withRole(summary, t, "quantity").find((c) => c.type === "integer" || c.type === "decimal");
-    if (price && qty)
-      return { table: t, expression: `${qty.name} * ${price.name}`, ...(price.currency ? { currency: price.currency } : {}) };
-  }
-  return undefined;
-}
-
-/**
- * Deterministic drafts (metric-layer §2 item 5): money-named currency columns (or quantity × unit price) become `revenue`; refund/return statuses give
- * `refund_rate`; an id column gives `orders`; a channel-like category with 2–5 values gives `<member>_revenue`.
+ * The deterministic drafts (metric-layer §2 steps 0 and 5) as proposals: the KPI pack, and a `<member>_revenue` slice
+ * for each member of a channel-like category with 2–5 values.
  */
 export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
-  const out: MetricDef[] = [];
-  const sales = salesAmount(summary);
-  if (!sales) return out;
-  const table = sales.table;
-  const money = { name: sales.expression, ...(sales.currency ? { currency: sales.currency } : {}) };
-  const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
-  const statusCol = table.columns.find((c) => c.type === "category" && c.top_values.some((v) => REFUND_VALUE.test(v.value)));
-  const refundValues = statusCol ? statusCol.top_values.map((v) => v.value).filter((v) => REFUND_VALUE.test(v)) : [];
-  // Rows with no status are not refunds, so they count towards revenue.
-  const notRefunded = statusCol ? [`${statusCol.name} IS NULL OR ${statusCol.name} NOT IN (${refundValues.map(quote).join(", ")})`] : [];
-  const dimensions = groupingColumns(table, statusCol);
-  const base = { table: table.name, time_column: table.date_column ?? "", status: "assumed" as const };
+  const pack = salesKpiPack(summary);
+  return [...pack.defs, ...fallbackSlices(summary, pack)];
+}
 
-  out.push({
-    id: "revenue",
-    label: "Revenue",
-    type: "sum",
-    expression: money.name,
-    ...(notRefunded.length ? { filters: notRefunded } : {}),
-    unit: "currency",
-    ...(money.currency ? { currency: money.currency } : {}),
-    dimensions,
-    ...base,
-  });
-  const idCol = table.columns.find((c) => c.type === "id");
-  if (idCol)
-    out.push({
-      id: "orders",
-      label: "Orders",
-      type: "count_distinct",
-      expression: idCol.name,
-      ...(notRefunded.length ? { filters: notRefunded } : {}),
-      unit: "count",
-      dimensions,
-      ...base,
-    });
-  if (statusCol) {
-    out.push({
-      id: "refund_rate",
-      label: "Refund rate",
-      type: "ratio",
-      numerator: { table: table.name, expression: money.name, filters: [`${statusCol.name} IN (${refundValues.map(quote).join(", ")})`] },
-      denominator: { metric: "revenue" },
-      unit: "percent",
-      status: "assumed",
-    });
-  }
+/** Revenue sliced by the members of the table's channel-role category (`wholesale_revenue`). */
+function fallbackSlices(summary: ProfileSummary, pack: KpiPack): MetricDef[] {
+  const sales = pack.base;
+  if (!sales) return [];
+  const table = sales.table;
+  const out: MetricDef[] = [];
+  const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
+  const base = { table: table.name, time_column: table.date_column ?? "", status: "assumed" as const };
   const channel = withRole(summary, table, "channel").find((c) => c.type === "category" && c.distinct_count >= 2 && c.distinct_count <= 5);
   for (const member of (channel?.top_values ?? []).filter((m) => safeMemberName(m.value))) {
     const id = `${member.value
@@ -285,10 +230,10 @@ export function fallbackMetrics(summary: ProfileSummary): MetricDef[] {
       id,
       label: `${member.value.charAt(0).toUpperCase()}${member.value.slice(1)} revenue`,
       type: "sum",
-      expression: money.name,
-      filters: [...notRefunded, `${channel?.name ?? ""} = ${quote(member.value)}`],
+      expression: sales.expression,
+      filters: [...sales.revenueLines, `${channel?.name ?? ""} = ${quote(member.value)}`],
       unit: "currency",
-      ...(money.currency ? { currency: money.currency } : {}),
+      ...(sales.currency ? { currency: sales.currency } : {}),
       ...base,
     });
   }

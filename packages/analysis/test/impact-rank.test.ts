@@ -221,7 +221,7 @@ describe("ranking (spec §6)", () => {
     ).toBe("gross_margin");
     // Another event comes before a restatement of the lead's period: a rate break three months earlier takes the rate
     // slot from a larger rate move in the lead's own period, and the same holds for members. A family with no measured
-    // change (score 0) comes after every material one, whatever its period.
+    // change (score 0) comes after every material change, whatever its period (M15 PR 7: also after the restating member).
     const periods = [
       mk({ metric: "revenue", score: 0.12, unit: "currency" }),
       mk({ metric: "margin_rate", score: 0.04, unit: "percent", pct: -40 }),
@@ -237,10 +237,60 @@ describe("ranking (spec §6)", () => {
       "revenue|product=Old",
       "net_profit",
       "margin_rate",
-      "orders_count",
+      "revenue|product=Same",
     ]);
+    expect(topForExplain(periods, 7, { objective: "revenue" }).map((r) => r.insight.series)).toContain("orders_count");
     // Without the objective named, the slice speaks (its id isn't `<prefix>_total_revenue`).
     expect(topForExplain(sliced, 2).map((r) => r.insight.series)).toEqual(["total_revenue", "revenue_by_channel_walkin|product=Old"]);
+  });
+
+  it("a pack-sized metric set keeps the planted events in the top 5: families by definition, not by id suffix (M15 PR 7)", () => {
+    // The KPI pack adds orders, units, customers, new and returning customers, aov and the order helpers to revenue and a
+    // refund rate. Counts and the aov score 0 here (spec §6: only money and percent changes carry an impact), the
+    // pack's slices (`refunded_orders` of `all_orders`) are named by what they count, and a channel slice whose id has no
+    // `_revenue` suffix (`walkin_sales`) is still revenue's slice. P1 is the revenue drop, P2 the refund rate, P3 the
+    // member story.
+    const mk = (metric: string, period: string, score: number, unit: string, member?: string) => ({
+      insight: {
+        template: "period_change.v1",
+        metric,
+        series: member ? `${metric}|customer=${member}` : metric,
+        period,
+        roles: { change: "N1" },
+        calcs: [{ name: "change", value: 1, unit }],
+        ...(member ? { member: { dimension: "customer", value: member } } : {}),
+      } as unknown as Insight,
+      impactShare: score,
+      score,
+    });
+    const ranked = [
+      mk("revenue", "2026-06", 0.27, "currency"),
+      mk("walkin_sales", "2026-06", 0.26, "currency"),
+      mk("units", "2026-06", 0, "count"),
+      mk("orders", "2026-06", 0, "count"),
+      mk("customers", "2026-06", 0, "count"),
+      mk("new_customers", "2026-06", 0, "count"),
+      mk("returning_customers", "2026-06", 0, "count"),
+      mk("refunded_orders", "2026-06", 0, "count"),
+      mk("aov", "2026-06", 0, "ratio"),
+      mk("refund_rate", "2026-05", 0.012, "percent"),
+      mk("revenue", "2026-04", 0.19, "currency", "Key Co"),
+      // P4: a smaller member change in another month (the planted Linen throw of online_store-v3, M15 PR 7)
+      mk("revenue", "2026-02", 0.05, "currency", "Linen throw"),
+    ];
+    const slices = new Map([["walkin_sales", "revenue"]]);
+    const top = topForExplain(ranked, 5, { objective: "revenue", slices }).map((r) => [r.insight.series, r.insight.period]);
+    expect(top.slice(0, 3)).toEqual([
+      ["revenue", "2026-06"],
+      ["refund_rate", "2026-05"],
+      ["revenue|customer=Key Co", "2026-04"],
+    ]);
+    // The count families (score 0) come after every material change, so they cannot push the smaller planted member out of the top 5.
+    expect(topForExplain(ranked, 5, { objective: "revenue", slices }).map((r) => r.insight.series)).toContain(
+      "revenue|customer=Linen throw",
+    );
+    // The slice is in revenue's family: it does not take a second family slot ahead of the count families.
+    expect(top.slice(0, 3).map(([s]) => s)).not.toContain("walkin_sales");
   });
 
   it("metricFamily: a slice id is <prefix>_<parent>", () => {

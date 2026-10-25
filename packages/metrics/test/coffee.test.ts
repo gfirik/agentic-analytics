@@ -95,8 +95,9 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
         ?.dimensions?.slice()
         .sort(),
     ).toEqual(["customer", "product"]);
-    // revenue keeps the model's order.
-    expect(defs.find((d) => d.id === "revenue")?.dimensions).toEqual(["channel", "customer", "product"]);
+    // The model's `revenue` filters `status <> 'refunded'`; the pack's is a different definition under the same id, so the
+    // pack's stays (metric-layer §2 precedence) and takes the table's grouping columns in column order.
+    expect(defs.find((d) => d.id === "revenue")?.dimensions).toEqual(["customer", "channel", "product"]);
     // Ratios are left alone.
     expect(defs.find((d) => d.id === "refund_rate")?.dimensions).toBeUndefined();
   });
@@ -107,7 +108,18 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
     const draft = await draftMetrics(summary, catalog, { model, defaultCurrency: "USD" });
     expect(draft.source).toBe("model");
     const defs = draft.validation.accepted;
-    expect(defs.map((d) => d.id)).toEqual(["revenue", "wholesale_revenue", "refund_rate"]);
+    // The code's KPI pack first, then the model's metrics the pack does not already hold.
+    expect(defs.map((d) => d.id)).toEqual([
+      "revenue",
+      "orders",
+      "units",
+      "customers",
+      "new_customers",
+      "returning_customers",
+      "aov",
+      "refund_rate",
+      "wholesale_revenue",
+    ]);
 
     // revenue: answers.yaml 41,200 · 42,900 · 44,100 · 36,200 · 35,800 · 37,000
     expect(await monthly(ws, "revenue", defs, catalog)).toEqual(answers.monthly.map((m) => [m.month, expect.closeTo(m.revenue, 6)]));
@@ -115,15 +127,22 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
     expect(await monthly(ws, "wholesale_revenue", defs, catalog)).toEqual(
       answers.monthly.map((m) => [m.month, expect.closeTo(m.wholesale, 6)]),
     );
-    // refund rate = refunded amount / revenue × 100: 1.1 · 1.0 · 1.2 · 1.3 · 2.9 · 3.4 (e.g. March 529.20 / 44,100 × 100 = 1.2)
+    // refund rate = refunded amount / revenue × 100: 1.1 · 1.0 · 1.2 · 1.3 · 2.9 · 3.4 (e.g. March 529.20 / 44,100 × 100 = 1.2). The
+    // model's `refund_rate` is the pack's value under a different spelling of the filter (`=` against `IN`), so the pack's
+    // stays and the model's is rejected with the id clash (metric-layer §2 precedence).
     expect(await monthly(ws, "refund_rate", defs, catalog)).toEqual(
       answers.monthly.map((m) => [m.month, expect.closeTo(m.refund_rate_pct, 9)]),
     );
+    const clash = draft.validation.rejected.find((r) => r.id === "refund_rate");
+    expect(clash?.reasons.join(" ")).toContain('id "refund_rate" is already used by a different definition');
 
     const [revenue] = defs;
     if (!revenue) throw new Error("revenue missing");
-    expect(describeMetric(revenue, defs)).toBe("Revenue = sum of amount where status is not refunded, per month, in USD (assumed)");
+    expect(describeMetric(revenue, defs)).toBe(
+      "Revenue = sum of amount where status is empty or status is not refunded, per month, in USD (assumed)",
+    );
     expect(draft.validation.assumptions.map((a) => a.metric)).toEqual(["revenue", "wholesale_revenue"]);
+    expect(draft.notDrafted.map((n) => n.kpi)).toEqual(["cancellation_rate", "discount_rate"]);
   });
 
   it("rejects invalid proposals with reasons", async () => {
@@ -131,7 +150,7 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
     const model = new FakeModel([{ role: "extractor", match: "<DATA>", object: PROPOSAL }]);
     const { validation } = await draftMetrics(summary, catalog, { model, defaultCurrency: "USD" });
     const reasons = Object.fromEntries(validation.rejected.map((r) => [r.id, r.reasons.join(" | ")]));
-    expect(Object.keys(reasons).sort()).toEqual(["avg_customer", "hack", "loop", "profit", "refunded", "share"]);
+    expect(Object.keys(reasons).sort()).toEqual(["avg_customer", "hack", "loop", "profit", "refund_rate", "refunded", "revenue", "share"]);
     expect(reasons.profit).toContain('table "t_sales" does not exist');
     expect(reasons.avg_customer).toContain('column "customer" is category, not a number');
     expect(reasons.refunded).toContain("filter \"status LIKE 'ref%'\"");
@@ -162,7 +181,18 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
     expect(draft.source).toBe("fallback");
     expect(draft.note).toContain("model was unavailable");
     const defs = draft.validation.accepted;
-    expect(defs.map((d) => d.id).sort()).toEqual(["orders", "refund_rate", "retail_revenue", "revenue", "wholesale_revenue"]);
+    expect(defs.map((d) => d.id).sort()).toEqual([
+      "aov",
+      "customers",
+      "new_customers",
+      "orders",
+      "refund_rate",
+      "retail_revenue",
+      "returning_customers",
+      "revenue",
+      "units",
+      "wholesale_revenue",
+    ]);
     expect(await monthly(ws, "revenue", defs, catalog)).toEqual(answers.monthly.map((m) => [m.month, expect.closeTo(m.revenue, 6)]));
     expect(await monthly(ws, "wholesale_revenue", defs, catalog)).toEqual(
       answers.monthly.map((m) => [m.month, expect.closeTo(m.wholesale, 6)]),

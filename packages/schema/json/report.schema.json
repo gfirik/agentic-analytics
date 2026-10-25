@@ -355,6 +355,13 @@
               "type": "string"
             }
           },
+          "cohort": {
+            "type": "string",
+            "enum": [
+              "new",
+              "returning"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
