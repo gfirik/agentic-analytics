@@ -1,0 +1,324 @@
+{
+  "suite": "golden",
+  "split": "dev",
+  "model": "openai-compatible:groq:openai/gpt-oss-20b",
+  "date": "2026-10-23",
+  "runs": [
+    {
+      "dataset": "hotel-bookings",
+      "split": "dev",
+      "model": "openai-compatible:groq:openai/gpt-oss-20b",
+      "completed": false,
+      "error": "EXPLAIN failed: Tool call validation failed: tool call validation failed: parameters for tool search_documents did not match schema: errors: [`/from`: '' does not match pattern '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', `/to`: '' does not match pattern '^\\\\d{4}-\\\\d{2}-\\\\d{2}$']",
+      "seconds": 236.361,
+      "items": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)?",
+          "source": "fact",
+          "expected": "1809324.75"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)?",
+          "source": "fact",
+          "expected": "1970181.6"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)?",
+          "source": "ask",
+          "expected": "41.73"
+        },
+        {
+          "id": "G4",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "Which deposit type has the highest cancellation rate, both hotels and all arrival dates together?",
+          "source": "ask",
+          "expected": "Non Refund"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (May minus April, EUR)?",
+          "source": "ask",
+          "expected": "118669.91"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included?",
+          "source": "ask",
+          "expected": "81.98"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel?",
+          "source": "ask",
+          "expected": "Resort Hotel"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was the gross operating profit margin of the two hotels in 2016?",
+          "source": "ask",
+          "expected": "refusal"
+        }
+      ],
+      "summary": {
+        "numericCategorical": {
+          "passed": 0,
+          "of": 7
+        },
+        "traps": {
+          "passed": 0,
+          "of": 1
+        },
+        "notCounted": 0
+      }
+    },
+    {
+      "dataset": "nz-card-spend",
+      "split": "dev",
+      "model": "openai-compatible:groq:openai/gpt-oss-20b",
+      "completed": false,
+      "error": "EXPLAIN failed: Tool call validation failed: tool call validation failed: parameters for tool search_documents did not match schema: errors: [`/from`: '2020-03' does not match pattern '^\\\\d{4}-\\\\d{2}-\\\\d{2}$', `/to`: '2020-04' does not match pattern '^\\\\d{4}-\\\\d{2}-\\\\d{2}$']",
+      "seconds": 66.55,
+      "items": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was total card spending, all industry groups together, in December 2025 (NZD million)?",
+          "source": "fact",
+          "expected": "11321.6"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)?",
+          "source": "fact",
+          "expected": "9190.7"
+        },
+        {
+          "id": "G3",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020?",
+          "source": "driver",
+          "expected": "Durables"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)?",
+          "source": "ask",
+          "expected": "-3803.7"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What share of 2025 card spending, in percent, was in the Consumables industry group?",
+          "source": "ask",
+          "expected": "29.015"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier?",
+          "source": "ask",
+          "expected": "1.25"
+        },
+        {
+          "id": "G7",
+          "kind": "trap",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was the average value of a card transaction in 2025?",
+          "source": "ask",
+          "expected": "refusal"
+        }
+      ],
+      "summary": {
+        "numericCategorical": {
+          "passed": 0,
+          "of": 6
+        },
+        "traps": {
+          "passed": 0,
+          "of": 1
+        },
+        "notCounted": 0
+      }
+    },
+    {
+      "dataset": "online-retail-ii",
+      "split": "dev",
+      "model": "openai-compatible:groq:openai/gpt-oss-20b",
+      "completed": false,
+      "error": "EXPLAIN failed: Request too large for model `openai/gpt-oss-20b` in organization `org_***` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Requested 39207, please reduce your message size and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+      "seconds": 66.365,
+      "items": [
+        {
+          "id": "G1",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010?",
+          "source": "fact",
+          "expected": "140447.11"
+        },
+        {
+          "id": "G2",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "How many distinct invoices (cancellation invoices included) were there in December 2010?",
+          "source": "fact",
+          "expected": "201"
+        },
+        {
+          "id": "G3",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011?",
+          "source": "ask",
+          "expected": "145480.93"
+        },
+        {
+          "id": "G4",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011?",
+          "source": "ask",
+          "expected": "37570.84"
+        },
+        {
+          "id": "G5",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with no customer ID stay in the total.",
+          "source": "ask",
+          "expected": "13.7"
+        },
+        {
+          "id": "G6",
+          "kind": "numeric",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier?",
+          "source": "ask",
+          "expected": "3.58"
+        },
+        {
+          "id": "G7",
+          "kind": "categorical",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "Which country accounted for most of the fall in invoices from November to December 2010?",
+          "source": "driver",
+          "expected": "United Kingdom"
+        },
+        {
+          "id": "G8",
+          "kind": "trap",
+          "split": "dev",
+          "pass": false,
+          "got": "no report",
+          "counts": true,
+          "question": "What was the gross margin on 2011 sales?",
+          "source": "ask",
+          "expected": "refusal"
+        }
+      ],
+      "summary": {
+        "numericCategorical": {
+          "passed": 0,
+          "of": 7
+        },
+        "traps": {
+          "passed": 0,
+          "of": 1
+        },
+        "notCounted": 0
+      }
+    }
+  ]
+}

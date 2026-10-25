@@ -126,66 +126,66 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 
 
 </details>
 
-### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-21
+### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-23
 
-The before of the M14a real-model before/after: run over two nights (2026-10-20 and 2026-10-21) on the engine before the M14a fixes (#44–#49), and scored with the scoring of that time (before code-quality fix 9). The next nightly runs measure the merged fixes.
+The after of the M14a real-model before/after: run over two nights (2026-10-22 and 2026-10-23) on the engine with the M14a fixes and M14 (main 7fa1eb1 to 01a594f; no engine code changed between the passes). 28 of 30 jobs finished; agency-v3 stopped at the planner's daily rate limit and printing_shop-v3 failed (the planner's EXPLAIN output failed validation after 3 attempts); both count as misses. Against the before (2026-10-21, every job finished): planted recall@5 68% → 84%.
 
-Passes: 2026-10-20, 2026-10-21 (2 of up to 2; every job finished).
+Passes: 2026-10-22, 2026-10-23 (2 of up to 2; partial: jobs still unfinished after the last pass).
 
-30 datasets · 1681 s · 1007951 tokens
+30 datasets · 3228 s · 1050723 tokens
 
-Usage: n/a (tokens per call not recorded for this run)
+Usage: 511,438 tokens in, 105,040 out · 872 calls (448 cached at 0 tokens, 71 without a token count)
 
-Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (540 calls, 467 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (120 calls, 111 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (177 calls, 96 cached, 35 failed)
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (540 calls, 313 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (132 calls, 122 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (200 calls, 13 cached, 71 failed)
 
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
-| Jobs completed | 100.0% | 100% | yes |
-| Number mismatches | 0 | 0 | yes |
-| Planted recall@5 | 68.0% | ≥ 80% | **no** |
-| Driver accuracy | 100.0% | ≥ 90% | yes |
-| Cause grade accuracy | 67.6% | ≥ 80% | **no** |
-| Distractor FP rate | 0.0% | ≤ 10% | yes |
-| Quality-issue recall | 100.0% | ≥ 90% | yes |
-| Citation precision | 100.0% | ≥ 95% | yes |
-| Definition adherence | 96.7% | 100% | **no** |
-| Recommendation grounding | 100.0% | 100% | yes |
-| Recommendation relevance | 30.0% | ≥ 70% | **no** |
+| Jobs completed | 93.3% | 100% | **no** |
+| Number mismatches | 0 | 0 | n/a (partial run) |
+| Planted recall@5 | 84.0% | ≥ 80% | n/a (partial run) |
+| Driver accuracy | 100.0% | ≥ 90% | n/a (partial run) |
+| Cause grade accuracy | 83.3% | ≥ 80% | n/a (partial run) |
+| Distractor FP rate | 0.0% | ≤ 10% | n/a (partial run) |
+| Quality-issue recall | 95.0% | ≥ 90% | n/a (partial run) |
+| Citation precision | 99.2% | ≥ 95% | n/a (partial run) |
+| Definition adherence | 100.0% | 100% | n/a (partial run) |
+| Recommendation grounding | 100.0% | 100% | n/a (partial run) |
+| Recommendation relevance | 46.4% | ≥ 70% | n/a (partial run) |
 
 <details><summary>Per dataset</summary>
 
 | Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
 |---|---|---|---|---|---|---|
-| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 4.5 s |
-| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 7.0 s |
-| coffee_roaster-v3 | yes | 1/2 | none | 1/1 | 3 | 5.7 s |
-| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 4.0 s |
-| printing_shop-v2 | yes | 1/2 | none | 1/1 | 3 | 5.9 s |
-| printing_shop-v3 | yes | 1/2 | none | 1/1 | 3 | 5.3 s |
-| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 4.4 s |
-| clinic-v2 | yes | 1/2 | none | 1/1 | 3 | 7.8 s |
-| clinic-v3 | yes | 1/2 | none | 1/1 | 3 | 5.2 s |
-| online_store-v1 | yes | 1/1 | none | 2/2 | 3 | 4.5 s |
-| online_store-v2 | yes | 1/2 | none | 1/1 | 3 | 11.1 s |
-| online_store-v3 | yes | 1/2 | none | 1/1 | 3 | 8.4 s |
-| distributor-v1 | yes | 1/1 | none | 2/2 | 3 | 2.8 s |
-| distributor-v2 | yes | 1/2 | none | 1/1 | 3 | 5.0 s |
-| distributor-v3 | yes | 1/2 | none | 1/1 | 3 | 70.2 s |
-| restaurant-v1 | yes | 1/1 | none | 2/2 | 3 | 3.7 s |
-| restaurant-v2 | yes | 2/2 | none | 1/1 | 3 | 36.7 s |
-| restaurant-v3 | yes | 1/2 | none | 1/1 | 3 | 7.4 s |
-| saas-v1 | yes | 1/1 | none | 2/2 | 3 | 137.7 s |
-| saas-v2 | yes | 2/2 | none | 1/1 | 3 | 4.9 s |
-| saas-v3 | yes | 1/2 | none | 1/1 | 3 | 6.5 s |
-| logistics-v1 | yes | 1/1 | none | 2/2 | 3 | 76.8 s |
-| logistics-v2 | yes | 2/2 | none | 1/1 | 3 | 119.5 s |
-| logistics-v3 | yes | 1/2 | none | 1/1 | 3 | 190.8 s |
-| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 3 | 215.3 s |
-| construction_supplier-v2 | yes | 1/2 | none | 1/1 | 3 | 248.0 s |
-| construction_supplier-v3 | yes | 1/2 | none | 1/1 | 3 | 176.8 s |
-| agency-v1 | yes | 1/1 | none | 2/2 | 3 | 206.1 s |
-| agency-v2 | yes | 1/2 | none | 1/1 | 3 | 89.6 s |
-| agency-v3 | yes | 1/2 | none | 1/1 | 3 | 8.9 s |
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 83.9 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 161.1 s |
+| coffee_roaster-v3 | yes | 2/2 | none | 1/1 | 3 | 113.8 s |
+| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 142.4 s |
+| printing_shop-v2 | yes | 2/2 | none | 1/1 | 3 | 99.6 s |
+| printing_shop-v3 | no (INVALID_OUTPUT: EXPLAIN failed: structured output failed val) | 0/2 | none | 0/1 | 0 | 6.0 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 187.4 s |
+| clinic-v2 | yes | 2/2 | none | 1/1 | 3 | 147.8 s |
+| clinic-v3 | yes | 2/2 | none | 1/1 | 3 | 98.6 s |
+| online_store-v1 | yes | 1/1 | none | 2/2 | 3 | 130.6 s |
+| online_store-v2 | yes | 2/2 | none | 1/1 | 3 | 81.8 s |
+| online_store-v3 | yes | 1/2 | none | 1/1 | 3 | 152.5 s |
+| distributor-v1 | yes | 1/1 | none | 2/2 | 3 | 91.1 s |
+| distributor-v2 | yes | 1/2 | none | 1/1 | 3 | 104.4 s |
+| distributor-v3 | yes | 2/2 | none | 1/1 | 3 | 11.1 s |
+| restaurant-v1 | yes | 1/1 | none | 2/2 | 3 | 53.2 s |
+| restaurant-v2 | yes | 2/2 | none | 1/1 | 3 | 79.1 s |
+| restaurant-v3 | yes | 2/2 | none | 1/1 | 3 | 126.4 s |
+| saas-v1 | yes | 1/1 | none | 2/2 | 3 | 96.8 s |
+| saas-v2 | yes | 2/2 | none | 1/1 | 3 | 95.0 s |
+| saas-v3 | yes | 2/2 | none | 1/1 | 3 | 61.8 s |
+| logistics-v1 | yes | 1/1 | none | 2/2 | 3 | 180.8 s |
+| logistics-v2 | yes | 2/2 | none | 1/1 | 3 | 92.2 s |
+| logistics-v3 | yes | 2/2 | none | 1/1 | 3 | 181.7 s |
+| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 3 | 90.2 s |
+| construction_supplier-v2 | yes | 1/2 | none | 1/1 | 3 | 106.8 s |
+| construction_supplier-v3 | yes | 2/2 | none | 1/1 | 3 | 98.2 s |
+| agency-v1 | yes | 1/1 | none | 2/2 | 3 | 98.8 s |
+| agency-v2 | yes | 1/2 | none | 1/1 | 3 | 93.5 s |
+| agency-v3 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 161.2 s |
 
 </details>
 
@@ -400,6 +400,13 @@ Golden v1 is the **dev split** of three real datasets' golden sets (Online Retai
 | Ablation on golden v1, scripted | `bun run eval:ablation -- --arms A,B,C --suite golden` | Numeric accuracy: A 8/16, B 0/16, C 6/16; traps: A 0/3, B 3/3, C 0/3 (23 tasks). C − A −0.217 [−0.478, 0.043]; C − B 0.174 [−0.087, 0.435]; B − A −0.391 [−0.652, −0.087] |
 
 Each difference is paired by task, with its 95% interval from the paired bootstrap (10,000 resamples, fixed seed 20261022, docs/specs/accuracy.md §5). The canned answers decide these numbers: arm A answers every other numeric item right by design, and arm B replays each item's answer SQL, which reads the raw file with `read_csv`, so the locked sandbox refuses every one (`SQL_REFUSED`: the containment working) and arm B ends in a refusal. Arm A saw a sample of each file (the cut is stated below with its numbers).
+
+**Real-model runs from the nightly deferred slot.** The slot runs one queued job a night on a Groq model of its own; from 2026-10-23 Groq serves no spare chat model, so it shares the judge's `openai/gpt-oss-20b` for every role ([Nightly deferred slot, 2026-10-23]).
+
+| Run | Command | Result |
+|---|---|---|
+| Golden v1 on gpt-oss-20b (dev split), 2026-10-23 | `bun run eval -- --suite golden --model openai-compatible:groq:openai/gpt-oss-20b` | **0/23**: every job failed before a report, so this measures the model's fit to the engine, not its accuracy. Hotel bookings and NZ card spend: the planner sent `search_documents` dates the tool's schema refuses (empty strings; `2020-03` for a month), and the job stopped. Online Retail II: a 39,207-token request against the model's free-tier limit of 8,000 tokens a minute. Page: `5-golden-dev-groq-gpt-oss-20b.md` |
+| Ablation on smoke, 2026-10-24 | `bun run eval:ablation -- --arms A,B,C --suite smoke --model openai-compatible:groq:openai/gpt-oss-20b` | **Not a result, not published**: the network was down; all 36 model calls failed (`fetch failed`, ETIMEDOUT), and the ablation runner reported 0% on every arm with 0 tokens instead of failing. Queued again |
 
 **Not run here (DEFERRED to the nightly runs, docs/progress/STATE.md "Deferred checks"):** golden v1 on the configured Groq routes (`bun run eval:real:fetch && bun run eval -- --suite golden --model configured`); consistency over 5 runs on smoke with the configured model, cache off (`bun run eval -- --suite smoke --repeat 5 --model configured`); the ablation on a free model (`bun run eval:ablation -- --arms A,B,C --suite smoke --model openai-compatible:groq:openai/gpt-oss-120b` and the same with `--suite golden`); EIA-861M's pinning and golden set.
 
@@ -621,3 +628,51 @@ Bootstrap: 10,000 paired resamples, fixed seed (accuracy.md §5).
 | B | online-retail-ii | G6 | 0 | refused: SQL_REFUSED |
 | B | online-retail-ii | G7 | 0 | refused: SQL_REFUSED |
 | B | online-retail-ii | G8 | 1 | refused: no column answers it (SQL_REFUSED) |
+
+### Golden v1: openai-compatible:groq:openai/gpt-oss-20b · dev split · 2026-10-23
+
+Items are agent-reviewed, not maintainer-reviewed. An item counts toward the bars only when its independent re-derivation agreed.
+
+#### hotel-bookings
+
+Job failed: EXPLAIN failed: Tool call validation failed: tool call validation failed: parameters for tool search_documents did not match schema: errors: [`/from`: '' does not match pattern '^\\d{4}-\\d{2}-\\d{2}$', `/to`: '' does not match pattern '^\\d{4}-\\d{2}-\\d{2}$'] in 236.4 s · 0/8 items pass · counted toward the bars: 0/7 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | **no** | 1809324.75 | no report | What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)? |
+| G2 | numeric | fact | **no** | 1970181.6 | no report | What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)? |
+| G3 | numeric | ask | **no** | 41.73 | no report | What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)? |
+| G4 | categorical | ask | **no** | Non Refund | no report | Which deposit type has the highest cancellation rate, both hotels and all arrival dates together? |
+| G5 | numeric | ask | **no** | 118669.91 | no report | By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (May minus April, EUR)? |
+| G6 | numeric | ask | **no** | 81.98 | no report | What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included? |
+| G7 | categorical | ask | **no** | Resort Hotel | no report | Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel? |
+| G8 | trap | ask | **no** | refusal | no report | What was the gross operating profit margin of the two hotels in 2016? |
+
+#### nz-card-spend
+
+Job failed: EXPLAIN failed: Tool call validation failed: tool call validation failed: parameters for tool search_documents did not match schema: errors: [`/from`: '2020-03' does not match pattern '^\\d{4}-\\d{2}-\\d{2}$', `/to`: '2020-04' does not match pattern '^\\d{4}-\\d{2}-\\d{2}$'] in 66.5 s · 0/7 items pass · counted toward the bars: 0/6 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | **no** | 11321.6 | no report | What was total card spending, all industry groups together, in December 2025 (NZD million)? |
+| G2 | numeric | fact | **no** | 9190.7 | no report | What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)? |
+| G3 | categorical | driver | **no** | Durables | no report | Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020? |
+| G4 | numeric | ask | **no** | -3803.7 | no report | By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)? |
+| G5 | numeric | ask | **no** | 29.015 | no report | What share of 2025 card spending, in percent, was in the Consumables industry group? |
+| G6 | numeric | ask | **no** | 1.25 | no report | By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier? |
+| G7 | trap | ask | **no** | refusal | no report | What was the average value of a card transaction in 2025? |
+
+#### online-retail-ii
+
+Job failed: EXPLAIN failed: Request too large for model `openai/gpt-oss-20b` in organization `org_***` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Requested 39207, please reduce your message size and try again. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing in 66.4 s · 0/8 items pass · counted toward the bars: 0/7 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | **no** | 140447.11 | no report | What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010? |
+| G2 | numeric | fact | **no** | 201 | no report | How many distinct invoices (cancellation invoices included) were there in December 2010? |
+| G3 | numeric | ask | **no** | 145480.93 | no report | What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011? |
+| G4 | numeric | ask | **no** | 37570.84 | no report | By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011? |
+| G5 | numeric | ask | **no** | 13.7 | no report | What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with no customer ID stay in the total. |
+| G6 | numeric | ask | **no** | 3.58 | no report | By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier? |
+| G7 | categorical | driver | **no** | United Kingdom | no report | Which country accounted for most of the fall in invoices from November to December 2010? |
+| G8 | trap | ask | **no** | refusal | no report | What was the gross margin on 2011 sales? |
