@@ -32,6 +32,10 @@ Steps:
      - SQL is parameterized;
      - the public API is exported from index.ts only;
      - each package README is updated.
+   - **Structure** (AGENTS.md §4 "Structure"):
+     - each new or changed module has one responsibility, its parts belong together (high cohesion), and it depends on little else (low coupling);
+     - no copied blocks that should be shared, and names say what a thing is or does;
+     - a changed source file past about 500 lines, or a test file past about 1,000, gets a structure check (generated and data files exempt). If it holds more than one responsibility and the PR took it past that size without splitting it, that is a MUST. Size alone is not.
    - **Dependencies:** every new dependency is justified, appears in the DECISIONS.md stack, and is free.
    - **Ledger:** STATE.md is updated truthfully. Checks that need a missing model or service may be DEFERRED (with the exact command), and that is not a MUST failure. Unrecorded gaps are.
 4. Output exactly:
