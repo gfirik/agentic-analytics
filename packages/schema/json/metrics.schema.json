@@ -197,6 +197,53 @@
           "status"
         ]
       }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "assumed"
+            ]
+          }
+        },
+        "required": [
+          "table",
+          "column",
+          "role"
+        ]
+      }
+    },
+    "business_model": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "assumed"
+          ]
+        }
+      },
+      "required": [
+        "model"
+      ]
     }
   },
   "required": [

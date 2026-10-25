@@ -5,7 +5,7 @@ The PROFILE stage. It normalizes ingested tables (dates, numbers, currency, type
 - **Spec:** docs/specs/ingestion-and-profiling.md §5–8
 - **Role detector:** docs/specs/semantics.md §1–§2 (M15)
 - **Table kinds and business model:** docs/specs/semantics.md §3–§4, §6 (M15 PR 5)
-- **Status:** M3; the role detector is M15 PR 4, table kinds, the business model and `ProfileSummary.semantics` are PR 5.
+- **Status:** M3; the role detector is M15 PR 4, table kinds, the business model and `ProfileSummary.semantics` are PR 5, `reviseSemantics` (the confirm screen) is PR 6.
 
 ## Public API
 
@@ -26,7 +26,8 @@ The PROFILE stage. It normalizes ingested tables (dates, numbers, currency, type
 | `saveTableKind(ws, kind)`, `loadTableKinds(ws)` | Store the kinds (`profile_table_kinds`). |
 | `inferBusinessModel(ws, tables)` | retail, wholesale, subscription, services or unknown (semantics §4), from the kinds, roles and revenue shares measured in SQL. Each measured share comes back with its SQL, so it can be a fact. |
 | `reportSemantics(ws, summary.semantics)` | The report's `roles`, `table_kinds` and `business_model` parts, plus the facts behind them, ready for `buildDraft` (semantics §6). |
-| `ROLES`, `parseRole(s)`, `RoleError` | The fixed vocabulary (semantics §1) and its typed refusal (`UNKNOWN_ROLE`). |
+| `reviseSemantics(ws, tables, current, edits, businessModel?)` | The confirm screen's edits (semantics §5, M15 PR 6): validates every edit first (`UNKNOWN_ROLE`, `UNKNOWN_COLUMN`, `UNKNOWN_BUSINESS_MODEL`), then confirms the roles posted (a changed role takes the user's evidence), re-classifies the touched tables and re-infers the business model unless a person set it. Returns the new `SemanticsSummary` and the changes. |
+| `ROLES`, `parseRole(s)`, `RoleError` | The fixed vocabulary (semantics §1) and its typed refusals. |
 | `matchEntities(ws, tables)`, `normalizeEntity(raw)` | Customer, supplier and product spellings. Exact after normalization (legal forms, quotes, punctuation, transliteration), else Jaro–Winkler ≥ 0.92 in DuckDB with a token-overlap and same-numbers check. |
 
 ## Example

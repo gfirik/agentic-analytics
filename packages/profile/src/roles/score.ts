@@ -47,7 +47,7 @@ export interface RoleColumn {
   readonly top: readonly string[];
 }
 
-export type EvidenceSignal = "name" | "type" | "value" | "identity" | "model";
+export type EvidenceSignal = "name" | "type" | "value" | "identity" | "model" | "user";
 
 export interface Evidence {
   readonly signal: EvidenceSignal;

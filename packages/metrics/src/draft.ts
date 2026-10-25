@@ -97,6 +97,27 @@ export async function draftMetrics(
   };
 }
 
+/** What a re-draft reads from the first draft: how it was made and, for a model's, what it proposed. */
+export interface PriorDraft {
+  readonly source: "model" | "fallback";
+  /** The model's proposals (only when `source` is `model`). */
+  readonly proposals?: readonly unknown[];
+}
+
+/**
+ * Drafts again after a person changed roles (semantics §5, metric-layer §3), with no model call: a model's draft does
+ * not depend on roles and is re-validated as it was proposed; the deterministic drafts are rebuilt from the confirmed
+ * roles. The same inputs always give the same definitions.
+ */
+export function redraftMetrics(summary: ProfileSummary, catalog: Catalog, prior: PriorDraft, options: ValidateOptions = {}): Validation {
+  if (prior.source === "model" && prior.proposals) {
+    const drafted = validateMetrics(prior.proposals, catalog, options);
+    const validation = { ...drafted, accepted: drafted.accepted.map((d) => withGroupingDimensions(d, summary)) };
+    if (validation.accepted.length) return validation;
+  }
+  return validateMetrics(fallbackMetrics(summary), catalog, options);
+}
+
 /** What a job saves as `metrics.drafted.json`: every draft before validation and what validation made of it. A debug artifact with no stable schema (metric-layer §2.6). */
 export interface DraftRecord {
   readonly source: "model" | "fallback";

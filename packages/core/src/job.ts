@@ -37,7 +37,15 @@ import {
   validateMetrics,
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import { type ProfileSummary, partialLastMonth, periodOf, previousMonth, profileJob, reportSemantics } from "@agentic-analytics/profile";
+import {
+  type ProfileSummary,
+  partialLastMonth,
+  periodOf,
+  previousMonth,
+  profileJob,
+  type RoleErrorCode,
+  reportSemantics,
+} from "@agentic-analytics/profile";
 import { renderReportHtml } from "@agentic-analytics/report";
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
 import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
@@ -45,12 +53,13 @@ import { sql, Workspace } from "@agentic-analytics/store";
 import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
+import { CONFIRMED_KEY, currentSemantics, DB, type MetricsOutput, meta, setMeta } from "./jobmeta.ts";
 import { type Logger, silentLogger } from "./log.ts";
 import { type RunResult, runPipeline, type StageContext, type StageDef, StagePause } from "./pipeline.ts";
 
 export class JobError extends Error {
   constructor(
-    readonly code: "NO_INPUT" | "BAD_INPUT" | "INVALID_DRAFT" | "BAD_OPTIONS" | "AWAITING_CONFIRMATION" | "BAD_METRICS",
+    readonly code: "NO_INPUT" | "BAD_INPUT" | "INVALID_DRAFT" | "BAD_OPTIONS" | "AWAITING_CONFIRMATION" | "BAD_METRICS" | RoleErrorCode,
     message: string,
     readonly details?: unknown,
   ) {
@@ -70,7 +79,7 @@ export interface JobOptions {
   readonly web?: boolean;
   /**
    * Keep drafted metrics as assumptions and go on (default true). When false the job pauses at AWAIT_CONFIRM until
-   * `confirmJobMetrics` stores the confirmed definitions (metric-layer §3, interfaces §1).
+   * `confirmJobMetrics` stores the confirmed definitions and roles (metric-layer §3, interfaces §1).
    */
   readonly autoConfirm?: boolean;
   /**
@@ -116,7 +125,6 @@ export interface JobOutcome {
   readonly run: RunResult;
 }
 
-const DB = "job.duckdb";
 /** Every draft of the job's metrics before validation, with the validation result (accepted, rejected with reasons). */
 export const DRAFTED_METRICS = "metrics.drafted.json";
 
@@ -126,15 +134,6 @@ function readInputs(dir: string): InputFile[] {
   return readdirSync(inputDir)
     .sort()
     .map((name) => ({ name, bytes: new Uint8Array(readFileSync(join(inputDir, name))) }));
-}
-
-async function meta<T>(ws: Workspace, key: string): Promise<T | undefined> {
-  const r = await ws.one<{ value: string }>(sql`SELECT value::VARCHAR AS value FROM job_meta WHERE key = ${key}`);
-  return r ? (JSON.parse(r.value) as T) : undefined;
-}
-
-async function setMeta(ws: Workspace, key: string, value: unknown): Promise<void> {
-  await ws.run(sql`INSERT OR REPLACE INTO job_meta VALUES (${key}, ${JSON.stringify(value)}::JSON)`);
 }
 
 /** Whether PROFILE completed, and the job's own settings, which outlive a restart from scratch. */
@@ -161,56 +160,11 @@ async function priorRun(path: string): Promise<PriorRun> {
   }
 }
 
-interface MetricsOutput {
-  readonly defs: MetricDef[];
-  readonly range: { from: string; to: string; grain: Grain };
-  readonly periodEnd: string;
-  readonly source: string;
-  /** The incomplete last month left out of the range, if any. */
-  readonly partialPeriod?: string;
-}
-
 /** The definitions later stages use: the confirmed ones when the job paused for review, else the drafted ones. */
 async function metricsOf(ctx: StageContext): Promise<MetricsOutput> {
   const drafted = (await ctx.output<MetricsOutput>("METRICS_DRAFT")) as MetricsOutput;
   const confirmed = await ctx.output<{ defs: MetricDef[] } | null>("AWAIT_CONFIRM");
   return confirmed?.defs ? { ...drafted, defs: confirmed.defs } : drafted;
-}
-
-/**
- * Stores reviewed metric definitions (YAML, the same file format as `aa metrics --save`) for a job paused at
- * AWAIT_CONFIRM. Each definition is validated against the job's catalog; one that fails is refused with its reasons,
- * so a confirmation can never put an invalid definition into a report. Definitions sent are `confirmed`.
- */
-export async function confirmJobMetrics(dir: string, yaml: string): Promise<{ confirmed: number }> {
-  const ws = await Workspace.open(join(dir, DB));
-  try {
-    const st = await ws.one<{ status: string }>(sql`SELECT status FROM job_stages WHERE stage = 'AWAIT_CONFIRM'`);
-    if (st?.status !== "running") throw new JobError("BAD_METRICS", "the job is not waiting for metric confirmation");
-    let file: ReturnType<typeof parseMetricsYaml>;
-    try {
-      file = parseMetricsYaml(yaml);
-    } catch (err) {
-      throw new JobError("BAD_METRICS", `the metrics YAML does not parse: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    const options = (await meta<JobOptions>(ws, "options")) as JobOptions;
-    const v = validateMetrics(
-      file.metrics.map((m) => ({ ...m, status: "confirmed" })),
-      await loadCatalog(ws),
-      { ...(options.currency ? { defaultCurrency: options.currency } : {}), keepStatus: true },
-    );
-    if (v.rejected.length)
-      throw new JobError(
-        "BAD_METRICS",
-        `rejected: ${v.rejected.map((r) => `${r.id ?? "(no id)"}: ${r.reasons.join("; ")}`).join(" | ")}`,
-        v.rejected,
-      );
-    if (!v.accepted.length) throw new JobError("BAD_METRICS", "no metric definitions given");
-    await setMeta(ws, "confirmed_metrics", v.accepted);
-    return { confirmed: v.accepted.length };
-  } finally {
-    ws.close();
-  }
 }
 
 interface MeasureOutput {
@@ -340,6 +294,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             range,
             periodEnd: bounds.at(-1) ?? opts.today,
             source: draft.source,
+            ...(draft.source === "model" ? { modelProposals: draft.proposals } : {}),
             ...(dropLast ? { partialPeriod: partial } : {}),
           } satisfies MetricsOutput;
         },
@@ -348,7 +303,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
         stage: "AWAIT_CONFIRM",
         skip: () => (opts.autoConfirm === false ? undefined : "metrics kept as assumptions (auto-confirm)"),
         run: async (ctx) => {
-          const confirmed = await meta<MetricDef[]>(ws, "confirmed_metrics");
+          const confirmed = await meta<MetricDef[]>(ws, CONFIRMED_KEY);
           if (!confirmed) {
             await ctx.bus.emit({ type: "awaiting_confirmation", stage: "AWAIT_CONFIRM" });
             throw new StagePause("AWAIT_CONFIRM", "waiting for the metric definitions to be confirmed");
@@ -540,7 +495,8 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               steps: d.request.steps,
             });
           const headline = await writeHeadline(deps.model, ex.findings, small);
-          const profiled = (await ctx.output<ProfileSummary>("PROFILE")) as ProfileSummary;
+          // The roles as they stand after the confirm step (the person's edits), else PROFILE's proposals.
+          const semantics = await currentSemantics(ws);
           const report = await buildDraft(ws, {
             jobId: id,
             generatedAt: (deps.now ?? (() => new Date()))().toISOString(),
@@ -558,7 +514,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             downgraded: ex.downgraded,
             facts: await factMap(),
             ...(m.partialPeriod ? { partialPeriod: m.partialPeriod } : {}),
-            ...(profiled.semantics ? { semantics: await reportSemantics(ws, profiled.semantics) } : {}),
+            ...(semantics ? { semantics: await reportSemantics(ws, semantics) } : {}),
           });
           const v = validateReport(report);
           if (!v.ok)

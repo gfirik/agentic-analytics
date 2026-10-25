@@ -25,6 +25,8 @@ export interface SemanticsFact {
 export interface SemanticsRole {
   readonly table_id: string;
   readonly column: string;
+  /** The column's header as written in the file: the confirm screen and role assumptions name it. */
+  readonly label: string;
   readonly role: string;
   readonly status: "confirmed" | "assumed";
   readonly source: "detector" | "model" | "user";
@@ -54,6 +56,7 @@ const KIND: Record<Evidence["signal"], SemanticsRole["evidence"][number]["kind"]
   value: "pattern",
   identity: "identity",
   model: "tie_break",
+  user: "user",
 };
 
 /**
@@ -88,6 +91,7 @@ export async function reportSemantics(ws: Workspace, s: SemanticsSummary): Promi
       roles.push({
         table_id: t.table_id,
         column: c.column,
+        label: c.label,
         role: c.role,
         status: row?.status === "confirmed" ? "confirmed" : "assumed",
         source: (row?.source as SemanticsRole["source"] | undefined) ?? c.source,
@@ -111,7 +115,7 @@ export async function reportSemantics(ws: Workspace, s: SemanticsSummary): Promi
     business_model: {
       model: s.business_model.model,
       ...(s.business_model.table_id ? { table_id: s.business_model.table_id } : {}),
-      status: "assumed",
+      status: s.business_model.status ?? "assumed",
       signals: s.business_model.signals.map((x) => ({ text: x.text, ...(x.fact ? { fact: x.fact.key } : {}) })),
     },
     facts: [...facts.values()],

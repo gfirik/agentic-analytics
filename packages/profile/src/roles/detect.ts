@@ -52,7 +52,7 @@ export interface ColumnRoles {
   readonly role: Role;
   readonly score: number;
   readonly evidence: readonly Evidence[];
-  readonly source: "detector" | "model";
+  readonly source: "detector" | "model" | "user";
 }
 
 export interface TableRoles {
