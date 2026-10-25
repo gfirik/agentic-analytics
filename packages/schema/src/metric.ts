@@ -49,6 +49,22 @@ export const MetricDef = z
       ctx.addIssue({ code: "custom", message: "currency metrics need an ISO 4217 currency", path: ["currency"] });
   });
 
+/**
+ * A column role in a metrics file (metric-layer §1, semantics §5). `role` is a plain string here: whether it is in the
+ * vocabulary is checked by the door that receives it, which refuses with the typed `UNKNOWN_ROLE`. On input, every
+ * entry posted is confirmed; `status` is written for the reader and the saved file.
+ */
+export const RoleEntry = z.object({
+  table: z.string(),
+  column: z.string(),
+  role: z.string(),
+  status: z.enum(["confirmed", "assumed"]).optional(),
+});
+export type RoleEntry = z.infer<typeof RoleEntry>;
+
+export const BusinessModelEntry = z.object({ model: z.string(), status: z.enum(["confirmed", "assumed"]).optional() });
+export type BusinessModelEntry = z.infer<typeof BusinessModelEntry>;
+
 export const MetricFile = z.object({
   version: z.literal(1),
   grain: Grain,
@@ -56,7 +72,14 @@ export const MetricFile = z.object({
   objective: z.string().optional(),
   entities: z.array(z.object({ id: ident, source: z.string() })).optional(),
   metrics: z.array(MetricDef),
+  // Additive in M15 (metric-layer §1): a file without them still loads.
+  roles: z.array(RoleEntry).optional(),
+  business_model: BusinessModelEntry.optional(),
 });
+
+/** The body of a confirmation (interfaces §1): `metrics` may be left out to revise only the roles (then `grain` too). */
+export const ConfirmFile = MetricFile.extend({ grain: Grain.optional(), metrics: z.array(MetricDef).optional() });
+export type ConfirmFile = z.infer<typeof ConfirmFile>;
 
 export type MetricDef = z.infer<typeof MetricDef>;
 export type MetricFile = z.infer<typeof MetricFile>;

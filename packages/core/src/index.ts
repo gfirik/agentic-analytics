@@ -1,9 +1,11 @@
 // Public API of @agentic-analytics/core (docs/ARCHITECTURE.md §2): the job runner, the pipeline state machine
 // with checkpoints, the event bus and structured logging.
+
+export { buildConfirmView, type ConfirmOutcome, confirmJob, confirmJobMetrics } from "./confirm.ts";
+export { confirmScreenLines, rolesScreenLines } from "./confirm-text.ts";
 export { EventBus, type EventInput } from "./events.ts";
 export { type Answer, askJob, explainFact, type FactExplanation, FollowUpError } from "./followup.ts";
 export {
-  confirmJobMetrics,
   DRAFTED_METRICS,
   type JobDeps,
   JobError,

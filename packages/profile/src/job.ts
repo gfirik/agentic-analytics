@@ -9,6 +9,7 @@ import { inferBusinessModel } from "./roles/business.ts";
 import { detectRoles, type TableRoles } from "./roles/detect.ts";
 import { classifyTable, type KindResult } from "./roles/kinds.ts";
 import type { SemanticsSummary } from "./roles/report.ts";
+import { modelTables } from "./roles/revise.ts";
 import { saveRoles, saveTableKind } from "./roles/store.ts";
 import { runRules } from "./rules.ts";
 import { profileTable, type TableProfile } from "./stats.ts";
@@ -147,18 +148,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
       }
     }
   }
-  const business_model = await inferBusinessModel(
-    ws,
-    kinds.map((kind) => {
-      const t = tables.find((x) => x.table_id === kind.table_id);
-      return {
-        kind,
-        roles: allRoles.find((r) => r.table_id === kind.table_id) as TableRoles,
-        detail_rows: t?.detail_rows ?? 0,
-        date_column: t?.date_column,
-      };
-    }),
-  );
+  const business_model = await inferBusinessModel(ws, modelTables(tables, allRoles, kinds));
   return {
     grain,
     tables,

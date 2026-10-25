@@ -1,4 +1,5 @@
 export { type Catalog, type CatalogColumn, type CatalogTable, loadCatalog } from "./catalog.ts";
+export { type ColumnRef, metricColumns } from "./columns.ts";
 export {
   compileMetric,
   compileMetricRows,
@@ -24,9 +25,11 @@ export {
   groupingColumns,
   MAX_GROUPING_VALUES,
   METRIC_LIBRARY,
+  type PriorDraft,
+  redraftMetrics,
   withGroupingDimensions,
 } from "./draft.ts";
-export { metricsYaml, parseMetricsYaml } from "./file.ts";
+export { metricsYaml, parseConfirmYaml, parseMetricsYaml, rolesYaml } from "./file.ts";
 export { describeExpr, describeFilter, type MetricLangCode, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 export { saveMetricDefs } from "./persist.ts";
 export { type ReviewChoice, type ReviewIO, type ReviewOptions, type ReviewResult, reviewMetrics } from "./review.ts";

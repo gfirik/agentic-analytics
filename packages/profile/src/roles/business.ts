@@ -28,6 +28,8 @@ export interface BusinessModel {
   readonly model: BusinessModelName;
   readonly table_id?: string;
   readonly signals: readonly ModelSignal[];
+  /** `confirmed` once a person set or accepted it on the confirm screen (semantics §5); absent means an assumption. */
+  readonly status?: "confirmed" | "assumed";
 }
 
 export interface ModelTable {

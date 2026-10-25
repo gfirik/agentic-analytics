@@ -1,6 +1,6 @@
 ---
 title: Viewer
-description: Upload files, watch the pipeline, confirm metrics and read the report in the browser.
+description: Upload files, watch the pipeline, confirm column roles and metrics and read the report in the browser.
 sidebar:
   order: 5
 ---
@@ -14,7 +14,7 @@ bun run aa serve
 
 - **Upload** files, with an optional objective, metric review on or off, and the web lane on or off.
 - **Live progress:** the pipeline stages light up as the job's events arrive (SSE).
-- **Metric confirmation:** each drafted definition in plain words, and the YAML to edit; invalid edits are refused with reasons.
+- **Confirmation:** one form for the column roles and the metrics. Each role shows the evidence behind it and a select to change it to any role (or `none`); the table kinds and the business model are shown too. "Update the drafts" has the engine draft the metrics again from your role changes, then each metric appears in plain words with its YAML to edit. Invalid edits, an unknown role or a missing column are refused with the reason.
 - **Report:** the self-contained `report.html`, embedded.
 
 When the API requires a token, the viewer sends the one stored in `localStorage["aa-token"]`.

@@ -4,16 +4,21 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { InputFile } from "@agentic-analytics/ingest";
-import { describeMetric, type Grain, metricsYaml } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import { type JobEvent, type MetricDef, type Report, STAGES, type Stage } from "@agentic-analytics/schema";
+import type { RoleErrorCode } from "@agentic-analytics/profile";
+
+const ROLE_ERROR_CODES: readonly string[] = ["UNKNOWN_ROLE", "UNKNOWN_COLUMN", "UNKNOWN_BUSINESS_MODEL"] satisfies RoleErrorCode[];
+const isRoleErrorCode = (code: string): code is RoleErrorCode => ROLE_ERROR_CODES.includes(code);
+
+import { type ConfirmView, type JobEvent, type Report, STAGES, type Stage } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
+import { buildConfirmView, confirmJob } from "./confirm.ts";
 import { type Answer, askJob, explainFact, type FactExplanation } from "./followup.ts";
-import { confirmJobMetrics, type JobDeps, JobError, type JobOptions, runJob } from "./job.ts";
+import { type JobDeps, JobError, type JobOptions, runJob } from "./job.ts";
 
 export class ManagerError extends Error {
   constructor(
-    readonly code: "NOT_FOUND" | "BUSY" | "NOT_READY" | "BAD_REQUEST",
+    readonly code: "NOT_FOUND" | "BUSY" | "NOT_READY" | "BAD_REQUEST" | RoleErrorCode,
     message: string,
   ) {
     super(message);
@@ -280,36 +285,36 @@ export class JobManager {
     }
   }
 
-  /** The drafted (or confirmed) metric definitions: YAML to edit, and each in plain words. */
-  async metrics(id: string): Promise<{ yaml: string; metrics: { id: string; status: string; text: string }[] }> {
+  /** The confirm screen: the drafted (or confirmed) metrics, the column roles, table kinds and business model (semantics §5). */
+  async metrics(id: string): Promise<ConfirmView> {
     return this.withWorkspace(id, async (ws) => {
-      const rows = await ws.all<{ output: string | null; stage: string }>(
-        sql`SELECT stage, output::VARCHAR AS output FROM job_stages WHERE stage IN ('METRICS_DRAFT', 'AWAIT_CONFIRM')`,
-      );
-      const parsed = new Map(
-        rows.map((r) => [r.stage, JSON.parse(r.output ?? "null") as { defs?: MetricDef[]; range?: { grain: Grain } } | null]),
-      );
-      const drafted = parsed.get("METRICS_DRAFT");
-      if (!drafted?.defs) throw new ManagerError("NOT_READY", "metrics are not drafted yet");
-      const defs = parsed.get("AWAIT_CONFIRM")?.defs ?? drafted.defs;
-      const grain = drafted.range?.grain ?? "month";
-      return {
-        yaml: metricsYaml(defs, { grain }),
-        metrics: defs.map((d) => ({ id: d.id, status: d.status, text: describeMetric(d, defs, grain) })),
-      };
+      try {
+        return await buildConfirmView(ws);
+      } catch (err) {
+        if (err instanceof JobError) throw new ManagerError("NOT_READY", err.message);
+        throw err;
+      }
     });
   }
 
-  /** Stores confirmed definitions and resumes a job that waits at AWAIT_CONFIRM. */
+  /**
+   * Confirms or revises the metrics and roles of a job waiting at AWAIT_CONFIRM. With metrics it resumes the job; with
+   * roles only it re-drafts the code's metrics and the job keeps waiting (the returned status says which).
+   */
   async confirm(id: string, yaml: string): Promise<JobStatus> {
     const dir = this.dir(id);
     if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    let outcome: Awaited<ReturnType<typeof confirmJob>>;
     try {
-      await confirmJobMetrics(dir, yaml);
+      outcome = await confirmJob(dir, yaml);
     } catch (err) {
-      if (err instanceof JobError) throw new ManagerError("BAD_REQUEST", err.message);
+      // Only a refused request maps to a client error: a bad metrics file, or a role, column or business model the
+      // job doesn't have. Any other JobError is the job's own failure and goes up unchanged.
+      if (err instanceof JobError && err.code === "BAD_METRICS") throw new ManagerError("BAD_REQUEST", err.message);
+      if (err instanceof JobError && isRoleErrorCode(err.code)) throw new ManagerError(err.code, err.message);
       throw err;
     }
+    if (!outcome.resume) return this.status(id);
     const history = await this.events(id);
     const s = this.write(id, { status: "queued" });
     this.enqueue(id, history);

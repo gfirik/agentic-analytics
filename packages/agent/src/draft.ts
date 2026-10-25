@@ -23,7 +23,7 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
 import { qualityCount } from "./quality.sql.ts";
-import { type SemanticsInput, semanticsParts } from "./semantics.ts";
+import { roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "./semantics.ts";
 import type { OpenQuestionDraft } from "./tools.ts";
 
 export interface DraftInput {
@@ -284,6 +284,17 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       text: "The data stops early in its last month, so that part-month is left out: comparing it with whole months would read as a fall.",
       affects: input.findings.map((f) => f.id),
     });
+  // One assumption per assumed role an analysis reads (semantics §5); confirmed roles need none.
+  const roleReads = input.semantics
+    ? roleAssumptions(
+        visibleRoles(input.semantics.roles, input.quarantined),
+        input.defs,
+        input.findings,
+        usesMetric,
+        assumptions.length + 1,
+      )
+    : undefined;
+  if (roleReads) assumptions.push(...roleReads.assumptions);
   const findings = input.findings.map((f) => ({
     ...f,
     assumptions: assumptions.filter((a) => a.affects.includes(f.id)).map((a) => a.id),
@@ -325,7 +336,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
   const cited = closure([...referenced, ...[...texts, ...quality.issues.map((i) => i.description)].flatMap(placeholders)], known);
   // The business model is an assumption of its own, shown beside the others (semantics §4); its facts follow the quality facts.
   const semantics = input.semantics
-    ? await semanticsParts(ws, input.semantics, `A${assumptions.length + 1}`, input.quarantined)
+    ? await semanticsParts(ws, input.semantics, `A${assumptions.length + 1}`, input.quarantined, roleReads?.byRole)
     : undefined;
   if (semantics) assumptions.push(semantics.assumption);
   const facts = semantics ? [...cited, ...semantics.facts] : cited;

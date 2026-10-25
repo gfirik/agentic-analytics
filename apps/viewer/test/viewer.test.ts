@@ -33,6 +33,10 @@ describe("viewer", () => {
     expect(view.stages.INGEST).toBe("done");
     expect(view.stages.AWAIT_CONFIRM).toBe("waiting");
     const m = await api.metrics(id);
+    // the screen carries the roles, kinds and business model with the metrics (interfaces §5)
+    expect(m.roles.find((r) => r.table === "t_t1" && r.column === "amount")).toMatchObject({ role: "amount", status: "assumed" });
+    expect(m.table_kinds[0]).toMatchObject({ table: "t_t1", kind: "sales_lines" });
+    expect(m.vocabulary).toContain("unit_cost");
     await api.confirm(id, m.yaml);
     await api.follow(id, (e) => {
       view = reduce(view, e);

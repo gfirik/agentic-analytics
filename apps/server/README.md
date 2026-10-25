@@ -13,7 +13,7 @@ The HTTP API (Hono + `@hono/zod-openapi`). The OpenAPI spec is generated from th
 | GET | `/v1/jobs` | all jobs with their status |
 | GET | `/v1/jobs/{id}` | status, current stage, progress %, timings, error |
 | GET | `/v1/jobs/{id}/events` | SSE: the job's events so far, then live ones; the stream ends on `done`, `failed` or `awaiting_confirmation` |
-| GET / POST | `/v1/jobs/{id}/metrics` | drafted metrics (YAML + plain words) / confirm or edit them (YAML body); the job resumes |
+| GET / POST | `/v1/jobs/{id}/metrics` | the confirm screen (metrics in YAML and plain words, column roles with evidence, table kinds, business model) / confirm or edit metrics and roles (YAML body with an optional `roles:` block). With `metrics:` the job resumes; with roles only the metrics are drafted again and the job keeps waiting. An unknown role or column is a 400 `UNKNOWN_ROLE` / `UNKNOWN_COLUMN` |
 | GET | `/v1/jobs/{id}/report` | `report.json`, or `report.html` with `Accept: text/html` or `?format=html` |
 | POST | `/v1/jobs/{id}/ask` | `{ question }` → verified claims, their facts, dropped claims |
 | GET | `/v1/jobs/{id}/facts/{factId}` | the computation behind a number |

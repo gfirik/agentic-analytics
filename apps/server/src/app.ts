@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { type JobManager, ManagerError } from "@agentic-analytics/core";
+import { ConfirmView } from "@agentic-analytics/schema";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -74,7 +75,15 @@ const problems = {
 };
 const json = <T extends z.ZodType>(schema: T, description: string) => ({ description, content: { "application/json": { schema } } });
 
-const STATUS: Record<ManagerError["code"], 400 | 404 | 409> = { BAD_REQUEST: 400, NOT_FOUND: 404, BUSY: 409, NOT_READY: 409 };
+const STATUS: Record<ManagerError["code"], 400 | 404 | 409> = {
+  BAD_REQUEST: 400,
+  UNKNOWN_ROLE: 400,
+  UNKNOWN_COLUMN: 400,
+  UNKNOWN_BUSINESS_MODEL: 400,
+  NOT_FOUND: 404,
+  BUSY: 409,
+  NOT_READY: 409,
+};
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
@@ -275,13 +284,11 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
     createRoute({
       method: "get",
       path: "/v1/jobs/{id}/metrics",
-      summary: "Drafted metric definitions as YAML, and each in plain words",
+      summary:
+        "The confirm screen: drafted metric definitions (YAML and plain words) with the column roles and their evidence, the table kinds and the business model",
       request: { params: z.object({ id: JobId }) },
       responses: {
-        200: json(
-          z.object({ yaml: z.string(), metrics: z.array(z.object({ id: z.string(), status: z.string(), text: z.string() })) }),
-          "Metrics",
-        ),
+        200: json(ConfirmView, "Metrics and roles"),
         ...problems,
       },
     }),
@@ -292,12 +299,13 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
     createRoute({
       method: "post",
       path: "/v1/jobs/{id}/metrics",
-      summary: "Confirm or edit the metric definitions (YAML body); the job resumes",
+      summary:
+        "Confirm or edit the metric definitions and column roles (YAML body, optional `roles:` block); with metrics the job resumes, with roles only the drafts are redone and the job keeps waiting. A role outside the vocabulary or a column that does not exist is refused: UNKNOWN_ROLE, UNKNOWN_COLUMN",
       request: {
         params: z.object({ id: JobId }),
         body: { content: { "application/yaml": { schema: z.string() }, "text/plain": { schema: z.string() } } },
       },
-      responses: { 202: json(Status, "Resumed"), ...problems },
+      responses: { 202: json(Status, "Resumed, or still awaiting confirmation after a roles-only revision"), ...problems },
     }),
     async (c) => c.json(await manager.confirm(c.req.valid("param").id, await c.req.text()), 202),
   );
@@ -386,7 +394,7 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
       path: "/v1/jobs/{id}/resume",
       summary: "Continue a failed or interrupted job from its last completed stage",
       request: { params: z.object({ id: JobId }) },
-      responses: { 202: json(Status, "Resumed"), ...problems },
+      responses: { 202: json(Status, "Resumed, or still awaiting confirmation after a roles-only revision"), ...problems },
     }),
     async (c) => c.json(await manager.resume(c.req.valid("param").id), 202),
   );
