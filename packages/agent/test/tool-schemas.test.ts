@@ -3,16 +3,27 @@ import { describe, expect, it } from "vitest";
 import { Budget, buildTools, type OpenQuestionDraft, relinkQuestions, type ToolContext } from "../src/index.ts";
 
 describe("search_documents input", () => {
-  it("takes from/to as YYYY-MM-DD only: 'March 2026' or '2026-3-1' would match nothing as text", () => {
-    // The schema is checked before a tool runs, so a context the tool never touches is enough here.
-    const tools = buildTools(
-      { found: { extracts: [], quarantined: [], questions: [], scenarios: [] } } as unknown as ToolContext,
-      new Budget(5, 5),
-    );
-    const schema = (tools.search_documents as { inputSchema: { safeParse(v: unknown): { success: boolean } } }).inputSchema;
-    expect(schema.safeParse({ query: "catalogue", from: "2026-06-01", to: "2026-06-30" }).success).toBe(true);
-    for (const bad of ["March 2026", "2026-3-1", "06/01/2026", "2026-13-45", "2026-02-30"])
-      expect(schema.safeParse({ query: "catalogue", from: bad }).success, bad).toBe(false);
+  // The schema is checked before a tool runs, so a context the tool never touches is enough for these.
+  const tools = buildTools(
+    { found: { extracts: [], quarantined: [], questions: [], scenarios: [] } } as unknown as ToolContext,
+    new Budget(50, 50),
+  );
+  const search = tools.search_documents as {
+    inputSchema: { safeParse(v: unknown): { success: boolean } };
+    execute(i: unknown): Promise<Record<string, unknown>>;
+  };
+
+  it("validates every form a real planner sends, so the call is never a schema failure that aborts the stage", () => {
+    for (const v of ["2026-06-01", "", "2020-03", "2020", "March 2026", "2026-3-1", "06/01/2026", "2026-13-45"])
+      expect(search.inputSchema.safeParse({ query: "catalogue", from: v, to: v }).success, v).toBe(true);
+  });
+
+  it("refuses just that call, with a readable tool error, when a date cannot be read", async () => {
+    for (const bad of ["March 2026", "2026-3-1", "06/01/2026", "2026-13-45", "2026-02-30", "2020-13"]) {
+      const out = await search.execute({ query: "catalogue", from: bad });
+      expect(String(out.error), bad).toContain("YYYY-MM-DD");
+    }
+    expect((await search.execute({ query: "catalogue", from: "2020-05", to: "2020-04" })).error).toContain("after");
   });
 });
 
