@@ -1,5 +1,6 @@
 // Decomposers (docs/specs/analysis-library.md §4). Pure functions that split a change into drivers and
 // return every number as a `Calc` with its inputs, so the runner can record each as a fact.
+import { commonEffects } from "./pvm-kernel.ts";
 import { type Calc, calcRef, point, type Ref, type Unit } from "./types.ts";
 
 // ── 4.1 Additive contribution (contribution.v1) ─────────────────────────────────────────────────────────────
@@ -175,7 +176,8 @@ export interface Pvm {
 
 /**
  * For items present in both periods (spec §4.2): Q = Σqᵢ, sᵢ = qᵢ/Q, P̄₀ = Σ sᵢ₀pᵢ₀;
- *   Volume = (Q₁ − Q₀)·P̄₀ · Mix = Q₁·(Σ sᵢ₁pᵢ₀ − Σ sᵢ₀pᵢ₀) · Price = Σ qᵢ₁(pᵢ₁ − pᵢ₀).
+ *   Volume = (Q₁ − Q₀)·P̄₀ · Mix = Q₁·(Σ sᵢ₁pᵢ₀ − P̄₀) · Price = Σ qᵢ₁(pᵢ₁ − pᵢ₀)
+ * (pvm-kernel.ts; with a zero base quantity Volume = 0 and Mix = Σ qᵢ₁pᵢ₀ − Σ rᵢ₀, so the identity still holds).
  * They add up to the common items' revenue change exactly; new and lost items are separate effects
  * (+revenue of items only in period 1, −revenue of items only in period 0). An item with revenue in both
  * periods but zero quantity in one has no price to split, so its whole change is an "unpriced" effect.
@@ -187,11 +189,17 @@ export function pvm(items: readonly PvmItem[], unit: Unit = "currency"): Pvm {
   const onlyNew = items.filter((i) => sold1(i) && !sold0(i));
   const onlyLost = items.filter((i) => sold0(i) && !sold1(i));
   const unpricedItems = items.filter((i) => sold0(i) && sold1(i) && !(i.q0 && i.q1));
-  const q0 = both.reduce((s, i) => s + (i.q0 ?? 0), 0);
-  const q1 = both.reduce((s, i) => s + (i.q1 ?? 0), 0);
-  const p = (r = 0, q = 1) => r / q;
-  const avgP0 = q0 ? both.reduce((s, i) => s + ((i.q0 ?? 0) / q0) * p(i.r0, i.q0), 0) : 0;
-  const mixP0 = q1 ? both.reduce((s, i) => s + ((i.q1 ?? 0) / q1) * p(i.r0, i.q0), 0) : 0;
+  // Unit price per item (revenue ÷ quantity); a common item has a non-zero quantity in both periods.
+  const effects = commonEffects(
+    both.map((i) => ({
+      q0: i.q0 ?? 0,
+      q1: i.q1 ?? 0,
+      p0: (i.r0 ?? 0) / (i.q0 ?? 1),
+      p1: (i.r1 ?? 0) / (i.q1 ?? 1),
+      c0: 0,
+      c1: 0,
+    })),
+  );
   const refsOf = (list: readonly PvmItem[], keys: readonly ("r0" | "q0" | "r1" | "q1")[]) =>
     list.flatMap((i) => keys.map((k) => i.refs[k]).filter((r): r is Ref => r !== undefined));
   const inputs = refsOf(both, ["r0", "q0", "r1", "q1"]);
@@ -204,13 +212,9 @@ export function pvm(items: readonly PvmItem[], unit: Unit = "currency"): Pvm {
     fn: "pvm.v1",
     inputs: refs,
   });
-  const volume = calc("pvm:volume", "volume effect", (q1 - q0) * avgP0);
-  const mix = calc("pvm:mix", "mix effect", q1 * (mixP0 - avgP0));
-  const price = calc(
-    "pvm:price",
-    "price effect",
-    both.reduce((s, i) => s + (i.q1 ?? 0) * (p(i.r1, i.q1) - p(i.r0, i.q0)), 0),
-  );
+  const volume = calc("pvm:volume", "volume effect", effects.volume);
+  const mix = calc("pvm:mix", "mix effect", effects.mix);
+  const price = calc("pvm:price", "price effect", effects.price);
   const newItems = calc(
     "pvm:new",
     "new items",
