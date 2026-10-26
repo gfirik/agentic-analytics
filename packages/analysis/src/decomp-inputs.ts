@@ -170,7 +170,6 @@ export function allPeriods(rows: readonly { period: string }[], before: string, 
   return [...new Set([...rows.map((r) => r.period), before, after])].sort();
 }
 
-/** The item dimension of margin PVM when a table has several (spec §10 "Runs"): ids first, since names drift and codes don't. */
 /** The helper metric that counts units over the margin's lines; its facts are labelled `gross_margin__qty[…]`. */
 const MARGIN_QTY = "gross_margin__qty";
 const ITEM_PREFERENCE = ["product_id", "product", "product_group"] as const;
@@ -189,6 +188,7 @@ export async function pvmMarginFor(
   catalog: Catalog,
   terms: MarginTerms,
   items: readonly Series[],
+  margin: Series,
   dimension: string,
   before: string,
   after: string,
@@ -259,14 +259,14 @@ export async function pvmMarginFor(
     };
   });
   const result = pvmMargin(marginItems, after);
-  // The items must be all of the margin: their margins add up to the margin metric's change.
-  const total = (k: "r1" | "cost1" | "r0" | "cost0") => marginItems.reduce((acc, i) => acc + i[k], 0);
-  const delta = total("r1") - total("cost1") - (total("r0") - total("cost0"));
+  // The items must be all of the margin: their effects add up to the margin metric's own change (a cost with no revenue line
+  // in the item list would leave a gap).
+  const delta = valueAt(margin, after) - valueAt(margin, before);
   const scale = Math.max(1, Math.abs(delta), ...result.parts.map((c) => Math.abs(c.value)));
   return Math.abs(result.total.value - delta) <= 1e-9 * scale ? result : undefined;
 }
 
-/** The dimension margin PVM splits by: the first of the margin's dimensions with an item role, ids before names. */
+/** The dimension margin PVM splits by (spec §10 "Runs"; ids first, since names drift and codes don't): the first of the margin's dimensions with an item role, ids before names. */
 export async function marginItemDimension(
   ws: Workspace,
   catalog: Catalog,

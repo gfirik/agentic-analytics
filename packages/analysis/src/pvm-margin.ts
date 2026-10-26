@@ -58,6 +58,9 @@ const groupsOf = (xs: readonly number[], n: number) =>
  */
 export function marginEffect(effect: MarginEffect, x: readonly number[]): number {
   const n = (v: number | undefined) => v ?? Number.NaN;
+  // Fail closed: inputs that do not fill whole groups (or none at all) have no value, so V2 cannot match a stored one.
+  const size = effect === "new" || effect === "lost" ? 2 : effect === "unpriced" ? 4 : 6;
+  if (x.length === 0 || x.length % size !== 0) return Number.NaN;
   if (effect === "new") return groupsOf(x, 2).reduce((s, g) => s + n(g[0]) - n(g[1]), 0);
   if (effect === "lost") return -groupsOf(x, 2).reduce((s, g) => s + n(g[0]) - n(g[1]), 0);
   if (effect === "unpriced") return groupsOf(x, 4).reduce((s, g) => s + (n(g[2]) - n(g[3])) - (n(g[0]) - n(g[1])), 0);

@@ -297,8 +297,22 @@ export async function analyzeJob(
         const p = await pvmFor(ws, allDefs, register, catalog, def, dimension, list, before, after, range, series);
         if (p) decompositions.push({ insight, method: "pvm.v1", dimension, pvm: p });
         const items = members.get(marginTerm?.revenue ?? "")?.find((x) => x.dimension === dimension)?.series;
-        if (marginTerm && items && dimension === itemDimension) {
-          const pm = await pvmMarginFor(ws, allDefs, register, catalog, marginTerm, items, dimension, before, after, range, series);
+        const marginSeries = series.get(def.id)?.series;
+        if (marginTerm && items && marginSeries && dimension === itemDimension) {
+          const pm = await pvmMarginFor(
+            ws,
+            allDefs,
+            register,
+            catalog,
+            marginTerm,
+            items,
+            marginSeries,
+            dimension,
+            before,
+            after,
+            range,
+            series,
+          );
           if (pm) decompositions.push({ insight, method: "pvm_margin.v1", dimension, pvmMargin: pm });
         }
       }

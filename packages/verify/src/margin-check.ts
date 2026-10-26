@@ -6,7 +6,7 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 
 /** The margin lexicon: EN margin, gross profit, markup; RU маржа, маржинальность, валовая прибыль; UZ marja, yalpi foyda. */
 const MARGIN_WORDS =
-  /(?<![\p{L}])(?:margins?|gross\s+profits?|markups?|маржа|маржи|маржу|маржой|маржинальн\p{L}*|валов\p{L}*\s+прибыл\p{L}*|marja\p{L}*|yalpi\s+foyda\p{L}*)(?![\p{L}])/iu;
+  /(?<![\p{L}])(?:margins?|gross\s+profits?|markups?|маржа|маржи|марже|маржу|маржой|маржей|маржинальн\p{L}*|валов\p{L}*\s+прибыл\p{L}*|marja\p{L}*|yalpi\s+foyda\p{L}*)(?![\p{L}])/iu;
 
 export const namesMargin = (text: string): boolean => MARGIN_WORDS.test(text);
 
