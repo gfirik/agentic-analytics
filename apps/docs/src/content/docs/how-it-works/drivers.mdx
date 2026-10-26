@@ -25,6 +25,17 @@ When price and quantity columns exist, revenue R = Σ pᵢqᵢ splits into
 
 plus separate **new**, **lost** and **unpriced** effects for items present in only one period. Volume + mix + price + new + lost + unpriced = ΔR exactly.
 
+## Margin price–volume–mix (`pvm_margin.v1`)
+
+When the data also has a cost column (a unit cost, or a cost amount), the same split runs on gross margin, with one more effect for unit cost. With unit margin uᵢ = pᵢ − cᵢ and ū₀ the base average unit margin:
+
+- **volume** = (Q₁ − Q₀) · ū₀,
+- **mix** = Σ qᵢ₁ uᵢ₀ − Q₁ · ū₀,
+- **price** = Σ qᵢ₁ (pᵢ₁ − pᵢ₀),
+- **cost** = −Σ qᵢ₁ (cᵢ₁ − cᵢ₀),
+
+plus **new**, **lost** and **unpriced** effects for items present in only one period or without a quantity. Volume + mix + price + cost + new + lost + unpriced = ΔM exactly, also when returns make the base quantity 0. A margin that falls at flat revenue is a unit-cost story, and this split says so with numbers; without a cost column the margin analyses are not run.
+
 ## Rate vs mix (`ratemix.v1`) and the Simpson guard
 
 For a rate r = Σ wᵢ rᵢ (a refund rate, a conversion rate), the change splits into a **mix** effect (segment weights moved), a **rate** effect (rates within segments moved), and entering, exiting and unattributed effects. When the overall rate moves against most segment rates, a `simpson_risk` flag makes the finding tell the segment-level story.
