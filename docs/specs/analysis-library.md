@@ -91,10 +91,10 @@ For T = Σ xᵢ:
 For revenue R = Σ pᵢqᵢ over items present in both periods, with Q = Σ qᵢ, mix shares sᵢ = qᵢ/Q and base average price P̄₀ = Σ sᵢ₀ pᵢ₀:
 
 - Volume = (Q₁ − Q₀) · P̄₀
-- Mix = Q₁ · (Σ sᵢ₁ pᵢ₀ − Σ sᵢ₀ pᵢ₀)
+- Mix = Q₁ · (Σ sᵢ₁ pᵢ₀ − P̄₀) = Σ qᵢ₁ pᵢ₀ − Q₁ P̄₀
 - Price = Σ qᵢ₁ (pᵢ₁ − pᵢ₀)
 
-These three effects add up to the change in revenue exactly. Items that are new or discontinued are reported as separate "new" and "lost" effects. An item with revenue in both periods but zero quantity in one of them has no unit price to split; its whole change is a separate "unpriced" effect. Effects whose item group is empty are omitted rather than reported as 0. A test asserts the exact identity on 20 or more randomized cases.
+These three effects add up to the change in revenue exactly. **Zero base quantity:** when the common items' Q₀ = 0 (returns netting out) while their revenue is not 0, P̄₀ is undefined, so Volume = 0 and Mix = Σ qᵢ₁ pᵢ₀ − Σ qᵢ₀ pᵢ₀, as in §10. Hand-computed: A r 20 → 12, q 5 → 3 (p 4 → 4); B r −10 → 4, q −5 → 2 (p 2 → 2). ΔR = (12 + 4) − (20 − 10) = 6. Volume = 0; Mix = (3·4 + 2·2) − (20 − 10) = 6; Price = 0; the effects add up to 6. (As built, M15 PR 8: before it P̄₀ was set to 0 and the effects added up to 16.) `pvm.v1` is the case of `pvm_margin.v1` with no unit cost, and both call one function for the common items' effects (`pvm-kernel.ts`). Items that are new or discontinued are reported as separate "new" and "lost" effects. An item with revenue in both periods but zero quantity in one of them has no unit price to split; its whole change is a separate "unpriced" effect. Effects whose item group is empty are omitted rather than reported as 0. A test asserts the exact identity on 20 or more randomized cases.
 
 This needs price and quantity columns. When they're missing, fall back to `contribution.v1`.
 
@@ -298,7 +298,7 @@ The rest of the change goes to separate effects, as in `pvm.v1`. An item is pres
 - **Unpriced**: the whole margin change of items present in both periods but with zero quantity in one of them (no unit price or unit cost to split). Uncosted lines are already outside margin (§9).
 - Effects whose item group is empty are omitted. The sum of all effects is ΔM = M₁ − M₀.
 
-**Zero base quantity.** Returns can make the common items' Q₀ = 0 while their margin is not 0. Then ū₀ is undefined, so Volume = 0 and Mix = Σ qᵢ₁uᵢ₀ − Σ qᵢ₀uᵢ₀, which keeps the identity. Hand-computed: A q 5 → 3, p 4, c 1 (u = 3); B q −5 → 2, p 4 → 5, c 3 (u 1 → 2). Q₀ = 0, M₀ = 15 − 5 = 10, M₁ = 9 + 4 = 13, ΔM = 3. Volume = 0; Mix = (3·3 + 2·1) − (5·3 + (−5)·1) = 11 − 10 = 1; Price = 3·0 + 2·1 = 2; Cost = 0. 0 + 1 + 2 + 0 = 3. (`pvm.v1` sets P̄₀ to 0 in this case, which breaks its identity when R₀ ≠ 0; a known gap that PR 8 fixes in both.)
+**Zero base quantity.** Returns can make the common items' Q₀ = 0 while their margin is not 0. Then ū₀ is undefined, so Volume = 0 and Mix = Σ qᵢ₁uᵢ₀ − Σ qᵢ₀uᵢ₀, which keeps the identity. Hand-computed: A q 5 → 3, p 4, c 1 (u = 3); B q −5 → 2, p 4 → 5, c 3 (u 1 → 2). Q₀ = 0, M₀ = 15 − 5 = 10, M₁ = 9 + 4 = 13, ΔM = 3. Volume = 0; Mix = (3·3 + 2·1) − (5·3 + (−5)·1) = 11 − 10 = 1; Price = 3·0 + 2·1 = 2; Cost = 0. 0 + 1 + 2 + 0 = 3. (`pvm.v1` follows the same rule since PR 8; before it set P̄₀ to 0 and broke its identity when R₀ ≠ 0, §4.2.)
 
 **Hand-computed case 1** (A2/A3's fixed case; PR 8's test):
 
@@ -329,6 +329,15 @@ The rest of the change goes to separate effects, as in `pvm.v1`. An item is pres
 V2 recomputes each effect from its inputs (agent-and-verifier §7). "(other)" is one item, as in `pvm.v1`, so the identity still holds.
 
 **When it runs.** For every material change of `gross_margin` (`period_change.v1`), at that period against its baseline (§2), when the table has `quantity`, a product entity and a cost role. Otherwise the not-run entry is `pvm_margin.v1` with reason `no_cost_role`, `no_quantity_role` or `no_item_dimension`.
+
+**As built (PR 8).**
+
+- *Code.* `pvmMargin` (`packages/analysis/src/pvm-margin.ts`) is pure: items in, one calc per effect out, each calc carrying its fixed fact label (`Calc.factLabel`, so `pvm_margin.cost_2026-03` is the fact's label, not `<context>:<name>`). `marginEffect(effect, inputs)` is the one formula, used by `pvmMargin` to compute the value and by V2 to recompute it from the fact's inputs. The common-item arithmetic is shared with `pvm.v1` (`pvm-kernel.ts`). A base quantity counts as 0 when |Q₀| ≤ 1e-12 × Σ|qᵢ₀|, so floating-point dust from returns is not taken as a base.
+- *Inputs* (`decomp-inputs.ts`, `pvmMarginFor`) are read through the metric layer: the revenue term's member series (`revenue`, or `costed_revenue` when some lines have no cost), the `cost` metric and a quantity helper (`gross_margin__qty`) grouped by the item dimension. The dimension is the first of the margin's dimensions with an item role, `product_id` before `product` before `product_group`, so a table with a SKU and a name is split once and the fixed label names one fact. It is not run when an item is the "(other)" bucket, when there is no quantity role or item dimension, or when the items' margins do not add up to the margin metric's own change (an incomplete item set).
+- *When.* `gross_margin` is decomposed like an additive metric: contribution by member, and margin PVM, for each material insight that `period_change.v1`, `trend_break.v1`, `anomaly.v1` or `ratio_shift.v1` raises on it. `period_change.v1` looks at the latest period only, so a planted move that is not the latest month and is neither a break nor an anomaly (wholesale-margin-v1's 2026-05 price event, +818.20 against a noise band of the same size) is decomposed only when that month is the latest in the data. Margin members get no per-member findings of their own (no per-member trend or concentration).
+- *Values.* With the wholesale-margin-v1 file, 2026-03: volume −26.2943, mix 12.3059, price −325.8516, cost −1,902.0000, sum −2,241.84. With the data cut after 2026-05: volume −220.7209, mix −84.7169, price 1,300.0378, cost −176.4000, sum 818.20 (`packages/verify/test/margin-v2.test.ts`).
+- *Margin facts.* A margin value at a period (`gross_margin_<p>`, `gross_margin[<dim>=<member>]_<p>`, `gross_margin_pct_<p>`) is a function fact of the revenue and cost facts of the same period and member (§9) whenever those series exist; it is the SQL fact of the metric when they do not (a member outside the revenue top 50) or when the two do not give the measured value.
+- *Not built here.* "Analyses not run" entries (PR 10); the `no_item_dimension` reason; slicing `gross_margin_pct` by member (rate vs mix needs a table term on both sides, and `gross_margin` is derived); the missing-cost quality item cited by `costed_revenue`'s assumption.
 
 **Tests (PR 8):** both cases above and the zero-base case; 200 seeded random cases (mulberry32, fixed seed, 1–12 items, new, lost, unpriced and uncosted items, negative quantities as returns), where the sum of the effects equals ΔM within a relative 1e-9 and V2 recomputes every effect; and a tampered effect (+0.01) that fails V2.
 
