@@ -20,6 +20,7 @@ description: The detection and decomposition methods, by id.
 |---|---|
 | `contribution.v1` | A total into member contributions |
 | `pvm.v1` | Revenue into price, volume, mix, new, lost, unpriced |
+| `pvm_margin.v1` | Gross margin into price, unit cost, volume, mix, new, lost, unpriced (needs a cost column) |
 | `ratemix.v1` | A rate into mix, rate, entering, exiting, unattributed (with the Simpson guard) |
 | `diff.v1` | An anomaly into attribute combinations by risk ratio |
 

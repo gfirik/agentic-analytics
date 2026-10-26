@@ -1,14 +1,24 @@
 // MEASURE → DETECT → DECOMPOSE (ARCHITECTURE §2; docs/specs/analysis-library.md §1–6). Reads every metric
 // through the metric compiler (SQL in DuckDB), runs the templates and decomposers, ranks the findings and
 // records every number as a fact with its computation and citations (AGENTS.md §2.1–2.2).
-import { type Catalog, type Grain, runMetric, sliceParents } from "@agentic-analytics/metrics";
+import {
+  type Catalog,
+  type Grain,
+  MARGIN_METRIC,
+  marginDimensions,
+  marginTerms,
+  runMetric,
+  sliceParents,
+} from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
-import { cancelsOut, type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
+import { marginItemDimension, pvmFor, pvmMarginFor, rateMixFor, valueAt } from "./decomp-inputs.ts";
+import { cancelsOut, type Pvm, type RateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { contributionFacts, memberFilter, otherFilter, unitOf } from "./members.ts";
 import { fillPeriods } from "./periods.ts";
+import type { PvmMargin } from "./pvm-margin.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
 import { seasonalMatch, touchesSeason } from "./seasonal.ts";
@@ -24,7 +34,7 @@ import {
   trend,
   trendBreak,
 } from "./templates.ts";
-import { OTHER, type Point, point, type Series } from "./types.ts";
+import { OTHER, type Point, type Series } from "./types.ts";
 
 export interface AnalyzeOptions {
   readonly from: string;
@@ -57,7 +67,7 @@ export interface StoredInsight {
 
 export interface StoredDecomposition {
   readonly id: string; // "X1"
-  readonly method: "contribution.v1" | "pvm.v1" | "ratemix.v1";
+  readonly method: "contribution.v1" | "pvm.v1" | "pvm_margin.v1" | "ratemix.v1";
   readonly insight: string;
   readonly dimension: string;
   readonly facts: Readonly<Record<string, string>>;
@@ -74,21 +84,6 @@ export interface AnalysisResult {
   readonly topScores: number[];
   /** Tests skipped for lack of data and other open questions. */
   readonly openQuestions: string[];
-}
-
-/**
- * The roles PVM reads (semantics §1, M15): the units column has role `quantity`, and the dimension is an item, so it has
- * a product role. They replace header regexes; the roles are the detector's proposals or the user's confirmation, stored
- * next to the profile (`profile_roles`).
- */
-const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
-
-/** The columns of a table that have a role, best score first. */
-async function columnsWithRole(ws: Workspace, tableId: string, roles: readonly string[]): Promise<string[]> {
-  const rows = await ws.all<{ column_name: string; role: string }>(
-    sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${tableId} ORDER BY score DESC, column_name`,
-  );
-  return rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
 }
 
 export async function analyzeJob(
@@ -132,11 +127,13 @@ export async function analyzeJob(
   for (const def of defs) {
     const unit = unitOf(def);
     const additive = def.type === "sum" || def.type === "count";
+    // Margin is additive across members (revenue − cost per member), so it is split like a sum even though it is derived.
+    const splittable = additive || isGrossMargin(def, defs);
     const own = measured.get(def.id) ?? [];
     const total: Series = { id: def.id, metric: def.id, unit, points: fill(own, additive || def.type === "count_distinct", own) };
     series.set(total.id, { series: total, def });
     totals.push(total);
-    for (const dimension of additive ? (def.dimensions ?? []) : []) {
+    for (const dimension of splittable ? (isGrossMargin(def, defs) ? marginDimensions(def, defs) : (def.dimensions ?? [])) : []) {
       const grouped = await runMetric(ws, def.id, defs, catalog, { ...range, groupBy: [dimension] });
       const byMember = new Map<string | null, { period: string; value: number }[]>();
       for (const r of grouped) {
@@ -206,7 +203,8 @@ export async function analyzeJob(
   }
   for (const [metric, dims] of members) {
     const total = series.get(metric)?.series;
-    if (!total) continue;
+    // A margin's members are split in DECOMPOSE (contribution and margin PVM), not scanned for member findings of their own.
+    if (!total || isGrossMargin(series.get(metric)?.def, defs)) continue;
     const periods = total.points.map((p) => p.period);
     const latest = periods[periods.length - 1];
     const previous = periods[periods.length - 2];
@@ -238,6 +236,7 @@ export async function analyzeJob(
     dimension: string;
     contribution?: Insight;
     pvm?: Pvm;
+    pvmMargin?: PvmMargin;
     ratemix?: RateMix;
   }[] = [];
   // One decomposition per (series, before, after): several templates often detect the same change, and the
@@ -259,7 +258,16 @@ export async function analyzeJob(
     decomposed.add(once);
     const def = series.get(insight.series)?.def;
     if (!def) continue;
-    if (def.type === "sum" || def.type === "count") {
+    const marginTerm = isGrossMargin(def, allDefs) ? marginTerms(def, allDefs) : undefined;
+    if (def.type === "sum" || def.type === "count" || marginTerm) {
+      const itemDimension = marginTerm
+        ? await marginItemDimension(
+            ws,
+            catalog,
+            allDefs.find((d) => d.id === marginTerm.revenue),
+            marginDimensions(def, allDefs),
+          )
+        : undefined;
       for (const { dimension, series: list } of members.get(def.id) ?? []) {
         const changes = list
           .map((m) => ({
@@ -288,6 +296,25 @@ export async function analyzeJob(
         }
         const p = await pvmFor(ws, allDefs, register, catalog, def, dimension, list, before, after, range, series);
         if (p) decompositions.push({ insight, method: "pvm.v1", dimension, pvm: p });
+        const items = members.get(marginTerm?.revenue ?? "")?.find((x) => x.dimension === dimension)?.series;
+        const marginSeries = series.get(def.id)?.series;
+        if (marginTerm && items && marginSeries && dimension === itemDimension) {
+          const pm = await pvmMarginFor(
+            ws,
+            allDefs,
+            register,
+            catalog,
+            marginTerm,
+            items,
+            marginSeries,
+            dimension,
+            before,
+            after,
+            range,
+            series,
+          );
+          if (pm) decompositions.push({ insight, method: "pvm_margin.v1", dimension, pvmMargin: pm });
+        }
       }
     }
     if (def.type === "ratio") {
@@ -381,7 +408,9 @@ export async function analyzeJob(
     const insightId = idOf.get(d.insight);
     if (!insightId) continue;
     const id = `X${storedDecomp.length + 1}`;
-    const context = `${d.method} ${d.insight.series} ${d.insight.period} by ${d.dimension}`;
+    // A margin split names its baseline too: two splits of one later period against different baselines are different facts.
+    const baseline = d.pvmMargin ? ` from ${periodOf(d.insight.roles.before) ?? ""}` : "";
+    const context = `${d.method} ${d.insight.series} ${d.insight.period}${baseline} by ${d.dimension}`;
     const facts: Record<string, string> = {};
     let details: Record<string, unknown> = {};
     if (d.contribution) {
@@ -394,6 +423,12 @@ export async function analyzeJob(
       const calcs = [...p.parts, p.total];
       const scope = await book.calcs(calcs, context, d.insight.metric);
       for (const c of calcs) facts[c.name.replace("pvm:", "")] = factOf(scope, c.name);
+    } else if (d.pvmMargin) {
+      const p = d.pvmMargin;
+      const calcs = [...p.parts, p.total];
+      const scope = await book.calcs(calcs, context, d.insight.metric);
+      for (const c of calcs) facts[c.name.replace("pvm_margin:", "")] = factOf(scope, c.name);
+      details = { items: p.groups };
     } else if (d.ratemix) {
       const r = d.ratemix;
       // Entering/exiting/unattributed effects only exist as facts when such segments do: a 0 with no inputs would cite nothing.
@@ -443,144 +478,12 @@ export async function analyzeJob(
   return result;
 }
 
+/** The pack's `gross_margin`: split by member and by margin PVM like an additive metric. */
+const isGrossMargin = (def: MetricDef | undefined, defs: readonly MetricDef[]): boolean =>
+  def !== undefined && def.id === MARGIN_METRIC && marginTerms(def, defs)?.fn === MARGIN_METRIC;
+
 const sumAbs = (pts: readonly { value: number }[]) => pts.reduce((a, p) => a + Math.abs(p.value), 0);
-const valueAt = (s: Series, period: string) => s.points.find((p) => p.period === period)?.value ?? 0;
 const periodOf = (r: Insight["roles"][string] | undefined) => (r?.kind === "point" ? r.period : undefined);
-
-/**
- * PVM (spec §4.2) when the metric is a sum over a table with a quantity column and the dimension names items.
- * Quantity per item comes from the same SQL path: a sum of the quantity column with the metric's filters.
- */
-async function pvmFor(
-  ws: Workspace,
-  defs: readonly MetricDef[],
-  register: (d: MetricDef) => void,
-  catalog: Catalog,
-  def: MetricDef,
-  dimension: string,
-  items: readonly Series[],
-  before: string,
-  after: string,
-  range: { from: string; to: string; grain: Grain },
-  series: Map<string, SeriesInfo>,
-): Promise<Pvm | undefined> {
-  const table = catalog.get(def.table ?? "");
-  const dimCol = table?.columns.get(dimension);
-  if (def.type !== "sum" || !table || !dimCol) return undefined;
-  if (!(await columnsWithRole(ws, table.id, ITEM_ROLES)).includes(dimension)) return undefined;
-  const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
-    .map((name) => table.columns.get(name))
-    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
-  if (!qtyCol) return undefined;
-  // An "(other)" bucket mixes many items, so it has no unit price; contribution.v1 still covers this dimension.
-  if (items.some((m) => m.member?.value === OTHER)) return undefined;
-  // The quantity metric is registered with the runner's defs so the fact book can compile its points.
-  const qtyDef: MetricDef = {
-    ...def,
-    id: `${def.id}__qty`,
-    label: `${def.label} quantity`,
-    expression: qtyCol.name,
-    unit: "count",
-    dimensions: [dimension],
-  };
-  register(qtyDef);
-  const rows = await runMetric(ws, qtyDef.id, defs, catalog, { ...range, groupBy: [dimension] });
-  const pvmItems: PvmItem[] = items.map((m) => {
-    const key = m.member?.value ?? null;
-    const qty = (p: string) => Number(rows.find((r) => r.period === p && (r[dimension] ?? null) === key)?.value ?? 0);
-    const qSeries: Series = {
-      id: `${qtyDef.id}|${dimension}=${key ?? "(none)"}`,
-      metric: qtyDef.id,
-      unit: "count",
-      member: { dimension, value: key },
-      // Every period of the range, not just this pair: the same series id is reused by other decompositions,
-      // and a point missing here would become a 0-valued fact for them.
-      points: allPeriods(rows, before, after).map((p) => ({ period: p, value: qty(p) })),
-    };
-    series.set(qSeries.id, { series: qSeries, def: qtyDef, where: memberFilter(dimension, key) });
-    const r0 = valueAt(m, before);
-    const r1 = valueAt(m, after);
-    return {
-      key: String(key),
-      ...(r0 ? { r0, q0: qty(before) } : {}),
-      ...(r1 ? { r1, q1: qty(after) } : {}),
-      refs: {
-        ...(r0 ? { r0: point(m.id, before), q0: point(qSeries.id, before) } : {}),
-        ...(r1 ? { r1: point(m.id, after), q1: point(qSeries.id, after) } : {}),
-      },
-    };
-  });
-  return pvm(pvmItems);
-}
-
-/** Rate vs mix (spec §4.3) for a ratio metric over the first dimension of its denominator metric. */
-async function rateMixFor(
-  ws: Workspace,
-  defs: readonly MetricDef[],
-  register: (d: MetricDef) => void,
-  catalog: Catalog,
-  def: MetricDef,
-  before: string,
-  after: string,
-  range: { from: string; to: string; grain: Grain },
-  series: Map<string, SeriesInfo>,
-): Promise<{ dimension: string; result: RateMix } | undefined> {
-  const num = def.numerator as { metric: string } | { table: string; expression: string; filters?: string[] } | undefined;
-  const den = def.denominator as { metric: string } | { table: string; expression: string; filters?: string[] } | undefined;
-  if (!num || !den) return undefined;
-  const asDef = (t: typeof num, suffix: string): MetricDef | undefined =>
-    "metric" in t
-      ? defs.find((d) => d.id === t.metric)
-      : {
-          id: `${def.id}__${suffix}`,
-          label: `${def.label} ${suffix}`,
-          type: "sum",
-          table: t.table,
-          expression: t.expression,
-          ...(t.filters ? { filters: t.filters } : {}),
-          unit: "other",
-          status: def.status,
-        };
-  const n = asDef(num, "num");
-  const d = asDef(den, "den");
-  const dimension = (d?.dimensions ?? [])[0];
-  if (!n || !d || !dimension || n.table !== d.table) return undefined;
-  register(n);
-  register(d);
-  const by = async (m: MetricDef) => runMetric(ws, m.id, defs, catalog, { ...range, groupBy: [dimension] });
-  const [nRows, dRows] = [await by(n), await by(d)];
-  const keys = [...new Set([...nRows, ...dRows].map((r) => (r[dimension] as string | null) ?? null))];
-  const v = (rows: typeof nRows, key: string | null, p: string) =>
-    Number(rows.find((r) => r.period === p && ((r[dimension] as string | null) ?? null) === key)?.value ?? 0);
-  // Each segment's numerator and denominator become measured points, so the mix and rate facts cite them.
-  const segmentSeries = (m: MetricDef, rows: typeof nRows, key: string | null): Series => {
-    const s: Series = {
-      // Own id namespace: never overwrite the member series measured for the dimension analysis.
-      id: `ratemix:${m.id}|${dimension}=${key ?? "(none)"}`,
-      metric: m.id,
-      unit: "other",
-      member: { dimension, value: key },
-      // Every period (see pvmFor): a later decomposition over other periods reuses this series id.
-      points: allPeriods([...nRows, ...dRows], before, after).map((p) => ({ period: p, value: v(rows, key, p) })),
-    };
-    series.set(s.id, { series: s, def: m, where: memberFilter(dimension, key) });
-    return s;
-  };
-  const segments = keys.map((key) => {
-    const ns = segmentSeries(n, nRows, key);
-    const ds = segmentSeries(d, dRows, key);
-    return {
-      key: String(key),
-      num0: v(nRows, key, before),
-      den0: v(dRows, key, before),
-      num1: v(nRows, key, after),
-      den1: v(dRows, key, after),
-      refs: [point(ns.id, before), point(ds.id, before), point(ns.id, after), point(ds.id, after)],
-    };
-  });
-  const percent = def.unit === "percent";
-  return { dimension, result: rateMix(segments, percent ? "percent" : "ratio", percent ? 100 : 1) };
-}
 
 async function persist(ws: Workspace, r: AnalysisResult): Promise<void> {
   await persistFacts(ws, r.facts);
@@ -604,9 +507,4 @@ export async function persistFacts(ws: Workspace, facts: readonly Fact[]): Promi
       VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
         ${c.params ? JSON.stringify(c.params) : null}::JSON, ${c.fn ?? null}, ${JSON.stringify(c.inputs ?? [])}::VARCHAR[], ${JSON.stringify(f.citations)}::JSON, ${f.metric_id ?? null})`);
   }
-}
-
-/** The sorted periods of grouped metric rows, always including the pair being decomposed. */
-function allPeriods(rows: readonly { period: string }[], before: string, after: string): string[] {
-  return [...new Set([...rows.map((r) => r.period), before, after])].sort();
 }

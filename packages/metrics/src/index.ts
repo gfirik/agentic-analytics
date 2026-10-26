@@ -29,6 +29,17 @@ export {
 export { metricsYaml, parseConfirmYaml, parseMetricsYaml, rolesYaml } from "./file.ts";
 export { type KpiId, type KpiPack, type NotDrafted, type NotDraftedReason, type SalesBase, salesKpiPack } from "./kpi-pack.ts";
 export { describeExpr, describeFilter, type MetricLangCode, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
+export {
+  COST_METRIC,
+  COSTED_REVENUE_METRIC,
+  MARGIN_METRIC,
+  MARGIN_PCT_METRIC,
+  type MarginFn,
+  type MarginTerms,
+  marginDimensions,
+  marginTerms,
+  marginValue,
+} from "./margin.ts";
 export { definitionKey, type Merged, mergeMetricSets, sliceParents } from "./merge.ts";
 export { saveMetricDefs } from "./persist.ts";
 export { groupingColumns, MAX_GROUPING_VALUES, withGroupingDimensions } from "./profile-columns.ts";

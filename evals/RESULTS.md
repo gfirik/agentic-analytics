@@ -6,11 +6,11 @@ Datasets: 30 generated businesses (`evals/generator`, 10 archetypes × 3 variant
 
 The engine's detection and ranking rules (M11, M13a) were tuned on these same 30 datasets, so every full and smoke score here is optimistic for unseen data. The held-out generated set (10 reseeded businesses and two archetypes no rule was written against, docs/specs/accuracy.md §9) is scored only by release runs (`aa eval --suite heldout`); the smoke suite includes one of its datasets as a CI check (smoke runs before 2026-10-22 had three datasets, now four). Of the Groq tables, the three single-model smoke runs (gpt-oss-120b, gpt-oss-20b, qwen3.8-27b alone) predate the M13a engine changes (seasonal guard, ranking, driver split, grouping dimensions). The "planner, extractor, judge" smoke run used the M13a engine, before the merge's representative-rule fix (a template with no measured change keeps its priority), which changes nothing per dataset on the offline baseline. Its full run (2026-10-20/21, over two nights) used the engine just before the M14a fixes (#44–#49) and the scoring before code-quality fix 9: it is the *before* of the M14a before/after, and the after run follows. A run with unfinished jobs is partial: its rates count those jobs as misses and its pass column reads n/a. A nightly run is carried over two passes (`aa eval --passes 2`, scripts/eval-daily.sh): a job the first night's quota stopped runs again the next night, and the run is partial only if jobs are still unfinished after that. The ten v3 datasets changed on 2026-10-22 (code-quality fix 11b: their noise blip moved from 2025-12 to 2025-11, off the planted December peak): v3 rows of runs before that date used the old data.
 
-### baseline · full suite · 2026-10-21
+### baseline · full suite · 2026-10-26
 
 Baseline: a scripted heuristic (keyword extractor, rule-based planner and word-overlap judge), not a language model. Its rules were written knowing the generator's document templates (e.g. it treats a sentence with "after" and "pausing" as a stated cause), so its cause-grade and action scores are optimistic. It checks the harness end to end; it is not evidence of model quality.
 
-30 datasets · 120 s · 23100 tokens
+30 datasets · 205 s · 23520 tokens
 
 Usage: no provider calls (scripted model)
 
@@ -32,36 +32,36 @@ Usage: no provider calls (scripted model)
 
 | Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
 |---|---|---|---|---|---|---|
-| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 5 | 4.1 s |
-| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 5 | 5.0 s |
-| coffee_roaster-v3 | yes | 2/2 | none | 1/1 | 5 | 6.0 s |
-| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 2.2 s |
-| printing_shop-v2 | yes | 2/2 | none | 1/1 | 5 | 3.7 s |
-| printing_shop-v3 | yes | 2/2 | none | 1/1 | 5 | 4.3 s |
-| clinic-v1 | yes | 1/1 | none | 2/2 | 5 | 2.9 s |
-| clinic-v2 | yes | 2/2 | none | 1/1 | 5 | 4.1 s |
-| clinic-v3 | yes | 2/2 | none | 1/1 | 5 | 4.7 s |
-| online_store-v1 | yes | 1/1 | none | 2/2 | 4 | 3.1 s |
-| online_store-v2 | yes | 2/2 | none | 1/1 | 5 | 4.5 s |
-| online_store-v3 | yes | 2/2 | none | 1/1 | 5 | 5.4 s |
-| distributor-v1 | yes | 1/1 | none | 2/2 | 5 | 2.3 s |
-| distributor-v2 | yes | 1/2 | none | 1/1 | 5 | 3.3 s |
-| distributor-v3 | yes | 2/2 | none | 1/1 | 5 | 3.4 s |
-| restaurant-v1 | yes | 1/1 | none | 2/2 | 5 | 3.8 s |
-| restaurant-v2 | yes | 2/2 | none | 1/1 | 5 | 5.0 s |
-| restaurant-v3 | yes | 2/2 | none | 1/1 | 5 | 6.7 s |
-| saas-v1 | yes | 1/1 | none | 2/2 | 5 | 3.7 s |
-| saas-v2 | yes | 2/2 | none | 1/1 | 5 | 4.4 s |
-| saas-v3 | yes | 2/2 | none | 1/1 | 5 | 5.2 s |
-| logistics-v1 | yes | 1/1 | none | 2/2 | 5 | 3.2 s |
-| logistics-v2 | yes | 2/2 | none | 1/1 | 5 | 4.6 s |
-| logistics-v3 | yes | 2/2 | none | 1/1 | 5 | 5.6 s |
-| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 5 | 3.0 s |
-| construction_supplier-v2 | yes | 2/2 | none | 1/1 | 5 | 3.6 s |
-| construction_supplier-v3 | yes | 2/2 | none | 1/1 | 5 | 4.3 s |
-| agency-v1 | yes | 1/1 | none | 2/2 | 5 | 1.9 s |
-| agency-v2 | yes | 1/2 | none | 1/1 | 5 | 2.6 s |
-| agency-v3 | yes | 2/2 | none | 1/1 | 5 | 3.7 s |
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 5 | 6.2 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 5 | 7.6 s |
+| coffee_roaster-v3 | yes | 2/2 | none | 1/1 | 5 | 11.5 s |
+| printing_shop-v1 | yes | 1/1 | none | 2/2 | 5 | 5.0 s |
+| printing_shop-v2 | yes | 2/2 | none | 1/1 | 5 | 6.6 s |
+| printing_shop-v3 | yes | 2/2 | none | 1/1 | 5 | 7.8 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 5 | 5.8 s |
+| clinic-v2 | yes | 2/2 | none | 1/1 | 5 | 6.9 s |
+| clinic-v3 | yes | 2/2 | none | 1/1 | 5 | 7.4 s |
+| online_store-v1 | yes | 1/1 | none | 2/2 | 5 | 5.9 s |
+| online_store-v2 | yes | 2/2 | none | 1/1 | 5 | 8.2 s |
+| online_store-v3 | yes | 2/2 | none | 1/1 | 5 | 9.3 s |
+| distributor-v1 | yes | 1/1 | none | 2/2 | 5 | 4.3 s |
+| distributor-v2 | yes | 1/2 | none | 1/1 | 5 | 5.1 s |
+| distributor-v3 | yes | 2/2 | none | 1/1 | 5 | 6.2 s |
+| restaurant-v1 | yes | 1/1 | none | 2/2 | 5 | 6.0 s |
+| restaurant-v2 | yes | 2/2 | none | 1/1 | 5 | 7.9 s |
+| restaurant-v3 | yes | 2/2 | none | 1/1 | 5 | 11.1 s |
+| saas-v1 | yes | 1/1 | none | 2/2 | 5 | 5.7 s |
+| saas-v2 | yes | 2/2 | none | 1/1 | 5 | 6.5 s |
+| saas-v3 | yes | 2/2 | none | 1/1 | 5 | 8.7 s |
+| logistics-v1 | yes | 1/1 | none | 2/2 | 5 | 5.4 s |
+| logistics-v2 | yes | 2/2 | none | 1/1 | 5 | 7.2 s |
+| logistics-v3 | yes | 2/2 | none | 1/1 | 5 | 9.3 s |
+| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 5 | 5.2 s |
+| construction_supplier-v2 | yes | 2/2 | none | 1/1 | 5 | 6.0 s |
+| construction_supplier-v3 | yes | 2/2 | none | 1/1 | 5 | 7.5 s |
+| agency-v1 | yes | 1/1 | none | 2/2 | 5 | 3.5 s |
+| agency-v2 | yes | 1/2 | none | 1/1 | 5 | 4.6 s |
+| agency-v3 | yes | 2/2 | none | 1/1 | 5 | 6.6 s |
 
 </details>
 

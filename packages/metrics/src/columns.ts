@@ -40,6 +40,12 @@ export function metricColumns(def: MetricDef, all: readonly MetricDef[] = [], de
       if (ref && depth < 5) out.push(...metricColumns(ref, all, depth + 1));
     } else read(term.table, term.expression, term.filters);
   }
+  // A derived metric reads what the metrics in its expression read (gross_margin = revenue - cost reads the cost column).
+  if (def.type === "derived" && def.expression && depth < 5)
+    for (const id of safe(() => exprColumns(parseExpression(def.expression ?? "")))) {
+      const ref = all.find((m) => m.id === id);
+      if (ref) out.push(...metricColumns(ref, all, depth + 1));
+    }
   const seen = new Set<string>();
   return out.filter((r) => {
     const k = `${r.table}/${r.column}`;

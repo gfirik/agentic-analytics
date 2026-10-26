@@ -33,6 +33,11 @@ export interface Calc {
   /** Method id, e.g. "pct_change", "contribution.v1", "theil_sen". */
   readonly fn: string;
   readonly inputs: readonly Ref[];
+  /**
+   * The fact's label when it is one of analysis-library §14's fixed labels (`pvm_margin.cost_2026-03`); otherwise the
+   * fact is labelled `<context>:<name>`. A fixed label names one fact in a report.
+   */
+  readonly factLabel?: string;
 }
 
 export type Confidence = "high" | "medium" | "low";

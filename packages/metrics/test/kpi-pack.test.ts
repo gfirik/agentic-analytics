@@ -1,15 +1,9 @@
 // The sales KPI pack (analysis-library §8.1) on the spec's 10-line fixture (§8.2), plus one earlier month in which C1 and
 // C6 bought. Every expected value is worked out by hand in the comments; nothing is read back from the code under test.
-import { ingest } from "@agentic-analytics/ingest";
-import { profileJob } from "@agentic-analytics/profile";
-import { Workspace } from "@agentic-analytics/store";
-import { afterEach, describe, expect, it } from "vitest";
-import { draftMetrics, loadCatalog, mergeMetricSets, runMetric, salesKpiPack, sliceParents, validateMetrics } from "../src/index.ts";
-
-const open: Workspace[] = [];
-afterEach(() => {
-  for (const w of open.splice(0)) w.close();
-});
+import type { Workspace } from "@agentic-analytics/store";
+import { describe, expect, it } from "vitest";
+import { draftMetrics, mergeMetricSets, runMetric, salesKpiPack, sliceParents, validateMetrics } from "../src/index.ts";
+import { profiledTable } from "./pack-fixture.ts";
 
 const HEAD = "Date,Order,Customer,Product,Qty,Price,Discount,Amount,Status";
 // December: C1 and C6 each bought once (200.00 in all). January: the spec's ten lines (lines 5 and 8 refunded).
@@ -39,18 +33,7 @@ const ROLES: Record<string, string> = {
   status: "status",
 };
 
-async function setup(head = HEAD, rows = ROWS, roles = ROLES, kind = "sales_lines") {
-  const ws = await Workspace.open();
-  open.push(ws);
-  const text = `${head}\n${rows.join("\n")}\n`;
-  const summary = await profileJob(ws, await ingest([{ name: "s.csv", bytes: new TextEncoder().encode(text) }]), { today: "2026-07-01" });
-  const first = summary.semantics.roles[0];
-  if (!first) throw new Error("no roles");
-  const columns = first.columns.map((c) => ({ ...c, role: (roles[c.column] ?? "none") as typeof c.role, score: 1 }));
-  const table_kinds = summary.semantics.table_kinds.map((k) => ({ ...k, kind: kind as typeof k.kind }));
-  const withRoles = { ...summary, semantics: { ...summary.semantics, roles: [{ ...first, columns }], table_kinds } };
-  return { ws, summary: withRoles, catalog: await loadCatalog(ws) };
-}
+const setup = (head = HEAD, rows = ROWS, roles = ROLES, kind = "sales_lines") => profiledTable(head, rows, roles, kind);
 
 const value = async (
   ws: Workspace,
@@ -99,7 +82,10 @@ describe("sales KPI pack on the 10-line fixture", () => {
 
   it("lists what it could not draft, with the reason (cancellation: no cancel status in this table)", async () => {
     const { summary } = await setup();
-    expect(salesKpiPack(summary).notDrafted).toEqual([{ kpi: "cancellation_rate", reason: "no_status_role" }]);
+    expect(salesKpiPack(summary).notDrafted).toEqual([
+      { kpi: "cancellation_rate", reason: "no_status_role" },
+      { kpi: "gross_margin", reason: "no_cost_role" },
+    ]);
   });
 
   it("a missing role means that KPI is not drafted and is listed: no customer, quantity, discount, status or order id", async () => {
@@ -116,6 +102,7 @@ describe("sales KPI pack on the 10-line fixture", () => {
       { kpi: "refund_rate", reason: "no_refund_role" },
       { kpi: "cancellation_rate", reason: "no_status_role" },
       { kpi: "discount_rate", reason: "no_discount_role" },
+      { kpi: "gross_margin", reason: "no_cost_role" },
     ]);
   });
 
@@ -142,7 +129,7 @@ describe("sales KPI pack on the 10-line fixture", () => {
     const rows = ROWS.map((r) => r.replace("O7,C5,B,1,150.00,0,150.00,refunded", "O7,C5,B,1,150.00,0,150.00,cancelled"));
     const { ws, summary, catalog } = await setup(HEAD, rows);
     const pack = salesKpiPack(summary);
-    expect(pack.notDrafted).toEqual([]);
+    expect(pack.notDrafted).toEqual([{ kpi: "gross_margin", reason: "no_cost_role" }]);
     const defs = validateMetrics(pack.defs, catalog, { defaultCurrency: "USD" }).accepted;
     const at = (id: string) => value(ws, id, defs, catalog, "2026-01");
     // January's orders O1–O8 = 8; the cancelled one is O7: 1 ÷ 8 × 100 = 12.5. Refunded O4 (100.00) over revenue 1,875 stays the refund rate.

@@ -3,7 +3,7 @@
 // metric compiler); derived numbers carry the function id and their input fact ids. Facts are created lazily,
 // only for numbers an insight or decomposition actually references.
 import type { Catalog, Grain } from "@agentic-analytics/metrics";
-import { compileMetric, compileMetricRows } from "@agentic-analytics/metrics";
+import { compileMetric, compileMetricRows, marginTerms, marginValue } from "@agentic-analytics/metrics";
 import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import type { Calc, Ref, Series } from "./types.ts";
@@ -15,7 +15,8 @@ export type AnalysisErrorCode =
   | "CIRCULAR_CALCS"
   | "BAD_SLICE"
   | "UNKNOWN_FACT"
-  | "EXTERNAL_FACT";
+  | "EXTERNAL_FACT"
+  | "DUPLICATE_LABEL";
 
 export class AnalysisError extends Error {
   constructor(
@@ -47,6 +48,8 @@ export function factOf(scope: ReadonlyMap<string, string>, name: string): string
 export class FactBook {
   readonly facts: Fact[] = [];
   private readonly byKey = new Map<string, string>();
+  /** Fixed labels (analysis-library §14) → fact id: a label names one fact in a report. */
+  private readonly byLabel = new Map<string, string>();
 
   constructor(
     private readonly ws: Workspace,
@@ -77,6 +80,11 @@ export class FactBook {
     const additive = ["sum", "count", "count_distinct"].includes(info.def.type);
     const value = found === undefined && additive ? 0 : found;
     if (value === undefined || !Number.isFinite(value)) throw new AnalysisError("NO_VALUE", `no value for ${seriesId} at ${period}`);
+    const margin = await this.marginPoint(info, period, value);
+    if (margin) {
+      this.byKey.set(key, margin);
+      return margin;
+    }
     const query = { from: period, to: period, grain: this.grain, ...(info.where ? { where: info.where } : {}) };
     const sql = compileMetric(info.def.id, this.defs, this.catalog, query);
     const citations: Citation[] = [];
@@ -113,6 +121,42 @@ export class FactBook {
     return id;
   }
 
+  /**
+   * A margin value is a function of its two measured terms (analysis-library §9): `gross_margin` = revenue − cost and
+   * `gross_margin_pct` = (revenue − cost) ÷ revenue × 100, with the revenue and cost facts of the same period and member
+   * as inputs, so V2 recomputes it and V4 checks its terms. Undefined when the series is not a margin, a term has no
+   * series for this member, or the terms do not give the measured value (then the SQL fact stands, as for any metric).
+   */
+  private async marginPoint(info: SeriesInfo, period: string, measured: number): Promise<string | undefined> {
+    const terms = marginTerms(info.def, this.defs);
+    if (!terms) return undefined;
+    const m = info.series.member;
+    const at = (metric: string) => `${metric}${m ? `|${m.dimension}=${m.value ?? "(none)"}` : ""}`;
+    const [revenue, cost] = [at(terms.revenue), at(terms.cost)];
+    if (!this.series.has(revenue) || !this.series.has(cost)) return undefined;
+    const revenueId = await this.point(revenue, period);
+    const costId = await this.point(cost, period);
+    const value = marginValue(terms.fn, this.valueOf(revenueId), this.valueOf(costId));
+    if (!Number.isFinite(value) || Math.abs(value - measured) > 1e-9 * Math.max(1, Math.abs(value), Math.abs(measured))) return undefined;
+    const id = this.nextId();
+    this.facts.push({
+      id,
+      label: `${info.def.id}${m ? `[${m.dimension}=${m.value ?? "(none)"}]` : ""}_${period}`,
+      value,
+      unit: info.series.unit,
+      ...(info.def.currency && info.series.unit === "currency" ? { currency: info.def.currency } : {}),
+      ...(this.reported.has(info.def.id) ? { metric_id: info.def.id } : {}),
+      computation: { kind: "function", fn: terms.fn, inputs: [revenueId, costId] },
+      citations: [],
+      verified: false,
+    });
+    return id;
+  }
+
+  private valueOf(id: string): number {
+    return this.facts.find((f) => f.id === id)?.value ?? Number.NaN;
+  }
+
   /** The fact for a derived number; `scope` maps calc names (within one insight) to fact ids. */
   async calc(c: Calc, scope: Map<string, string>, context: string, metricId?: string): Promise<string> {
     const inputs: string[] = [];
@@ -123,13 +167,25 @@ export class FactBook {
       scope.set(c.name, known);
       return known;
     }
+    // A fixed label (§14) names one fact: the same calc reached from another decomposition is that fact, and a label
+    // with a different value is an engine bug, never a second fact.
+    const fixed = c.factLabel ? this.byLabel.get(c.factLabel) : undefined;
+    if (fixed) {
+      const old = this.facts.find((f) => f.id === fixed);
+      if (old && Math.abs(old.value - c.value) <= 1e-9 * Math.max(1, Math.abs(old.value), Math.abs(c.value))) {
+        this.byKey.set(key, fixed);
+        scope.set(c.name, fixed);
+        return fixed;
+      }
+      throw new AnalysisError("DUPLICATE_LABEL", `label ${c.factLabel} would name two different facts`);
+    }
     // Like point(): a derived number that isn't finite (a ratio over 0) can't become a fact.
     if (!Number.isFinite(c.value)) throw new AnalysisError("NO_VALUE", `no finite value for ${context}:${c.name}`);
     const id = this.nextId();
     const def = metricId ? this.defs.find((d) => d.id === metricId) : undefined;
     this.facts.push({
       id,
-      label: `${context}:${c.name}`,
+      label: c.factLabel ?? `${context}:${c.name}`,
       value: c.value,
       unit: c.unit,
       ...(c.unit === "currency" && def?.currency ? { currency: def.currency } : {}),
@@ -141,6 +197,7 @@ export class FactBook {
       verified: false,
     });
     this.byKey.set(key, id);
+    if (c.factLabel) this.byLabel.set(c.factLabel, id);
     scope.set(c.name, id);
     return id;
   }

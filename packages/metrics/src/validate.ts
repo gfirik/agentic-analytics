@@ -65,18 +65,56 @@ function checkTableTerm(
   return expr;
 }
 
+/**
+ * Table metrics first, then ratios (which may reference them), then derived metrics; a metric that references another
+ * proposal always follows it, so a ratio over a derived metric (gross_margin_pct over gross_margin) is checked after it.
+ * Ties keep the proposals' order.
+ */
+function validationOrder(proposals: readonly unknown[]): { p: unknown; i: number }[] {
+  interface Shape {
+    id?: unknown;
+    type?: unknown;
+    numerator?: { metric?: unknown };
+    denominator?: { metric?: unknown };
+    expression?: unknown;
+  }
+  const shape = proposals.map((p) => (typeof p === "object" && p !== null ? (p as Shape) : {}));
+  const byId = new Map(shape.flatMap((s, i) => (typeof s.id === "string" ? [[s.id, i] as const] : [])));
+  const refs = (s: Shape): string[] => {
+    const ids = [s.numerator?.metric, s.denominator?.metric].filter((m): m is string => typeof m === "string");
+    if (s.type === "derived" && typeof s.expression === "string") {
+      try {
+        ids.push(...exprColumns(parseExpression(s.expression)));
+      } catch {
+        // An expression that doesn't parse is refused by the semantic check with its reason.
+      }
+    }
+    return ids;
+  };
+  const depth = new Map<number, number>();
+  const visit = (i: number, path: ReadonlySet<number>): number => {
+    const known = depth.get(i);
+    if (known !== undefined) return known;
+    const s = shape[i] as Shape;
+    let d = s.type === "derived" ? 2 : s.type === "ratio" ? 1 : 0;
+    for (const r of refs(s)) {
+      const dep = byId.get(r);
+      // A cycle is refused by the semantic check; here it only must not loop.
+      if (dep !== undefined && dep !== i && !path.has(dep)) d = Math.max(d, 1 + visit(dep, new Set([...path, i])));
+    }
+    depth.set(i, d);
+    return d;
+  };
+  return proposals.map((p, i) => ({ p, i, d: visit(i, new Set()) })).sort((a, b) => a.d - b.d || a.i - b.i);
+}
+
 export function validateMetrics(proposals: readonly unknown[], catalog: Catalog, options: ValidateOptions = {}): Validation {
   const accepted: MetricDef[] = [];
   const rejected: Rejected[] = [];
   const assumptions: Validation["assumptions"] = [];
   const seen = new Set<string>();
 
-  // Table metrics first, then ratios (which may reference them), then derived metrics.
-  const rank = (p: unknown) => {
-    const t = (p as { type?: unknown })?.type;
-    return t === "derived" ? 2 : t === "ratio" ? 1 : 0;
-  };
-  const ordered = proposals.map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i);
+  const ordered = validationOrder(proposals);
 
   for (const { p } of ordered) {
     const reasons: string[] = [];

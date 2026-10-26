@@ -118,6 +118,19 @@ describe("pvm.v1 (spec §4.2)", () => {
     }
   });
 
+  it("zero base quantity: returns netting out keep the identity (A r 20 → 12, q 5 → 3; B r −10 → 4, q −5 → 2)", () => {
+    // Q0 = 5 − 5 = 0, so P̄0 is undefined. ΔR = (12 + 4) − (20 − 10) = 6. It used to give 16 (P̄0 taken as 0).
+    // Volume = 0; Mix = Σ q1·p0 − Σ r0 = (3·4 + 2·2) − (20 − 10) = 16 − 10 = 6; Price = 3·(4 − 4) + 2·(2 − 2) = 0.
+    const r = pvm([
+      { key: "A", r0: 20, q0: 5, r1: 12, q1: 3, refs: {} },
+      { key: "B", r0: -10, q0: -5, r1: 4, q1: 2, refs: {} },
+    ]);
+    expect(r.volume.value).toBe(0);
+    expect(r.mix.value).toBeCloseTo(6, 12);
+    expect(r.price.value).toBeCloseTo(0, 12);
+    expect(r.total.value).toBeCloseTo(6, 12);
+  });
+
   it("revenue with zero quantity is an unpriced effect, not a vanished item", () => {
     // A: q 10 → 10, r 50 → 60 (price +10). B: r 20 → 35 but q 0 in the after period (a credit/adjustment).
     const r = pvm([

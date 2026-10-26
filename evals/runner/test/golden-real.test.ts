@@ -42,12 +42,11 @@ const fileOf = (d: string) => SMALL[d] ?? join(DATA, FILES[d] as string);
 const SPLITS: GoldenSplit[] = ["dev", "heldout"];
 const hasData = (d: string) => existsSync(fileOf(d));
 
-/** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass. */
+/** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass (the margin pack did, PR 8). */
 const M15_ITEMS: Record<string, string[]> = {
   "online-retail-ii": ["G12", "G13", "G14"],
   "hotel-bookings": ["G12"],
   "montgomery-warehouse-sales": ["G1", "G2", "G3"],
-  "wholesale-margin-v1": ["G1", "G2", "G3"],
 };
 
 describe("the real datasets' golden sets", () => {

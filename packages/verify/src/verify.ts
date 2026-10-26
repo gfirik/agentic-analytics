@@ -6,7 +6,7 @@
 
 import { data, renderPrompt } from "@agentic-analytics/agent";
 import { externalFacts, readFacts } from "@agentic-analytics/analysis";
-import { type Catalog, compileMetric, compileMetricRows, type Grain, runMetric } from "@agentic-analytics/metrics";
+import { type Catalog, compileMetric, compileMetricRows, type Grain, marginTerms, runMetric } from "@agentic-analytics/metrics";
 import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import {
   type Claim,
@@ -23,6 +23,10 @@ import {
 } from "@agentic-analytics/schema";
 import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
+import { isCausal, rewriteCorrelational } from "./causal.ts";
+import { dataNames, parseMeasured, quotedSpans } from "./labels.ts";
+import { lexiconProblem } from "./lexicon.ts";
+import { costRoleMetrics, marginClaimProblem, marginFactProblem } from "./margin-check.ts";
 import { type Recomputed, recomputeFacts, same, VerifyError } from "./recompute.ts";
 
 export interface VerifyContext {
@@ -49,57 +53,6 @@ export interface CheckRow {
 export interface VerifyResult {
   readonly report: Report;
   readonly checks: CheckRow[];
-}
-
-// ── V6 lexicon (EN/RU/UZ) and its correlational rewrites ────────────────────────────────────────────────────
-
-const CAUSAL: readonly [RegExp, string][] = [
-  [/\bwas caused by\b/gi, "coincided with"],
-  [/\bwere caused by\b/gi, "coincided with"],
-  [/\bcaused by\b/gi, "coinciding with"],
-  [/\bcaused\b/gi, "coincided with"],
-  [/\bcauses\b/gi, "coincides with"],
-  [/\bas a result of\b/gi, "alongside"],
-  [/\bresulted in\b/gi, "was followed by"],
-  [/\bdue to\b/gi, "alongside"],
-  [/\bbecause of\b/gi, "around the time of"],
-  [/\bled to\b/gi, "was followed by"],
-  [/\bleads to\b/gi, "is followed by"],
-  [/\bstemmed from\b/gi, "followed"],
-  [/\bstems from\b/gi, "follows"],
-  [/\b(?:was|were|is|are) driven by\b/gi, "moved with"],
-  [/\bdriven by\b/gi, "alongside"],
-  [/\bdrove\b/gi, "coincided with"],
-  [/\bdrives\b/gi, "coincides with"],
-  [/\btriggered\b/gi, "preceded"],
-  [/\btriggers\b/gi, "precedes"],
-  [/\bbecause\b/gi, "around the time"],
-  [/из-за/gi, "одновременно с"],
-  [/благодаря/gi, "одновременно с"],
-  [/стал[оаи]? причиной/gi, "совпало с"],
-  [/повлекл[оаи]?/gi, "совпало с"],
-  [/привел[оаи]? к/gi, "совпало с"],
-  [/вызван[оаы]?/gi, "совпало с"],
-  [/по причине/gi, "одновременно с"],
-  [/в результате/gi, "одновременно с"],
-  [/\bsababli\b/gi, "bilan bir vaqtda"],
-  [/\btufayli\b/gi, "bilan bir vaqtda"],
-  [/\bolib keldi\b/gi, "bilan bir vaqtga to'g'ri keldi"],
-  [/\bsabab bo'ldi\b/gi, "bilan bir vaqtda bo'ldi"],
-  [/\bnatijasida\b/gi, "bilan bir vaqtda"],
-];
-
-export function isCausal(text: string): boolean {
-  return CAUSAL.some(([re]) => {
-    re.lastIndex = 0;
-    return re.test(text);
-  });
-}
-
-export function rewriteCorrelational(text: string): string {
-  let t = text;
-  for (const [re, to] of CAUSAL) t = t.replace(re, to);
-  return t;
 }
 
 const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
@@ -164,7 +117,6 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   );
   const fileOf = new Map(draft.sources.map((x) => [x.id, x.file]));
   const external = externalFacts([...all.values()]);
-  const labelOf = (metric: string) => ctx.defs.find((d) => d.id === metric)?.label ?? metric;
   const memo = new Map<string, Set<string>>();
   /** The metrics a fact is measured from: its own, or those of the facts it was computed from. */
   const metricsOf = (id: string, seen = new Set<string>()): Set<string> => {
@@ -207,6 +159,8 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     const same = compiled.text === f.computation.sql && JSON.stringify(compiled.params) === JSON.stringify(stored);
     return same ? undefined : `fact ${f.id}'s SQL is not the definition of ${def.id} for ${m.period}${m.where ? ` (${m.where})` : ""}`;
   };
+  // V4 for margin: the metrics that read a cost role (agent-and-verifier §7).
+  const costMetrics = await costRoleMetrics(ctx.ws, ctx.defs, ctx.catalog);
   const dropped = [...draft.verification.claims_dropped];
   const downgraded = [...draft.verification.claims_downgraded];
   let definitionViolations = 0;
@@ -284,18 +238,10 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
 
     // V4: each fact measures a defined metric with its unit/currency, period and filters; and the claim names no
     // other metric than the ones its facts come from (followed back through derived facts).
-    const named = ctx.defs.filter((d) =>
-      [d.label, d.id].some((n) =>
-        new RegExp(`(?<![\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/_/g, "[ _]")}(?![\\p{L}])`, "iu").test(c.text),
-      ),
-    );
     // The metrics the claim may name are those of all its facts together (spec §7 V4), not of each fact alone: "revenue
     // fell {{N1}} as {{N2}} fewer bags sold" names revenue, which N1 measures, though N2 measures units.
     const from = new Set(c.facts.flatMap((id) => (all.has(id) ? [...metricsOf(id)] : [])));
-    const lexicon =
-      named.length > 0 &&
-      from.size > 0 &&
-      !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
+    const lexicon = lexiconProblem(c.text, ctx.defs, from);
     for (const id of c.facts) {
       const f = all.get(id);
       if (!f) continue;
@@ -307,14 +253,16 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
             ? `fact ${id} is in ${f.unit}, ${def.id} is defined in ${def.unit}`
             : def && f.unit === "currency" && def.currency && f.currency && f.currency !== def.currency
               ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
-              : (definitionProblem(f) ??
-                (lexicon
-                  ? `the claim names ${named.map((n) => n.label).join(", ")} but its facts measure ${[...from].map(labelOf).join(", ")}`
-                  : undefined));
+              : (definitionProblem(f) ?? marginFactProblem(f, all, ctx.defs) ?? lexicon);
       if (problem) {
         definitionViolations++;
         return drop("V4", problem);
       }
+    }
+    const noCost = marginClaimProblem(c.text, c.facts, metricsOf, costMetrics, ctx.defs);
+    if (noCost) {
+      definitionViolations++;
+      return drop("V4", noCost);
     }
     checks.push({ check: "V4", passed: true, claim: c.text, where, detail: where });
 
@@ -693,38 +641,4 @@ export async function persistChecks(ws: Workspace, checks: readonly CheckRow[]):
       // claim_id holds where the claim sits (e.g. "finding F1"); the claim text goes in the detail.
       sql`INSERT INTO verification VALUES (${`V${i + 1}`}, ${c.where ?? null}, ${c.fact ?? null}, ${c.check}, ${c.passed}, ${c.claim ? `${c.detail} — “${c.claim}”` : c.detail})`,
     );
-}
-
-/** `revenue_2026-04` or `revenue[customer=Hotel Group LLC]_2026-04` → metric, member filter, period. */
-export function parseMeasured(label: string): { metric: string; where: string | undefined | null; period: string } | undefined {
-  const m = /^([A-Za-z0-9_]+)(?:\[([^=\]]+)=(.*)\])?_(\d{4}(?:-\d{2}){0,2}|\d{4}-[QW]\d{1,2})$/.exec(label);
-  if (!m) return undefined;
-  const [, metric, dim, value, period] = m;
-  // "(other)" is a NOT IN over the kept members, which the label doesn't carry: not re-derivable (null).
-  const where =
-    dim === undefined
-      ? undefined
-      : value === "(other)"
-        ? null
-        : value === "(none)"
-          ? `${dim} IS NULL`
-          : `${dim} = '${(value ?? "").replace(/'/g, "''")}'`;
-  return { metric: metric as string, where, period: period as string };
-}
-
-/**
- * The names a fact label carries from the data (V1's quoted-digits rule): the whole label, member values of
- * `metric[dim=value]_period`, and the member of a decomposition fact `… by dim:kind:value`.
- */
-export function dataNames(label: string): string[] {
-  return [
-    label,
-    ...[...label.matchAll(/\[[^=\]]+=([^\]]+)\]/g)].map((m) => m[1] ?? ""),
-    ...[...label.matchAll(/ by [^:]+:[a-z_]+:(.+)$/g)].map((m) => m[1] ?? ""),
-  ];
-}
-
-/** Text inside quotation marks (“…” or "…"). */
-export function quotedSpans(text: string): string[] {
-  return [...text.matchAll(/“([^”]*)”|"([^"]*)"/g)].map((m) => m[1] ?? m[2] ?? "");
 }

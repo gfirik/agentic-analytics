@@ -142,7 +142,7 @@ describe("M4 acceptance on coffee-roaster-v1", () => {
       "Revenue = sum of amount where status is empty or status is not refunded, per month, in USD (assumed)",
     );
     expect(draft.validation.assumptions.map((a) => a.metric)).toEqual(["revenue", "wholesale_revenue"]);
-    expect(draft.notDrafted.map((n) => n.kpi)).toEqual(["cancellation_rate", "discount_rate"]);
+    expect(draft.notDrafted.map((n) => n.kpi)).toEqual(["cancellation_rate", "discount_rate", "gross_margin"]);
   });
 
   it("rejects invalid proposals with reasons", async () => {
