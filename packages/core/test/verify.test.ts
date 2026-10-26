@@ -84,6 +84,16 @@ describe("seeded bad drafts (M9 acceptance)", () => {
     expect(r.report.verification.definition_violations).toBe(1);
   });
 
+  it("a claim that names margin on a table with no cost role is dropped (V4, M15 PR 8)", async () => {
+    const d = clone(draft);
+    const [before, after] = f1(d).claims[0]?.facts ?? [];
+    const text = `Gross margin went from {{${before}}} to {{${after}}}.`;
+    f1(d).claims.push(claim(text, [before as string, after as string], { causal_grade: "observed" }));
+    const r = await verify(d);
+    expect(reasonFor(r.report, text)).toMatch(/^V4: the claim names margin but none of its facts is measured from a cost column/);
+    expect(r.report.verification.definition_violations).toBe(1);
+  });
+
   it("unsupported citations are dropped (V5): a quote not in the source, and a quote the judge rejects", async () => {
     const d = clone(draft);
     const doc = d.sources.find((s) => s.file === "email-0412.eml")?.id as string;

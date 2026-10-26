@@ -5,8 +5,10 @@
 import {
   COST_BOUNDS,
   hhi,
+  type MarginEffect,
   mad,
   mannKendall,
+  marginEffect,
   mean,
   median,
   parseQuotedRange,
@@ -16,6 +18,7 @@ import {
   SCENARIO_BOUNDS,
   theilSen,
 } from "@agentic-analytics/analysis";
+import { marginValue } from "@agentic-analytics/metrics";
 import type { Fact } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 
@@ -108,6 +111,19 @@ const RULES: Record<string, Rule> = {
     const p = pvm(items, f.unit);
     const pick = { volume: p.volume, mix: p.mix, price: p.price } as Record<string, { value: number }>;
     return { value: pick[effect]?.value ?? Number.NaN, how: `pvm.v1 ${effect} over the common items` };
+  },
+  // Gross margin (analysis-library §9): a − b and (a − b) ÷ a × 100 over [revenue, cost]. A percentage over revenue ≤ 0 is
+  // never stated, so a stored one is a mismatch (NaN matches nothing).
+  gross_margin: (_f, x) => ({ value: marginValue("gross_margin", x[0] ?? Number.NaN, x[1] ?? Number.NaN), how: "revenue − cost" }),
+  gross_margin_pct: (_f, x) => ({
+    value: marginValue("gross_margin_pct", x[0] ?? Number.NaN, x[1] ?? Number.NaN),
+    how: "(revenue − cost) ÷ revenue × 100",
+  }),
+  // The effect is named by the label (`pvm_margin.cost_2026-03`, §14); the inputs are read in the groups the effect needs.
+  "pvm_margin.v1": (f, x) => {
+    const effect = /^pvm_margin\.(volume|mix|price|cost|new|lost|unpriced)_/.exec(f.label)?.[1] as MarginEffect | undefined;
+    if (!effect) return { value: [], how: "pvm_margin.v1: the effect is not named by the label" };
+    return { value: marginEffect(effect, x), how: `pvm_margin.v1 ${effect}` };
   },
   "ratemix.v1": (f, x) => {
     const segs = groups(x, 4).map((g, i) => ({
