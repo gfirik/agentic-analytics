@@ -143,3 +143,22 @@ describe("a member beyond the whole change is stated in magnitudes (M14a, analys
     expect(decompositionClaims([{ ...b.d, facts: without }], b.facts)[0]?.text).toMatch(/accounted for/);
   });
 });
+
+describe("margin PVM claim (analysis-library §10)", () => {
+  const facts = { price: "M1", cost: "M2", volume: "M3", mix: "M4", total: "M5" };
+  const d: StoredDecomposition = { id: "X4", method: "pvm_margin.v1", insight: "I1", dimension: "product", facts, details: {} };
+
+  it("states price, unit cost, volume and mix, citing each; no decline word can meet a negative effect", () => {
+    const [c] = decompositionClaims([d], new Map());
+    expect(c?.text).toBe(
+      "By product, the change in margin split into a price effect of {{M1}}, a unit cost effect of {{M2}}, a volume effect of {{M3}} and a mix effect of {{M4}}.",
+    );
+    expect(c?.facts).toEqual(["M1", "M2", "M3", "M4"]);
+  });
+
+  it("names the new, no-longer-sold and unquantified items without 'lost' (V4 reads it as a decline word)", () => {
+    const [c] = decompositionClaims([{ ...d, facts: { ...facts, new: "M6", lost: "M7", unpriced: "M8" } }], new Map());
+    expect(c?.text).toContain("new items {{M6}}, items no longer sold {{M7}}, items without quantity {{M8}}");
+    expect(c?.text).not.toMatch(/\b(lost|fell|dropped)\b/i);
+  });
+});
