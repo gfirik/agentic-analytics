@@ -4,6 +4,7 @@
 // definitions go through the metric layer's validation and compiler like any others.
 import type { ProfileSummary } from "@agentic-analytics/profile";
 import type { MetricDef, RatioTerm } from "@agentic-analytics/schema";
+import { marginPack } from "./margin-pack.ts";
 import { groupingColumns, type ProfiledTable, REFUND_VALUE, withRole } from "./profile-columns.ts";
 
 /** Values that mark a cancellation; the rest of REFUND_VALUE is a refund or a return (§8.1 "Revenue lines"). */
@@ -21,7 +22,8 @@ export type KpiId =
   | "returning_customers"
   | "refund_rate"
   | "cancellation_rate"
-  | "discount_rate";
+  | "discount_rate"
+  | "gross_margin";
 
 /** Why a KPI could not be drafted: the vocabulary of analysis-library §13 for `kpi.<id>`. */
 export type NotDraftedReason =
@@ -31,7 +33,8 @@ export type NotDraftedReason =
   | "no_customer_role"
   | "no_refund_role"
   | "no_status_role"
-  | "no_discount_role";
+  | "no_discount_role"
+  | "no_cost_role";
 
 export interface NotDrafted {
   readonly kpi: KpiId;
@@ -334,6 +337,12 @@ export function salesKpiPack(summary: ProfileSummary): KpiPack {
         text: `Gross sales for the discount rate are ${revenue.expression} plus ${discount.name}: the amount is taken to be net of discount.`,
       });
   } else miss("discount_rate", "no_discount_role");
+
+  // Margin needs a cost role (§9); without one the margin analyses are not run (§13).
+  const margin = marginPack({ summary, table, revenue, lines, dimensions, status: "assumed" });
+  defs.push(...margin.defs);
+  assumptions.push(...margin.assumptions);
+  if (margin.missing) miss("gross_margin", margin.missing);
 
   // Only a table read as sales lines or invoices owes the reader an account of what is missing (§13).
   return {
