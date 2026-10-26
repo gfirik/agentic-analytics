@@ -151,8 +151,8 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
   );
 
   const decompose = tool(
-    "Return the decompositions (contribution, pvm, ratemix) computed for the material change a fact belongs to.",
-    z.object({ fact_id: z.string(), method: z.enum(["contribution", "pvm", "ratemix"]) }),
+    "Return the decompositions (contribution, pvm, pvm_margin, ratemix) computed for the material change a fact belongs to.",
+    z.object({ fact_id: z.string(), method: z.enum(["contribution", "pvm", "pvm_margin", "ratemix"]) }),
     budget,
     async ({ fact_id, method }) => {
       const insight = ctx.insights.find((i) => Object.values(i.facts).includes(fact_id));

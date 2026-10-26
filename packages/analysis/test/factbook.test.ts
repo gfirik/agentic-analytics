@@ -59,3 +59,29 @@ describe("FactBook errors are typed (AGENTS.md §4)", () => {
     expect(await code(book.calcs([c("a", "b"), c("b", "a")], "loop"))).toBe("CIRCULAR_CALCS");
   });
 });
+
+describe("fixed fact labels (analysis-library §14)", () => {
+  const effect = (value: number) => ({
+    name: "pvm_margin:cost",
+    label: "unit cost effect",
+    value,
+    unit: "currency" as const,
+    fn: "pvm_margin.v1",
+    inputs: [],
+    factLabel: "pvm_margin.cost_2026-03",
+  });
+
+  it("the calc carries its fixed label, and the same effect reached from another context is the same fact", async () => {
+    const b = new FactBook(ws, [avg], await loadCatalog(ws), "month", series);
+    const first = factOf(await b.calcs([effect(-1902)], "context one"), "pvm_margin:cost");
+    const second = factOf(await b.calcs([effect(-1902)], "context two"), "pvm_margin:cost");
+    expect(second).toBe(first);
+    expect(b.facts.map((f) => f.label)).toEqual(["pvm_margin.cost_2026-03"]);
+  });
+
+  it("DUPLICATE_LABEL: one label never names two different values", async () => {
+    const b = new FactBook(ws, [avg], await loadCatalog(ws), "month", series);
+    await b.calcs([effect(-1902)], "context one");
+    expect(await code(b.calcs([effect(-1901)], "context two"))).toBe("DUPLICATE_LABEL");
+  });
+});
