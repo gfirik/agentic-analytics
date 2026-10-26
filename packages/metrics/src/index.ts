@@ -36,6 +36,7 @@ export {
   MARGIN_PCT_METRIC,
   type MarginFn,
   type MarginTerms,
+  marginDimensions,
   marginTerms,
   marginValue,
 } from "./margin.ts";

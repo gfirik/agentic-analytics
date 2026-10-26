@@ -1,7 +1,15 @@
 // MEASURE → DETECT → DECOMPOSE (ARCHITECTURE §2; docs/specs/analysis-library.md §1–6). Reads every metric
 // through the metric compiler (SQL in DuckDB), runs the templates and decomposers, ranks the findings and
 // records every number as a fact with its computation and citations (AGENTS.md §2.1–2.2).
-import { type Catalog, type Grain, MARGIN_METRIC, marginTerms, runMetric, sliceParents } from "@agentic-analytics/metrics";
+import {
+  type Catalog,
+  type Grain,
+  MARGIN_METRIC,
+  marginDimensions,
+  marginTerms,
+  runMetric,
+  sliceParents,
+} from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
@@ -125,7 +133,7 @@ export async function analyzeJob(
     const total: Series = { id: def.id, metric: def.id, unit, points: fill(own, additive || def.type === "count_distinct", own) };
     series.set(total.id, { series: total, def });
     totals.push(total);
-    for (const dimension of splittable ? (def.dimensions ?? []) : []) {
+    for (const dimension of splittable ? (isGrossMargin(def, defs) ? marginDimensions(def, defs) : (def.dimensions ?? [])) : []) {
       const grouped = await runMetric(ws, def.id, defs, catalog, { ...range, groupBy: [dimension] });
       const byMember = new Map<string | null, { period: string; value: number }[]>();
       for (const r of grouped) {
@@ -257,7 +265,7 @@ export async function analyzeJob(
             ws,
             catalog,
             allDefs.find((d) => d.id === marginTerm.revenue),
-            def.dimensions ?? [],
+            marginDimensions(def, allDefs),
           )
         : undefined;
       for (const { dimension, series: list } of members.get(def.id) ?? []) {

@@ -44,3 +44,15 @@ export function marginValue(fn: MarginFn, revenue: number, cost: number): number
   if (fn === MARGIN_METRIC) return revenue - cost;
   return revenue > 0 ? ((revenue - cost) / revenue) * 100 : Number.NaN;
 }
+
+/**
+ * The dimensions a margin can be split by: those declared on the margin and on both of its terms. A margin a model drafted
+ * from metrics of two tables may name a column only one of them has, and grouping by it would fail.
+ */
+export function marginDimensions(def: MetricDef, defs: readonly MetricDef[]): string[] {
+  const terms = marginTerms(def, defs);
+  const term = (id: string) => defs.find((d) => d.id === id)?.dimensions ?? [];
+  if (!terms) return [];
+  const [revenue, cost] = [term(terms.revenue), term(terms.cost)];
+  return (def.dimensions ?? []).filter((d) => revenue.includes(d) && cost.includes(d));
+}

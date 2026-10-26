@@ -124,7 +124,10 @@ export async function rateMixFor(
   const n = asDef(num, "num");
   const d = asDef(den, "den");
   const dimension = (d?.dimensions ?? [])[0];
-  if (!n || !d || !dimension || n.table !== d.table) return undefined;
+  // Both sides must be sums over one table: a derived or ratio side (gross_margin) has no table to group by, and the
+  // split by member needs additive terms.
+  const additive = (m: MetricDef) => m.type !== "derived" && m.type !== "ratio";
+  if (!n || !d || !dimension || n.table !== d.table || !additive(n) || !additive(d)) return undefined;
   register(n);
   register(d);
   const by = async (m: MetricDef) => runMetric(ws, m.id, defs, catalog, { ...range, groupBy: [dimension] });
@@ -195,7 +198,8 @@ export async function pvmMarginFor(
   const revenueDef = defs.find((d) => d.id === terms.revenue);
   const costDef = defs.find((d) => d.id === terms.cost);
   const table = catalog.get(revenueDef?.table ?? "");
-  if (!revenueDef || !costDef || !table || !table.columns.has(dimension)) return undefined;
+  // One table: the unit price and unit cost of an item divide by the same units, and the item column must be in it.
+  if (!revenueDef || !costDef || !table || costDef.table !== revenueDef.table || !table.columns.has(dimension)) return undefined;
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
   const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
     .map((name) => table.columns.get(name))
