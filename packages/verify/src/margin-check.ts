@@ -1,6 +1,6 @@
 // V4 for margin (agent-and-verifier §7): a claim that names margin must read a cost role, and a margin function fact must
 // be built from its definition's two terms for the same period and member. Deterministic; no model.
-import { type Catalog, marginTerms, metricColumns } from "@agentic-analytics/metrics";
+import { type Catalog, MARGIN_METRIC, MARGIN_PCT_METRIC, marginTerms, metricColumns } from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 
@@ -25,19 +25,27 @@ export async function costRoleMetrics(ws: Workspace, defs: readonly MetricDef[],
 }
 
 /**
- * A claim that names margin must come from a metric that reads a cost role: at least one of its facts, followed back
- * through its inputs (`metricsOf`), is measured from one. A margin claim on a table with no cost role, or on a cost column
- * the user dropped, is a violation, and the claim is dropped (V4).
+ * A claim that names margin must come from a metric that reads a cost role: at least one of its facts is measured
+ * (`metricsOf`) from one. A margin claim on a table with no cost role, or on a cost column the user dropped, is a violation,
+ * and the claim is dropped (V4). The exception is a metric that is itself a margin the data states, such as the user's own
+ * `Margin` money column summed by a drafted metric: it is the data's margin, not a computed one, so it needs no cost role
+ * and keeps the ordinary V4 rules. The computed margin (`gross_margin`, `gross_margin_pct`) never takes the exception.
  */
 export function marginClaimProblem(
   text: string,
   facts: readonly string[],
   metricsOf: (factId: string) => ReadonlySet<string>,
   costMetrics: ReadonlySet<string>,
+  defs: readonly MetricDef[],
 ): string | undefined {
   if (!namesMargin(text)) return undefined;
+  const computed = new Set<string>([MARGIN_METRIC, MARGIN_PCT_METRIC]);
+  const statesMargin = (id: string) => {
+    const d = defs.find((x) => x.id === id);
+    return d !== undefined && !computed.has(id) && namesMargin(`${d.id.replace(/_/g, " ")} ${d.label}`);
+  };
   const measured = facts.flatMap((id) => [...metricsOf(id)]);
-  return measured.some((m) => costMetrics.has(m))
+  return measured.some((m) => costMetrics.has(m) || statesMargin(m))
     ? undefined
     : "the claim names margin but none of its facts is measured from a cost column (no cost role)";
 }

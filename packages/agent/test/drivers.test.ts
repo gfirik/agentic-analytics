@@ -151,7 +151,7 @@ describe("margin PVM claim (analysis-library §10)", () => {
   it("states price, unit cost, volume and mix, citing each; no decline word can meet a negative effect", () => {
     const [c] = decompositionClaims([d], new Map());
     expect(c?.text).toBe(
-      "By product, the change in margin split into a price effect of {{M1}}, a unit cost effect of {{M2}}, a volume effect of {{M3}} and a mix effect of {{M4}}.",
+      "By product, the change in margin split into a price effect of {{M1}}, a purchase-price effect of {{M2}}, a volume effect of {{M3}} and a mix effect of {{M4}}.",
     );
     expect(c?.facts).toEqual(["M1", "M2", "M3", "M4"]);
   });

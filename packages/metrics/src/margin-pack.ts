@@ -54,7 +54,10 @@ export function marginPack(input: MarginInput): MarginPack {
   ];
   const assumptions: MarginPack["assumptions"] = [];
   // A line with no cost is outside margin on both sides: revenue is then measured over the costed lines only.
-  const partial = column.null_pct > 0;
+  // On the quantity × unit cost path a line is costed only when both factors are present: a null quantity gives a null cost,
+  // yet its revenue would still count.
+  const factors = costAmount ? [column] : [qty as Column, column];
+  const partial = factors.some((c) => c.null_pct > 0);
   let revenueId = "revenue";
   if (partial) {
     revenueId = COSTED_REVENUE_METRIC;
@@ -64,7 +67,7 @@ export function marginPack(input: MarginInput): MarginPack {
       description: `Money from the revenue lines that have a cost (${revenue.expression}).`,
       type: "sum",
       expression: revenue.expression,
-      filters: [...lines, `${column.name} IS NOT NULL`],
+      filters: [...lines, ...factors.map((c) => `${c.name} IS NOT NULL`)],
       ...money,
       dimensions: [...dimensions],
       ...base,

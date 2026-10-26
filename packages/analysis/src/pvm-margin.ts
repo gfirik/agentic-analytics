@@ -79,8 +79,11 @@ export function marginEffect(effect: MarginEffect, x: readonly number[]): number
 
 /**
  * @param period the later period; it ends the fixed fact labels (`pvm_margin.cost_<period>`, spec §14)
+ * @param fixedLabels whether the effects carry those labels. The label names the later period only, so it means the split
+ *   against the previous period; a split against another baseline (a year ago) would be a different fact under one label
+ *   and gets the ordinary `<context>:<name>` label instead.
  */
-export function pvmMargin(items: readonly MarginItem[], period: string, unit: Unit = "currency"): PvmMargin {
+export function pvmMargin(items: readonly MarginItem[], period: string, unit: Unit = "currency", fixedLabels = true): PvmMargin {
   const both = items.filter((i) => present0(i) && present1(i));
   const common = both.filter((i) => i.q0 !== 0 && i.q1 !== 0);
   const unpricedItems = both.filter((i) => i.q0 === 0 || i.q1 === 0);
@@ -102,7 +105,7 @@ export function pvmMargin(items: readonly MarginItem[], period: string, unit: Un
       unit,
       fn: "pvm_margin.v1",
       inputs: refsOf(list, keys),
-      factLabel: `pvm_margin.${effect}_${period}`,
+      ...(fixedLabels ? { factLabel: `pvm_margin.${effect}_${period}` } : {}),
     };
   };
   const volume = calc("volume", "volume effect on margin", common, COMMON_KEYS);

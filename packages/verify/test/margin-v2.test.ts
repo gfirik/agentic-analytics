@@ -10,6 +10,7 @@ import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { recomputeFacts } from "../src/index.ts";
+import { lexiconProblem } from "../src/lexicon.ts";
 import { costRoleMetrics, marginClaimProblem, marginFactProblem } from "../src/margin-check.ts";
 
 let ws: Workspace;
@@ -229,13 +230,13 @@ describe("wholesale-margin-v1 end to end", () => {
     const metricsOf = (id: string) => new Set([full.facts.find((f) => f.id === id)?.metric_id ?? ""]);
     const margin = (full.byLabel.get("gross_margin_2026-03") as Fact).id;
     const revenue = (full.byLabel.get("revenue_2026-03") as Fact).id;
-    expect(marginClaimProblem("Gross margin was {{N1}}.", [margin], metricsOf, costMetrics)).toBeUndefined();
-    expect(marginClaimProblem("Gross margin was {{N1}}.", [revenue], metricsOf, costMetrics)).toMatch(/no cost role/);
+    expect(marginClaimProblem("Gross margin was {{N1}}.", [margin], metricsOf, costMetrics, full.defs)).toBeUndefined();
+    expect(marginClaimProblem("Gross margin was {{N1}}.", [revenue], metricsOf, costMetrics, full.defs)).toMatch(/no cost role/);
     // Not a margin claim: no check.
-    expect(marginClaimProblem("Revenue was {{N1}}.", [revenue], metricsOf, costMetrics)).toBeUndefined();
+    expect(marginClaimProblem("Revenue was {{N1}}.", [revenue], metricsOf, costMetrics, full.defs)).toBeUndefined();
     // RU and UZ words
-    expect(marginClaimProblem("Маржа составила {{N1}}.", [revenue], metricsOf, costMetrics)).toBeDefined();
-    expect(marginClaimProblem("Yalpi foyda {{N1}}.", [revenue], metricsOf, costMetrics)).toBeDefined();
+    expect(marginClaimProblem("Маржа составила {{N1}}.", [revenue], metricsOf, costMetrics, full.defs)).toBeDefined();
+    expect(marginClaimProblem("Yalpi foyda {{N1}}.", [revenue], metricsOf, costMetrics, full.defs)).toBeDefined();
   });
 
   it("V4: a cost column the user dropped (role none) is no cost role: the same margin claim now fails", async () => {
@@ -246,7 +247,7 @@ describe("wholesale-margin-v1 end to end", () => {
       expect(costMetrics.size).toBe(0);
       const margin = dropped.facts.find((f) => f.label.startsWith("gross_margin_")) as Fact;
       const metricsOf = (id: string) => new Set([dropped.facts.find((f) => f.id === id)?.metric_id ?? ""]);
-      expect(marginClaimProblem("Gross margin was {{N1}}.", [margin.id], metricsOf, costMetrics)).toMatch(/no cost role/);
+      expect(marginClaimProblem("Gross margin was {{N1}}.", [margin.id], metricsOf, costMetrics, dropped.defs)).toMatch(/no cost role/);
     } finally {
       dropped.w.close();
     }
@@ -256,5 +257,54 @@ describe("wholesale-margin-v1 end to end", () => {
     const noCost: MetricDef[] = full.defs.filter((d) => d.id === "revenue");
     const costMetrics = await costRoleMetrics(full.w, noCost, full.catalog);
     expect(costMetrics.size).toBe(0);
+  });
+
+  it("V4: a metric that is itself the data's margin (a summed Margin column) needs no cost role; the computed margin and revenue do", async () => {
+    const own = [
+      ...full.defs,
+      {
+        id: "margin",
+        label: "Margin",
+        type: "sum",
+        table: "t",
+        expression: "m",
+        unit: "currency",
+        currency: "GBP",
+        status: "assumed",
+      } as MetricDef,
+    ];
+    const costMetrics = await costRoleMetrics(full.w, own, full.catalog);
+    const of = (id: string) => (id === "OWN" ? new Set(["margin"]) : new Set([full.facts.find((f) => f.id === id)?.metric_id ?? ""]));
+    const revenue = (full.byLabel.get("revenue_2026-03") as Fact).id;
+    expect(marginClaimProblem("Margin was {{OWN}}.", ["OWN"], of, costMetrics, own)).toBeUndefined();
+    expect(marginClaimProblem("Margin was {{N1}}.", [revenue], of, costMetrics, own)).toMatch(/no cost role/);
+    // A model's own gross_margin metric is the computed margin by id: without a cost role it takes no exception.
+    const noCost = await costRoleMetrics(
+      full.w,
+      full.defs.filter((d) => d.id === "revenue"),
+      full.catalog,
+    );
+    const gm = {
+      id: "gross_margin",
+      label: "Gross margin",
+      type: "sum",
+      table: "t",
+      expression: "m",
+      unit: "currency",
+      currency: "GBP",
+      status: "assumed",
+    } as MetricDef;
+    expect(marginClaimProblem("Gross margin was {{N1}}.", ["GM"], () => new Set(["gross_margin"]), noCost, [gm])).toMatch(/no cost role/);
+  });
+
+  it("V4 lexicon: a margin fact stays a margin, so a claim that calls it revenue is a mislabel; the margin PVM claim passes", () => {
+    const margin = full.byLabel.get("gross_margin_2026-03") as Fact;
+    const from = new Set([margin.metric_id as string]);
+    expect(lexiconProblem("Revenue rose by {{N1}}.", full.defs, from)).toMatch(/names Revenue but its facts measure Gross margin/);
+    expect(lexiconProblem("Cost of goods sold rose by {{N1}}.", full.defs, from)).toMatch(/names Cost of goods sold/);
+    expect(lexiconProblem("Gross margin was {{N1}}.", full.defs, from)).toBeUndefined();
+    const claim =
+      "By product, the change in margin split into a price effect of {{N1}}, a purchase-price effect of {{N2}}, a volume effect of {{N3}} and a mix effect of {{N4}}.";
+    expect(lexiconProblem(claim, full.defs, from)).toBeUndefined();
   });
 });

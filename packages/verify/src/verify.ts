@@ -25,6 +25,7 @@ import { ident, sql, tableName, type Workspace } from "@agentic-analytics/store"
 import { z } from "zod";
 import { isCausal, rewriteCorrelational } from "./causal.ts";
 import { dataNames, parseMeasured, quotedSpans } from "./labels.ts";
+import { lexiconProblem } from "./lexicon.ts";
 import { costRoleMetrics, marginClaimProblem, marginFactProblem } from "./margin-check.ts";
 import { type Recomputed, recomputeFacts, same, VerifyError } from "./recompute.ts";
 
@@ -116,7 +117,6 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   );
   const fileOf = new Map(draft.sources.map((x) => [x.id, x.file]));
   const external = externalFacts([...all.values()]);
-  const labelOf = (metric: string) => ctx.defs.find((d) => d.id === metric)?.label ?? metric;
   const memo = new Map<string, Set<string>>();
   /** The metrics a fact is measured from: its own, or those of the facts it was computed from. */
   const metricsOf = (id: string, seen = new Set<string>()): Set<string> => {
@@ -126,13 +126,8 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     const out = new Set<string>();
     if (f && !seen.has(id)) {
       seen.add(id);
-      if (f.metric_id) {
-        out.add(f.metric_id);
-        // A margin is measured from its two terms (revenue and cost): a claim may name either (analysis-library §9).
-        const def = ctx.defs.find((d) => d.id === f.metric_id);
-        const terms = def ? marginTerms(def, ctx.defs) : undefined;
-        if (terms) for (const m of [terms.revenue, terms.cost]) out.add(m);
-      } else for (const x of f.computation.inputs ?? []) for (const m of metricsOf(x, seen)) out.add(m);
+      if (f.metric_id) out.add(f.metric_id);
+      else for (const x of f.computation.inputs ?? []) for (const m of metricsOf(x, seen)) out.add(m);
     }
     memo.set(id, out);
     return out;
@@ -243,18 +238,10 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
 
     // V4: each fact measures a defined metric with its unit/currency, period and filters; and the claim names no
     // other metric than the ones its facts come from (followed back through derived facts).
-    const named = ctx.defs.filter((d) =>
-      [d.label, d.id].some((n) =>
-        new RegExp(`(?<![\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/_/g, "[ _]")}(?![\\p{L}])`, "iu").test(c.text),
-      ),
-    );
     // The metrics the claim may name are those of all its facts together (spec §7 V4), not of each fact alone: "revenue
     // fell {{N1}} as {{N2}} fewer bags sold" names revenue, which N1 measures, though N2 measures units.
     const from = new Set(c.facts.flatMap((id) => (all.has(id) ? [...metricsOf(id)] : [])));
-    const lexicon =
-      named.length > 0 &&
-      from.size > 0 &&
-      !named.some((n) => from.has(n.id) || [...from].some((m) => labelOf(m).toLowerCase().includes(n.label.toLowerCase())));
+    const lexicon = lexiconProblem(c.text, ctx.defs, from);
     for (const id of c.facts) {
       const f = all.get(id);
       if (!f) continue;
@@ -266,17 +253,13 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
             ? `fact ${id} is in ${f.unit}, ${def.id} is defined in ${def.unit}`
             : def && f.unit === "currency" && def.currency && f.currency && f.currency !== def.currency
               ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
-              : (definitionProblem(f) ??
-                marginFactProblem(f, all, ctx.defs) ??
-                (lexicon
-                  ? `the claim names ${named.map((n) => n.label).join(", ")} but its facts measure ${[...from].map(labelOf).join(", ")}`
-                  : undefined));
+              : (definitionProblem(f) ?? marginFactProblem(f, all, ctx.defs) ?? lexicon);
       if (problem) {
         definitionViolations++;
         return drop("V4", problem);
       }
     }
-    const noCost = marginClaimProblem(c.text, c.facts, metricsOf, costMetrics);
+    const noCost = marginClaimProblem(c.text, c.facts, metricsOf, costMetrics, ctx.defs);
     if (noCost) {
       definitionViolations++;
       return drop("V4", noCost);

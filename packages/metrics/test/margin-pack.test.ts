@@ -82,6 +82,18 @@ describe("margin pack", () => {
     expect(d.pack.assumptions.some((a) => a.metric === "gross_margin")).toBe(true);
   });
 
+  it("a line with no quantity is not costed either: margin covers the costed lines only", async () => {
+    // February's B line has no quantity: its revenue (88) must not count, since its cost cannot be computed.
+    const rows = ROWS.map((r, i) => (i === 3 ? r.replace(",8,11.00,", ",,11.00,") : r));
+    const d = await drafted(rows);
+    expect(d.rejected).toEqual([]);
+    expect(d.pack.defs.find((x) => x.id === "gross_margin")?.expression).toBe("costed_revenue - cost");
+    expect(d.pack.defs.find((x) => x.id === "costed_revenue")?.filters).toEqual(["qty IS NOT NULL", "unit_cost IS NOT NULL"]);
+    // A alone: revenue 60, cost 12·4 = 48, margin 12 (not 60 + 88 − 48 = 100)
+    expect((await at(d, "gross_margin", "2026-02"))[0]?.value).toBe(12);
+    expect(d.pack.assumptions.some((a) => a.metric === "gross_margin")).toBe(true);
+  });
+
   it("without a cost role margin is not drafted and the reason is listed (§13)", async () => {
     const d = await drafted(ROWS, { ...ROLES, unit_cost: "none" });
     expect(d.pack.defs.map((x) => x.id)).not.toContain("gross_margin");

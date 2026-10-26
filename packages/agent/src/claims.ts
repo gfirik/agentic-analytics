@@ -185,8 +185,8 @@ export function decompositionClaims(ds: readonly StoredDecomposition[], facts: R
         ),
       );
     }
-    // Margin PVM (analysis-library §10). The wording avoids "lost"/"fell": V4 reads those as a decline word, and an effect
-    // can be negative.
+    // Margin PVM (analysis-library §10). The wording avoids "lost"/"fell" (V4 reads those as a decline word, and an effect
+    // can be negative) and the bare word "cost" (V4's lexicon would read it as naming the `cost` metric, which a margin fact is not).
     if (d.method === "pvm_margin.v1" && f.price && f.volume && f.mix && f.cost) {
       const extra = [
         f.new ? `new items ${ph(f.new)}` : "",
@@ -197,7 +197,7 @@ export function decompositionClaims(ds: readonly StoredDecomposition[], facts: R
         .join(", ");
       out.push(
         claim(
-          `By ${label(d.dimension)}, the change in margin split into a price effect of ${ph(f.price)}, a unit cost effect of ${ph(f.cost)}, a volume effect of ${ph(f.volume)} and a mix effect of ${ph(f.mix)}${extra ? `; ${extra}` : ""}.`,
+          `By ${label(d.dimension)}, the change in margin split into a price effect of ${ph(f.price)}, a purchase-price effect of ${ph(f.cost)}, a volume effect of ${ph(f.volume)} and a mix effect of ${ph(f.mix)}${extra ? `; ${extra}` : ""}.`,
           [f.price, f.cost, f.volume, f.mix, f.new, f.lost, f.unpriced],
         ),
       );

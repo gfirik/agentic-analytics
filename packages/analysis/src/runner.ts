@@ -408,7 +408,9 @@ export async function analyzeJob(
     const insightId = idOf.get(d.insight);
     if (!insightId) continue;
     const id = `X${storedDecomp.length + 1}`;
-    const context = `${d.method} ${d.insight.series} ${d.insight.period} by ${d.dimension}`;
+    // A margin split names its baseline too: two splits of one later period against different baselines are different facts.
+    const baseline = d.pvmMargin ? ` from ${periodOf(d.insight.roles.before) ?? ""}` : "";
+    const context = `${d.method} ${d.insight.series} ${d.insight.period}${baseline} by ${d.dimension}`;
     const facts: Record<string, string> = {};
     let details: Record<string, unknown> = {};
     if (d.contribution) {

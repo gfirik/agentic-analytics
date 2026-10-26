@@ -258,7 +258,10 @@ export async function pvmMarginFor(
       },
     };
   });
-  const result = pvmMargin(marginItems, after);
+  // Only the split against the previous job period is the one the fixed labels (§14) name.
+  const marginPeriods = margin.points.map((p) => p.period);
+  const previous = marginPeriods[marginPeriods.indexOf(after) - 1];
+  const result = pvmMargin(marginItems, after, "currency", previous === before);
   // The items must be all of the margin: their effects add up to the margin metric's own change (a cost with no revenue line
   // in the item list would leave a gap).
   const delta = valueAt(margin, after) - valueAt(margin, before);
