@@ -13,27 +13,20 @@ import {
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
+import { ConcentrationFacts } from "./concentration-facts.ts";
+import { membersByPeriod, type NotRun, notRun, sectionFacts, setupConcentration } from "./concentration-pack.ts";
+import { concentration, dependence } from "./concentration-templates.ts";
 import { marginItemDimension, pvmFor, pvmMarginFor, rateMixFor, valueAt } from "./decomp-inputs.ts";
 import { cancelsOut, type Pvm, type RateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { contributionFacts, memberFilter, otherFilter, unitOf } from "./members.ts";
+import { curve, type Member, statValue } from "./pareto.ts";
 import { fillPeriods } from "./periods.ts";
 import type { PvmMargin } from "./pvm-margin.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
 import { seasonalMatch, touchesSeason } from "./seasonal.ts";
-import {
-  anomalies,
-  concentration,
-  type Insight,
-  mixShift,
-  newLost,
-  periodChange,
-  ratioShift,
-  topContributors,
-  trend,
-  trendBreak,
-} from "./templates.ts";
+import { anomalies, type Insight, mixShift, newLost, periodChange, ratioShift, topContributors, trend, trendBreak } from "./templates.ts";
 import { OTHER, type Point, type Series } from "./types.ts";
 
 export interface AnalyzeOptions {
@@ -84,6 +77,8 @@ export interface AnalysisResult {
   readonly topScores: number[];
   /** Tests skipped for lack of data and other open questions. */
   readonly openQuestions: string[];
+  /** Analyses of a pack that could not run, with a reason code (analysis-library §13). */
+  readonly notRun: NotRun[];
 }
 
 export async function analyzeJob(
@@ -108,6 +103,8 @@ export async function analyzeJob(
   const totals: Series[] = [];
   const members = new Map<string, { dimension: string; series: Series[] }[]>();
   const measured = new Map<string, { period: string; value: number }[]>();
+  // Every member's value per period, uncapped: the concentration statistics need all members (analysis-library §11).
+  const perPeriod = new Map<string, Map<string, Member[]>>();
   for (const def of defs) {
     const rows = await runMetric(ws, def.id, defs, catalog, range);
     measured.set(
@@ -140,6 +137,7 @@ export async function analyzeJob(
         const key = (r[dimension] as string | null) ?? null;
         byMember.set(key, [...(byMember.get(key) ?? []), { period: r.period, value: Number(r.value ?? 0) }]);
       }
+      perPeriod.set(`${def.id}|${dimension}`, membersByPeriod(byMember));
       const ranked = [...byMember.entries()].sort((a, b) => sumAbs(b[1]) - sumAbs(a[1]) || String(a[0]).localeCompare(String(b[0])));
       const kept = ranked.slice(0, maxMembers);
       const list: Series[] = kept.map(([value, points]) => {
@@ -183,6 +181,18 @@ export async function analyzeJob(
     }
   }
 
+  // Concentration (analysis-library §11): label names for the dimensions and the pack's windows.
+  const setup = await setupConcentration(
+    ws,
+    catalog,
+    defs,
+    new Map([...members].map(([metric, dims]) => [metric, dims.map((d) => d.dimension)])),
+    (metric) => (series.get(metric)?.series.points ?? []).map((p) => p.period),
+    perPeriod,
+    grain,
+  );
+  const lead = setup.dimensions[0];
+
   // DETECT (spec §3).
   const found: Insight[] = [];
   for (const s of totals) {
@@ -209,9 +219,30 @@ export async function analyzeJob(
     const latest = periods[periods.length - 1];
     const previous = periods[periods.length - 2];
     for (const { dimension, series: list } of dims) {
-      if (latest) {
-        const c = concentration(metric, total, list, latest, dimension);
+      const split = perPeriod.get(`${metric}|${dimension}`);
+      const now = latest ? (split?.get(latest) ?? []) : [];
+      if (latest && split) {
+        // The member on top is kept in `list` unless it is not among the largest by volume over the whole range.
+        const topKey = curve(now).positive[0]?.key;
+        const top = list.find((s) => s.member?.value === topKey);
+        const c = concentration(metric, total, dimension, latest, now, top);
         if (c) found.push(c);
+        // Single-customer dependence (§11.4) on the pack's lead dimension.
+        if (setup.pack?.id === metric && lead?.column === dimension) {
+          const dep = dependence({
+            metric,
+            total,
+            dimension,
+            dim: lead.dim,
+            period: latest,
+            start: lead.plan.windows.ttm.from,
+            startShare: statValue("top1_share", split.get(lead.plan.windows.ttm.from) ?? []),
+            members: now,
+            trend: lead.plan.trend,
+            ...(top ? { top } : {}),
+          });
+          if (dep) found.push(dep);
+        }
       }
       if (latest && previous) {
         const nl = newLost(metric, total, list, previous, latest, dimension);
@@ -374,6 +405,8 @@ export async function analyzeJob(
   // Helper metrics (quantities, ratio terms) are compiled by the fact book but aren't report metrics, so their
   // facts carry no metric_id (report integrity only accepts ids from the metric list).
   const book = new FactBook(ws, allDefs, catalog, grain, series, new Set(defs.map((d) => d.id)));
+  const stats = new ConcentrationFacts(ws, book, allDefs, catalog, grain, setup.dimOf);
+  book.stats = stats;
   const stored: StoredInsight[] = [];
   const scoreOf = new Map<Insight, Ranked>(ranked.map((r) => [r.insight, r]));
   const material = found.filter((i) => i.material).sort((a, b) => (scoreOf.get(b)?.score ?? 0) - (scoreOf.get(a)?.score ?? 0));
@@ -466,6 +499,8 @@ export async function analyzeJob(
   });
   const top = explain.map((e) => e.id);
   const topScores = explain.map((e) => e.score);
+  // The Pareto and concentration section (§11): stated whether or not a finding fired.
+  for (const d of setup.dimensions) await sectionFacts(book, stats, d.plan, `concentration ${setup.pack?.id} ${d.column}`);
   const result: AnalysisResult = {
     facts: book.facts,
     insights: stored,
@@ -473,6 +508,7 @@ export async function analyzeJob(
     top,
     topScores,
     openQuestions: [...new Set(openQuestions)],
+    notRun: notRun(setup.dimensions.length, lead?.plan),
   };
   await persist(ws, result);
   return result;

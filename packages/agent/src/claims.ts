@@ -40,6 +40,17 @@ export function observedClaim(i: StoredInsight, defs: readonly MetricDef[], fact
     }
     return make(text, ids);
   }
+  if (i.template === "dependence.v1" && f.top_share) {
+    // Both ways in (analysis-library §11.4) are stated when they hold: the share crossed 30% while the HHI rose, and the
+    // member's own value is shrinking.
+    const parts = [`${q(String(i.details.top))} made up ${ph(f.top_share)} of ${m} in ${i.period}`];
+    if (f.share_start && f.hhi_slope)
+      parts.push(
+        `up from ${ph(f.share_start)} at the start of the trailing year, while the concentration index (HHI) rose by ${ph(f.hhi_slope)} per period`,
+      );
+    if (f.member_slope) parts.push(`and its own ${m} changed by ${ph(f.member_slope)} per period`);
+    return make(`${parts.join(", ")}.`, [f.top_share, f.share_start, f.hhi_slope, f.hhi_p, f.member_slope, f.member_p]);
+  }
   if (i.template === "concentration.v1" && f.top_share)
     return make(`${q(String(i.details.top))} made up ${ph(f.top_share)} of ${m} in ${i.period}.`, [f.top_share]);
   if (i.template === "new_lost.v1") {
@@ -221,7 +232,7 @@ export const LOWER_IS_BETTER = /refund|return|churn|cost|expense|defect|complain
 export function findingType(i: StoredInsight, def: MetricDef | undefined): Finding["type"] {
   if (i.template === "trend_break.v1") return "trend_break";
   if (i.template === "anomaly.v1") return "anomaly";
-  if (i.template === "concentration.v1") return "concentration_risk";
+  if (i.template === "concentration.v1" || i.template === "dependence.v1") return "concentration_risk";
   if (i.template === "benchmark_gap.v1") return "benchmark_gap";
   const worse = LOWER_IS_BETTER.test(`${i.metric} ${def?.label ?? ""}`) ? i.direction === "up" : i.direction === "down";
   return worse ? "regression" : "improvement";

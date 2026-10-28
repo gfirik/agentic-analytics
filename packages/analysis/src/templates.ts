@@ -3,7 +3,7 @@
 // confidence, and notes for tests skipped for lack of data (each becomes an open question).
 import { type Baseline, chooseBaseline, type Grain, MIN_PERIODS, materiality, noiseBand } from "./baselines.ts";
 import { type Contribution, contribution, contributionCalcs, type MemberChange } from "./decompose.ts";
-import { hhi, MAD_SCALE, mad, mannKendall, mean, median, sse, theilSen, twoProportionZ } from "./stats.ts";
+import { MAD_SCALE, mad, mannKendall, mean, median, sse, theilSen, twoProportionZ } from "./stats.ts";
 import { type Calc, type Confidence, calcRef, isOther, type Point, point, type Ref, type Series } from "./types.ts";
 
 export type TemplateId =
@@ -13,6 +13,7 @@ export type TemplateId =
   | "anomaly.v1"
   | "top_contributors.v1"
   | "concentration.v1"
+  | "dependence.v1"
   | "new_lost.v1"
   | "mix_shift.v1"
   | "ratio_shift.v1"
@@ -323,50 +324,6 @@ export function topContributors(
     details: { dimension, top: top?.key, positive: c.positive, negative: c.negative },
     notes: [],
     contribution: c,
-  };
-}
-
-// ── concentration.v1 ──────────────────────────────────────────────────────────────────────────────────────────
-
-/** Dependence on few members (spec §3): top-1 share ≥ 30% or HHI ≥ 0.25 at the period. */
-export function concentration(
-  metric: string,
-  total: Series,
-  members: readonly Series[],
-  period: string,
-  dimension: string,
-): Insight | undefined {
-  const vals = members.map((m) => ({ s: m, v: m.points.find((p) => p.period === period)?.value ?? 0 })).filter((x) => x.v > 0);
-  const sum = vals.reduce((a, x) => a + x.v, 0);
-  if (!sum || vals.length < 2) return undefined;
-  vals.sort((a, b) => b.v - a.v);
-  const named = vals.find((x) => !isOther(x.s));
-  if (!named) return undefined;
-  const top = named;
-  const shares = vals.map((x) => x.v / sum);
-  const refs = vals.map((x) => point(x.s.id, period));
-  const topShare: Calc = {
-    name: "top_share",
-    label: `${top.s.member?.value ?? top.s.id} share`,
-    value: (top.v / sum) * 100,
-    unit: "percent",
-    fn: "share",
-    inputs: refs,
-  };
-  const index: Calc = { name: "hhi", label: "Herfindahl–Hirschman index", value: hhi(shares), unit: "ratio", fn: "hhi", inputs: refs };
-  const material = topShare.value >= 30 || index.value >= 0.25;
-  return {
-    template: "concentration.v1",
-    series: total.id,
-    metric,
-    period,
-    direction: "flat",
-    material,
-    confidence: "high",
-    calcs: [topShare, index],
-    roles: { top_share: calcRef("top_share"), hhi: calcRef("hhi"), top_value: point(top.s.id, period) },
-    details: { dimension, top: top.s.member?.value, members: vals.length },
-    notes: [],
   };
 }
 

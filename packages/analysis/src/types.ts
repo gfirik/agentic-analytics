@@ -1,3 +1,5 @@
+import type { StatPart } from "./pareto.ts";
+
 // Shared shapes. Templates and decomposers are pure: they read series and return `Calc` records (a number,
 // its unit, the function that produced it and its inputs). The runner turns points and calcs into facts with
 // computation records and citations (report-schema §3), so every number stays traceable.
@@ -18,8 +20,23 @@ export interface Series {
   readonly points: readonly Point[];
 }
 
+/**
+ * A Pareto or concentration statistic of one metric over a dimension and a window (analysis-library §11): a fact made
+ * on demand by a fixed SQL template. `suffix` is the window part of its label (`2026-06`, `ttm`, `2019`, `2011-01_2011-06`).
+ */
+export interface StatRef {
+  readonly kind: "stat";
+  readonly metric: string;
+  readonly dimension: string;
+  readonly part: StatPart;
+  readonly from: string;
+  readonly to: string;
+  readonly suffix: string;
+}
+
 /** A reference to an input number: a measured point of a series, or another calc by name. */
 export type Ref =
+  | StatRef
   | { readonly kind: "point"; readonly series: string; readonly period: string }
   | { readonly kind: "calc"; readonly name: string }
   /** A fact that already exists in the job (e.g. an agent tool computing on top of the analysis). */

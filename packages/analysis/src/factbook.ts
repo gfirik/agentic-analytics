@@ -6,7 +6,7 @@ import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import { compileMetric, compileMetricRows, marginTerms, marginValue } from "@agentic-analytics/metrics";
 import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
-import type { Calc, Ref, Series } from "./types.ts";
+import type { Calc, Ref, Series, StatRef } from "./types.ts";
 
 export type AnalysisErrorCode =
   | "UNKNOWN_SERIES"
@@ -45,11 +45,20 @@ export function factOf(scope: ReadonlyMap<string, string>, name: string): string
   return id;
 }
 
+/** Makes the facts behind a `stat` reference (the Pareto and concentration templates, analysis-library §11). */
+export interface StatResolver {
+  resolve(ref: StatRef): Promise<string>;
+}
+
 export class FactBook {
   readonly facts: Fact[] = [];
+  /** Set by the analysis that uses `stat` references. */
+  stats?: StatResolver;
   private readonly byKey = new Map<string, string>();
   /** Fixed labels (analysis-library §14) → fact id: a label names one fact in a report. */
   private readonly byLabel = new Map<string, string>();
+  /** The value of every fact with a fixed label, including facts stored earlier in the job (`known`). */
+  private readonly labelled = new Map<string, number>();
 
   constructor(
     private readonly ws: Workspace,
@@ -62,6 +71,32 @@ export class FactBook {
     /** Number of the first new fact: later passes (agent tools) continue after the facts already stored. */
     private readonly firstId = 1,
   ) {}
+
+  /** Facts stored earlier in the job: a fixed label they hold names them, so a later pass reuses them (§14). */
+  known(facts: readonly Fact[]): void {
+    for (const f of facts) {
+      this.byLabel.set(f.label, f.id);
+      this.labelled.set(f.id, f.value);
+    }
+  }
+
+  /**
+   * A fact measured by a fixed SQL template, under a fixed label (§14). The same label with the same value is that fact;
+   * with another value it is an engine bug, never a second fact.
+   */
+  sqlFact(f: Omit<Fact, "id" | "verified">): string {
+    const old = this.byLabel.get(f.label);
+    if (old !== undefined) {
+      const was = this.labelled.get(old) ?? Number.NaN;
+      if (Math.abs(was - f.value) <= 1e-9 * Math.max(1, Math.abs(was), Math.abs(f.value))) return old;
+      throw new AnalysisError("DUPLICATE_LABEL", `label ${f.label} would name two different facts`);
+    }
+    const id = this.nextId();
+    this.facts.push({ ...f, id, verified: false });
+    this.byLabel.set(f.label, id);
+    this.labelled.set(id, f.value);
+    return id;
+  }
 
   private nextId(): string {
     return `N${this.firstId + this.facts.length}`;
@@ -171,8 +206,8 @@ export class FactBook {
     // with a different value is an engine bug, never a second fact.
     const fixed = c.factLabel ? this.byLabel.get(c.factLabel) : undefined;
     if (fixed) {
-      const old = this.facts.find((f) => f.id === fixed);
-      if (old && Math.abs(old.value - c.value) <= 1e-9 * Math.max(1, Math.abs(old.value), Math.abs(c.value))) {
+      const was = this.labelled.get(fixed);
+      if (was !== undefined && Math.abs(was - c.value) <= 1e-9 * Math.max(1, Math.abs(was), Math.abs(c.value))) {
         this.byKey.set(key, fixed);
         scope.set(c.name, fixed);
         return fixed;
@@ -197,7 +232,10 @@ export class FactBook {
       verified: false,
     });
     this.byKey.set(key, id);
-    if (c.factLabel) this.byLabel.set(c.factLabel, id);
+    if (c.factLabel) {
+      this.byLabel.set(c.factLabel, id);
+      this.labelled.set(id, c.value);
+    }
     scope.set(c.name, id);
     return id;
   }
@@ -205,6 +243,10 @@ export class FactBook {
   async resolve(r: Ref, scope: Map<string, string>): Promise<string> {
     if (r.kind === "point") return this.point(r.series, r.period);
     if (r.kind === "fact") return r.id;
+    if (r.kind === "stat") {
+      if (!this.stats) throw new AnalysisError("UNKNOWN_FACT", `no resolver for ${r.part} of ${r.metric}`);
+      return this.stats.resolve(r);
+    }
     const id = scope.get(r.name);
     if (!id) throw new AnalysisError("CALC_UNDEFINED", `calc ${r.name} is used before it is defined`);
     return id;

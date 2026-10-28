@@ -34,3 +34,4 @@ export function goldenReportJson(): string {
   );
   return `${JSON.stringify(buildGoldenReport({ fileHashes }), null, 2)}\n`;
 }
+export * from "./customer-shares.ts";
