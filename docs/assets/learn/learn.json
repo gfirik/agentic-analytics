@@ -253,8 +253,8 @@
         }
       }
     },
-    "N178": {
-      "id": "N178",
+    "N176": {
+      "id": "N176",
       "label": "revenue[channel=retail]_2026-03",
       "value": 28200.000000000007,
       "unit": "currency",
@@ -272,8 +272,8 @@
         }
       }
     },
-    "N179": {
-      "id": "N179",
+    "N177": {
+      "id": "N177",
       "label": "revenue[channel=retail]_2026-04",
       "value": 28800.000000000007,
       "unit": "currency",
@@ -291,8 +291,8 @@
         }
       }
     },
-    "N180": {
-      "id": "N180",
+    "N178": {
+      "id": "N178",
       "label": "revenue[channel=wholesale]_2026-03",
       "value": 15899.999999999998,
       "unit": "currency",
@@ -310,8 +310,8 @@
         }
       }
     },
-    "N181": {
-      "id": "N181",
+    "N179": {
+      "id": "N179",
       "label": "revenue[channel=wholesale]_2026-04",
       "value": 7400,
       "unit": "currency",
@@ -329,8 +329,8 @@
         }
       }
     },
-    "N183": {
-      "id": "N183",
+    "N181": {
+      "id": "N181",
       "label": "revenue[product=Filter blend 250g]_2026-03",
       "value": 10188.149999999996,
       "unit": "currency",
@@ -348,8 +348,8 @@
         }
       }
     },
-    "N184": {
-      "id": "N184",
+    "N182": {
+      "id": "N182",
       "label": "revenue[product=Filter blend 250g]_2026-04",
       "value": 9551.530000000002,
       "unit": "currency",
@@ -367,8 +367,8 @@
         }
       }
     },
-    "N185": {
-      "id": "N185",
+    "N183": {
+      "id": "N183",
       "label": "revenue[product=Drip bags x10]_2026-03",
       "value": 8797.739999999993,
       "unit": "currency",
@@ -386,8 +386,8 @@
         }
       }
     },
-    "N186": {
-      "id": "N186",
+    "N184": {
+      "id": "N184",
       "label": "revenue[product=Drip bags x10]_2026-04",
       "value": 8973.809999999996,
       "unit": "currency",
@@ -405,8 +405,8 @@
         }
       }
     },
-    "N187": {
-      "id": "N187",
+    "N185": {
+      "id": "N185",
       "label": "revenue[product=Espresso blend 250g]_2026-03",
       "value": 9214.11,
       "unit": "currency",
@@ -424,8 +424,8 @@
         }
       }
     },
-    "N188": {
-      "id": "N188",
+    "N186": {
+      "id": "N186",
       "label": "revenue[product=Espresso blend 250g]_2026-04",
       "value": 10274.660000000003,
       "unit": "currency",
@@ -443,8 +443,8 @@
         }
       }
     },
-    "N189": {
-      "id": "N189",
+    "N187": {
+      "id": "N187",
       "label": "revenue[product=Filter blend 1kg]_2026-03",
       "value": 5565.48,
       "unit": "currency",
@@ -462,8 +462,8 @@
         }
       }
     },
-    "N190": {
-      "id": "N190",
+    "N188": {
+      "id": "N188",
       "label": "revenue[product=Filter blend 1kg]_2026-04",
       "value": 3773.0099999999998,
       "unit": "currency",
@@ -481,8 +481,8 @@
         }
       }
     },
-    "N191": {
-      "id": "N191",
+    "N189": {
+      "id": "N189",
       "label": "revenue[product=Espresso blend 1kg]_2026-03",
       "value": 10334.52,
       "unit": "currency",
@@ -500,8 +500,8 @@
         }
       }
     },
-    "N192": {
-      "id": "N192",
+    "N190": {
+      "id": "N190",
       "label": "revenue[product=Espresso blend 1kg]_2026-04",
       "value": 3626.9900000000002,
       "unit": "currency",
@@ -519,26 +519,10 @@
         }
       }
     },
-    "N212": {
-      "id": "N212",
+    "N210": {
+      "id": "N210",
       "label": "contribution.v1 revenue 2026-04 by channel:delta:wholesale",
       "value": -8499.999999999998,
-      "unit": "currency",
-      "currency": "USD",
-      "verified": true,
-      "computation": {
-        "kind": "function",
-        "fn": "delta",
-        "inputs": [
-          "N181",
-          "N180"
-        ]
-      }
-    },
-    "N213": {
-      "id": "N213",
-      "label": "contribution.v1 revenue 2026-04 by channel:delta:retail",
-      "value": 600,
       "unit": "currency",
       "currency": "USD",
       "verified": true,
@@ -551,8 +535,24 @@
         ]
       }
     },
-    "N214": {
-      "id": "N214",
+    "N211": {
+      "id": "N211",
+      "label": "contribution.v1 revenue 2026-04 by channel:delta:retail",
+      "value": 600,
+      "unit": "currency",
+      "currency": "USD",
+      "verified": true,
+      "computation": {
+        "kind": "function",
+        "fn": "delta",
+        "inputs": [
+          "N177",
+          "N176"
+        ]
+      }
+    },
+    "N212": {
+      "id": "N212",
       "label": "contribution.v1 revenue 2026-04 by channel:delta:total",
       "value": -7899.999999999998,
       "unit": "currency",
@@ -562,13 +562,13 @@
         "kind": "function",
         "fn": "sum",
         "inputs": [
-          "N213",
-          "N212"
+          "N211",
+          "N210"
         ]
       }
     },
-    "N215": {
-      "id": "N215",
+    "N213": {
+      "id": "N213",
       "label": "contribution.v1 revenue 2026-04 by channel:share:wholesale",
       "value": 107.59493670886076,
       "unit": "percent",
@@ -578,13 +578,13 @@
         "kind": "function",
         "fn": "contribution.v1",
         "inputs": [
-          "N212",
-          "N214"
+          "N210",
+          "N212"
         ]
       }
     },
-    "N216": {
-      "id": "N216",
+    "N214": {
+      "id": "N214",
       "label": "contribution.v1 revenue 2026-04 by channel:share:retail",
       "value": -7.594936708860761,
       "unit": "percent",
@@ -594,13 +594,13 @@
         "kind": "function",
         "fn": "contribution.v1",
         "inputs": [
-          "N213",
-          "N214"
+          "N211",
+          "N212"
         ]
       }
     },
-    "N217": {
-      "id": "N217",
+    "N215": {
+      "id": "N215",
       "label": "contribution.v1 revenue 2026-04 by channel:magnitude:wholesale",
       "value": 8499.999999999998,
       "unit": "currency",
@@ -610,12 +610,12 @@
         "kind": "function",
         "fn": "abs",
         "inputs": [
-          "N212"
+          "N210"
         ]
       }
     },
-    "N218": {
-      "id": "N218",
+    "N216": {
+      "id": "N216",
       "label": "contribution.v1 revenue 2026-04 by channel:exceeds:wholesale",
       "value": 1,
       "unit": "other",
@@ -625,13 +625,13 @@
         "kind": "function",
         "fn": "abs_exceeds",
         "inputs": [
-          "N212",
-          "N214"
+          "N210",
+          "N212"
         ]
       }
     },
-    "N219": {
-      "id": "N219",
+    "N217": {
+      "id": "N217",
       "label": "contribution.v1 revenue 2026-04 by channel:magnitude:retail",
       "value": 600,
       "unit": "currency",
@@ -641,12 +641,12 @@
         "kind": "function",
         "fn": "abs",
         "inputs": [
-          "N213"
+          "N211"
         ]
       }
     },
-    "N231": {
-      "id": "N231",
+    "N229": {
+      "id": "N229",
       "label": "revenue__qty[product=Filter blend 250g]_2026-03",
       "value": 725,
       "unit": "count",
@@ -664,8 +664,8 @@
         }
       }
     },
-    "N232": {
-      "id": "N232",
+    "N230": {
+      "id": "N230",
       "label": "revenue__qty[product=Filter blend 250g]_2026-04",
       "value": 657,
       "unit": "count",
@@ -683,8 +683,8 @@
         }
       }
     },
-    "N233": {
-      "id": "N233",
+    "N231": {
+      "id": "N231",
       "label": "revenue__qty[product=Drip bags x10]_2026-03",
       "value": 636,
       "unit": "count",
@@ -702,8 +702,8 @@
         }
       }
     },
-    "N234": {
-      "id": "N234",
+    "N232": {
+      "id": "N232",
       "label": "revenue__qty[product=Drip bags x10]_2026-04",
       "value": 629,
       "unit": "count",
@@ -721,8 +721,8 @@
         }
       }
     },
-    "N235": {
-      "id": "N235",
+    "N233": {
+      "id": "N233",
       "label": "revenue__qty[product=Espresso blend 250g]_2026-03",
       "value": 691,
       "unit": "count",
@@ -740,8 +740,8 @@
         }
       }
     },
-    "N236": {
-      "id": "N236",
+    "N234": {
+      "id": "N234",
       "label": "revenue__qty[product=Espresso blend 250g]_2026-04",
       "value": 711,
       "unit": "count",
@@ -759,8 +759,8 @@
         }
       }
     },
-    "N237": {
-      "id": "N237",
+    "N235": {
+      "id": "N235",
       "label": "revenue__qty[product=Filter blend 1kg]_2026-03",
       "value": 25,
       "unit": "count",
@@ -778,8 +778,8 @@
         }
       }
     },
-    "N238": {
-      "id": "N238",
+    "N236": {
+      "id": "N236",
       "label": "revenue__qty[product=Filter blend 1kg]_2026-04",
       "value": 17,
       "unit": "count",
@@ -797,8 +797,8 @@
         }
       }
     },
-    "N239": {
-      "id": "N239",
+    "N237": {
+      "id": "N237",
       "label": "revenue__qty[product=Espresso blend 1kg]_2026-03",
       "value": 46,
       "unit": "count",
@@ -816,8 +816,8 @@
         }
       }
     },
-    "N240": {
-      "id": "N240",
+    "N238": {
+      "id": "N238",
       "label": "revenue__qty[product=Espresso blend 1kg]_2026-04",
       "value": 17,
       "unit": "count",
@@ -835,8 +835,8 @@
         }
       }
     },
-    "N241": {
-      "id": "N241",
+    "N239": {
+      "id": "N239",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:volume",
       "value": -1911.0692416391892,
       "unit": "currency",
@@ -846,6 +846,10 @@
         "kind": "function",
         "fn": "pvm.v1",
         "inputs": [
+          "N181",
+          "N229",
+          "N182",
+          "N230",
           "N183",
           "N231",
           "N184",
@@ -861,18 +865,14 @@
           "N189",
           "N237",
           "N190",
-          "N238",
-          "N191",
-          "N239",
-          "N192",
-          "N240"
+          "N238"
         ]
       }
     },
-    "N242": {
-      "id": "N242",
+    "N240": {
+      "id": "N240",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:mix",
-      "value": -7170.844760355715,
+      "value": -7170.844760355714,
       "unit": "currency",
       "currency": "USD",
       "verified": true,
@@ -880,6 +880,10 @@
         "kind": "function",
         "fn": "pvm.v1",
         "inputs": [
+          "N181",
+          "N229",
+          "N182",
+          "N230",
           "N183",
           "N231",
           "N184",
@@ -895,16 +899,12 @@
           "N189",
           "N237",
           "N190",
-          "N238",
-          "N191",
-          "N239",
-          "N192",
-          "N240"
+          "N238"
         ]
       }
     },
-    "N243": {
-      "id": "N243",
+    "N241": {
+      "id": "N241",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:price",
       "value": 1181.9140019949161,
       "unit": "currency",
@@ -914,6 +914,10 @@
         "kind": "function",
         "fn": "pvm.v1",
         "inputs": [
+          "N181",
+          "N229",
+          "N182",
+          "N230",
           "N183",
           "N231",
           "N184",
@@ -929,18 +933,14 @@
           "N189",
           "N237",
           "N190",
-          "N238",
-          "N191",
-          "N239",
-          "N192",
-          "N240"
+          "N238"
         ]
       }
     },
-    "N244": {
-      "id": "N244",
+    "N242": {
+      "id": "N242",
       "label": "pvm.v1 revenue 2026-04 by product:pvm:total",
-      "value": -7899.999999999988,
+      "value": -7899.999999999986,
       "unit": "currency",
       "currency": "USD",
       "verified": false,
@@ -948,14 +948,14 @@
         "kind": "function",
         "fn": "sum",
         "inputs": [
-          "N241",
-          "N242",
-          "N243"
+          "N239",
+          "N240",
+          "N241"
         ]
       }
     },
-    "N353": {
-      "id": "N353",
+    "N445": {
+      "id": "N445",
       "label": "external refund rate benchmark (low)",
       "value": 1,
       "unit": "percent",
@@ -967,8 +967,8 @@
         "inputs": []
       }
     },
-    "N354": {
-      "id": "N354",
+    "N446": {
+      "id": "N446",
       "label": "external refund rate benchmark (high)",
       "value": 2,
       "unit": "percent",
@@ -980,8 +980,8 @@
         "inputs": []
       }
     },
-    "N355": {
-      "id": "N355",
+    "N447": {
+      "id": "N447",
       "label": "benchmark N64 vs W1:gap",
       "value": 1.3999999999999981,
       "unit": "percent",
@@ -992,13 +992,13 @@
         "fn": "benchmark_gap.v1",
         "inputs": [
           "N64",
-          "N353",
-          "N354"
+          "N445",
+          "N446"
         ]
       }
     },
-    "N432": {
-      "id": "N432",
+    "N524": {
+      "id": "N524",
       "label": "scenario impact.v1:recover_share:param_low",
       "value": 50,
       "unit": "percent",
@@ -1010,8 +1010,8 @@
         "inputs": []
       }
     },
-    "N433": {
-      "id": "N433",
+    "N525": {
+      "id": "N525",
       "label": "scenario impact.v1:recover_share:param_high",
       "value": 90,
       "unit": "percent",
@@ -1023,8 +1023,8 @@
         "inputs": []
       }
     },
-    "N434": {
-      "id": "N434",
+    "N526": {
+      "id": "N526",
       "label": "scenario impact.v1:recover_share:param_cost",
       "value": 6,
       "unit": "percent",
@@ -1036,8 +1036,8 @@
         "inputs": []
       }
     },
-    "N435": {
-      "id": "N435",
+    "N527": {
+      "id": "N527",
       "label": "scenario impact.v1:recover_share:impact_low",
       "value": 3994.999999999999,
       "unit": "currency",
@@ -1047,14 +1047,14 @@
         "kind": "function",
         "fn": "impact.v1:recover_share",
         "inputs": [
-          "N212",
-          "N434",
-          "N432"
+          "N210",
+          "N526",
+          "N524"
         ]
       }
     },
-    "N436": {
-      "id": "N436",
+    "N528": {
+      "id": "N528",
       "label": "scenario impact.v1:recover_share:impact_high",
       "value": 7190.999999999998,
       "unit": "currency",
@@ -1064,9 +1064,9 @@
         "kind": "function",
         "fn": "impact.v1:recover_share",
         "inputs": [
-          "N212",
-          "N434",
-          "N433"
+          "N210",
+          "N526",
+          "N525"
         ]
       }
     }
@@ -1472,21 +1472,21 @@
     "channel": [
       {
         "member": "wholesale",
-        "delta": "N212",
-        "share": "N215"
+        "delta": "N210",
+        "share": "N213"
       },
       {
         "member": "retail",
-        "delta": "N213",
-        "share": "N216"
+        "delta": "N211",
+        "share": "N214"
       }
     ],
-    "channelTotal": "N214",
+    "channelTotal": "N212",
     "pvm": {
-      "volume": "N241",
-      "mix": "N242",
-      "price": "N243",
-      "total": "N244"
+      "volume": "N239",
+      "mix": "N240",
+      "price": "N241",
+      "total": "N242"
     },
     "templates": [
       {
@@ -1691,7 +1691,7 @@
         "check": "C4",
         "about": "The autumn fall is not reported as news: bookings in November are below October in both years (G2)",
         "pass": false,
-        "detail": "1 of 5 findings: F2 2015-10→2015-11 (contribution.v1)"
+        "detail": "1 of 5 findings: F5 2015-10→2015-11 (contribution.v1)"
       },
       {
         "dataset": "hotel-bookings",
@@ -1699,7 +1699,7 @@
         "check": "C5",
         "about": "Missing values: Children is NA in 4 bookings (G1)",
         "pass": true,
-        "detail": "Q3 missing_value: 4 rows (N624), SQL 4; cites rows 40602, 40669, 40681…"
+        "detail": "Q3 missing_value: 4 rows (N686), SQL 4; cites rows 40602, 40669, 40681…"
       },
       {
         "dataset": "hotel-bookings",
@@ -1739,7 +1739,7 @@
         "check": "C3",
         "about": "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)",
         "pass": true,
-        "detail": "Q1 prefixed_id: 2089 rows (N120), SQL 2089; cites rows 58, 117, 118…"
+        "detail": "Q1 prefixed_id: 2089 rows (N522), SQL 2089; cites rows 58, 117, 118…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1747,7 +1747,7 @@
         "check": "C4",
         "about": "Negative quantities (G1: 2,431 lines)",
         "pass": true,
-        "detail": "Q2 negative_quantity: 2431 rows (N121), SQL 2431; cites rows 58, 117, 118…"
+        "detail": "Q2 negative_quantity: 2431 rows (N523), SQL 2431; cites rows 58, 117, 118…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1755,7 +1755,7 @@
         "check": "C5",
         "about": "Missing customer IDs (G1: 21,051 lines)",
         "pass": true,
-        "detail": "Q3 missing_id: 21051 rows (N122), SQL 21051; cites rows 156, 157, 158…"
+        "detail": "Q3 missing_id: 21051 rows (N524), SQL 21051; cites rows 156, 157, 158…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1774,7 +1774,7 @@
         "detail": "no finding at 2011-12"
       }
     ],
-    "realFile": "evals/results/2026-10-23-baseline-real.json"
+    "realFile": "evals/results/2026-10-28-baseline-real.json"
   },
   "retrieval": {
     "query": "wholesale price increase standing order paused",
@@ -1917,12 +1917,13 @@
       "quote": "Specialty coffee roasters typically see refunds of 1–2% of sales.",
       "url": "https://coffee-benchmarks.example/refunds"
     },
-    "gap": "N355"
+    "gap": "N447"
   },
   "agent": {
     "tools": [
       "get_facts",
       "drill_down",
+      "concentration",
       "decompose",
       "search_documents",
       "search_web",
@@ -1948,7 +1949,7 @@
           "period": "2026-04",
           "dimension": "customer"
         },
-        "output": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N343\",\"value\":-7900,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:total\"},\"change:Hotel Group LLC\":{\"id\":\"N327\",\"value\":-8500,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:Hotel Group LLC\"},\"share:Hotel Group LLC\":{\"id\":\"N344\",\"value\":107.59,\"unit\":\"percent\",\"label\":\"drill_down…"
+        "output": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N435\",\"value\":-7900,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:total\"},\"change:Hotel Group LLC\":{\"id\":\"N419\",\"value\":-8500,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:Hotel Group LLC\"},\"share:Hotel Group LLC\":{\"id\":\"N436\",\"value\":107.59,\"unit\":\"percent\",\"label\":\"drill_down…"
       },
       {
         "step": 11,
@@ -1973,7 +1974,7 @@
           "fact_id": "N64",
           "extract_id": "E7"
         },
-        "output": "{\"external\":true,\"low\":{\"id\":\"N353\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N354\",\"value\":2,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (high)\"},\"gap\":{\"id\":\"N355\",\"value\":1.4,\"unit\":\"percent\",\"label\":\"benchmark N64 vs W1:gap\"}}"
+        "output": "{\"external\":true,\"low\":{\"id\":\"N445\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N446\",\"value\":2,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (high)\"},\"gap\":{\"id\":\"N447\",\"value\":1.4,\"unit\":\"percent\",\"label\":\"benchmark N64 vs W1:gap\"}}"
       }
     ],
     "structured": {
@@ -2132,21 +2133,21 @@
           "citations": []
         },
         {
-          "text": "By channel, “wholesale” fell {{N217}}, more than the whole drop; “retail” rose {{N219}}.",
+          "text": "By channel, “wholesale” fell {{N215}}, more than the whole drop; “retail” rose {{N217}}.",
           "facts": [
+            "N215",
             "N217",
-            "N219",
-            "N218"
+            "N216"
           ],
           "grade": "observed",
           "citations": []
         },
         {
-          "text": "By product, the price effect was {{N243}}, the volume effect {{N241}} and the mix effect {{N242}}.",
+          "text": "By product, the price effect was {{N241}}, the volume effect {{N239}} and the mix effect {{N240}}.",
           "facts": [
-            "N243",
             "N241",
-            "N242"
+            "N239",
+            "N240"
           ],
           "grade": "observed",
           "citations": []
@@ -2188,8 +2189,8 @@
     "action": {
       "id": "R1",
       "text": "Offer wholesale accounts a volume-tier discount to win back paused standing orders",
-      "low": "N435",
-      "high": "N436",
+      "low": "N527",
+      "high": "N528",
       "horizon": "next quarter"
     },
     "facts": 101
@@ -3073,15 +3074,15 @@
         },
         {
           "label": "wholesale",
-          "fact": "N212"
+          "fact": "N210"
         },
         {
           "label": "share of the drop",
-          "fact": "N215"
+          "fact": "N213"
         },
         {
           "label": "PVM mix effect",
-          "fact": "N242"
+          "fact": "N240"
         }
       ],
       "source": "facts, insights and decompositions of the run"
@@ -3208,7 +3209,7 @@
         },
         {
           "label": "benchmark gap",
-          "fact": "N355",
+          "fact": "N447",
           "note": "Specialty coffee roasters typically see refunds of 1–2% of sales."
         }
       ],
@@ -3223,8 +3224,8 @@
         },
         {
           "label": "tools",
-          "value": "8",
-          "note": "get_facts · drill_down · decompose · search_documents · search_web · compare_benchmark · propose_scenario · ask_user"
+          "value": "9",
+          "note": "get_facts · drill_down · concentration · decompose · search_documents · search_web · compare_benchmark · propose_scenario · ask_user"
         }
       ],
       "steps": [
@@ -3271,7 +3272,7 @@
         },
         {
           "label": "drill_down",
-          "note": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N343\",\"value\":-7900,\"unit\":\"USD\",\"label\"…"
+          "note": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N435\",\"value\":-7900,\"unit\":\"USD\",\"label\"…"
         },
         {
           "label": "search_documents",
@@ -3283,7 +3284,7 @@
         },
         {
           "label": "compare_benchmark",
-          "note": "{\"external\":true,\"low\":{\"id\":\"N353\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N354\",\"value\":…"
+          "note": "{\"external\":true,\"low\":{\"id\":\"N445\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N446\",\"value\":…"
         }
       ],
       "source": "the planner's tool calls in the run (scripted planner)"
@@ -3465,8 +3466,8 @@
         },
         {
           "label": "R1 impact",
-          "fact": "N435",
-          "note": "to N436, next quarter"
+          "fact": "N527",
+          "note": "to N528, next quarter"
         }
       ],
       "source": "the verified report.json of the run"
