@@ -169,7 +169,7 @@ describe("planRow (§12)", () => {
 
   it("uses the trailing mean of 3 when the previous period has no value", () => {
     // A ratio unknown in May: June 12 against the mean of February, March and April, (8 + 9 + 10) ÷ 3 = 9.
-    const p = planRow(series([7, 8, 9, 10, Number.NaN, 12], 2026, "percent"), "2026-06", "month", 6);
+    const p = planRow(series([7, 8, 9, 10, Number.NaN, 12], 2026, "percent"), "2026-06", "month", "2026-01");
     expect(p?.vsBase).toEqual({ method: "trailing_mean_3", periods: ["2026-02", "2026-03", "2026-04"] });
     expect(calc(p, "base")).toMatchObject({ value: 9, fn: "trailing_mean_3" });
     expect(calc(p, "vs_base")).toMatchObject({ value: 3, fn: "delta", factLabel: "scorecard.m.vs_base_2026-06" });
@@ -181,7 +181,7 @@ describe("planRow (§12)", () => {
 
   it("states the change against the same month a year earlier with 13 months", () => {
     // Jan 2025 … Jan 2026, 100 then +10 a month: Jan 2026 is 220 against 100 a year earlier, +120 = +120%.
-    const p = planRow(series(Array.from({ length: 13 }, (_, i) => 100 + 10 * i)), "2026-01", "month", 13);
+    const p = planRow(series(Array.from({ length: 13 }, (_, i) => 100 + 10 * i)), "2026-01", "month", "2025-01");
     expect(p?.yoy).toEqual({ period: "2025-01" });
     expect(calc(p, "yoy")).toMatchObject({ value: 120, factLabel: "scorecard.m.yoy_2026-01" });
     expect(calc(p, "yoy_pct")?.value).toBeCloseTo(120, 12);
@@ -193,7 +193,7 @@ describe("planRow (§12)", () => {
   it("reads the band and the mean over the last 36 points at most, so a long or daily series doesn't cite every period", () => {
     // Jan 2025 … Dec 2028, 100 then +10 a month: the last 36 are Jan 2026 (220) … Dec 2028 (570), mean (220 + 570) ÷ 2 = 395
     // (the whole series' mean would be 335). Every change is +10, so the band is 0.
-    const p = planRow(series(Array.from({ length: 48 }, (_, i) => 100 + 10 * i)), "2028-12", "month", 48);
+    const p = planRow(series(Array.from({ length: 48 }, (_, i) => 100 + 10 * i)), "2028-12", "month", "2025-01");
     expect(calc(p, "mean")?.value).toBeCloseTo(395, 9);
     expect(calc(p, "mean")?.inputs).toHaveLength(36);
     expect(calc(p, "mean")?.inputs[0]).toEqual({ kind: "point", series: "m", period: "2026-01" });
@@ -202,23 +202,41 @@ describe("planRow (§12)", () => {
   });
 
   it("states no change % against a base that is not positive", () => {
-    const p = planRow(series([-5, -4, 0, 3]), "2025-04", "month", 4);
+    const p = planRow(series([-5, -4, 0, 3]), "2025-04", "month", "2025-01");
     expect(calc(p, "vs_base")?.value).toBe(3);
     expect(calc(p, "vs_base_pct")).toBeUndefined();
   });
 
-  it("knows which grains compare a year (13 months, 5 quarters, 2 years; never weeks or days)", () => {
-    expect(yoyGap("month", 12)).toBe("too_few_periods");
-    expect(yoyGap("month", 13)).toBeUndefined();
-    expect(yoyGap("quarter", 4)).toBe("too_few_periods");
-    expect(yoyGap("quarter", 5)).toBeUndefined();
-    expect(yoyGap("year", 2)).toBeUndefined();
-    expect(yoyGap("week", 200)).toBe("grain_not_comparable");
-    expect(yoyGap("day", 900)).toBe("grain_not_comparable");
+  it("knows which grains compare a year (a span of 13 months, 5 quarters, 2 years; never weeks or days)", () => {
+    expect(yoyGap("month", "2025-02", "2026-01")).toBe("too_few_periods");
+    expect(yoyGap("month", "2025-01", "2026-01")).toBeUndefined();
+    expect(yoyGap("quarter", "2025-Q2", "2026-Q1")).toBe("too_few_periods");
+    expect(yoyGap("quarter", "2025-Q1", "2026-Q1")).toBeUndefined();
+    expect(yoyGap("year", "2025", "2025")).toBe("too_few_periods");
+    expect(yoyGap("year", "2025", "2026")).toBeUndefined();
+    expect(yoyGap("week", "2022-W01", "2026-W10")).toBe("grain_not_comparable");
+    expect(yoyGap("day", "2023-01-01", "2026-03-01")).toBe("grain_not_comparable");
+    expect(yoyGap("month", undefined, undefined)).toBe("too_few_periods");
+  });
+
+  it("compares a year over the calendar span: a month with no data inside it doesn't hide the column", () => {
+    // Jan 2025 … Jan 2026 with June 2025 missing from the job (12 periods with data, 13 calendar months).
+    const months = series(Array.from({ length: 13 }, (_, i) => 100 + 10 * i)).points.map((p) => p.period);
+    const s = series(Array.from({ length: 13 }, (_, i) => (i === 5 ? Number.NaN : 100 + 10 * i)));
+    const plan = planScorecard(
+      [{ id: "m", label: "m", type: "sum", unit: "currency", status: "assumed" }],
+      new Map([["m", s]]),
+      months.filter((p) => p !== "2025-06"),
+      "month",
+    );
+    expect(plan?.rows[0]?.yoy).toEqual({ period: "2025-01" });
+    // The year-ago point is still the guard: with no value in January 2025, the column is n/a.
+    const noYearAgo = { ...s, points: s.points.map((p, i) => (i === 0 ? { ...p, value: Number.NaN } : p)) };
+    expect(planRow(noYearAgo, "2026-01", "month", "2025-01")?.yoy).toEqual({ na: "too_few_periods" });
   });
 
   it("has no row for a period without a value", () => {
-    expect(planRow(series([1, 2, Number.NaN], 2026, "percent"), "2026-03", "month", 3)).toBeUndefined();
-    expect(planRow(series([1, 2]), "2026-09", "month", 2)).toBeUndefined();
+    expect(planRow(series([1, 2, Number.NaN], 2026, "percent"), "2026-03", "month", "2026-01")).toBeUndefined();
+    expect(planRow(series([1, 2]), "2026-09", "month", "2025-01")).toBeUndefined();
   });
 });

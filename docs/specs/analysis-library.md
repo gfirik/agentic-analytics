@@ -427,7 +427,7 @@ Working for the refund rate:
 - **Period.** The last of the job's periods (the report's `period.to` once a part-month is left out).
 - **Baseline.** `chooseBaseline` with `sameLastYear: false`: the previous period, else the trailing mean of 3 (a `trailing_mean_3` fact). With neither, `vs_base` is `{ na: "too_few_periods" }` and `material` is `null`.
 - **Band and mean.** Both are computed over the series' finite points up to the period, at most the last 36 of them (`BAND_PERIODS`, the cap of §11.3, so a daily series doesn't cite every day of the data). Those points are the facts' inputs, so V2 recomputes them from the same list; the band leaves out the last change. With fewer than 6 finite points there is no band and `material` is `null`. Δ% is passed to `materiality()` only when it is stated (a positive base); otherwise the change is not material.
-- **Year-on-year.** `yoyGap`: `grain_not_comparable` at week and day, `too_few_periods` with fewer than a year of periods plus one (13 months, 5 quarters, 2 years), counted over the job's periods; a year-ago point with no value is `too_few_periods` too.
+- **Year-on-year.** `yoyGap`: `grain_not_comparable` at week and day, `too_few_periods` when the calendar span from the job's first period to the last is shorter than a year plus one (13 months, 5 quarters, 2 years). The span counts calendar periods, not periods with data, so a month with no data inside the range doesn't hide the comparison. A year-ago point with no value is `too_few_periods` too.
 - **Labels.** `scorecard.<metric>.<vs_base|vs_base_pct|yoy|yoy_pct|band|mean>_<p>` with the metric's own id; the value is the measured fact (`revenue_2026-06`), and a trailing-mean base is `scorecard <metric> <p>:base`.
 - On coffee-roaster-v1 the engine's scorecard gives the table above exactly (`packages/analysis/test/scorecard.test.ts`).
 
@@ -462,7 +462,7 @@ An analysis that the business model's order skipped is not "not run": every unlo
 - price–volume–mix on the pack's revenue (`packMetric`, a sum): `pvm.v1` (and `pvm_margin.v1` when margin exists) with `no_quantity_role` or `no_item_dimension` (`pvmReadiness`). PVM's price is revenue ÷ quantity (§4.2), so `no_price_role` is never stated;
 - `contribution_margin` with `no_variable_cost` whenever the job has a pack revenue;
 - the Pareto pack's `no_dimension` (`pareto.v1`, `concentration`) and `pareto.v1` `too_few_periods` (no year before the trailing year);
-- `yoy` by §12's rule over the job's periods, and `kpi.new_customers` `no_history` when the job has a single period.
+- `yoy` by §12's rule (`yoyGap`, the calendar span from the job's first period to the last, as the scorecard decides it), and `kpi.new_customers` `no_history` when the job has a single period.
 
 Each reason is a fixed sentence per reason code (a KPI's reason starts with its name), with no numerals; `needs` lists the roles. Entries are unique by analysis and reason. The list travels in the MEASURE stage output to the report (`analyses_not_run`) and to EXPLAIN's fact sheet.
 

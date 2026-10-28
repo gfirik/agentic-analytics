@@ -44,12 +44,20 @@ export function scorecardMetrics(defs: readonly MetricDef[]): MetricDef[] {
 }
 
 /**
- * Why there is no same-period-last-year column (§12): week and day are not compared, and a year needs the periods of a
- * year plus one (13 months, 5 quarters, 2 years). Undefined when the comparison can be made.
+ * Why there is no same-period-last-year column (§12): week and day are not compared, and a year needs the calendar span
+ * of a year plus one (13 months, 5 quarters, 2 years) from the job's `first` period to `last`. The span counts calendar
+ * periods, not periods with data, so a missing month inside the range doesn't hide a comparison; the year-ago point
+ * itself must still have a value (`planRow`). Undefined when the comparison can be made.
  */
-export function yoyGap(grain: Grain, periods: number): Extract<NotRunReason, "too_few_periods" | "grain_not_comparable"> | undefined {
+export function yoyGap(
+  grain: Grain,
+  first: string | undefined,
+  last: string | undefined,
+): Extract<NotRunReason, "too_few_periods" | "grain_not_comparable"> | undefined {
   if (grain === "week" || grain === "day") return "grain_not_comparable";
-  return periods < YEAR_LENGTH[grain] + 1 ? "too_few_periods" : undefined;
+  if (first === undefined || last === undefined) return "too_few_periods";
+  // Period labels sort as text at one grain (windows.ts).
+  return shiftPeriod(last, grain, -YEAR_LENGTH[grain]) < first ? "too_few_periods" : undefined;
 }
 
 /** One row before its facts exist: the calcs to record and how the cells map to them. */
@@ -71,9 +79,9 @@ const label = (metric: string, cell: string, period: string) => `scorecard.${met
 
 /**
  * A row for `s` at `period`, or undefined when the series has no value there (a ratio over nothing, or a table that ends
- * earlier). `yoyPeriods` is the number of job periods up to `period`, which decides whether a year can be compared.
+ * earlier). `first` is the job's first period: the calendar span from it to `period` decides whether a year can be compared.
  */
-export function planRow(s: Series, period: string, grain: Grain, yoyPeriods: number): RowPlan | undefined {
+export function planRow(s: Series, period: string, grain: Grain, first: string): RowPlan | undefined {
   const i = s.points.findIndex((p) => p.period === period);
   const now = s.points[i];
   if (!now || !Number.isFinite(now.value)) return undefined;
@@ -131,7 +139,7 @@ export function planRow(s: Series, period: string, grain: Grain, yoyPeriods: num
 
   // vs the same period a year earlier (§12): 12 months, 4 quarters or 1 year back.
   let yoy: RowPlan["yoy"];
-  const gap = yoyGap(grain, yoyPeriods);
+  const gap = yoyGap(grain, first, period);
   const yearAgo = gap ? undefined : shiftPeriod(period, grain, -YEAR_LENGTH[grain]);
   const then = yearAgo === undefined ? undefined : s.points.find((p) => p.period === yearAgo);
   if (gap) yoy = { na: gap };
@@ -157,7 +165,7 @@ export function planScorecard(
   const rows = scorecardMetrics(defs)
     .flatMap((d) => {
       const s = totals.get(d.id);
-      const plan = s ? planRow(s, period, grain, periods.length) : undefined;
+      const plan = s ? planRow(s, period, grain, periods[0] ?? period) : undefined;
       return plan ? [plan] : [];
     })
     .slice(0, SCORECARD_ROWS);

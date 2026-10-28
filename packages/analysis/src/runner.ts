@@ -445,7 +445,7 @@ export async function analyzeJob(
       ...(sales ? { sales } : {}),
       concentration: notRun(setup.dimensions.length, lead?.plan),
       grain,
-      periods: jobPeriods.length,
+      periods: jobPeriods,
     }),
     ...(scorecard ? { scorecard } : {}),
     concentration: concentrationSection(setup, byLabel, dependent),

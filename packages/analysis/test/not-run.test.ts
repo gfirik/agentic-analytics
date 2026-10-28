@@ -73,7 +73,9 @@ describe("the not-run list from real tables (§13)", () => {
 });
 
 describe("analysesNotRun (§13)", () => {
-  const base = { notDrafted: [], metrics: new Set<string>(), concentration: [], grain: "month" as const, periods: 24 };
+  // Two years of months, January 2025 to December 2026.
+  const months = Array.from({ length: 24 }, (_, i) => `${2025 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`);
+  const base = { notDrafted: [], metrics: new Set<string>(), concentration: [], grain: "month" as const, periods: months };
 
   it("lists each missing KPI role as kpi.<id>, unless the person defined that metric", () => {
     const list = analysesNotRun({
@@ -119,7 +121,7 @@ describe("analysesNotRun (§13)", () => {
         { analysis: "concentration", reason_code: "no_dimension" },
       ],
       grain: "week",
-      periods: 1,
+      periods: ["2026-W10"],
     });
     expect(ids(list)).toEqual([
       "pareto.v1/no_dimension",
@@ -134,6 +136,13 @@ describe("analysesNotRun (§13)", () => {
     expect(ids(analysesNotRun({ ...base, costRole: false }))).toEqual(["gross_margin/no_cost_role", "pvm_margin.v1/no_cost_role"]);
     expect(analysesNotRun({ ...base, costRole: true })).toEqual([]);
     expect(analysesNotRun({ ...base, costRole: false, metrics: new Set(["gross_margin"]) })).toEqual([]);
+  });
+
+  it("decides year-on-year by the calendar span, so a month with no data inside the range doesn't list it (§12)", () => {
+    // January 2025 to January 2026 is 13 calendar months, with no data in June 2025: year-on-year can run.
+    const gappy = months.slice(0, 13).filter((p) => p !== "2025-06");
+    expect(ids(analysesNotRun({ ...base, periods: gappy }))).not.toContain("yoy/too_few_periods");
+    expect(ids(analysesNotRun({ ...base, periods: months.slice(1, 13) }))).toContain("yoy/too_few_periods");
   });
 
   it("is empty when everything ran", () => {

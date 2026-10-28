@@ -104,8 +104,8 @@ export interface NotRunInput {
   /** What the Pareto and concentration pack could not run (`concentration-pack.ts`). */
   readonly concentration: readonly ConcentrationGap[];
   readonly grain: Grain;
-  /** The job's periods. */
-  readonly periods: number;
+  /** The job's periods, sorted. */
+  readonly periods: readonly string[];
 }
 
 /** The "Analyses not run" list (§13), each analysis and reason once, in the order of §13's table. */
@@ -136,10 +136,12 @@ export function analysesNotRun(input: NotRunInput): NotRun[] {
   }
   if (input.sales) add(entry("contribution_margin", "no_variable_cost"));
   for (const g of input.concentration) add(entry(g.analysis, g.reason_code));
-  const yoy = yoyGap(input.grain, input.periods);
+  // The same rule as the scorecard's column (§12), so the two agree.
+  const yoy = yoyGap(input.grain, input.periods[0], input.periods.at(-1));
   if (yoy) add(entry("yoy", yoy));
   for (const n of input.notDrafted)
     if (n.kpi !== "gross_margin" && isReason(n.reason) && !input.metrics.has(n.kpi)) add(entry(`kpi.${n.kpi}`, n.reason, KPI_LABEL[n.kpi]));
-  if (input.metrics.has("new_customers") && input.periods === 1) add(entry("kpi.new_customers", "no_history", KPI_LABEL.new_customers));
+  if (input.metrics.has("new_customers") && input.periods.length === 1)
+    add(entry("kpi.new_customers", "no_history", KPI_LABEL.new_customers));
   return out;
 }
