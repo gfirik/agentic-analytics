@@ -393,8 +393,8 @@ describe("the CI mini golden set on coffee-roaster (scripted planner)", () => {
       const a = item.source.kind === "ask" ? await askJob(dir, item.question, coffeePlanner()) : undefined;
       scores.push(scoreGoldenItem(item, r, a));
     }
-    // Every item the scripted run can answer passes (G6 asks for a fact the report doesn't carry).
-    expect(scores.filter((x) => !x.pass).map((x) => x.id)).toEqual(["G6"]);
+    // Every item passes. G6 (May's revenue) missed until M15 PR 10: the scorecard's mean now cites every month's revenue fact.
+    expect(scores.filter((x) => !x.pass).map((x) => x.id)).toEqual([]);
     // A fixture, not reviewed: nothing here counts toward the bars.
     expect(summarizeGolden(scores)).toMatchObject({ numericCategorical: { passed: 0, of: 0 }, traps: { passed: 0, of: 0 }, notCounted: 6 });
   }, 120_000);
