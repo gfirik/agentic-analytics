@@ -4,7 +4,7 @@ import { statFact, statRow } from "./member-totals.sql.ts";
 import { PARETO_EXPR } from "./pareto.sql.ts";
 import type { ConcentrationPart, ParetoCuts, StatPart, TopN } from "./pareto.ts";
 
-const top = (n: TopN) => `(SELECT coalesce(sum(total), 0) FROM curve WHERE rn <= ${n}) / NULLIF((SELECT t FROM tot), 0) * 100`;
+const top = (n: TopN) => `(SELECT coalesce(sum(total ORDER BY rn), 0) FROM curve WHERE rn <= ${n}) / NULLIF((SELECT t FROM tot), 0) * 100`;
 
 /** The SQL expression of each concentration statistic. The top-N shares are stated by the caller only above N members. */
 export const CONCENTRATION_EXPR: Readonly<Record<ConcentrationPart, string>> = {
@@ -12,7 +12,8 @@ export const CONCENTRATION_EXPR: Readonly<Record<ConcentrationPart, string>> = {
   top3_share: top(3),
   top5_share: top(5),
   top10_share: top(10),
-  hhi: "(SELECT sum(power(total / NULLIF((SELECT t FROM tot), 0), 2)) FROM pos)",
+  // Summed in a fixed order: a parallel sum of doubles differs in its last bits from run to run (found by the resume test).
+  hhi: "(SELECT sum(power(total / NULLIF((SELECT t FROM tot), 0), 2) ORDER BY total DESC, key) FROM pos)",
 };
 
 const EXPR: Readonly<Record<StatPart, string>> = { ...PARETO_EXPR, ...CONCENTRATION_EXPR };

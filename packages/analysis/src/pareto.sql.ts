@@ -6,20 +6,21 @@ import type { ParetoClass, ParetoCuts, ParetoPart } from "./pareto.ts";
 
 const inClass = (c: ParetoClass, what: string) => `(SELECT ${what} FROM classed WHERE cls = '${c}')`;
 
-/** The SQL expression of each Pareto statistic. A share over a zero total is NULL (never stated). */
+/** The SQL expression of each Pareto statistic. A share over a zero total is NULL (never stated). Sums run in a fixed order, so
+ * a statistic is the same double on every run. */
 export const PARETO_EXPR: Readonly<Record<ParetoPart, string>> = {
   a_count: inClass("a", "count(*)"),
-  a_value: inClass("a", "coalesce(sum(total), 0)"),
-  a_share: `${inClass("a", "coalesce(sum(total), 0)")} / NULLIF((SELECT t FROM tot), 0) * 100`,
+  a_value: inClass("a", "coalesce(sum(total ORDER BY total DESC, key), 0)"),
+  a_share: `${inClass("a", "coalesce(sum(total ORDER BY total DESC, key), 0)")} / NULLIF((SELECT t FROM tot), 0) * 100`,
   b_count: inClass("b", "count(*)"),
-  b_value: inClass("b", "coalesce(sum(total), 0)"),
-  b_share: `${inClass("b", "coalesce(sum(total), 0)")} / NULLIF((SELECT t FROM tot), 0) * 100`,
+  b_value: inClass("b", "coalesce(sum(total ORDER BY total DESC, key), 0)"),
+  b_share: `${inClass("b", "coalesce(sum(total ORDER BY total DESC, key), 0)")} / NULLIF((SELECT t FROM tot), 0) * 100`,
   c_count: inClass("c", "count(*)"),
-  c_value: inClass("c", "coalesce(sum(total), 0)"),
-  c_share: `${inClass("c", "coalesce(sum(total), 0)")} / NULLIF((SELECT t FROM tot), 0) * 100`,
+  c_value: inClass("c", "coalesce(sum(total ORDER BY total DESC, key), 0)"),
+  c_share: `${inClass("c", "coalesce(sum(total ORDER BY total DESC, key), 0)")} / NULLIF((SELECT t FROM tot), 0) * 100`,
   members: "(SELECT count(*) FROM pos)",
   nonpositive_count: "(SELECT count(*) FROM mem WHERE key IS NOT NULL AND total <= 0)",
-  nonpositive_value: "(SELECT coalesce(sum(total), 0) FROM mem WHERE key IS NOT NULL AND total <= 0)",
+  nonpositive_value: "(SELECT coalesce(sum(total ORDER BY total DESC, key), 0) FROM mem WHERE key IS NOT NULL AND total <= 0)",
   unkeyed_value: "(SELECT coalesce(sum(total), 0) FROM mem WHERE key IS NULL)",
 };
 

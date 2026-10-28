@@ -18,7 +18,7 @@ export function memberTotals(source: Sql, dimension: string): Sql {
 export function memberCtes(source: Sql, dimension: string, cuts: ParetoCuts): Sql {
   return sql`mem AS (${fragment(memberTotals(source, dimension))}),
   pos AS (SELECT key, total FROM mem WHERE key IS NOT NULL AND total > 0),
-  tot AS (SELECT coalesce(sum(total), 0) AS t FROM pos),
+  tot AS (SELECT coalesce(sum(total ORDER BY total DESC, key), 0) AS t FROM pos),
   curve AS (SELECT key, total,
     row_number() OVER (ORDER BY total DESC, key ASC) AS rn,
     sum(total) OVER (ORDER BY total DESC, key ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cum FROM pos),
