@@ -6,9 +6,12 @@ import type { NotRun, NotRunReason } from "@agentic-analytics/schema";
 import type { ConcentrationGap } from "./concentration-pack.ts";
 import { yoyGap } from "./scorecard.ts";
 
+/** The roles margin reads its cost from (analysis-library §9). */
+export const COST_ROLES = ["unit_cost", "cost_amount"] as const;
+
 /** What each reason needs: the roles (semantics §1) whose absence it reports; none for a shortage of history. */
 const NEEDS: Readonly<Record<NotRunReason, readonly string[]>> = {
-  no_cost_role: ["unit_cost", "cost_amount"],
+  no_cost_role: COST_ROLES,
   no_quantity_role: ["quantity"],
   no_price_role: ["unit_price"],
   no_item_dimension: ["product", "product_id", "product_group"],
@@ -94,6 +97,8 @@ export interface NotRunInput {
   readonly notDrafted: readonly NotDrafted[];
   /** The ids of the job's metrics: a KPI the person defined themselves is not "not run". */
   readonly metrics: ReadonlySet<string>;
+  /** Whether any column of the job has a cost role (`unit_cost`, `cost_amount`). */
+  readonly costRole?: boolean;
   /** The sales pack's revenue (`packMetric`) and what price–volume–mix finds beside it; undefined without one. */
   readonly sales?: { readonly sum: boolean; readonly quantity: boolean; readonly item: boolean };
   /** What the Pareto and concentration pack could not run (`concentration-pack.ts`). */
@@ -110,11 +115,14 @@ export function analysesNotRun(input: NotRunInput): NotRun[] {
     if (!out.some((x) => x.analysis === n.analysis && x.reason_code === n.reason_code)) out.push(n);
   };
   const margin = input.metrics.has("gross_margin");
-  for (const n of input.notDrafted)
-    if (n.kpi === "gross_margin" && isReason(n.reason) && !margin) {
-      add(entry("gross_margin", n.reason));
-      add(entry("pvm_margin.v1", n.reason));
-    }
+  const marginGap = (code: NotRunReason) => {
+    add(entry("gross_margin", code));
+    add(entry("pvm_margin.v1", code));
+  };
+  for (const n of input.notDrafted) if (n.kpi === "gross_margin" && isReason(n.reason) && !margin) marginGap(n.reason);
+  // With no cost column anywhere, margin can't run whether or not a sales pack was drafted (a table with a year and a
+  // month column has no pack yet, M15 PR 9): the role is what is missing (semantics §1 "Graceful absence").
+  if (!margin && input.costRole === false) marginGap("no_cost_role");
   // PVM reads revenue and quantity per item (§4.2): its price is revenue ÷ quantity, so no unit price role is needed.
   if (input.sales?.sum) {
     const gaps: NotRunReason[] = [

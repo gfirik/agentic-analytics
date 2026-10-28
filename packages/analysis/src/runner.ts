@@ -14,12 +14,13 @@ import { cancelsOut, type Pvm, type RateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { isGrossMargin, measureMetrics } from "./measure.ts";
 import { contributionFacts } from "./members.ts";
-import { analysesNotRun } from "./not-run.ts";
+import { analysesNotRun, COST_ROLES } from "./not-run.ts";
 import { curve, statValue } from "./pareto.ts";
 import { persist } from "./persist.sql.ts";
 import type { PvmMargin } from "./pvm-margin.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
+import { anyColumnWithRole } from "./roles.sql.ts";
 import { planScorecard, scorecardFacts } from "./scorecard.ts";
 import { seasonalMatch, touchesSeason } from "./seasonal.ts";
 import { anomalies, type Insight, mixShift, newLost, periodChange, ratioShift, topContributors, trend, trendBreak } from "./templates.ts";
@@ -440,6 +441,7 @@ export async function analyzeJob(
     notRun: analysesNotRun({
       notDrafted: options.notDrafted ?? [],
       metrics: new Set(defs.map((d) => d.id)),
+      costRole: await anyColumnWithRole(ws, COST_ROLES),
       ...(sales ? { sales } : {}),
       concentration: notRun(setup.dimensions.length, lead?.plan),
       grain,

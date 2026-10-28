@@ -458,6 +458,7 @@ An analysis that the business model's order skipped is not "not run": every unlo
 **As built (PR 10, `not-run.ts`).** `analysesNotRun` builds the list from what the job knows at MEASURE:
 
 - the KPI pack's `notDrafted` list (metrics `salesKpiPack`), drafted again from the roles as they stand (the person's edits included). `gross_margin` with `no_cost_role` (or `no_quantity_role` on the unit-cost path) gives `gross_margin` and `pvm_margin.v1`; any other KPI gives `kpi.<id>`. A KPI the person defined themselves (its id is a job metric) is left out;
+- `gross_margin` and `pvm_margin.v1` with `no_cost_role` also when no column of the job, in any table, has a cost role (`profile_roles` as confirmed), even when no sales pack was drafted: a table with a year and a month column has no pack yet (Montgomery's G3, Online Retail II's G14). A `gross_margin` job metric leaves both out;
 - price–volume–mix on the pack's revenue (`packMetric`, a sum): `pvm.v1` (and `pvm_margin.v1` when margin exists) with `no_quantity_role` or `no_item_dimension` (`pvmReadiness`). PVM's price is revenue ÷ quantity (§4.2), so `no_price_role` is never stated;
 - `contribution_margin` with `no_variable_cost` whenever the job has a pack revenue;
 - the Pareto pack's `no_dimension` (`pareto.v1`, `concentration`) and `pareto.v1` `too_few_periods` (no year before the trailing year);

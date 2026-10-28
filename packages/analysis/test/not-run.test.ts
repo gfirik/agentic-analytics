@@ -14,7 +14,7 @@ import { analysesNotRun, analyzeJob } from "../src/index.ts";
 const root = join(import.meta.dirname, "..", "..", "..", "evals/datasets");
 
 /** Profile, the code-drafted KPI pack (with its not-drafted list) and the analysis, as the job runs them. */
-async function notRunOf(file: string, today: string, currency: string): Promise<NotRun[]> {
+async function notRunOf(file: string, today: string, currency: string, withPackGaps = true): Promise<NotRun[]> {
   const ws = await Workspace.open();
   try {
     const name = file.split("/").at(-1) as string;
@@ -29,7 +29,7 @@ async function notRunOf(file: string, today: string, currency: string): Promise<
       from: periods[0] ?? "",
       to: periods.at(-1) ?? "",
       grain: summary.grain,
-      notDrafted: pack.notDrafted,
+      notDrafted: withPackGaps ? pack.notDrafted : [],
     });
     return r.notRun;
   } finally {
@@ -57,6 +57,11 @@ describe("the not-run list from real tables (§13)", () => {
       needs: ["unit_cost", "cost_amount"],
     });
     for (const n of list) expect(findFreeNumerals(n.reason), n.reason).toEqual([]);
+  }, 120_000);
+
+  it("no cost column and no not-drafted margin (a table with no sales pack yet): margin is still listed from the stored roles", async () => {
+    const list = await notRunOf("coffee-roaster-v1/files/sales-2026.xlsx", "2026-07-01", "USD", false);
+    expect(ids(list)).toEqual(expect.arrayContaining(["gross_margin/no_cost_role", "pvm_margin.v1/no_cost_role"]));
   }, 120_000);
 
   it("a sales table with a cost column: margin runs, so neither margin analysis is listed", async () => {
@@ -123,6 +128,12 @@ describe("analysesNotRun (§13)", () => {
       "kpi.new_customers/no_history",
     ]);
     for (const n of list) expect(findFreeNumerals(n.reason)).toEqual([]);
+  });
+
+  it("lists margin with no cost column anywhere, even when no sales pack was drafted (a year-and-month table)", () => {
+    expect(ids(analysesNotRun({ ...base, costRole: false }))).toEqual(["gross_margin/no_cost_role", "pvm_margin.v1/no_cost_role"]);
+    expect(analysesNotRun({ ...base, costRole: true })).toEqual([]);
+    expect(analysesNotRun({ ...base, costRole: false, metrics: new Set(["gross_margin"]) })).toEqual([]);
   });
 
   it("is empty when everything ran", () => {

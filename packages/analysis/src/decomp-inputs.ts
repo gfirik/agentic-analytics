@@ -3,11 +3,12 @@
 // pure functions in decompose.ts and pvm-margin.ts only combine what is read here.
 import { type Catalog, type Grain, type MarginTerms, runMetric } from "@agentic-analytics/metrics";
 import type { MetricDef } from "@agentic-analytics/schema";
-import { sql, type Workspace } from "@agentic-analytics/store";
+import type { Workspace } from "@agentic-analytics/store";
 import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import type { SeriesInfo } from "./factbook.ts";
 import { memberFilter } from "./members.ts";
 import { type MarginItem, type PvmMargin, pvmMargin } from "./pvm-margin.ts";
+import { columnsWithRole, tableRoles } from "./roles.sql.ts";
 import { OTHER, point, type Series } from "./types.ts";
 
 export const valueAt = (s: Series, period: string): number => s.points.find((p) => p.period === period)?.value ?? 0;
@@ -18,14 +19,6 @@ export const valueAt = (s: Series, period: string): number => s.points.find((p) 
  * next to the profile (`profile_roles`).
  */
 const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
-
-/** The columns of a table that have a role, best score first. */
-export async function columnsWithRole(ws: Workspace, tableId: string, roles: readonly string[]): Promise<string[]> {
-  const rows = await ws.all<{ column_name: string; role: string }>(
-    sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${tableId} ORDER BY score DESC, column_name`,
-  );
-  return rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
-}
 
 /** The numeric quantity column of a table (role `quantity`), best score first. */
 async function quantityColumn(ws: Workspace, table: NonNullable<ReturnType<Catalog["get"]>>) {
@@ -297,9 +290,7 @@ export async function marginItemDimension(
 ): Promise<string | undefined> {
   const table = catalog.get(revenueDef?.table ?? "");
   if (!table) return undefined;
-  const rows = await ws.all<{ column_name: string; role: string }>(
-    sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${table.id} ORDER BY score DESC, column_name`,
-  );
+  const rows = await tableRoles(ws, table.id);
   for (const role of ITEM_PREFERENCE) {
     const hit = rows.find((r) => r.role === role && dimensions.includes(r.column_name));
     if (hit) return hit.column_name;
