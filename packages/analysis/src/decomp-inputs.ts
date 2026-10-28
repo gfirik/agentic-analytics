@@ -8,7 +8,7 @@ import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.
 import type { SeriesInfo } from "./factbook.ts";
 import { memberFilter } from "./members.ts";
 import { type MarginItem, type PvmMargin, pvmMargin } from "./pvm-margin.ts";
-import { columnsWithRole, tableRoles } from "./roles.sql.ts";
+import { type RoleRow, tableRoles } from "./roles.sql.ts";
 import { OTHER, point, type Series } from "./types.ts";
 
 export const valueAt = (s: Series, period: string): number => s.points.find((p) => p.period === period)?.value ?? 0;
@@ -20,9 +20,15 @@ export const valueAt = (s: Series, period: string): number => s.points.find((p) 
  */
 export const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
 
-/** The numeric quantity column of a table (role `quantity`), best score first. */
-async function quantityColumn(ws: Workspace, table: NonNullable<ReturnType<Catalog["get"]>>) {
-  return (await columnsWithRole(ws, table.id, ["quantity"]))
+type Table = NonNullable<ReturnType<Catalog["get"]>>;
+
+/** The columns among a table's stored roles (`tableRoles`, best score first) that have one of `roles`. */
+const withRole = (rows: readonly RoleRow[], roles: readonly string[]) =>
+  rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
+
+/** The numeric quantity column of a table (role `quantity`) among its stored roles, best score first. */
+function quantityColumn(table: Table, rows: readonly RoleRow[]) {
+  return withRole(rows, ["quantity"])
     .map((name) => table.columns.get(name))
     .find((c) => c && (c.type === "integer" || c.type === "decimal"));
 }
@@ -35,10 +41,12 @@ export async function pvmReadiness(
 ): Promise<{ readonly sum: boolean; readonly quantity: boolean; readonly item: boolean }> {
   const table = catalog.get(def.table ?? "");
   if (def.type !== "sum" || !table) return { sum: false, quantity: false, item: false };
-  const items = await columnsWithRole(ws, table.id, ITEM_ROLES);
+  // One read of the table's roles for both questions.
+  const rows = await tableRoles(ws, table.id);
+  const items = withRole(rows, ITEM_ROLES);
   return {
     sum: true,
-    quantity: (await quantityColumn(ws, table)) !== undefined,
+    quantity: quantityColumn(table, rows) !== undefined,
     item: (def.dimensions ?? []).some((d) => items.includes(d)),
   };
 }
@@ -63,8 +71,9 @@ export async function pvmFor(
   const table = catalog.get(def.table ?? "");
   const dimCol = table?.columns.get(dimension);
   if (def.type !== "sum" || !table || !dimCol) return undefined;
-  if (!(await columnsWithRole(ws, table.id, ITEM_ROLES)).includes(dimension)) return undefined;
-  const qtyCol = await quantityColumn(ws, table);
+  const roles = await tableRoles(ws, table.id);
+  if (!withRole(roles, ITEM_ROLES).includes(dimension)) return undefined;
+  const qtyCol = quantityColumn(table, roles);
   if (!qtyCol) return undefined;
   // An "(other)" bucket mixes many items, so it has no unit price; contribution.v1 still covers this dimension.
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
@@ -215,7 +224,7 @@ export async function pvmMarginFor(
   // One table: the unit price and unit cost of an item divide by the same units, and the item column must be in it.
   if (!revenueDef || !costDef || !table || costDef.table !== revenueDef.table || !table.columns.has(dimension)) return undefined;
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
-  const qtyCol = await quantityColumn(ws, table);
+  const qtyCol = quantityColumn(table, await tableRoles(ws, table.id));
   if (!qtyCol) return undefined;
   // Quantity over the same lines as the revenue term, so unit price and unit cost divide by the same units.
   const qtyDef: MetricDef = {

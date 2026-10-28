@@ -13,13 +13,8 @@ export function tableRoles(ws: Workspace, tableId: string): Promise<RoleRow[]> {
   return ws.all<RoleRow>(sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${tableId} ORDER BY score DESC, column_name`);
 }
 
-/** The columns of a table that have one of `roles`, best score first. */
-export async function columnsWithRole(ws: Workspace, tableId: string, roles: readonly string[]): Promise<string[]> {
-  return (await tableRoles(ws, tableId)).filter((r) => roles.includes(r.role)).map((r) => r.column_name);
-}
-
-/** Whether any column of the job, in any table, holds one of `roles`. */
+/** Whether any column of the job, in any table, holds one of `roles`; the roles are a parameter, filtered in SQL. */
 export async function anyColumnWithRole(ws: Workspace, roles: readonly string[]): Promise<boolean> {
-  const rows = await ws.all<{ role: string }>(sql`SELECT DISTINCT role FROM profile_roles`);
-  return rows.some((r) => roles.includes(r.role));
+  const hit = await ws.one(sql`SELECT 1 AS hit FROM profile_roles WHERE list_contains(${JSON.stringify(roles)}::VARCHAR[], role) LIMIT 1`);
+  return hit !== undefined;
 }
