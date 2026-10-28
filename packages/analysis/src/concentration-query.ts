@@ -9,7 +9,7 @@ import { ConcentrationFacts, dimensionLabels } from "./concentration-facts.ts";
 import { packMetric } from "./concentration-pack.ts";
 import { FactBook } from "./factbook.ts";
 import { CONCENTRATION_PARTS, PARETO_PARTS, type StatPart } from "./pareto.ts";
-import { persistFacts } from "./runner.ts";
+import { persistFacts } from "./persist.sql.ts";
 import { nextFactNumber, readFacts } from "./slice.ts";
 import { calendarYear } from "./windows.ts";
 

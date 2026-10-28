@@ -65,6 +65,7 @@ export {
   statValue,
   TOP_NS,
 } from "./pareto.ts";
+export { persistFacts } from "./persist.sql.ts";
 export { type MarginEffect, type MarginItem, marginEffect, type PvmMargin, pvmMargin } from "./pvm-margin.ts";
 export { type Flagged, flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 export {
@@ -85,7 +86,6 @@ export {
   type AnalysisResult,
   type AnalyzeOptions,
   analyzeJob,
-  persistFacts,
   type StoredDecomposition,
   type StoredInsight,
 } from "./runner.ts";
