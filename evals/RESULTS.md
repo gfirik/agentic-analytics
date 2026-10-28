@@ -329,22 +329,22 @@ Baseline: the scripted heuristic, no language model. On real files it drafts met
 
 #### Hotel booking demand datasets (Data in Brief (Elsevier), CC BY 4.0)
 
-Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 28.1 s · 4/6 checks pass.
+Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126. File read: `hotel-bookings.csv` (SHA-256 `3b22c26428ec…`). Completed in 39.6 s · 4/6 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on 119,390 bookings with the published padding and "NULL" text left in | yes | report with 5 findings, 3 data-quality items |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 90 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 279 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
 | C3: The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2) | yes | 2015 peak 2015-08; 2016 peak 2016-08; 2017 peak 2017-08; 3/3 values equal SQL |
 | C4: The autumn fall is not reported as news: bookings in November are below October in both years (G2) | **no** | 1 of 5 findings: F5 2015-10→2015-11 (contribution.v1) |
-| C5: Missing values: Children is NA in 4 bookings (G1) | yes | Q3 missing_value: 4 rows (N686), SQL 4; cites rows 40602, 40669, 40681… |
+| C5: Missing values: Children is NA in 4 bookings (G1) | yes | Q3 missing_value: 4 rows (N736), SQL 4; cites rows 40602, 40669, 40681… |
 | C6: The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip | **no** | not reported (kinds reported: unparseable_value, unit_error, missing_value) |
 
 Metrics: room_revenue, room_nights, bookings, cancellation_rate. Data-quality kinds: unparseable_value, unit_error, missing_value. Findings: trend_break: revenue 2017-04 → 2017-05 (contribution.v1); improvement: revenue[customertype=Group] 2016-08 → 2017-08 (period_change.v1); improvement: revenue 2017-08 (trend.v1); regression: revenue[deposittype=Non Refund] 2016-08 → 2017-08 (period_change.v1); anomaly: bookings 2015-10 → 2015-11 (contribution.v1).
 
 #### Warehouse and Retail Sales (Montgomery County, Maryland), 2017–2020 (Montgomery County, MD (Department of Liquor Control, on data.montgomerycountymd.gov), Public domain)
 
-Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain). File read: `montgomery-warehouse-sales.csv` (SHA-256 `b1f5450e132c…`). Completed in 126.5 s · 2/2 checks pass.
+Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain). File read: `montgomery-warehouse-sales.csv` (SHA-256 `b1f5450e132c…`). Completed in 155.3 s · 2/2 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
@@ -355,29 +355,29 @@ Metrics: none. Data-quality kinds: unparseable_value, missing_id, missing_value.
 
 #### Electronic card transactions, September 2026 (Stats NZ (Tatauranga Aotearoa), CC BY 4.0)
 
-This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 5.9 s · 5/5 checks pass.
+This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence. File read: `nz-card-spend-by-industry.csv` (SHA-256 `63ff45be4c78…`). Completed in 6.6 s · 5/5 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on the official CSV layout (Period as year.month, e.g. 2002.10) | yes | report with 4 findings, 1 data-quality item |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 380 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 386 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
 | C3: The December peak: December is the top month of 2023, 2024 and 2025 (G1) | yes | 2023 peak 2023-12; 2024 peak 2024-12; 2025 peak 2025-12; 3/3 values equal SQL |
 | C4: The regular January fall is not reported as news (G4: January is below December in 24 of 24 years) | yes | none |
-| C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value: 264 rows (N403), SQL 264; cites rows 2, 3, 4… |
+| C5: Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines) | yes | Q1 missing_value: 264 rows (N409), SQL 264; cites rows 2, 3, 4… |
 
 Metrics: card_spend. Data-quality kinds: missing_value. Findings: anomaly: card_spend 2020-03 → 2020-04 (contribution.v1); anomaly: card_spend 2020-04 → 2020-05 (contribution.v1); trend_break: card_spend 2016-09 → 2016-10 (contribution.v1); improvement: card_spend 2026-09 (trend.v1).
 
 #### Online Retail II (UCI Machine Learning Repository, CC BY 4.0)
 
-Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 18.5 s · 7/7 checks pass.
+Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. File read: `online_retail_II.sample10.csv` (SHA-256 `6d8dff8c0bff…`). Completed in 31.7 s · 7/7 checks pass.
 
 | Check | Pass | What the report shows |
 |---|---|---|
 | C1: The job completes on a real 105,797-line file | yes | report with 5 findings, 3 data-quality items |
-| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 43 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
-| C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id: 2089 rows (N522), SQL 2089; cites rows 58, 117, 118… |
-| C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity: 2431 rows (N523), SQL 2431; cites rows 58, 117, 118… |
-| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id: 21051 rows (N524), SQL 21051; cites rows 156, 157, 158… |
+| C2: Every number re-computes (no mismatch, re-derivation mismatch or definition violation) | yes | 309 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition |
+| C3: Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices) | yes | Q1 prefixed_id: 2089 rows (N588), SQL 2089; cites rows 58, 117, 118… |
+| C4: Negative quantities (G1: 2,431 lines) | yes | Q2 negative_quantity: 2431 rows (N589), SQL 2431; cites rows 58, 117, 118… |
+| C5: Missing customer IDs (G1: 21,051 lines) | yes | Q3 missing_id: 21051 rows (N590), SQL 21051; cites rows 156, 157, 158… |
 | C6: The Nov–Dec peak: November is the top month of 2010 and 2011 (G2) | yes | 2010 peak 2010-11; 2011 peak 2011-11; 3/3 values equal SQL |
 | C7: No finding about December 2011, a partial month (G3: the data ends 2011-12-09) | yes | no finding at 2011-12 |
 
