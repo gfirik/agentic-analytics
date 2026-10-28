@@ -446,7 +446,7 @@ The `reason` carries **no numerals**: V1's rule applies, so "fewer than 13 month
 |---|---|---|
 | `gross_margin`, `pvm_margin.v1` | `no_cost_role` | no `unit_cost` or `cost_amount` |
 | `pvm_margin.v1`, `pvm.v1` | `no_quantity_role`, `no_price_role`, `no_item_dimension` | the role is missing |
-| `contribution_margin` | `no_variable_cost` | always in M15 (no variable-cost role) |
+| `contribution_margin` | `no_variable_cost` | in M15, on every job with a pack revenue (no variable-cost role; a job with no sales has no margin to refine) |
 | `pareto.v1`, `concentration` | `no_dimension` | no dimension with an entity or grouping role |
 | `pareto.v1` (`ttm_prev`) | `too_few_periods` | the data doesn't cover the 12 months before the window |
 | `yoy` | `too_few_periods`, `grain_not_comparable` | §12 |
