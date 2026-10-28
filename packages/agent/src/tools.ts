@@ -4,6 +4,7 @@
 // calls (25 per job, 8 per finding; halved in small-model mode); a call over budget returns an error instead.
 import {
   benchmarkFacts,
+  concentrationFacts,
   drillDown,
   parseQuotedRange,
   readFacts,
@@ -146,6 +147,22 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
         facts: withheldKeys(
           Object.fromEntries(Object.entries(r.facts).flatMap(([k, id]) => (byId.has(id) ? [[k, sheetFact(byId.get(id) as Fact)]] : []))),
         ),
+      };
+    },
+  );
+
+  const concentration = tool(
+    "Pareto and concentration of one additive metric by one of its dimensions over the periods `from` to `to` (job periods, from <= to): the top-1/3/5/10 shares, the HHI, the A/B/C class counts, values and shares, and the member count. Returns new fact ids. Use it for share questions such as how much the biggest customers hold.",
+    z.object({ metric_id: z.string(), dimension: z.string(), from: z.string().max(20), to: z.string().max(20) }),
+    budget,
+    async ({ metric_id, dimension, from, to }) => {
+      const r = await concentrationFacts(ctx.ws, ctx.defs, ctx.catalog, { metric: metric_id, dimension, from, to, range: ctx.range });
+      return {
+        metric: r.metric,
+        dimension: withheld(r.dimension),
+        from: r.from,
+        to: r.to,
+        facts: withheldKeys(Object.fromEntries(r.facts.map((f) => [f.part, sheetFact(f.fact)]))),
       };
     },
   );
@@ -302,6 +319,7 @@ export function buildTools(ctx: ToolContext, budget: Budget): ToolSet {
   return {
     get_facts,
     drill_down,
+    concentration,
     decompose,
     search_documents,
     search_web,
