@@ -1699,7 +1699,7 @@
         "check": "C5",
         "about": "Missing values: Children is NA in 4 bookings (G1)",
         "pass": true,
-        "detail": "Q3 missing_value: 4 rows (N686), SQL 4; cites rows 40602, 40669, 40681…"
+        "detail": "Q3 missing_value: 4 rows (N736), SQL 4; cites rows 40602, 40669, 40681…"
       },
       {
         "dataset": "hotel-bookings",
@@ -1731,7 +1731,7 @@
         "check": "C5",
         "about": "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)",
         "pass": true,
-        "detail": "Q1 missing_value: 264 rows (N403), SQL 264; cites rows 2, 3, 4…"
+        "detail": "Q1 missing_value: 264 rows (N409), SQL 264; cites rows 2, 3, 4…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1739,7 +1739,7 @@
         "check": "C3",
         "about": "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)",
         "pass": true,
-        "detail": "Q1 prefixed_id: 2089 rows (N522), SQL 2089; cites rows 58, 117, 118…"
+        "detail": "Q1 prefixed_id: 2089 rows (N588), SQL 2089; cites rows 58, 117, 118…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1747,7 +1747,7 @@
         "check": "C4",
         "about": "Negative quantities (G1: 2,431 lines)",
         "pass": true,
-        "detail": "Q2 negative_quantity: 2431 rows (N523), SQL 2431; cites rows 58, 117, 118…"
+        "detail": "Q2 negative_quantity: 2431 rows (N589), SQL 2431; cites rows 58, 117, 118…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1755,7 +1755,7 @@
         "check": "C5",
         "about": "Missing customer IDs (G1: 21,051 lines)",
         "pass": true,
-        "detail": "Q3 missing_id: 21051 rows (N524), SQL 21051; cites rows 156, 157, 158…"
+        "detail": "Q3 missing_id: 21051 rows (N590), SQL 21051; cites rows 156, 157, 158…"
       },
       {
         "dataset": "online-retail-ii",
