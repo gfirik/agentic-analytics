@@ -11,6 +11,7 @@ import { contributionDrivers, decompositionClaims, findingType, observedClaim, q
 import type { Extract } from "./extractor.ts";
 import { type FactSheet, sheetFact } from "./factsheet.ts";
 import { data, renderPrompt } from "./prompts.ts";
+import { findingSections } from "./sections.ts";
 import type { Budget, OpenQuestionDraft, ToolContext } from "./tools.ts";
 import { siteOf } from "./web.ts";
 import { withheld, withheldMember } from "./withhold.ts";
@@ -183,10 +184,13 @@ export async function explainFindings(
     const observed = [observedClaim(insight, ctx.defs, before), ...decompositionClaims(ds, before)].filter(
       (c): c is Claim => c !== undefined,
     );
+    // The finding's own scorecard row and concentration facts (M15, §2), not the whole sections: the request stays small.
+    const { scorecard: _scorecard, concentration: _concentration, ...rest } = sheet;
     const findingSheet = {
-      ...sheet,
+      ...rest,
       insights: sheet.insights.filter((i) => i.id === insight.id),
       decompositions: sheet.decompositions.filter((d) => d.insight === insight.id),
+      ...findingSections(insight, sheet),
     };
     const brief = data({
       id: insight.id,

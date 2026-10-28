@@ -1,9 +1,9 @@
 // The report parts for roles, kinds and the business model (semantics §6): quarantined tables and model-addressed
 // column names never reach the report (security §3).
-import type { Finding, MetricDef } from "@agentic-analytics/schema";
+import type { Fact, Finding, MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { afterEach, describe, expect, it } from "vitest";
-import { roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "../src/semantics.ts";
+import { businessModelAffects, roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "../src/semantics.ts";
 
 const open: Workspace[] = [];
 afterEach(() => {
@@ -163,5 +163,46 @@ describe("roleAssumptions (semantics §5, metric-layer §3 Recording)", () => {
       role("amount", "amount", { table_id: "T2" }),
     ];
     expect(visibleRoles(roles, ["T2"]).map((r) => `${r.table_id}/${r.column}`)).toEqual(["T1/amount"]);
+  });
+});
+
+describe("businessModelAffects (semantics §4 Effect on order; M15 PR 10)", () => {
+  const fact = (id: string, label: string, metric?: string) =>
+    ({
+      id,
+      label,
+      value: 1,
+      unit: "percent",
+      ...(metric ? { metric_id: metric } : {}),
+      computation: { kind: "sql", sql: "x" },
+      citations: [],
+      verified: false,
+    }) as Fact;
+  const facts = new Map(
+    [
+      fact("N1", "top1_share.customer_2026-06", "revenue"),
+      fact("N2", "top1_share.channel_2026-06", "revenue"),
+      fact("N3", "aov_2026-06", "aov"),
+      fact("N4", "new_customers_2026-06", "new_customers"),
+    ].map((f) => [f.id, f]),
+  );
+  const finding = (id: string, type: Finding["type"], fact: string) =>
+    ({ id, type, claims: [{ text: "", facts: [fact], citations: [], verified: false }] }) as unknown as Finding;
+  const findings = [
+    finding("F1", "concentration_risk", "N1"),
+    finding("F2", "concentration_risk", "N2"),
+    finding("F3", "regression", "N3"),
+    finding("F4", "improvement", "N4"),
+  ];
+  const uses = (f: Finding, metric: string) => f.claims.some((c) => c.facts.some((id) => facts.get(id)?.metric_id === metric));
+
+  it("wholesale: the concentration findings over customers", () => {
+    expect(businessModelAffects("wholesale", findings, uses, facts)).toEqual(["F1"]);
+  });
+  it("retail: average order value and units; subscription: the customer counts; unknown and services: none", () => {
+    expect(businessModelAffects("retail", findings, uses, facts)).toEqual(["F3"]);
+    expect(businessModelAffects("subscription", findings, uses, facts)).toEqual(["F4"]);
+    expect(businessModelAffects("unknown", findings, uses, facts)).toEqual([]);
+    expect(businessModelAffects("services", findings, uses, facts)).toEqual([]);
   });
 });

@@ -23,7 +23,8 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
 import { qualityCount } from "./quality.sql.ts";
-import { roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "./semantics.ts";
+import { sectionFactIds } from "./sections.ts";
+import { businessModelAffects, roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "./semantics.ts";
 import type { OpenQuestionDraft } from "./tools.ts";
 
 export interface DraftInput {
@@ -47,6 +48,8 @@ export interface DraftInput {
   readonly partialPeriod?: string;
   /** Roles, table kinds and the business model from PROFILE (M15; report-schema §5b). Absent: the report carries none. */
   readonly semantics?: SemanticsInput;
+  /** The scorecard, concentration and "Analyses not run" sections the analysis built (M15; `reportSections`). */
+  readonly sections?: Pick<Report, "scorecard" | "concentration" | "analyses_not_run">;
 }
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
@@ -333,12 +336,24 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
   ];
   const quality = await qualityIssues(ws, input.quarantined);
   const known = new Map([...input.facts, ...quality.facts.map((f) => [f.id, f] as const)]);
-  const cited = closure([...referenced, ...[...texts, ...quality.issues.map((i) => i.description)].flatMap(placeholders)], known);
+  const cited = closure(
+    [
+      ...referenced,
+      ...sectionFactIds(input.sections ?? {}),
+      ...[...texts, ...quality.issues.map((i) => i.description)].flatMap(placeholders),
+    ],
+    known,
+  );
   // The business model is an assumption of its own, shown beside the others (semantics §4); its facts follow the quality facts.
   const semantics = input.semantics
     ? await semanticsParts(ws, input.semantics, `A${assumptions.length + 1}`, input.quarantined, roleReads?.byRole)
     : undefined;
-  if (semantics) assumptions.push(semantics.assumption);
+  // The business model's assumption affects the findings of the packs it puts first (semantics §4).
+  const modelAffects = semantics ? businessModelAffects(semantics.business_model.model, findings, usesMetric, known) : [];
+  if (semantics) assumptions.push({ ...semantics.assumption, affects: modelAffects });
+  const withModel = semantics
+    ? findings.map((f) => (modelAffects.includes(f.id) ? { ...f, assumptions: [...f.assumptions, semantics.assumption.id] } : f))
+    : findings;
   const facts = semantics ? [...cited, ...semantics.facts] : cited;
 
   return {
@@ -353,11 +368,12 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     assumptions,
     data_quality: quality.issues,
     summary: { headline: input.headline, bullets },
-    findings,
+    findings: withModel,
     recommendations: [...input.recommendations],
     open_questions: questions,
     facts,
     ...(semantics ? { roles: semantics.roles, table_kinds: semantics.table_kinds, business_model: semantics.business_model } : {}),
+    ...(input.sections ?? {}),
     verification: {
       numbers_checked: 0,
       numbers_mismatched: 0,
