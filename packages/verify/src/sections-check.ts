@@ -5,6 +5,8 @@
 //   numeral (or a placeholder) is dropped and listed.
 import { materiality } from "@agentic-analytics/analysis";
 import { type Fact, findFreeNumerals, type NotRun, placeholders, type Report } from "@agentic-analytics/schema";
+import { VerifyError } from "./recompute.ts";
+import type { CheckRow } from "./verify.ts";
 
 export interface MaterialCheck {
   readonly metric: string;
@@ -30,6 +32,23 @@ export function recheckMaterial(scorecard: Report["scorecard"], facts: ReadonlyM
       how: "materiality() of the baseline change, change %, band and mean",
     };
   });
+}
+
+/** V2's rows for the scorecard's flags; a flag that doesn't recompute fails the job (RECOMPUTE_MISMATCH), like a fact. */
+export function verifyMaterial(scorecard: Report["scorecard"], facts: ReadonlyMap<string, Fact>): CheckRow[] {
+  const material = recheckMaterial(scorecard, facts);
+  const bad = material.filter((m) => !m.ok);
+  if (bad.length)
+    throw new VerifyError(
+      "RECOMPUTE_MISMATCH",
+      `${bad.length} scorecard material flag(s) don't recompute: ${bad.map((m) => m.metric).join(", ")}`,
+      { material: bad },
+    );
+  return material.map((m) => ({
+    check: "V2",
+    passed: m.ok,
+    detail: `scorecard ${m.metric} material, ${m.how}: stored ${m.stored}, computed ${m.computed}`,
+  }));
 }
 
 /** V1 on the not-run reasons: the entries that keep their wording, and those dropped with why. */

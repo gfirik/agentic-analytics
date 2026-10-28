@@ -28,7 +28,7 @@ import { dataNames, parseMeasured, quotedSpans } from "./labels.ts";
 import { lexiconProblem } from "./lexicon.ts";
 import { costRoleMetrics, marginClaimProblem, marginFactProblem } from "./margin-check.ts";
 import { type Recomputed, recomputeFacts, same, VerifyError } from "./recompute.ts";
-import { checkNotRun, recheckMaterial } from "./sections-check.ts";
+import { checkNotRun, verifyMaterial } from "./sections-check.ts";
 
 export interface VerifyContext {
   readonly ws: Workspace;
@@ -80,22 +80,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       detail: `${r.how}: stored ${r.stored}, computed ${JSON.stringify(r.computed)}`,
     });
   // V2 on the scorecard's material flags (§12): recomputed from the row's facts with materiality().
-  const material = recheckMaterial(draft.scorecard, all);
-  for (const m of material)
-    checks.push({
-      check: "V2",
-      passed: m.ok,
-      detail: `scorecard ${m.metric} material, ${m.how}: stored ${m.stored}, computed ${m.computed}`,
-    });
-  const flagBad = material.filter((m) => !m.ok);
-  if (flagBad.length)
-    throw new VerifyError(
-      "RECOMPUTE_MISMATCH",
-      `${flagBad.length} scorecard material flag(s) don't recompute: ${flagBad.map((m) => m.metric).join(", ")}`,
-      {
-        material: flagBad,
-      },
-    );
+  checks.push(...verifyMaterial(draft.scorecard, all));
   const mismatched = v2.filter((r) => !r.ok);
   if (mismatched.length)
     throw new VerifyError(
