@@ -68,6 +68,12 @@ export interface SheetConcentration {
   readonly facts: Record<string, SheetFact>;
 }
 
+/**
+ * Each sheet entry's raw column, for matching a finding to its dimension (`findingSections`). Kept beside the entry, not
+ * in it: the entry is what the planner reads, and a flagged header must never reach it (security.md §3).
+ */
+const rawColumn = new WeakMap<SheetConcentration, string>();
+
 export interface SheetNotRun {
   readonly analysis: string;
   readonly reason_code: string;
@@ -117,7 +123,9 @@ export function sheetConcentration(
       for (const [k, id] of Object.entries({ top1: sh.top1, top3: sh.top3, top5: sh.top5, top10: sh.top10, hhi: sh.hhi }))
         put(`${k}_${sh.period}`, id);
     for (const [k, id] of Object.entries(c.trend ?? {})) put(k, id);
-    return { metric: c.metric_id, dimension: withheld(c.dimension), column: withheld(c.column), facts: out };
+    const entry: SheetConcentration = { metric: c.metric_id, dimension: withheld(c.dimension), column: withheld(c.column), facts: out };
+    rawColumn.set(entry, c.column);
+    return entry;
   });
 }
 
@@ -134,7 +142,8 @@ export function findingSections(
 ): { scorecard?: SheetScorecardRow[]; concentration?: SheetConcentration[] } {
   const row = (sheet.scorecard ?? []).filter((r) => r.metric === insight.metric);
   const concentrated = insight.template === "concentration.v1" || insight.template === "dependence.v1";
+  // Matched on the raw column: the displayed one is withheld when flagged, and two flagged headers would read the same.
   const column = String(insight.details.dimension ?? "");
-  const conc = concentrated ? (sheet.concentration ?? []).filter((c) => c.metric === insight.metric && c.column === column) : [];
+  const conc = concentrated ? (sheet.concentration ?? []).filter((c) => c.metric === insight.metric && rawColumn.get(c) === column) : [];
   return { ...(row.length ? { scorecard: row } : {}), ...(conc.length ? { concentration: conc } : {}) };
 }
