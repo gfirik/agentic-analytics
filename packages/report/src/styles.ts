@@ -66,6 +66,11 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-off
 .ev th:first-child,.ev td:first-child{text-align:left}
 .ev tr.hl td{background:var(--hl-soft)}
 .ev td.hl{background:var(--hl);color:#14201c;font-weight:700}
+.grid{overflow-x:auto}
+.grid table{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums;margin:6px 0 12px}
+.grid caption{text-align:left;color:var(--muted);font-size:.85rem;padding-bottom:4px}
+.grid th,.grid td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:right}
+.grid th:first-child,.grid td:first-child{text-align:left}
 .rowid{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-right:6px}
 .doc{white-space:pre-wrap;font-size:.9rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px;margin:0}
 mark{background:transparent;color:inherit}
