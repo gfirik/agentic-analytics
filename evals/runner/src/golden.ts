@@ -172,18 +172,12 @@ export function scoreGoldenItem(item: GoldenItem, report: Report, answer?: Answe
 /**
  * The `not_run` source (accuracy.md §2): the report's `analyses_not_run` entry for `analysis` must exist with a reason,
  * and no fact of that analysis may be stated (a report that refuses an analysis and also states it contradicts itself).
- * `analyses_not_run` is read as unknown: the report schema gains the field in M15 PR 10, and before then every
- * report has none, so a not_run item is a miss, which is the M14 baseline.
+ * A report from before M15 PR 10 has no `analyses_not_run`, so a not_run item is a miss there (the M14 baseline).
  */
 export function scoreNotRun(analysis: string, report: Report): [boolean, string] {
-  const list: unknown = (report as { analyses_not_run?: unknown }).analyses_not_run;
-  const entries = Array.isArray(list) ? list : [];
-  const entry = entries.find(
-    (e): e is { analysis: string; reason?: unknown } =>
-      typeof e === "object" && e !== null && (e as { analysis?: unknown }).analysis === analysis,
-  );
+  const entry = (report.analyses_not_run ?? []).find((e) => e.analysis === analysis);
   if (!entry) return [false, `no "Analyses not run" entry for ${analysis}`];
-  if (typeof entry.reason !== "string" || !entry.reason.trim()) return [false, `${analysis} is listed without a reason`];
+  if (!entry.reason.trim()) return [false, `${analysis} is listed without a reason`];
   // Fact labels of an analysis start with its id without a version suffix (`pvm_margin.v1` → `pvm_margin.`).
   const stem = analysis.replace(/\.v\d+$/, "");
   // A period (or year) follows the stem after "_", so `gross_margin_pct_2026-03` is another analysis's fact, not this one's.

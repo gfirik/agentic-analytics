@@ -39,5 +39,7 @@ metrics:
     numerator: { table: t_t1, expression: iscanceled }
     denominator: { metric: bookings }
     time_column: arrivaldate
-    unit: ratio
+    # In percent, the sales pack KPI's scale (analysis-library §8.1), so the scorecard's year-on-year change is in
+    # percentage points as the golden item G12 asks (M15 PR 10; it read as a fraction before).
+    unit: percent
     status: confirmed
