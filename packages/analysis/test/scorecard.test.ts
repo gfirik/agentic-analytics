@@ -179,6 +179,23 @@ describe("planRow (§12)", () => {
     expect(p?.material).toBeNull();
   });
 
+  it("with a trailing-mean base, the band leaves out the change into the period, so the tested change never widens it", () => {
+    // Jan … Aug 2026, July unknown: 10, 12, 11, 15, 13, 14, —, 20. The base is the mean of April, May and June,
+    // (15 + 13 + 14) ÷ 3 = 14, and the change tested is 20 − 14 = +6 (+42.86%).
+    const p = planRow(series([10, 12, 11, 15, 13, 14, Number.NaN, 20], 2026), "2026-08", "month", "2026-01");
+    expect(p?.vsBase).toEqual({ method: "trailing_mean_3", periods: ["2026-04", "2026-05", "2026-06"] });
+    expect(calc(p, "vs_base")?.value).toBe(6);
+    // The band reads the seven known points. Their changes are +2, −1, +4, −2, +1 and +6 (June → August, across the gap,
+    // into the tested period): that last one is left out, and the tested change against the mean is not a change between
+    // points, so neither enters. The other five, sorted −2, −1, +1, +2, +4, have median 1; their absolute deviations
+    // 3, 2, 0, 1, 3 have median 2; the band is 2 × 1.4826 × 2 = 5.9304.
+    expect(calc(p, "band")?.inputs).toHaveLength(7);
+    expect(calc(p, "band")?.value).toBeCloseTo(5.9304, 12);
+    // Mean 95 ÷ 7 = 13.571. |6| > 5.9304, 42.86% ≥ 5% and 6 ≥ 1% of 13.571: material.
+    expect(calc(p, "mean")?.value).toBeCloseTo(95 / 7, 12);
+    expect(p?.material).toBe(true);
+  });
+
   it("states the change against the same month a year earlier with 13 months", () => {
     // Jan 2025 … Jan 2026, 100 then +10 a month: Jan 2026 is 220 against 100 a year earlier, +120 = +120%.
     const p = planRow(series(Array.from({ length: 13 }, (_, i) => 100 + 10 * i)), "2026-01", "month", "2025-01");

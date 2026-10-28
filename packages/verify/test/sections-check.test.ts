@@ -47,6 +47,21 @@ describe("V2 on the scorecard (§12)", () => {
     expect(bad?.ok).toBe(false);
   });
 
+  it("recomputes a trailing-mean row's band from the same points the scorecard cites (the change into the period left out)", async () => {
+    // The known points of Jan … Aug with July unknown: 10, 12, 11, 15, 13, 14, 20 (analysis scorecard.test.ts). Changes
+    // +2, −1, +4, −2, +1 and +6 (left out): median 1, MAD 2, band 2 × 1.4826 × 2 = 5.9304, as planRow states it.
+    const pts = [10, 12, 11, 15, 13, 14, 20].map((v, i) => fact(`T${i + 1}`, v));
+    const b = fact(
+      "TB",
+      5.9304,
+      "noise_band",
+      pts.map((f) => f.id),
+    );
+    const [r] = await recomputeFacts(undefined as never, [b], new Map([...pts, b].map((f) => [f.id, f])));
+    expect(r?.ok).toBe(true);
+    expect(r?.computed).toBeCloseTo(5.9304, 12);
+  });
+
   it("recomputes the material flag: |1,200| ≤ 3,113.46 and 3.35% < 5%, so not material", () => {
     expect(recheckMaterial(scorecard(false), all)).toEqual([
       expect.objectContaining({ metric: "revenue", stored: false, computed: false, ok: true }),

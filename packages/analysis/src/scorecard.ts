@@ -119,8 +119,10 @@ export function planRow(s: Series, period: string, grain: Grain, first: string):
     const change = cell("vs_base", now.value - base.value, "delta", [value, baseRef]);
     const changePct = pct("vs_base_pct", baseRef, base.value);
     calcs.push(change, ...changePct);
-    // Materiality (§12, baselines.ts): the noise band over the series up to this period with the last change left out,
-    // and the series mean. Only finite points are facts, so both are computed over those, as V2 recomputes them. At most
+    // Materiality (§12, baselines.ts): the noise band over the series up to this period with the last change (the one
+    // into this period) left out, and the series mean. With a previous-period base that change is the one tested; with a
+    // trailing-mean base the tested change (against the mean) is not a change between points, and the one left out is
+    // the change across the gap into this period, so no change into the period widens its own band (§12 "As built"). Only finite points are facts, so both are computed over those, as V2 recomputes them. At most
     // the last BAND_PERIODS of them: a daily series would otherwise make every day of the data a fact (as §11.3 caps).
     const known: Point[] = s.points
       .slice(0, i + 1)
