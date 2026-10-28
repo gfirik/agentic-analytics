@@ -102,4 +102,11 @@ export const MIGRATIONS: readonly Migration[] = [
       "CREATE TABLE profile_table_kinds (table_id VARCHAR PRIMARY KEY, kind VARCHAR NOT NULL, evidence_json JSON)",
     ],
   },
+  {
+    version: 7,
+    name: "period parts",
+    // The year (and month) columns that together are the period of a table with no date column (semantics §2.1), read by
+    // the concentration analysis (analysis-library §11).
+    statements: ["CREATE TABLE profile_period_parts (table_id VARCHAR PRIMARY KEY, year_column VARCHAR NOT NULL, month_column VARCHAR)"],
+  },
 ];

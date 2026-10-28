@@ -8,6 +8,11 @@ import type { KindResult } from "./kinds.ts";
 export async function saveRoles(ws: Workspace, roles: TableRoles): Promise<void> {
   await ws.run(sql`DELETE FROM profile_roles WHERE table_id = ${roles.table_id}`);
   await ws.run(sql`DELETE FROM profile_role_candidates WHERE table_id = ${roles.table_id}`);
+  await ws.run(sql`DELETE FROM profile_period_parts WHERE table_id = ${roles.table_id}`);
+  if (roles.period_parts)
+    await ws.run(
+      sql`INSERT INTO profile_period_parts VALUES (${roles.table_id}, ${roles.period_parts.year}, ${roles.period_parts.month ?? null})`,
+    );
   for (const c of roles.columns) {
     await ws.run(
       sql`INSERT INTO profile_roles VALUES (${roles.table_id}, ${c.column}, ${c.role}, ${c.score}, 'proposed', ${c.source}, ${JSON.stringify(c.evidence)}::JSON)`,
