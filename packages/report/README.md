@@ -20,6 +20,7 @@ Renders a report v1 (`report.json`) to one self-contained `report.html`: React s
 What the page does:
 
 - Shows the business model, each table's kind and each column's role with its evidence in a "Column roles and table kinds" section after the metric definitions (when the report has them).
+- Shows the scorecard (M15) before the findings, a concentration section (Pareto classes, top-N shares, the HHI trend) after the recommendations, and "Analyses not run" before the assumptions (report-schema §6). The sections live in `sections.tsx`; the shared fact button and placeholder text in `parts.tsx`.
 
 - Every `{{N…}}` placeholder becomes a button; clicking it shows the fact's exact value, SQL or function, inputs, metric definition and citations. Escape closes it.
 - Every citation is a chip; clicking it shows the source in the Evidence panel with the cited rows/cells or quoted passage highlighted. Web sources carry an **External** badge.

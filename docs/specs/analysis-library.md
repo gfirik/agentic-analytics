@@ -421,6 +421,16 @@ Working for the refund rate:
 
 **Tests (PR 10):** this table from the dataset's monthly ground truth, the not-run entries for a table with and without cost, an HTML snapshot, and the schema drift check.
 
+**As built (PR 10, `scorecard.ts`).**
+
+- **Rows.** The pack KPIs are matched by id (`revenue`, `orders`, `units`, `aov`, `customers`, `new_customers`, `returning_customers`, `refund_rate`, `cancellation_rate`, `discount_rate`), then `gross_margin` and `gross_margin_pct`, then every other `sum`, `count` or `ratio` metric in the job's order, 12 at most. The margin pack's helper `costed_revenue` has no row. A metric with no value in the period (a ratio over nothing, or a series that ends earlier, such as new customers after the first month) has no row.
+- **Period.** The last of the job's periods (the report's `period.to` once a part-month is left out).
+- **Baseline.** `chooseBaseline` with `sameLastYear: false`: the previous period, else the trailing mean of 3 (a `trailing_mean_3` fact). With neither, `vs_base` is `{ na: "too_few_periods" }` and `material` is `null`.
+- **Band and mean.** Both are computed over the series' finite points up to the period (the facts' inputs), so V2 recomputes them from the same list; the band leaves out the last change. With fewer than 6 finite points there is no band and `material` is `null`. Δ% is passed to `materiality()` only when it is stated (a positive base); otherwise the change is not material.
+- **Year-on-year.** `yoyGap`: `grain_not_comparable` at week and day, `too_few_periods` with fewer than a year of periods plus one (13 months, 5 quarters, 2 years), counted over the job's periods; a year-ago point with no value is `too_few_periods` too.
+- **Labels.** `scorecard.<metric>.<vs_base|vs_base_pct|yoy|yoy_pct|band|mean>_<p>` with the metric's own id; the value is the measured fact (`revenue_2026-06`), and a trailing-mean base is `scorecard <metric> <p>:base`.
+- On coffee-roaster-v1 the engine's scorecard gives the table above exactly (`packages/analysis/test/scorecard.test.ts`).
+
 ## 13. Analyses not run
 
 This is a deterministic list built from each pack's requirements (§8–§12). It costs no model call. Each entry has:
@@ -444,6 +454,16 @@ The `reason` carries **no numerals**: V1's rule applies, so "fewer than 13 month
 | `kpi.new_customers` | `no_history` | stated for the first period only |
 
 An analysis that the business model's order skipped is not "not run": every unlocked pack runs.
+
+**As built (PR 10, `not-run.ts`).** `analysesNotRun` builds the list from what the job knows at MEASURE:
+
+- the KPI pack's `notDrafted` list (metrics `salesKpiPack`), drafted again from the roles as they stand (the person's edits included). `gross_margin` with `no_cost_role` (or `no_quantity_role` on the unit-cost path) gives `gross_margin` and `pvm_margin.v1`; any other KPI gives `kpi.<id>`. A KPI the person defined themselves (its id is a job metric) is left out;
+- price–volume–mix on the pack's revenue (`packMetric`, a sum): `pvm.v1` (and `pvm_margin.v1` when margin exists) with `no_quantity_role` or `no_item_dimension` (`pvmReadiness`). PVM's price is revenue ÷ quantity (§4.2), so `no_price_role` is never stated;
+- `contribution_margin` with `no_variable_cost` whenever the job has a pack revenue;
+- the Pareto pack's `no_dimension` (`pareto.v1`, `concentration`) and `pareto.v1` `too_few_periods` (no year before the trailing year);
+- `yoy` by §12's rule over the job's periods, and `kpi.new_customers` `no_history` when the job has a single period.
+
+Each reason is a fixed sentence per reason code (a KPI's reason starts with its name), with no numerals; `needs` lists the roles. Entries are unique by analysis and reason. The list travels in the MEASURE stage output to the report (`analyses_not_run`) and to EXPLAIN's fact sheet.
 
 ## 14. Fact labels
 
