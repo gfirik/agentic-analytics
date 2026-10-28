@@ -80,10 +80,25 @@ const SHARE_HEAD: Readonly<Record<(typeof SHARE_COLUMNS)[number], string>> = {
   hhi: "HHI",
 };
 
+/** The report's latest period and grain: which share rows are the section's own and which are the trend's history. */
+export interface SharePeriods {
+  readonly latest: string;
+  readonly grain: Report["period"]["grain"];
+}
+
+/**
+ * The share rows the table shows (§11.2): the trailing year, the latest period and each calendar year. The per-period
+ * history behind the trend stays in the facts. Chosen by period, not by which top-N shares are stated: a dimension with
+ * three members or fewer has no top-3 share in any period.
+ */
+function shownShares(shares: Concentration["shares"], at: SharePeriods): Concentration["shares"] {
+  const calendarYear = (p: string) => at.grain !== "year" && /^\d{4}$/.test(p);
+  return shares.filter((s) => s.period === "ttm" || s.period === at.latest || calendarYear(s.period));
+}
+
 /** One metric and dimension's Pareto classes, top-N shares and HHI trend (analysis-library §11). */
-function ConcentrationEntry({ c, ctx }: { c: Concentration; ctx: Ctx }) {
-  // The per-period history behind the trend is in the facts; the table shows the trailing year, the latest period and years.
-  const shares = c.shares.filter((s) => s.top3 || s.top5 || s.top10 || s.period === "ttm");
+function ConcentrationEntry({ c, at, ctx }: { c: Concentration; at: SharePeriods; ctx: Ctx }) {
+  const shares = shownShares(c.shares, at);
   return (
     <div className="panel">
       <p>
@@ -165,13 +180,13 @@ function ConcentrationEntry({ c, ctx }: { c: Concentration; ctx: Ctx }) {
   );
 }
 
-export function ConcentrationView({ entries, ctx }: { entries: readonly Concentration[]; ctx: Ctx }) {
+export function ConcentrationView({ entries, at, ctx }: { entries: readonly Concentration[]; at: SharePeriods; ctx: Ctx }) {
   return (
     <section aria-labelledby="concentration">
       <h2 id="concentration">Concentration</h2>
       <div className="list">
         {entries.map((c) => (
-          <ConcentrationEntry key={`${c.metric_id}/${c.column}`} c={c} ctx={ctx} />
+          <ConcentrationEntry key={`${c.metric_id}/${c.column}`} c={c} at={at} ctx={ctx} />
         ))}
       </div>
     </section>

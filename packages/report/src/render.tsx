@@ -385,7 +385,13 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
           ))}
         </section>
 
-        {report.concentration?.length ? <ConcentrationView entries={report.concentration} ctx={ctx} /> : null}
+        {report.concentration?.length ? (
+          <ConcentrationView
+            entries={report.concentration}
+            at={{ latest: report.scorecard?.period ?? report.period.to, grain: report.period.grain }}
+            ctx={ctx}
+          />
+        ) : null}
 
         {report.open_questions.length ? (
           <section aria-labelledby="oq">

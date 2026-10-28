@@ -195,3 +195,31 @@ describe("column roles and table kinds (report-schema §5b, §6)", () => {
     expect(doc.querySelector("#semantics")).toBeNull();
   });
 });
+
+describe("the concentration section's share table (analysis-library §11.2)", () => {
+  it("shows the latest period, the trailing year and each calendar year, even with three members or fewer", async () => {
+    const r = fixture();
+    const [a, b] = [r.facts[0]?.id ?? "", r.facts[1]?.id ?? ""];
+    // Three members: no top-3, top-5 or top-10 share is stated in any period (§11.2), only the top-1 share and the HHI.
+    r.concentration = [
+      {
+        metric_id: "revenue",
+        dimension: "customer",
+        column: "customer",
+        pareto: [],
+        shares: [
+          { period: "2026-06", top1: a, hhi: b },
+          { period: "ttm", top1: a, hhi: b },
+          { period: "2025", top1: a, hhi: b },
+          // A trend period: the history behind the HHI trend, not a row of the table.
+          { period: "2026-05", top1: a, hhi: b },
+        ],
+      },
+    ];
+    const doc = await open(renderReportHtml(r));
+    const rows = [...(doc.querySelector("#concentration")?.parentElement?.querySelectorAll("tbody th[scope=row]") ?? [])].map(
+      (th) => th.textContent,
+    );
+    expect(rows).toEqual(["2026-06", "trailing year", "2025"]);
+  });
+});
