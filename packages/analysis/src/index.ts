@@ -10,7 +10,7 @@ export {
 } from "./baselines.ts";
 export { concentrationSql, windowStatsSql } from "./concentration.sql.ts";
 export { ConcentrationFacts, DIMENSION_ROLES, dimensionLabels, statLabel } from "./concentration-facts.ts";
-export { type NotRun, packMetric } from "./concentration-pack.ts";
+export { type ConcentrationGap, packMetric } from "./concentration-pack.ts";
 export {
   ConcentrationError,
   type ConcentrationErrorCode,
@@ -18,6 +18,7 @@ export {
   type ConcentrationResult,
   concentrationFacts,
 } from "./concentration-query.ts";
+export { type ConcentrationEntry, concentrationSection } from "./concentration-section.ts";
 export {
   concentration,
   concentrationTrend,
@@ -47,6 +48,7 @@ export {
 } from "./decompose.ts";
 export { AnalysisError, type AnalysisErrorCode, FactBook, MAX_CITED_ROWS, type SeriesInfo } from "./factbook.ts";
 export { type Amount, COST_BOUNDS, ImpactError, type ImpactRange, impactRange, SCENARIO_BOUNDS, type Scenario } from "./impact.ts";
+export { analysesNotRun, type NotRunInput } from "./not-run.ts";
 export { paretoSql } from "./pareto.sql.ts";
 export {
   allStats,
@@ -89,6 +91,16 @@ export {
   type StoredDecomposition,
   type StoredInsight,
 } from "./runner.ts";
+export {
+  planRow,
+  planScorecard,
+  type RowPlan,
+  SCORECARD_ORDER,
+  SCORECARD_ROWS,
+  scorecardFacts,
+  scorecardMetrics,
+  yoyGap,
+} from "./scorecard.ts";
 export { MIN_SPIKE, SEASON_MAX, SEASON_SHARE, seasonalMatch, touchesSeason } from "./seasonal.ts";
 export {
   type BenchmarkResult,

@@ -27,6 +27,29 @@ export async function columnsWithRole(ws: Workspace, tableId: string, roles: rea
   return rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
 }
 
+/** The numeric quantity column of a table (role `quantity`), best score first. */
+async function quantityColumn(ws: Workspace, table: NonNullable<ReturnType<Catalog["get"]>>) {
+  return (await columnsWithRole(ws, table.id, ["quantity"]))
+    .map((name) => table.columns.get(name))
+    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+}
+
+/** What PVM needs of a metric (§4.2, §13): a sum, a quantity column on its table, and an item among its dimensions. */
+export async function pvmReadiness(
+  ws: Workspace,
+  catalog: Catalog,
+  def: MetricDef,
+): Promise<{ readonly sum: boolean; readonly quantity: boolean; readonly item: boolean }> {
+  const table = catalog.get(def.table ?? "");
+  if (def.type !== "sum" || !table) return { sum: false, quantity: false, item: false };
+  const items = await columnsWithRole(ws, table.id, ITEM_ROLES);
+  return {
+    sum: true,
+    quantity: (await quantityColumn(ws, table)) !== undefined,
+    item: (def.dimensions ?? []).some((d) => items.includes(d)),
+  };
+}
+
 /**
  * PVM (spec §4.2) when the metric is a sum over a table with a quantity column and the dimension names items.
  * Quantity per item comes from the same SQL path: a sum of the quantity column with the metric's filters.
@@ -48,9 +71,7 @@ export async function pvmFor(
   const dimCol = table?.columns.get(dimension);
   if (def.type !== "sum" || !table || !dimCol) return undefined;
   if (!(await columnsWithRole(ws, table.id, ITEM_ROLES)).includes(dimension)) return undefined;
-  const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
-    .map((name) => table.columns.get(name))
-    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+  const qtyCol = await quantityColumn(ws, table);
   if (!qtyCol) return undefined;
   // An "(other)" bucket mixes many items, so it has no unit price; contribution.v1 still covers this dimension.
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
@@ -201,9 +222,7 @@ export async function pvmMarginFor(
   // One table: the unit price and unit cost of an item divide by the same units, and the item column must be in it.
   if (!revenueDef || !costDef || !table || costDef.table !== revenueDef.table || !table.columns.has(dimension)) return undefined;
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
-  const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
-    .map((name) => table.columns.get(name))
-    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+  const qtyCol = await quantityColumn(ws, table);
   if (!qtyCol) return undefined;
   // Quantity over the same lines as the revenue term, so unit price and unit cost divide by the same units.
   const qtyDef: MetricDef = {

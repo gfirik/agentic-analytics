@@ -96,7 +96,14 @@ describe("pareto.v1 and top-N shares on customer-shares-v1", () => {
   });
 
   it("year-before data is missing, which the not-run list says", () => {
-    expect(result.notRun).toEqual([{ analysis: "pareto.v1", window: "ttm_prev", reason_code: "too_few_periods" }]);
+    expect(result.notRun.filter((n) => n.analysis === "pareto.v1")).toEqual([
+      {
+        analysis: "pareto.v1",
+        reason_code: "too_few_periods",
+        reason: "The data doesn't cover the year before the trailing year, so the classes can't be compared with it.",
+        needs: [],
+      },
+    ]);
     expect(result.facts.some((f) => f.label.endsWith("_ttm_prev"))).toBe(false);
   });
 });

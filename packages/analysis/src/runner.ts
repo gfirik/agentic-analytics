@@ -1,34 +1,29 @@
 // MEASURE → DETECT → DECOMPOSE (ARCHITECTURE §2; docs/specs/analysis-library.md §1–6). Reads every metric
 // through the metric compiler (SQL in DuckDB), runs the templates and decomposers, ranks the findings and
 // records every number as a fact with its computation and citations (AGENTS.md §2.1–2.2).
-import {
-  type Catalog,
-  type Grain,
-  MARGIN_METRIC,
-  marginDimensions,
-  marginTerms,
-  runMetric,
-  sliceParents,
-} from "@agentic-analytics/metrics";
-import type { Fact, MetricDef } from "@agentic-analytics/schema";
+import { type Catalog, type Grain, marginDimensions, marginTerms, type NotDrafted, sliceParents } from "@agentic-analytics/metrics";
+import type { Fact, MetricDef, NotRun, Scorecard } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
 import { ConcentrationFacts } from "./concentration-facts.ts";
-import { membersByPeriod, type NotRun, notRun, sectionFacts, setupConcentration } from "./concentration-pack.ts";
+import { notRun, sectionFacts, setupConcentration } from "./concentration-pack.ts";
+import { type ConcentrationEntry, concentrationSection } from "./concentration-section.ts";
 import { concentration, dependence } from "./concentration-templates.ts";
-import { marginItemDimension, pvmFor, pvmMarginFor, rateMixFor, valueAt } from "./decomp-inputs.ts";
+import { marginItemDimension, pvmFor, pvmMarginFor, pvmReadiness, rateMixFor, valueAt } from "./decomp-inputs.ts";
 import { cancelsOut, type Pvm, type RateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
-import { contributionFacts, memberFilter, otherFilter, unitOf } from "./members.ts";
-import { curve, type Member, statValue } from "./pareto.ts";
-import { fillPeriods } from "./periods.ts";
+import { isGrossMargin, measureMetrics } from "./measure.ts";
+import { contributionFacts } from "./members.ts";
+import { analysesNotRun } from "./not-run.ts";
+import { curve, statValue } from "./pareto.ts";
 import { persist } from "./persist.sql.ts";
 import type { PvmMargin } from "./pvm-margin.ts";
 import { flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 import { insightChange, type Ranked, rankInsights, TEMPLATE_PRIORITY, topForExplain } from "./rank.ts";
+import { planScorecard, scorecardFacts } from "./scorecard.ts";
 import { seasonalMatch, touchesSeason } from "./seasonal.ts";
 import { anomalies, type Insight, mixShift, newLost, periodChange, ratioShift, topContributors, trend, trendBreak } from "./templates.ts";
-import { OTHER, type Point, type Series } from "./types.ts";
+import type { Series } from "./types.ts";
 
 export interface AnalyzeOptions {
   readonly from: string;
@@ -40,6 +35,8 @@ export interface AnalyzeOptions {
   readonly maxMembers?: number;
   /** Dimensions with more members than this get member-level series but no per-member templates. */
   readonly maxTemplateMembers?: number;
+  /** The KPIs the sales pack could not draft from the roles (metrics `salesKpiPack`), for "Analyses not run" (§13). */
+  readonly notDrafted?: readonly NotDrafted[];
 }
 
 export interface StoredInsight {
@@ -78,8 +75,12 @@ export interface AnalysisResult {
   readonly topScores: number[];
   /** Tests skipped for lack of data and other open questions. */
   readonly openQuestions: string[];
-  /** Analyses of a pack that could not run, with a reason code (analysis-library §13). */
+  /** Analyses that could not run, each with its reason and the roles it needs (analysis-library §13). */
   readonly notRun: NotRun[];
+  /** The scorecard section (§12); undefined when the job has no period. */
+  readonly scorecard?: Scorecard;
+  /** The concentration section (§11), one entry per pack dimension. */
+  readonly concentration: ConcentrationEntry[];
 }
 
 export async function analyzeJob(
@@ -101,86 +102,7 @@ export async function analyzeJob(
   };
 
   // MEASURE (spec §1): every metric per period, and per dimension member (top N + "other").
-  const totals: Series[] = [];
-  const members = new Map<string, { dimension: string; series: Series[] }[]>();
-  const measured = new Map<string, { period: string; value: number }[]>();
-  // Every member's value per period, uncapped: the concentration statistics need all members (analysis-library §11).
-  const perPeriod = new Map<string, Map<string, Member[]>>();
-  for (const def of defs) {
-    const rows = await runMetric(ws, def.id, defs, catalog, range);
-    measured.set(
-      def.id,
-      rows.filter((r) => r.value !== null).map((r) => ({ period: r.period, value: Number(r.value) })),
-    );
-  }
-  // Inside a metric's own first..last period, every series has every job period (a period where some metric has
-  // data), so the time-series tests, which work by position, never compare March with January across a missing
-  // February. Outside that span nothing is added: a table that starts later has no zeros before its first row, and
-  // a period with no data at all stays a gap (profile's missing_periods). An additive metric is 0 where it has no
-  // rows (FactBook.point makes the same 0 a fact); an average or ratio is unknown there (NaN, which the baselines and
-  // templates skip). Spec analysis-library §1.
-  const jobPeriods = [...new Set([...measured.values()].flatMap((ps) => ps.map((p) => p.period)))].sort();
-  const fill = (points: readonly Point[], additive: boolean, span: readonly { period: string }[]) =>
-    fillPeriods(points, jobPeriods, additive, span);
-  for (const def of defs) {
-    const unit = unitOf(def);
-    const additive = def.type === "sum" || def.type === "count";
-    // Margin is additive across members (revenue − cost per member), so it is split like a sum even though it is derived.
-    const splittable = additive || isGrossMargin(def, defs);
-    const own = measured.get(def.id) ?? [];
-    const total: Series = { id: def.id, metric: def.id, unit, points: fill(own, additive || def.type === "count_distinct", own) };
-    series.set(total.id, { series: total, def });
-    totals.push(total);
-    for (const dimension of splittable ? (isGrossMargin(def, defs) ? marginDimensions(def, defs) : (def.dimensions ?? [])) : []) {
-      const grouped = await runMetric(ws, def.id, defs, catalog, { ...range, groupBy: [dimension] });
-      const byMember = new Map<string | null, { period: string; value: number }[]>();
-      for (const r of grouped) {
-        const key = (r[dimension] as string | null) ?? null;
-        byMember.set(key, [...(byMember.get(key) ?? []), { period: r.period, value: Number(r.value ?? 0) }]);
-      }
-      perPeriod.set(`${def.id}|${dimension}`, membersByPeriod(byMember));
-      const ranked = [...byMember.entries()].sort((a, b) => sumAbs(b[1]) - sumAbs(a[1]) || String(a[0]).localeCompare(String(b[0])));
-      const kept = ranked.slice(0, maxMembers);
-      const list: Series[] = kept.map(([value, points]) => {
-        const s: Series = {
-          id: `${def.id}|${dimension}=${value ?? "(none)"}`,
-          metric: def.id,
-          unit,
-          member: { dimension, value },
-          points: fill(points, true, total.points),
-        };
-        series.set(s.id, { series: s, def, where: memberFilter(dimension, value) });
-        return s;
-      });
-      if (ranked.length > maxMembers) {
-        // The rest become one "(other)" member, so member changes still add up to the total. Its values come from
-        // the same NOT IN query its facts cite, so a fact's value is exactly what its SQL returns.
-        const rest = ranked.slice(maxMembers);
-        const where = otherFilter(
-          dimension,
-          kept.map(([v]) => v),
-        );
-        const otherRows = await runMetric(ws, def.id, defs, catalog, { ...range, where });
-        const s: Series = {
-          id: `${def.id}|${dimension}=${OTHER}`,
-          metric: def.id,
-          unit,
-          member: { dimension, value: OTHER },
-          points: fill(
-            otherRows.map((r) => ({ period: r.period, value: Number(r.value ?? 0) })),
-            true,
-            total.points,
-          ),
-        };
-        series.set(s.id, { series: s, def, where });
-        list.push(s);
-        openQuestions.push(
-          `${def.id} has ${ranked.length} ${dimension} members; the top ${maxMembers} are analysed and the other ${rest.length} are grouped as "${OTHER}".`,
-        );
-      }
-      members.set(def.id, [...(members.get(def.id) ?? []), { dimension, series: list }]);
-    }
-  }
+  const { totals, members, perPeriod, jobPeriods } = await measureMetrics(ws, defs, catalog, range, maxMembers, series, openQuestions);
 
   // Concentration (analysis-library §11): label names for the dimensions and the pack's windows.
   const setup = await setupConcentration(
@@ -502,6 +424,12 @@ export async function analyzeJob(
   const topScores = explain.map((e) => e.score);
   // The Pareto and concentration section (§11): stated whether or not a finding fired.
   for (const d of setup.dimensions) await sectionFacts(book, stats, d.plan, `concentration ${setup.pack?.id} ${d.column}`);
+  // The report sections built by code (§11–§13): the scorecard, the concentration facts by label, and what could not run.
+  const card = planScorecard(defs, new Map(totals.map((t) => [t.id, t])), jobPeriods, grain);
+  const scorecard = card ? await scorecardFacts(book, card) : undefined;
+  const byLabel = new Map(book.facts.map((f) => [f.label, f.id]));
+  const dependent = new Map(stored.filter((i) => i.template === "dependence.v1").map((i) => [String(i.details.dimension), i.id]));
+  const sales = setup.pack ? await pvmReadiness(ws, catalog, setup.pack) : undefined;
   const result: AnalysisResult = {
     facts: book.facts,
     insights: stored,
@@ -509,15 +437,19 @@ export async function analyzeJob(
     top,
     topScores,
     openQuestions: [...new Set(openQuestions)],
-    notRun: notRun(setup.dimensions.length, lead?.plan),
+    notRun: analysesNotRun({
+      notDrafted: options.notDrafted ?? [],
+      metrics: new Set(defs.map((d) => d.id)),
+      ...(sales ? { sales } : {}),
+      concentration: notRun(setup.dimensions.length, lead?.plan),
+      grain,
+      periods: jobPeriods.length,
+    }),
+    ...(scorecard ? { scorecard } : {}),
+    concentration: concentrationSection(setup, byLabel, dependent),
   };
   await persist(ws, result);
   return result;
 }
 
-/** The pack's `gross_margin`: split by member and by margin PVM like an additive metric. */
-const isGrossMargin = (def: MetricDef | undefined, defs: readonly MetricDef[]): boolean =>
-  def !== undefined && def.id === MARGIN_METRIC && marginTerms(def, defs)?.fn === MARGIN_METRIC;
-
-const sumAbs = (pts: readonly { value: number }[]) => pts.reduce((a, p) => a + Math.abs(p.value), 0);
 const periodOf = (r: Insight["roles"][string] | undefined) => (r?.kind === "point" ? r.period : undefined);

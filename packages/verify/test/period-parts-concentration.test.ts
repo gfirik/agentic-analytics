@@ -76,7 +76,7 @@ describe("a table with year and month columns and no date column", () => {
     expect(value("pareto.a_value.supplier_ttm_prev")).toBe(720);
     expect(value("pareto.b_value.supplier_ttm_prev")).toBe(360);
     expect(value("pareto.c_value.supplier_ttm_prev")).toBe(120);
-    expect(result.notRun).toEqual([]);
+    expect(result.notRun.filter((n) => n.analysis === "pareto.v1" || n.analysis === "concentration")).toEqual([]);
   });
 
   it("states each complete calendar year, and every fact passes V2", async () => {
