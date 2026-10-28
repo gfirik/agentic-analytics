@@ -32,12 +32,15 @@ export const SCORECARD_ORDER = [
 /** The other metrics a row may show (§12): sums, counts and ratios. Helper metrics of the margin pack are left out. */
 const OTHER_TYPES = new Set<MetricDef["type"]>(["sum", "count", "ratio"]);
 
-/** The metrics with a row, in row order. */
+/**
+ * The metrics that may have a row, in row order, before the cap: a metric with no value in the period has no row, so
+ * `planScorecard` plans them first and then keeps the first `SCORECARD_ROWS`.
+ */
 export function scorecardMetrics(defs: readonly MetricDef[]): MetricDef[] {
   const order: readonly string[] = SCORECARD_ORDER;
   const pack = SCORECARD_ORDER.flatMap((id) => defs.filter((d) => d.id === id));
   const rest = defs.filter((d) => !order.includes(d.id) && d.id !== COSTED_REVENUE_METRIC && OTHER_TYPES.has(d.type));
-  return [...pack, ...rest].slice(0, SCORECARD_ROWS);
+  return [...pack, ...rest];
 }
 
 /**
@@ -150,11 +153,14 @@ export function planScorecard(
 ): { readonly period: string; readonly rows: RowPlan[] } | undefined {
   const period = periods.at(-1);
   if (period === undefined) return undefined;
-  const rows = scorecardMetrics(defs).flatMap((d) => {
-    const s = totals.get(d.id);
-    const plan = s ? planRow(s, period, grain, periods.length) : undefined;
-    return plan ? [plan] : [];
-  });
+  // Planned before the cap: a metric with no value in the period gives its place to the next one.
+  const rows = scorecardMetrics(defs)
+    .flatMap((d) => {
+      const s = totals.get(d.id);
+      const plan = s ? planRow(s, period, grain, periods.length) : undefined;
+      return plan ? [plan] : [];
+    })
+    .slice(0, SCORECARD_ROWS);
   return { period, rows };
 }
 

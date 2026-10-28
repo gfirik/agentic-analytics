@@ -9,7 +9,16 @@ import { profileJob } from "@agentic-analytics/profile";
 import type { Fact, MetricDef, ScorecardRow } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type AnalysisResult, analyzeJob, planRow, type Series, scorecardMetrics, yoyGap } from "../src/index.ts";
+import {
+  type AnalysisResult,
+  analyzeJob,
+  planRow,
+  planScorecard,
+  SCORECARD_ROWS,
+  type Series,
+  scorecardMetrics,
+  yoyGap,
+} from "../src/index.ts";
 
 const dir = join(import.meta.dirname, "..", "..", "..", "evals/datasets/coffee-roaster-v1/files");
 let ws: Workspace;
@@ -105,7 +114,7 @@ describe("the scorecard on coffee-roaster-v1 (analysis-library §12, hand-comput
 
 describe("rows and their order (§12)", () => {
   const def = (id: string, type: MetricDef["type"]): MetricDef => ({ id, label: id, type, unit: "count", status: "assumed" });
-  it("puts the pack KPIs first in §8.1's order, then margin, then the other sums, counts and ratios, at most 12", () => {
+  it("puts the pack KPIs first in §8.1's order, then margin, then the other sums, counts and ratios", () => {
     const defs = [
       def("other_sum", "sum"),
       def("refund_rate", "ratio"),
@@ -117,9 +126,35 @@ describe("rows and their order (§12)", () => {
     ];
     const ids = scorecardMetrics(defs).map((d) => d.id);
     expect(ids.slice(0, 4)).toEqual(["revenue", "refund_rate", "gross_margin", "other_sum"]);
-    expect(ids).toHaveLength(12);
+    // Every eligible metric, uncapped: the cap applies to the planned rows.
+    expect(ids).toHaveLength(16);
     expect(ids).not.toContain("helper_distinct");
     expect(ids).not.toContain("costed_revenue");
+  });
+});
+
+describe("planScorecard (§12)", () => {
+  const def = (id: string): MetricDef => ({ id, label: id, type: "count", unit: "count", status: "assumed" });
+  const months = ["2026-01", "2026-02", "2026-03"];
+  const totals = (ids: readonly string[], last: number) =>
+    new Map(
+      ids.map((id): [string, Series] => [
+        id,
+        { id, metric: id, unit: "count", points: months.map((period, i) => ({ period, value: i === 2 ? last : 1 })) },
+      ]),
+    );
+
+  it("caps at 12 after leaving out the metrics with no value in the period, so an eligible metric takes the place", () => {
+    // 14 metrics; the first two have no value in March: the 12 rows are the other 12, not 10.
+    const ids = Array.from({ length: 14 }, (_, i) => `m${i}`);
+    const t = totals(ids, 5);
+    for (const id of ["m0", "m1"]) {
+      const s = t.get(id) as Series;
+      t.set(id, { ...s, points: s.points.map((p) => (p.period === "2026-03" ? { ...p, value: Number.NaN } : p)) });
+    }
+    const plan = planScorecard(ids.map(def), t, months, "month");
+    expect(plan?.rows.map((r) => r.metric)).toEqual(ids.slice(2));
+    expect(plan?.rows).toHaveLength(SCORECARD_ROWS);
   });
 });
 
