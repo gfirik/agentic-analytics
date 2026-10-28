@@ -8,6 +8,27 @@ export {
   materiality,
   noiseBand,
 } from "./baselines.ts";
+export { concentrationSql, windowStatsSql } from "./concentration.sql.ts";
+export { ConcentrationFacts, DIMENSION_ROLES, dimensionLabels, statLabel } from "./concentration-facts.ts";
+export { type NotRun, packMetric } from "./concentration-pack.ts";
+export {
+  ConcentrationError,
+  type ConcentrationErrorCode,
+  type ConcentrationQuery,
+  type ConcentrationResult,
+  concentrationFacts,
+} from "./concentration-query.ts";
+export {
+  concentration,
+  concentrationTrend,
+  dependence,
+  HHI_AT,
+  periodStat,
+  TOP_SHARE_AT,
+  TREND_P,
+  TREND_PERIODS,
+  trendCalcs,
+} from "./concentration-templates.ts";
 export {
   beyondKeys,
   type Contribution,
@@ -26,6 +47,25 @@ export {
 } from "./decompose.ts";
 export { AnalysisError, type AnalysisErrorCode, FactBook, MAX_CITED_ROWS, type SeriesInfo } from "./factbook.ts";
 export { type Amount, COST_BOUNDS, ImpactError, type ImpactRange, impactRange, SCENARIO_BOUNDS, type Scenario } from "./impact.ts";
+export { paretoSql } from "./pareto.sql.ts";
+export {
+  allStats,
+  CLASSES,
+  CONCENTRATION_PARTS,
+  type ConcentrationPart,
+  classes,
+  curve,
+  type Member,
+  PARETO_CUTS,
+  PARETO_PARTS,
+  type ParetoClass,
+  type ParetoCuts,
+  type ParetoPart,
+  type StatPart,
+  statValue,
+  TOP_NS,
+} from "./pareto.ts";
+export { persistFacts } from "./persist.sql.ts";
 export { type MarginEffect, type MarginItem, marginEffect, type PvmMargin, pvmMargin } from "./pvm-margin.ts";
 export { type Flagged, flaggedPeriods, touchesFlagged } from "./quality-guard.ts";
 export {
@@ -46,7 +86,6 @@ export {
   type AnalysisResult,
   type AnalyzeOptions,
   analyzeJob,
-  persistFacts,
   type StoredDecomposition,
   type StoredInsight,
 } from "./runner.ts";
@@ -71,7 +110,6 @@ export { hhi, MAD_SCALE, mad, mannKendall, mean, median, normalCdf, robustZ, sse
 export {
   anomalies,
   benchmarkGap,
-  concentration,
   type Insight,
   mixShift,
   newLost,
@@ -94,5 +132,7 @@ export {
   point,
   type Ref,
   type Series,
+  type StatRef,
   type Unit,
 } from "./types.ts";
+export { completeYears, shiftPeriod, trailingWindows, type Window, YEAR_LENGTH } from "./windows.ts";

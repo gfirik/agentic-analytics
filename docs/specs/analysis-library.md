@@ -343,7 +343,7 @@ V2 recomputes each effect from its inputs (agent-and-verifier §7). "(other)" is
 
 ## 11. Pareto, top-N concentration and its trend
 
-These run on one metric: the pack's `revenue`, or the objective metric when that is an additive currency metric. They cover each dimension column whose role is an entity (customer, product, supplier) or `channel`, `location`, `salesperson` or `product_group`. Other metrics and dimensions are reached on demand through the `concentration` planner tool (agent-and-verifier §3).
+These run on one metric: the pack's `revenue` when that is an additive currency metric, else the first metric that is (the objective is not consulted, so the planner tool and the runner always agree on which metric's labels are unqualified). They cover each dimension column whose role is an entity (customer, product, supplier) or `channel`, `location`, `salesperson` or `product_group`. Other metrics and dimensions are reached on demand through the `concentration` planner tool (agent-and-verifier §3).
 
 **Members** are the dimension's values with their metric value over the window, taken from the metric's own member query **without the 50-member cap** of §1. The class counts need every member: Online Retail II has thousands of customers.
 
@@ -357,7 +357,7 @@ These run on one metric: the pack's `revenue`, or the objective metric when that
 - **Curve:** members sorted by value descending, ties by key ascending. The cumulative share Sₖ = (v₁ + … + vₖ) ÷ T × 100.
 - **Classes:** A when Sₖ ≤ 80, B when 80 < Sₖ ≤ 95, C when Sₖ > 95. A member is in the class its cumulative share reaches. The first member is always A, so a member that holds more than 80% alone still makes class A. The comparison allows a relative 1e-12 so that a member that reaches exactly 80% or 95% lands on the lower class despite floating-point rounding.
 - **Facts per class:** the member count, the value and the share of T. Also stated: the total member count, the non-positive count and value, and the unkeyed value.
-- **Computation:** an SQL template (`pareto.sql.ts`: window sums per member, then a window function for the cumulative share), with the metric, dimension, window bounds and thresholds as parameters. The facts are `sql` facts and cite the metric's rows in the window, like any measured fact. V2 re-runs the template. It also applies the `pareto_class` rule: it reads the member totals with a plain group-by (no window function), sorts and classifies them in TypeScript, and the counts and values must match.
+- **Computation:** an SQL template (`pareto.sql.ts`: window sums per member, then a window function for the cumulative share). The metric's own grouped query for the window is its source, and the thresholds are parameters. The facts are `sql` facts and cite the metric's rows in the window, like any measured fact. As built, the fact's SQL returns one row per member with its plain group-by total and the statistic as `value` on every row. V2 re-runs the template (the first row's `value`). It also applies the `pareto_class` rule: it takes the totals from the rows (a plain group-by, no window function), sorts and classifies them in TypeScript, and the counts and values must match.
 
 **Hand-computed:** members 50, 30, 10, 6, 4 (T = 100) give cumulative shares 50, 80, 90, 96, 100. A = {50, 30}: 2 members, value 80, 80%. B = {10}: 90 ≤ 95, 1 member, value 10. C = {6, 4}: 96 > 95, 2 members, value 10. With a member −5 added, the curve is unchanged, and the non-positive count is 1 with value −5. Edge case: 85, 10, 5 give 85 (A, the first member), 95 (B, since 95 ≤ 95) and 100 (C).
 
@@ -365,14 +365,14 @@ These run on one metric: the pack's `revenue`, or the objective metric when that
 
 - **Top-N share** = Σ of the N largest members ÷ T × 100, for N = 3, 5 and 10. It is stated only when there are more than N positive members, since otherwise it is trivially 100%.
 - **HHI** = Σ sᵢ² over the positive members, with sᵢ = vᵢ ÷ T.
-- **Periods:** each job period, each complete calendar year in the data (when the grain is finer than a year), and the `ttm` window.
+- **Periods:** the latest job period, each complete calendar year in the data (when the grain is finer than a year), and the `ttm` window. The top-1 share and the HHI are also stated for each of the last 36 job periods that have a positive member (§11.3), so a daily series makes 36 facts and not 365.
 - **Computation:** an SQL template (`concentration.sql.ts`), as `sql` facts that V2 re-runs. V2 also recomputes them from the member totals in TypeScript (rules `top_n_share` and `hhi`).
 - **Hand-computed** on the members above: top-3 share = (50 + 30 + 10) ÷ 100 × 100 = **90%**. HHI = 0.5² + 0.3² + 0.1² + 0.06² + 0.04² = 0.25 + 0.09 + 0.01 + 0.0036 + 0.0016 = **0.3552**.
 - **Agreement.** PR 9 moves `concentration.v1` (§3) onto these exact shares: positive members, no cap, and "(other)" not counted as a member. The finding and the section then agree.
 
 ### 11.3 Concentration trend
 
-The per-period HHI facts (and the per-period top-1 share facts) go through `trend.v1` (§3: Theil–Sen slope, Mann–Kendall p < 0.05, 4+ periods), reusing V2's `theil_sen` and `mann_kendall` rules over those facts.
+The per-period HHI facts (and the per-period top-1 share facts) of the last 36 periods that have a positive member go through `trend.v1` (§3: Theil–Sen slope, Mann–Kendall p < 0.05, 4+ periods), reusing V2's `theil_sen` and `mann_kendall` rules over those facts. A period with no positive member is left out of the series.
 
 **Hand-computed:** HHI 0.20, 0.22, 0.25, 0.27, 0.30.
 
@@ -381,10 +381,10 @@ The per-period HHI facts (and the per-period top-1 share facts) go through `tren
 
 ### 11.4 Single-customer dependence (`dependence.v1`)
 
-A `concentration_risk` finding on the customer entity (or the dimension the business model leads with, semantics §4). It fires when the top member's share in the latest period is ≥ 30%, and either of these holds:
+A `concentration_risk` finding on the customer entity (as built: the pack's first dimension in the order customer, product, supplier, channel, location, salesperson, product group; the business model's lead dimension, semantics §4, is not wired). It fires when the top member's share in the latest period is ≥ 30%, and either of these holds:
 
-1. that share was below 30% at the start of the `ttm` window and the HHI trend is rising (p < 0.05); or
-2. the top member's own value is shrinking (its `trend.v1` slope < 0 with p < 0.05).
+1. the top-1 share was below 30% in the first period of the `ttm` window and the HHI trend is rising (p < 0.05); or
+2. the top member's own value is shrinking: the Theil–Sen slope of its values over the trend periods is < 0 with Mann–Kendall p < 0.05 (stated only when the member is among the kept member series, which the largest by volume always are).
 
 Its claims cite the share facts, the trend facts and the member's value facts. Analyst-grade's third condition ("also overdue") waits for M16's receivables pack.
 
@@ -460,9 +460,10 @@ Labels are fixed here so that golden items (accuracy §1) and the report can nam
 | HHI | `hhi.<dim>_<p\|ttm>` | `hhi.supplier_2019-07` |
 | the concentration trend | `hhi.<dim>.trend.slope`, `hhi.<dim>.trend.p_value`; `top1_share.<dim>.trend.slope`, `top1_share.<dim>.trend.p_value` | `hhi.supplier.trend.slope` |
 | a scorecard cell | `scorecard.<metric>.<vs_base\|vs_base_pct\|yoy\|yoy_pct\|band\|mean>_<p>` | `scorecard.revenue.vs_base_pct_2026-06` |
-| a `concentration` tool result | the labels above with `_<from>_<to>` for an arbitrary range, `_<year>` when the range is exactly a calendar year, and `_<p>` for one period | `top3_share.customer_2011-01_2011-06` |
+| a `concentration` tool result | the labels above with `_<from>_<to>` for an arbitrary range, `_<year>` when the range is exactly a calendar year, and `_<p>` for one period; a fact that already exists under the label is reused, not made again | `top3_share.customer_2011-01_2011-06` |
 | a role identity rate | `role_identity.<gross\|net\|margin\|dates\|balance>.<table>` | `role_identity.net.t_orders` |
 
 - **Unqualified margin labels** belong to the report's margin metric (`gross_margin`). A second margin metric (another table) uses its own metric id in place of `gross_margin`, and `pvm_margin.<effect>[<metric>]_<p>` for its PVM.
 - **A confirmed metric keeps its id.** When dedupe (§8.1) keeps the user's id for a pack KPI (hotel bookings' `room_revenue` for `revenue`), the labels use that id.
+- **A dimension of a metric that is not the pack's** is `<dim>[<metric>]` in these labels (`top3_share.customer[units]_2019`), so two metrics never share a label.
 - **Uniqueness.** Each label in this section names one fact in a report. The factbook refuses to create a second fact with one of these labels and a different value (an engine bug, like a V2 mismatch).

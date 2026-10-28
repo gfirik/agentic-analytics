@@ -74,5 +74,8 @@ export function touchesFlagged(insight: Insight, flagged: ReadonlyMap<string, Fl
   if (!f) return false;
   if (f.periods.has(insight.period)) return true;
   const refs = [...Object.values(insight.roles), ...insight.calcs.flatMap((c) => c.inputs)];
-  return refs.some((r) => r.kind === "point" && f.periods.has(r.period));
+  // A concentration statistic over a window that holds a flagged period reads the distorted value.
+  return refs.some(
+    (r) => (r.kind === "point" && f.periods.has(r.period)) || (r.kind === "stat" && [...f.periods].some((p) => p >= r.from && p <= r.to)),
+  );
 }

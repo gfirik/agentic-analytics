@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   anomalies,
   benchmarkGap,
-  concentration,
   type Insight,
   mixShift,
   newLost,
@@ -219,15 +218,7 @@ describe("anomaly.v1", () => {
   });
 });
 
-describe("concentration, new/lost and mix shift", () => {
-  it("June revenue is concentrated in retail", () => {
-    const i = concentration("revenue", REVENUE, [WHOLESALE, RETAIL], "2026-06", "channel");
-    // 29,700 / 37,000 = 80.27%; shares 0.197297 and 0.802703 → HHI = 0.038926 + 0.644332 = 0.683258
-    expect(calc(i as Insight, "top_share")).toBeCloseTo(80.27027, 4);
-    expect(calc(i as Insight, "hhi")).toBeCloseTo(0.683258, 5);
-    expect(i?.material).toBe(true);
-  });
-
+describe("new/lost and mix shift", () => {
   it("a customer present in March and absent in April is lost, with its March value at risk", () => {
     const hotel = series("revenue|customer=Hotel Group LLC", [0, 0, 8500, 0, 0, 0], "currency", {
       dimension: "customer",
@@ -242,14 +233,10 @@ describe("concentration, new/lost and mix shift", () => {
     expect(i?.calcs.map((c) => c.name)).toEqual(["lost_value"]);
   });
 
-  it('"(other)" counts in sums but is never the member a finding names', () => {
+  it('"(other)" appearing is a grouping artifact, not a new member, and never the member a mix shift names', () => {
     const other = series("revenue|channel=(other)", [0, 0, 0, 0, 0, 30000], "currency", { dimension: "channel", value: "(other)" });
-    const c = concentration("revenue", REVENUE, [other, RETAIL, WHOLESALE], "2026-06", "channel");
-    // sum = 30,000 + 29,700 + 7,300 = 67,000; named top = retail 29,700 / 67,000 = 44.33%
-    expect(c?.details.top).toBe("retail");
-    expect(calc(c as Insight, "top_share")).toBeCloseTo(44.328358, 5);
     const nl = newLost("revenue", REVENUE, [other, RETAIL], "2026-05", "2026-06", "channel");
-    expect(nl).toBeUndefined(); // "(other)" appearing is a grouping artifact, not a new member
+    expect(nl).toBeUndefined();
     const mx = mixShift("revenue", REVENUE, [other, RETAIL, WHOLESALE], "2026-05", "2026-06", "channel");
     expect(mx?.details.member).not.toBe("(other)");
   });

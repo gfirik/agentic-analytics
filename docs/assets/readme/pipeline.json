@@ -83,13 +83,13 @@
     "dimension": "channel",
     "member": "wholesale",
     "delta": {
-      "id": "N212",
+      "id": "N210",
       "value": -8499.999999999998,
       "label": "contribution.v1 revenue 2026-04 by channel:delta:wholesale",
       "text": "−$8,500"
     },
     "share": {
-      "id": "N215",
+      "id": "N213",
       "value": 107.59493670886076,
       "label": "contribution.v1 revenue 2026-04 by channel:share:wholesale",
       "text": "108%"
@@ -120,7 +120,7 @@
     "url": "https://coffee-benchmarks.example/refunds",
     "quote": "Specialty coffee roasters typically see refunds of 1–2% of sales.",
     "gap": {
-      "id": "N355",
+      "id": "N447",
       "value": 1.3999999999999981,
       "label": "benchmark N64 vs W1:gap",
       "text": "1.4 pp"
@@ -190,13 +190,13 @@
     "of": 2,
     "text": "Offer wholesale accounts a volume-tier discount to win back paused standing orders",
     "low": {
-      "id": "N435",
+      "id": "N527",
       "value": 3994.999999999999,
       "label": "scenario impact.v1:recover_share:impact_low",
       "text": "$3,995"
     },
     "high": {
-      "id": "N436",
+      "id": "N528",
       "value": 7190.999999999998,
       "label": "scenario impact.v1:recover_share:impact_high",
       "text": "$7,191"

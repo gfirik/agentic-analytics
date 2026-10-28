@@ -72,6 +72,7 @@ export const TEMPLATE_PRIORITY: readonly string[] = [
   "trend.v1",
   "new_lost.v1",
   "mix_shift.v1",
+  "dependence.v1",
   "concentration.v1",
   "top_contributors.v1",
   "benchmark_gap.v1",

@@ -1,4 +1,4 @@
-export { type Catalog, type CatalogColumn, type CatalogTable, loadCatalog } from "./catalog.ts";
+export { type Catalog, type CatalogColumn, type CatalogTable, loadCatalog, PERIOD_COLUMN, type PeriodParts } from "./catalog.ts";
 export { type ColumnRef, metricColumns } from "./columns.ts";
 export {
   compileMetric,

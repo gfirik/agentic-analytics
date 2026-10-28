@@ -228,7 +228,8 @@ describe('members beyond the top N are grouped as "(other)"', () => {
   });
 });
 
-describe("PVM reads roles, not header names (semantics §1)", () => {
+// Each case profiles the job and analyzes it twice, so it takes longer than the default timeout.
+describe("PVM reads roles, not header names (semantics §1)", { timeout: 30_000 }, () => {
   /** The first run's PVM for the April revenue break, or none once `edit` has changed the stored roles. */
   async function pvmAfter(edit: (w: Workspace) => Promise<void>): Promise<boolean> {
     const s = await setup();

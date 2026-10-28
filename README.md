@@ -169,7 +169,7 @@ stateDiagram-v2
 The engine on three public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines), New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged) and two Portuguese hotels' bookings (*Data in Brief* hotel booking demand, 119,390 bookings, cancellations included). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities, suppressed values and an extreme rate are reported, whether the seasonal peak lands in the right month, and whether a part-month or a regular seasonal fall (January for card spending, November for hotel bookings) is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
 
 <!-- table:real-data:start -->
-18 of 20 checks pass (offline baseline, no language model, 2026-10-23). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
+18 of 20 checks pass (offline baseline, no language model, 2026-10-28). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
 
 | Dataset | Check | Result |
 |---|---|---|

@@ -21,6 +21,7 @@ import {
 import { marginValue } from "@agentic-analytics/metrics";
 import type { Fact } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
+import { recheckStat, statOf } from "./concentration-check.ts";
 
 export const TOLERANCE = 1e-9;
 
@@ -195,6 +196,12 @@ export async function recomputeFacts(ws: Workspace, facts: readonly Fact[], all:
   for (const f of facts) {
     const c = f.computation;
     if (c.kind === "sql") {
+      const stat = statOf(f);
+      if (stat) {
+        const r = await recheckStat(ws, f, stat, same);
+        out.push({ fact: f.id, stored: f.value, computed: r.computed, ok: r.ok, how: r.how });
+        continue;
+      }
       const v = await rerunSql(ws, f);
       out.push({ fact: f.id, stored: f.value, computed: v, ok: same(f.value, v), how: "SQL re-run" });
       continue;

@@ -2,7 +2,7 @@
 // group_by?). Every number a report shows comes through this compiler, so it is tied to a metric id and its SQL.
 import type { Grain, MetricDef, RatioTerm } from "@agentic-analytics/schema";
 import { ident, type Sql, type Workspace } from "@agentic-analytics/store";
-import { type Catalog, NUMERIC_TYPES } from "./catalog.ts";
+import { type Catalog, type CatalogTable, NUMERIC_TYPES, PERIOD_COLUMN } from "./catalog.ts";
 import { builder, compileExpr, compileFilter, exprColumns, parseExpression, parseFilter, type SqlBuilder } from "./lang.ts";
 
 export type { Grain };
@@ -48,6 +48,17 @@ export function ratioTerms(def: MetricDef): readonly [RatioTerm, RatioTerm] {
 /** Period key at the job grain (lexically ordered, so BETWEEN works). */
 export function periodExpr(column: string, grain: Grain): string {
   return periodOf(q(column), grain);
+}
+
+/**
+ * The date a row is dated by: the time column, or for a table whose period is a year and a month column the first day of
+ * that month (a year alone is January; a month outside 1–12 has no date). Columns are checked identifiers.
+ */
+export function timeExpr(table: CatalogTable | undefined, time: string): string {
+  const parts = table?.periodParts;
+  if (time !== PERIOD_COLUMN || !parts) return q(time);
+  const [y, m] = [`CAST(${q(parts.year)} AS INTEGER)`, parts.month ? `CAST(${q(parts.month)} AS INTEGER)` : undefined];
+  return m ? `CASE WHEN ${m} BETWEEN 1 AND 12 THEN make_date(${y}, ${m}, 1) END` : `make_date(${y}, 1, 1)`;
 }
 
 /** The period key of an already-quoted date expression. */
@@ -105,16 +116,16 @@ function tableCte(
   };
   const where = [
     "NOT _is_total",
-    `${q(time)} IS NOT NULL`,
+    `${timeExpr(t, time)} IS NOT NULL`,
     ...filters.map((f) => compileFilter(parseFilter(f), ctx.b, col)),
     ...(ctx.query.where ? [compileFilter(parseFilter(ctx.query.where), ctx.b, col)] : []),
-    `${periodExpr(time, ctx.grain)} BETWEEN ${ctx.b.param(ctx.query.from)} AND ${ctx.b.param(ctx.query.to)}`,
+    `${periodOf(timeExpr(t, time), ctx.grain)} BETWEEN ${ctx.b.param(ctx.query.from)} AND ${ctx.b.param(ctx.query.to)}`,
     ...(cohort ? cohortConditions(ctx, cohort, time, table) : []),
   ];
   const groupCols = ctx.groups.map((g) => `${q(g)}`).join(", ");
   const name = `m${ctx.ctes.length + 1}`;
   ctx.ctes.push(
-    `${name} AS (SELECT ${periodExpr(time, ctx.grain)} AS period${groupCols ? `, ${groupCols}` : ""}, ${aggregate(col)} AS value FROM ${q(table)}${cohort ? cohortJoin(ctx, cohort, time, table, filters) : ""} WHERE ${where.join(" AND ")} GROUP BY ALL)`,
+    `${name} AS (SELECT ${periodOf(timeExpr(t, time), ctx.grain)} AS period${groupCols ? `, ${groupCols}` : ""}, ${aggregate(col)} AS value FROM ${q(table)}${cohort ? cohortJoin(ctx, cohort, time, table, filters) : ""} WHERE ${where.join(" AND ")} GROUP BY ALL)`,
   );
   ctx.done.set(key, name);
   return name;
@@ -134,20 +145,21 @@ function cohortJoin(ctx: Ctx, cohort: Cohort, time: string, table: string, filte
   };
   const where = [
     "NOT _is_total",
-    `${q(time)} IS NOT NULL`,
+    `${timeExpr(t, time)} IS NOT NULL`,
     `${q(cohort.column)} IS NOT NULL`,
     ...filters.map((f) => compileFilter(parseFilter(f), ctx.b, col)),
   ];
-  return ` JOIN (SELECT ${q(cohort.column)} AS ${FIRST.key}, min(${q(time)}) AS ${FIRST.first} FROM ${q(table)} WHERE ${where.join(" AND ")} GROUP BY ALL) AS _first ON ${q(table)}.${q(cohort.column)} = _first.${FIRST.key}`;
+  return ` JOIN (SELECT ${q(cohort.column)} AS ${FIRST.key}, min(${timeExpr(t, time)}) AS ${FIRST.first} FROM ${q(table)} WHERE ${where.join(" AND ")} GROUP BY ALL) AS _first ON ${q(table)}.${q(cohort.column)} = _first.${FIRST.key}`;
 }
 
 /** New: the period holds the first line. Returning: it is earlier. Neither is stated for the table's first period (no history). */
 function cohortConditions(ctx: Ctx, cohort: Cohort, time: string, table: string): string[] {
-  const period = periodExpr(time, ctx.grain);
+  const at = timeExpr(ctx.catalog.get(table), time);
+  const period = periodOf(at, ctx.grain);
   const first = periodOf(`_first.${FIRST.first}`, ctx.grain);
   return [
     `${first} ${cohort.kind === "new" ? "=" : "<"} ${period}`,
-    `${period} > (SELECT min(${period}) FROM ${q(table)} WHERE NOT _is_total AND ${q(time)} IS NOT NULL)`,
+    `${period} > (SELECT min(${period}) FROM ${q(table)} WHERE NOT _is_total AND ${at} IS NOT NULL)`,
   ];
 }
 
@@ -327,7 +339,13 @@ export function compileMetricRows(
   id: string,
   defs: readonly MetricDef[],
   catalog: Catalog,
-  query: { period: string; grain?: Grain; where?: string; limit?: number },
+  query: {
+    period: string /** The last period of a range that starts at `period`. */;
+    through?: string;
+    grain?: Grain;
+    where?: string;
+    limit?: number;
+  },
 ): RowsQuery[] {
   const byId = new Map(defs.map((d) => [d.id, d]));
   const grain = query.grain ?? "month";
@@ -344,10 +362,12 @@ export function compileMetricRows(
       const b = builder();
       const where = [
         "NOT _is_total",
-        `${q(time)} IS NOT NULL`,
+        `${timeExpr(t, time)} IS NOT NULL`,
         ...filters.map((f) => compileFilter(parseFilter(f), b, col)),
         ...(query.where ? [compileFilter(parseFilter(query.where), b, col)] : []),
-        `${periodExpr(time, grain)} = ${b.param(query.period)}`,
+        query.through === undefined
+          ? `${periodOf(timeExpr(t, time), grain)} = ${b.param(query.period)}`
+          : `${periodOf(timeExpr(t, time), grain)} BETWEEN ${b.param(query.period)} AND ${b.param(query.through)}`,
       ];
       const lim = limit !== undefined ? ` LIMIT ${b.param(limit)}` : "";
       return { text: `SELECT ${select} FROM ${q(table)} WHERE ${where.join(" AND ")}${tail}${lim}`, params: b.params };

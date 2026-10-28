@@ -9,7 +9,8 @@ import { sql, type Workspace } from "@agentic-analytics/store";
 import { AnalysisError, FactBook, factOf, type SeriesInfo } from "./factbook.ts";
 import { impactRange, type Scenario } from "./impact.ts";
 import { contributionFacts, memberFilter, otherFilter, unitOf } from "./members.ts";
-import { persistFacts, type StoredDecomposition, type StoredInsight } from "./runner.ts";
+import { persistFacts } from "./persist.sql.ts";
+import type { StoredDecomposition, StoredInsight } from "./runner.ts";
 import { benchmarkGap, topContributors } from "./templates.ts";
 import { factRef, OTHER, type Series, type Unit } from "./types.ts";
 
