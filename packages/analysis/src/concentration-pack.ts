@@ -134,11 +134,17 @@ export async function setupConcentration(
   const labels = new Map<string, ReadonlyMap<string, string>>();
   const grouping = new Map<string, readonly string[]>();
   for (const [metric, columns] of splits) {
-    const table = catalog.get(defs.find((d) => d.id === metric)?.table ?? "");
+    const def = defs.find((d) => d.id === metric);
+    const table = catalog.get(def?.table ?? "");
     if (!table) continue;
-    const l = await dimensionLabels(ws, table.id, columns);
+    // Labelled over every dimension of the metric, as the `concentration` tool does, so both paths name a column alike;
+    // only the columns the metric was split by are planned.
+    const l = await dimensionLabels(ws, table.id, def?.dimensions ?? columns);
     labels.set(metric, l.labels);
-    grouping.set(metric, l.grouping);
+    grouping.set(
+      metric,
+      l.grouping.filter((c) => columns.includes(c)),
+    );
   }
   const dimOf = (metric: string, column: string) => {
     const label = labels.get(metric)?.get(column) ?? column;
