@@ -3,7 +3,9 @@
 // entry carries a number: the reason is one sentence without numerals (V1's rule), and the thresholds live in the code.
 import type { Grain, NotDrafted } from "@agentic-analytics/metrics";
 import type { NotRun, NotRunReason } from "@agentic-analytics/schema";
+import { DIMENSION_ROLES } from "./concentration-facts.ts";
 import type { ConcentrationGap } from "./concentration-pack.ts";
+import { ITEM_ROLES } from "./decomp-inputs.ts";
 import { yoyGap } from "./scorecard.ts";
 
 /** The roles margin reads its cost from (analysis-library §9). */
@@ -14,20 +16,10 @@ const NEEDS: Readonly<Record<NotRunReason, readonly string[]>> = {
   no_cost_role: COST_ROLES,
   no_quantity_role: ["quantity"],
   no_price_role: ["unit_price"],
-  no_item_dimension: ["product", "product_id", "product_group"],
+  no_item_dimension: ITEM_ROLES,
   no_variable_cost: ["variable cost"],
-  no_dimension: [
-    "customer",
-    "customer_id",
-    "product",
-    "product_id",
-    "supplier",
-    "supplier_id",
-    "channel",
-    "location",
-    "salesperson",
-    "product_group",
-  ],
+  // Every role a concentration dimension can have (§11), from the pack's own list.
+  no_dimension: Object.values(DIMENSION_ROLES).flat(),
   too_few_periods: [],
   grain_not_comparable: [],
   no_order_id: ["order_id", "invoice_id"],

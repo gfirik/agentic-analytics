@@ -18,7 +18,7 @@ export const valueAt = (s: Series, period: string): number => s.points.find((p) 
  * a product role. They replace header regexes; the roles are the detector's proposals or the user's confirmation, stored
  * next to the profile (`profile_roles`).
  */
-const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
+export const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
 
 /** The numeric quantity column of a table (role `quantity`), best score first. */
 async function quantityColumn(ws: Workspace, table: NonNullable<ReturnType<Catalog["get"]>>) {

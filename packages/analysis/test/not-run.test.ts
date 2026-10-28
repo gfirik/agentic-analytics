@@ -9,7 +9,8 @@ import { periodOf, profileJob } from "@agentic-analytics/profile";
 import { findFreeNumerals, type NotRun } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { describe, expect, it } from "vitest";
-import { analysesNotRun, analyzeJob } from "../src/index.ts";
+import { ITEM_ROLES } from "../src/decomp-inputs.ts";
+import { analysesNotRun, analyzeJob, DIMENSION_ROLES } from "../src/index.ts";
 
 const root = join(import.meta.dirname, "..", "..", "..", "evals/datasets");
 
@@ -143,6 +144,14 @@ describe("analysesNotRun (§13)", () => {
     const gappy = months.slice(0, 13).filter((p) => p !== "2025-06");
     expect(ids(analysesNotRun({ ...base, periods: gappy }))).not.toContain("yoy/too_few_periods");
     expect(ids(analysesNotRun({ ...base, periods: months.slice(1, 13) }))).toContain("yoy/too_few_periods");
+  });
+
+  it("names in `needs` the roles the packs themselves read: the concentration dimensions and PVM's items", () => {
+    const needs = (code: string, list: readonly NotRun[]) => list.find((n) => n.reason_code === code)?.needs;
+    const conc = analysesNotRun({ ...base, concentration: [{ analysis: "pareto.v1", reason_code: "no_dimension" }] });
+    expect(needs("no_dimension", conc)).toEqual(Object.values(DIMENSION_ROLES).flat());
+    const pvm = analysesNotRun({ ...base, sales: { sum: true, quantity: true, item: false } });
+    expect(needs("no_item_dimension", pvm)).toEqual([...ITEM_ROLES]);
   });
 
   it("is empty when everything ran", () => {

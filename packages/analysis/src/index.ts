@@ -48,7 +48,7 @@ export {
 } from "./decompose.ts";
 export { AnalysisError, type AnalysisErrorCode, FactBook, MAX_CITED_ROWS, type SeriesInfo } from "./factbook.ts";
 export { type Amount, COST_BOUNDS, ImpactError, type ImpactRange, impactRange, SCENARIO_BOUNDS, type Scenario } from "./impact.ts";
-export { analysesNotRun, type NotRunInput } from "./not-run.ts";
+export { analysesNotRun, COST_ROLES, type NotRunInput } from "./not-run.ts";
 export { paretoSql } from "./pareto.sql.ts";
 export {
   allStats,
