@@ -61,6 +61,9 @@ export interface RowPlan {
   readonly material: boolean | null;
 }
 
+/** The points the band and mean read at most (the latest ones), like the concentration trend's cap (§11.3). */
+export const BAND_PERIODS = 36;
+
 const label = (metric: string, cell: string, period: string) => `scorecard.${metric}.${cell}_${period}`;
 
 /**
@@ -106,8 +109,12 @@ export function planRow(s: Series, period: string, grain: Grain, yoyPeriods: num
     const changePct = pct("vs_base_pct", baseRef, base.value);
     calcs.push(change, ...changePct);
     // Materiality (§12, baselines.ts): the noise band over the series up to this period with the last change left out,
-    // and the series mean. Only finite points are facts, so both are computed over those, as V2 recomputes them.
-    const known: Point[] = s.points.slice(0, i + 1).filter((p) => Number.isFinite(p.value));
+    // and the series mean. Only finite points are facts, so both are computed over those, as V2 recomputes them. At most
+    // the last BAND_PERIODS of them: a daily series would otherwise make every day of the data a fact (as §11.3 caps).
+    const known: Point[] = s.points
+      .slice(0, i + 1)
+      .filter((p) => Number.isFinite(p.value))
+      .slice(-BAND_PERIODS);
     const refs = known.map((p) => point(s.id, p.period));
     const band = noiseBand(known, known.length - 1);
     const m = mean(known.map((p) => p.value));

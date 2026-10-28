@@ -155,6 +155,17 @@ describe("planRow (§12)", () => {
     expect(p?.material).toBe(false);
   });
 
+  it("reads the band and the mean over the last 36 points at most, so a long or daily series doesn't cite every period", () => {
+    // Jan 2025 … Dec 2028, 100 then +10 a month: the last 36 are Jan 2026 (220) … Dec 2028 (570), mean (220 + 570) ÷ 2 = 395
+    // (the whole series' mean would be 335). Every change is +10, so the band is 0.
+    const p = planRow(series(Array.from({ length: 48 }, (_, i) => 100 + 10 * i)), "2028-12", "month", 48);
+    expect(calc(p, "mean")?.value).toBeCloseTo(395, 9);
+    expect(calc(p, "mean")?.inputs).toHaveLength(36);
+    expect(calc(p, "mean")?.inputs[0]).toEqual({ kind: "point", series: "m", period: "2026-01" });
+    expect(calc(p, "band")?.inputs).toHaveLength(36);
+    expect(calc(p, "band")?.value).toBe(0);
+  });
+
   it("states no change % against a base that is not positive", () => {
     const p = planRow(series([-5, -4, 0, 3]), "2025-04", "month", 4);
     expect(calc(p, "vs_base")?.value).toBe(3);
