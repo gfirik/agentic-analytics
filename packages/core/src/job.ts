@@ -35,7 +35,6 @@ import {
   type Grain,
   loadCatalog,
   parseMetricsYaml,
-  salesKpiPack,
   saveMetricDefs,
   validateMetrics,
 } from "@agentic-analytics/metrics";
@@ -56,7 +55,7 @@ import { sql, Workspace } from "@agentic-analytics/store";
 import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
-import { CONFIRMED_KEY, currentSemantics, DB, type MetricsOutput, meta, setMeta } from "./jobmeta.ts";
+import { CONFIRMED_KEY, currentNotDrafted, currentSemantics, DB, type MetricsOutput, meta, setMeta } from "./jobmeta.ts";
 import { type Logger, silentLogger } from "./log.ts";
 import { type RunResult, runPipeline, type StageContext, type StageDef, StagePause } from "./pipeline.ts";
 
@@ -329,11 +328,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const m = await metricsOf(ctx);
           // analyzeJob measures, detects and decomposes in one deterministic pass and stores the results; the
           // DETECT and DECOMPOSE stages below checkpoint and report what it stored.
-          // The KPIs the sales pack can't draft from the roles as they stand now (the person's edits included), §13.
-          const profile = (await ctx.output<ProfileSummary>("PROFILE")) as ProfileSummary;
-          const semantics = (await currentSemantics(ws)) ?? profile.semantics;
-          const { notDrafted } = salesKpiPack({ ...profile, ...(semantics ? { semantics } : {}) });
-          const r = await analyzeJob(ws, m.defs, await loadCatalog(ws), { ...m.range, notDrafted });
+          const r = await analyzeJob(ws, m.defs, await loadCatalog(ws), { ...m.range, notDrafted: await currentNotDrafted(ws) });
           const sections = { ...(r.scorecard ? { scorecard: r.scorecard } : {}), concentration: r.concentration, notRun: r.notRun };
           return { top: r.top, openQuestions: r.openQuestions, sections } satisfies MeasureOutput;
         },
