@@ -79,8 +79,6 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       fact: r.fact,
       detail: `${r.how}: stored ${r.stored}, computed ${JSON.stringify(r.computed)}`,
     });
-  // V2 on the scorecard's material flags (§12): recomputed from the row's facts with materiality().
-  checks.push(...verifyMaterial(draft.scorecard, all));
   const mismatched = v2.filter((r) => !r.ok);
   if (mismatched.length)
     throw new VerifyError(
@@ -88,6 +86,9 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       `${mismatched.length} fact(s) don't recompute: ${mismatched.map((m) => m.fact).join(", ")}`,
       { mismatched },
     );
+  // V2 on the scorecard's material flags (§12): recomputed from the row's facts with materiality(). After the facts' own
+  // check, so a wrong band or change is reported as the fact it is, not as the flag it feeds.
+  checks.push(...verifyMaterial(draft.scorecard, all));
 
   // V5 for facts: every cited input row exists in its table (a wrong row is an engine bug, like V2).
   const rows = await checkFactRows(ctx.ws, draft.facts, ctx.defs, ctx.catalog, ctx.grain);

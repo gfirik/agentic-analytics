@@ -106,6 +106,25 @@ describe("the verifier on the sections (agent-and-verifier §7)", () => {
     await expect(verify(d)).rejects.toMatchObject({ code: "RECOMPUTE_MISMATCH" });
   });
 
+  it("V2: a wrong band fact is reported as the fact mismatch, not as the flag it feeds", async () => {
+    const d = clone(out.draft);
+    const band = d.scorecard?.rows.find((r) => r.metric_id === "refund_rate")?.materiality_inputs?.band;
+    const f = d.facts.find((x) => x.id === band);
+    if (!band || !f) throw new Error("no refund rate band");
+    // A band of 1.44478 makes the +0.5 pp change not material, so the stored flag (true) no longer recomputes either.
+    f.value += 1;
+    await ws.run(sql`UPDATE facts SET value = value + 1 WHERE id = ${band}`);
+    try {
+      await expect(verify(d)).rejects.toMatchObject({
+        code: "RECOMPUTE_MISMATCH",
+        message: expect.stringMatching(/fact\(s\) don't recompute/),
+        diagnostic: { mismatched: [expect.objectContaining({ fact: band })] },
+      });
+    } finally {
+      await ws.run(sql`UPDATE facts SET value = value - 1 WHERE id = ${band}`);
+    }
+  });
+
   it("V1: a not-run reason with a numeral is dropped and listed", async () => {
     const d = clone(out.draft);
     d.analyses_not_run = [
