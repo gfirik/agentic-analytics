@@ -146,7 +146,9 @@ describe("the real datasets' golden sets", () => {
         ).toBe(true);
       }
     },
-    300_000,
+    // Five full jobs, each now stating the scorecard and concentration facts that V2 re-runs (M15 PR 10): alone the test
+    // takes about four minutes, and beside the rest of the suite on two workers it ran past five.
+    600_000,
   );
 });
 
