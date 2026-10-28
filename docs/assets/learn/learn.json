@@ -64,7 +64,7 @@
       "value": 41200,
       "unit": "currency",
       "currency": "USD",
-      "verified": false,
+      "verified": true,
       "computation": {
         "kind": "sql",
         "sql": "WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL)\nSELECT period, value FROM m1 ORDER BY period",
@@ -82,7 +82,7 @@
       "value": 42899.99999999997,
       "unit": "currency",
       "currency": "USD",
-      "verified": false,
+      "verified": true,
       "computation": {
         "kind": "sql",
         "sql": "WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL)\nSELECT period, value FROM m1 ORDER BY period",
@@ -100,7 +100,7 @@
       "value": 35799.99999999998,
       "unit": "currency",
       "currency": "USD",
-      "verified": false,
+      "verified": true,
       "computation": {
         "kind": "sql",
         "sql": "WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL)\nSELECT period, value FROM m1 ORDER BY period",
@@ -954,8 +954,8 @@
         ]
       }
     },
-    "N445": {
-      "id": "N445",
+    "N497": {
+      "id": "N497",
       "label": "external refund rate benchmark (low)",
       "value": 1,
       "unit": "percent",
@@ -967,8 +967,8 @@
         "inputs": []
       }
     },
-    "N446": {
-      "id": "N446",
+    "N498": {
+      "id": "N498",
       "label": "external refund rate benchmark (high)",
       "value": 2,
       "unit": "percent",
@@ -980,8 +980,8 @@
         "inputs": []
       }
     },
-    "N447": {
-      "id": "N447",
+    "N499": {
+      "id": "N499",
       "label": "benchmark N64 vs W1:gap",
       "value": 1.3999999999999981,
       "unit": "percent",
@@ -992,13 +992,13 @@
         "fn": "benchmark_gap.v1",
         "inputs": [
           "N64",
-          "N445",
-          "N446"
+          "N497",
+          "N498"
         ]
       }
     },
-    "N524": {
-      "id": "N524",
+    "N576": {
+      "id": "N576",
       "label": "scenario impact.v1:recover_share:param_low",
       "value": 50,
       "unit": "percent",
@@ -1010,8 +1010,8 @@
         "inputs": []
       }
     },
-    "N525": {
-      "id": "N525",
+    "N577": {
+      "id": "N577",
       "label": "scenario impact.v1:recover_share:param_high",
       "value": 90,
       "unit": "percent",
@@ -1023,8 +1023,8 @@
         "inputs": []
       }
     },
-    "N526": {
-      "id": "N526",
+    "N578": {
+      "id": "N578",
       "label": "scenario impact.v1:recover_share:param_cost",
       "value": 6,
       "unit": "percent",
@@ -1036,8 +1036,8 @@
         "inputs": []
       }
     },
-    "N527": {
-      "id": "N527",
+    "N579": {
+      "id": "N579",
       "label": "scenario impact.v1:recover_share:impact_low",
       "value": 3994.999999999999,
       "unit": "currency",
@@ -1048,13 +1048,13 @@
         "fn": "impact.v1:recover_share",
         "inputs": [
           "N210",
-          "N526",
-          "N524"
+          "N578",
+          "N576"
         ]
       }
     },
-    "N528": {
-      "id": "N528",
+    "N580": {
+      "id": "N580",
       "label": "scenario impact.v1:recover_share:impact_high",
       "value": 7190.999999999998,
       "unit": "currency",
@@ -1065,8 +1065,8 @@
         "fn": "impact.v1:recover_share",
         "inputs": [
           "N210",
-          "N526",
-          "N525"
+          "N578",
+          "N577"
         ]
       }
     }
@@ -1917,7 +1917,7 @@
       "quote": "Specialty coffee roasters typically see refunds of 1–2% of sales.",
       "url": "https://coffee-benchmarks.example/refunds"
     },
-    "gap": "N447"
+    "gap": "N499"
   },
   "agent": {
     "tools": [
@@ -1949,7 +1949,7 @@
           "period": "2026-04",
           "dimension": "customer"
         },
-        "output": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N435\",\"value\":-7900,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:total\"},\"change:Hotel Group LLC\":{\"id\":\"N419\",\"value\":-8500,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:Hotel Group LLC\"},\"share:Hotel Group LLC\":{\"id\":\"N436\",\"value\":107.59,\"unit\":\"percent\",\"label\":\"drill_down…"
+        "output": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N487\",\"value\":-7900,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:total\"},\"change:Hotel Group LLC\":{\"id\":\"N471\",\"value\":-8500,\"unit\":\"USD\",\"label\":\"drill_down revenue 2026-04 by customer:delta:Hotel Group LLC\"},\"share:Hotel Group LLC\":{\"id\":\"N488\",\"value\":107.59,\"unit\":\"percent\",\"label\":\"drill_down…"
       },
       {
         "step": 11,
@@ -1974,7 +1974,7 @@
           "fact_id": "N64",
           "extract_id": "E7"
         },
-        "output": "{\"external\":true,\"low\":{\"id\":\"N445\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N446\",\"value\":2,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (high)\"},\"gap\":{\"id\":\"N447\",\"value\":1.4,\"unit\":\"percent\",\"label\":\"benchmark N64 vs W1:gap\"}}"
+        "output": "{\"external\":true,\"low\":{\"id\":\"N497\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N498\",\"value\":2,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (high)\"},\"gap\":{\"id\":\"N499\",\"value\":1.4,\"unit\":\"percent\",\"label\":\"benchmark N64 vs W1:gap\"}}"
       }
     ],
     "structured": {
@@ -2043,7 +2043,7 @@
       {
         "check": "V2",
         "name": "recompute",
-        "run": 101,
+        "run": 287,
         "failed": 0
       },
       {
@@ -2061,7 +2061,7 @@
       {
         "check": "V5",
         "name": "citations",
-        "run": 73,
+        "run": 206,
         "failed": 0
       },
       {
@@ -2108,7 +2108,7 @@
       }
     ],
     "summary": {
-      "numbers_checked": 101,
+      "numbers_checked": 278,
       "numbers_mismatched": 0,
       "citations_checked": 6,
       "claims_shipped": 16
@@ -2189,11 +2189,11 @@
     "action": {
       "id": "R1",
       "text": "Offer wholesale accounts a volume-tier discount to win back paused standing orders",
-      "low": "N527",
-      "high": "N528",
+      "low": "N579",
+      "high": "N580",
       "horizon": "next quarter"
     },
-    "facts": 101
+    "facts": 278
   },
   "router": {
     "spec": "openai-compatible:groq:openai/gpt-oss-120b | openai-compatible:cerebras:gpt-oss-120b",
@@ -2691,7 +2691,7 @@
         "[1/1] coffee-roaster: 6/6 checks pass · … s",
         "",
         "coffee-roaster C1 pass: The job completes on the workbook — report with 5 findings, 2 data-quality items",
-        "coffee-roaster C2 pass: Every number re-computes — 101 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition",
+        "coffee-roaster C2 pass: Every number re-computes — 278 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition",
         "coffee-roaster C3 pass: Revenue fell in April (G1: 44,100 → 36,200) — F1: A change in revenue",
         "coffee-roaster C4 pass: March's rise (G1: 42,900 → 44,100, +2.8%) is too small to report — no finding at 2026-03",
         "coffee-roaster C5 pass: The ×1000 packaging cost in the Monthly sheet (G2) — Q2 unit_error cites rows 3…",
@@ -3209,7 +3209,7 @@
         },
         {
           "label": "benchmark gap",
-          "fact": "N447",
+          "fact": "N499",
           "note": "Specialty coffee roasters typically see refunds of 1–2% of sales."
         }
       ],
@@ -3272,7 +3272,7 @@
         },
         {
           "label": "drill_down",
-          "note": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N435\",\"value\":-7900,\"unit\":\"USD\",\"label\"…"
+          "note": "{\"metric\":\"revenue\",\"dimension\":\"customer\",\"from\":\"2026-03\",\"to\":\"2026-04\",\"facts\":{\"total\":{\"id\":\"N487\",\"value\":-7900,\"unit\":\"USD\",\"label\"…"
         },
         {
           "label": "search_documents",
@@ -3284,7 +3284,7 @@
         },
         {
           "label": "compare_benchmark",
-          "note": "{\"external\":true,\"low\":{\"id\":\"N445\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N446\",\"value\":…"
+          "note": "{\"external\":true,\"low\":{\"id\":\"N497\",\"value\":1,\"unit\":\"percent\",\"label\":\"external refund rate benchmark (low)\"},\"high\":{\"id\":\"N498\",\"value\":…"
         }
       ],
       "source": "the planner's tool calls in the run (scripted planner)"
@@ -3298,7 +3298,7 @@
         },
         {
           "label": "facts to recompute",
-          "value": "101"
+          "value": "278"
         }
       ],
       "steps": [
@@ -3311,7 +3311,7 @@
         },
         {
           "label": "V2 recompute",
-          "detail": "101 checks, 0 failed",
+          "detail": "287 checks, 0 failed",
           "outputs": [
             1
           ]
@@ -3332,7 +3332,7 @@
         },
         {
           "label": "V5 citations",
-          "detail": "73 checks, 0 failed",
+          "detail": "206 checks, 0 failed",
           "outputs": [
             4
           ]
@@ -3367,7 +3367,7 @@
         },
         {
           "label": "V2",
-          "value": "101/101",
+          "value": "287/287",
           "note": "all passed"
         },
         {
@@ -3382,7 +3382,7 @@
         },
         {
           "label": "V5",
-          "value": "73/73",
+          "value": "206/206",
           "note": "all passed"
         },
         {
@@ -3424,7 +3424,7 @@
         },
         {
           "label": "facts",
-          "value": "101"
+          "value": "278"
         }
       ],
       "steps": [
@@ -3466,8 +3466,8 @@
         },
         {
           "label": "R1 impact",
-          "fact": "N527",
-          "note": "to N528, next quarter"
+          "fact": "N579",
+          "note": "to N580, next quarter"
         }
       ],
       "source": "the verified report.json of the run"

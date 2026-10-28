@@ -120,7 +120,7 @@
     "url": "https://coffee-benchmarks.example/refunds",
     "quote": "Specialty coffee roasters typically see refunds of 1–2% of sales.",
     "gap": {
-      "id": "N447",
+      "id": "N499",
       "value": 1.3999999999999981,
       "label": "benchmark N64 vs W1:gap",
       "text": "1.4 pp"
@@ -136,7 +136,7 @@
     {
       "check": "V2",
       "name": "recompute",
-      "run": 101,
+      "run": 287,
       "failed": 0
     },
     {
@@ -154,7 +154,7 @@
     {
       "check": "V5",
       "name": "citations",
-      "run": 73,
+      "run": 206,
       "failed": 0
     },
     {
@@ -177,7 +177,7 @@
     }
   ],
   "verification": {
-    "numbers_checked": 101,
+    "numbers_checked": 278,
     "numbers_mismatched": 0,
     "citations_checked": 6,
     "claims_dropped": 2,
@@ -190,13 +190,13 @@
     "of": 2,
     "text": "Offer wholesale accounts a volume-tier discount to win back paused standing orders",
     "low": {
-      "id": "N527",
+      "id": "N579",
       "value": 3994.999999999999,
       "label": "scenario impact.v1:recover_share:impact_low",
       "text": "$3,995"
     },
     "high": {
-      "id": "N528",
+      "id": "N580",
       "value": 7190.999999999998,
       "label": "scenario impact.v1:recover_share:impact_high",
       "text": "$7,191"
