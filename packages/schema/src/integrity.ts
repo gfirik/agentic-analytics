@@ -224,6 +224,41 @@ export function checkReportIntegrity(report: Report): IntegrityIssue[] {
       if (sig.fact) fact(`business_model.signals[${j}].fact`, sig.fact);
     }
   }
+  // M15 (report-schema §5b): the scorecard and concentration cells are facts, and a not-run reason carries no number.
+  for (const [i, r] of (report.scorecard?.rows ?? []).entries()) {
+    const p = `scorecard.rows[${i}]`;
+    metric(`${p}.metric_id`, r.metric_id);
+    fact(`${p}.value`, r.value);
+    for (const [k, part] of [
+      ["vs_base", r.vs_base],
+      ["yoy", r.yoy],
+    ] as const)
+      if (!("na" in part)) {
+        fact(`${p}.${k}.change`, part.change);
+        if (part.change_pct) fact(`${p}.${k}.change_pct`, part.change_pct);
+      }
+    if (r.materiality_inputs?.band) fact(`${p}.materiality_inputs.band`, r.materiality_inputs.band);
+    if (r.materiality_inputs) fact(`${p}.materiality_inputs.mean`, r.materiality_inputs.mean);
+  }
+  for (const [i, c] of (report.concentration ?? []).entries()) {
+    const p = `concentration[${i}]`;
+    metric(`${p}.metric_id`, c.metric_id);
+    for (const [j, w] of c.pareto.entries()) {
+      const ids = [
+        w.members,
+        w.nonpositive_count,
+        w.nonpositive_value,
+        w.unkeyed_value,
+        ...w.classes.flatMap((k) => [k.count, k.value, k.share]),
+      ];
+      for (const ref of ids) if (ref) fact(`${p}.pareto[${j}]`, ref);
+    }
+    for (const [j, s] of c.shares.entries())
+      for (const ref of [s.top1, s.top3, s.top5, s.top10, s.hhi]) if (ref) fact(`${p}.shares[${j}]`, ref);
+    for (const ref of Object.values(c.trend ?? {})) if (ref) fact(`${p}.trend`, ref);
+    if (c.dependence && !findingIds.has(c.dependence)) add(`${p}.dependence`, `unknown finding ${c.dependence}`);
+  }
+  for (const [i, n] of (report.analyses_not_run ?? []).entries()) text(`analyses_not_run[${i}].reason`, n.reason);
   report.evidence?.forEach((e, i) => {
     if (!sourceIds.has(e.source_id)) add(`evidence[${i}].source_id`, `unknown source ${e.source_id}`);
   });

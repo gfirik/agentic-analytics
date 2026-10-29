@@ -203,6 +203,13 @@ Role scores are not in the report: they rank candidates inside the detector (sem
 
 **As built (PR 5, `roles`, `table_kinds`, `business_model`).** Zod in `packages/schema/src/report.ts` (`ColumnRole`, `TableKind`, `BusinessModel`, `COLUMN_ROLES`, `TABLE_KINDS`); the JSON Schema is regenerated and `report.roles` etc. are optional. `ColumnRole.role` excludes `none`. `checkReportIntegrity` checks that role and kind `table_id`s are sources, that evidence and signal facts and the business-model assumption resolve, and that evidence and signal texts have no free numerals. `ColumnRole.assumption` is not filled yet (PR 6 attaches an assumption to each role an analysis reads). The HTML report shows a "Column roles and table kinds" section after the metric definitions (the business model, each table's kind, each role with its status and evidence, with the identity rate a clickable number). An assumption with an empty `affects` prints no "Affects" clause.
 
+**As built (PR 10, `scorecard`, `concentration`, `analyses_not_run`).** Zod in `packages/schema/src/report.ts` (`Scorecard`, `ScorecardRow`, `Concentration`, `NotRun`, `NOT_RUN_REASONS`), JSON Schema regenerated. `concentration` landed here, not in PR 9 as planned above. As built:
+
+- `Concentration.shares[].period` is the window's label suffix: a period (`2026-06`), `ttm`, or a calendar year (`2019`); the per-period HHI and top-1 facts behind the trend are listed too.
+- `checkReportIntegrity` resolves every fact id of the scorecard and concentration, the scorecard's and concentration's `metric_id`, and a concentration entry's `dependence` finding, and applies the free-numeral rule to `analyses_not_run[].reason`.
+- The draft report carries every fact the sections name (with their inputs), so a report now holds the scorecard's point facts for every period of each row's series and the concentration pack's facts, all re-checked by V2.
+- The HTML shows the scorecard after the data-quality banner, the concentration section after the recommendations, and "Analyses not run" after the open questions, as the order below says.
+
 ## 6. HTML report requirements
 
 - **One self-contained file.** Inline CSS and JS, no external requests, works offline.

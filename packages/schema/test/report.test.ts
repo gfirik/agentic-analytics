@@ -276,3 +276,64 @@ describe("roles, table kinds and the business model (report-schema §5b, additiv
     ).toContain("free numerals");
   });
 });
+
+describe("scorecard, concentration and analyses not run (report-schema §5b, M15 PR 10)", () => {
+  const withSections = (r: Report): Report => {
+    r.scorecard = {
+      period: "2026-04",
+      rows: [
+        {
+          metric_id: "revenue",
+          value: "N2",
+          vs_base: { method: "previous_period", periods: ["2026-03"], change: "N3", change_pct: "N4" },
+          yoy: { na: "too_few_periods" },
+          material: null,
+        },
+      ],
+    };
+    r.concentration = [
+      {
+        metric_id: "revenue",
+        dimension: "channel",
+        column: "channel",
+        pareto: [
+          {
+            window: "ttm",
+            from: "2026-01",
+            to: "2026-04",
+            classes: [{ class: "A", count: "N1", value: "N2", share: "N4" }],
+            members: "N1",
+          },
+        ],
+        shares: [{ period: "ttm", top1: "N4", hhi: "N4" }],
+      },
+    ];
+    r.analyses_not_run = [
+      { analysis: "gross_margin", reason_code: "no_cost_role", reason: "There is no cost column.", needs: ["unit_cost"] },
+    ];
+    return r;
+  };
+
+  it("validates when every cell names a fact and every reason has no number", () => {
+    const res = validateReport(withSections(fixture()));
+    expect(res.ok ? [] : res.issues).toEqual([]);
+  });
+
+  it("refuses an unknown fact, an unknown metric, an unknown dependence finding and a reason with a numeral", () => {
+    expect(issuesOf((r) => ((withSections(r).scorecard?.rows[0] as { value: string }).value = "N999")).join("\n")).toContain(
+      "scorecard.rows[0].value",
+    );
+    expect(issuesOf((r) => ((withSections(r).scorecard?.rows[0] as { metric_id: string }).metric_id = "nope")).join("\n")).toContain(
+      "unknown metric nope",
+    );
+    expect(issuesOf((r) => ((withSections(r).concentration?.[0] as { dependence?: string }).dependence = "F99")).join("\n")).toContain(
+      "unknown finding F99",
+    );
+    expect(
+      issuesOf((r) => ((withSections(r).analyses_not_run?.[0] as { reason: string }).reason = "Needs 13 months.")).join("\n"),
+    ).toContain("analyses_not_run[0].reason");
+    expect(
+      issuesOf((r) => ((withSections(r).analyses_not_run?.[0] as { reason_code: string }).reason_code = "no_idea")).join("\n"),
+    ).toContain("analyses_not_run");
+  });
+});

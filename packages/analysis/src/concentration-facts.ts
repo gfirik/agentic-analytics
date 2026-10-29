@@ -6,7 +6,6 @@ import { type Catalog, compileMetric, compileMetricRows, type Grain } from "@age
 import type { Citation, MetricDef } from "@agentic-analytics/schema";
 import type { Sql, Workspace } from "@agentic-analytics/store";
 import { concentrationSql, windowStatsSql } from "./concentration.sql.ts";
-import { columnsWithRole } from "./decomp-inputs.ts";
 import { AnalysisError, type FactBook, MAX_CITED_ROWS, type StatResolver } from "./factbook.ts";
 import { paretoSql } from "./pareto.sql.ts";
 import {
@@ -19,6 +18,7 @@ import {
   type StatPart,
   TOP_NS,
 } from "./pareto.ts";
+import { tableRoles } from "./roles.sql.ts";
 import type { StatRef, Unit } from "./types.ts";
 
 /** The roles whose column is a dimension to measure concentration over, and the name they carry in labels (§11, §14). */
@@ -49,8 +49,10 @@ export async function dimensionLabels(
     taken.add(label);
     labels.set(column, label);
   };
+  const stored = await tableRoles(ws, tableId);
   for (const [dim, roles] of Object.entries(DIMENSION_ROLES))
-    for (const column of await columnsWithRole(ws, tableId, roles)) if (columns.includes(column) && !labels.has(column)) give(dim, column);
+    for (const { column_name: column } of stored.filter((r) => roles.includes(r.role)))
+      if (columns.includes(column) && !labels.has(column)) give(dim, column);
   const grouping = [...labels.keys()];
   for (const column of columns) if (!labels.has(column)) give(column, column);
   return { labels, grouping };

@@ -156,7 +156,7 @@ These limits keep model spend down. Where they are tighter than a rule above, th
 2. **One PR at a time, end to end.** Don't start the next PR until the current one is merged.
 
 Items 1 and 2 are replaced for M15 and the v0.1 finish by the plan below; items 3 and 4 still hold.
-3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. Reviewer and QA subagents run on a smaller model (Sonnet), not the largest.
+3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. QA subagents run on a smaller model (Sonnet), not the largest. The `spec-reviewer` runs on Opus from M15 PR 10 (the maintainer, 2026-10-28; see the v0.1 finish plan).
 4. **No real-model runs** (Groq or any hosted endpoint) except the nightly eval. A targeted check is allowed only when a PR can't be judged otherwise, and the PR says why.
 
 The daily Telegram summary continues.
@@ -165,10 +165,11 @@ The daily Telegram summary continues.
 
 For M15 and the run to v0.1 it replaces items 1 and 2 above.
 
-- **Roles.** The main session (Opus) plans, coordinates, reviews every PR and merges. Builders are subagents on Sonnet.
+- **Roles.** The main session (Opus) plans, coordinates, reviews every PR and merges. Builders are subagents.
+- **Models** (the maintainer, 2026-10-28). From M15 PR 10, builders and the `spec-reviewer` run on Opus for M15 PRs 10 and 11 and the whole final v0.1 review. QA and the three site PRs (builders included) run on Sonnet. Earlier PRs ran builders and reviewers on Sonnet.
 - **Up to three background agents at once.** Builders, reviewers and QA all count. Check free RAM (`free -m`) before starting a third.
 - **Parallel where independent.** M15 PRs 2 and 3 run together; PRs 7, 8 and 9 run together once PRs 4 and 5 are merged. Dependent PRs run one at a time. Heavy jobs (gate, full tests, builds, evals) stay one at a time on the lock.
-- **Reviews.** Engine and numeric PRs get the Sonnet `spec-reviewer` and `qa` as before, plus the main session's own review of the diff before merging.
+- **Reviews.** Engine and numeric PRs get the `spec-reviewer` and `qa` (models as above), plus the main session's own review of the diff before merging.
 - **Stalls.** If a background agent shows no progress for 30 minutes, the main session checks it and takes over the work itself.
 - **After M15 PR 11, a final v0.1 review** by the main session: whole-codebase code quality, a security review, spec against code, docs and README accuracy, and a fresh-clone install plus quickstart run from scratch. Findings are fixed in small PRs. Then `docs/LAUNCH-v0.1.md` gets the launch checklist, and work stops for the maintainer's yes on the v0.1.0 tag.
 - **A Telegram after each merge.**

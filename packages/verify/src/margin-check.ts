@@ -1,5 +1,6 @@
 // V4 for margin (agent-and-verifier §7): a claim that names margin must read a cost role, and a margin function fact must
 // be built from its definition's two terms for the same period and member. Deterministic; no model.
+import { COST_ROLES } from "@agentic-analytics/analysis";
 import { type Catalog, MARGIN_METRIC, MARGIN_PCT_METRIC, marginTerms, metricColumns } from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
@@ -16,7 +17,7 @@ export const namesMargin = (text: string): boolean => MARGIN_WORDS.test(text);
  */
 export async function costRoleMetrics(ws: Workspace, defs: readonly MetricDef[], catalog: Catalog): Promise<Set<string>> {
   const rows = await ws.all<{ table_id: string; column_name: string }>(
-    sql`SELECT table_id, column_name FROM profile_roles WHERE role IN ('unit_cost', 'cost_amount')`,
+    sql`SELECT table_id, column_name FROM profile_roles WHERE list_contains(${JSON.stringify(COST_ROLES)}::VARCHAR[], role)`,
   );
   const cost = new Set(rows.map((r) => `${r.table_id}/${r.column_name}`));
   if (!cost.size) return new Set();

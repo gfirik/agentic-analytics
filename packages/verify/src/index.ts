@@ -2,6 +2,7 @@
 export { isCausal, rewriteCorrelational } from "./causal.ts";
 export { dataNames, parseMeasured } from "./labels.ts";
 export { type Recomputed, recomputeFacts, same, TOLERANCE, VerifyError } from "./recompute.ts";
+export { checkNotRun, type MaterialCheck, recheckMaterial } from "./sections-check.ts";
 export {
   type CheckRow,
   checkFactRows,

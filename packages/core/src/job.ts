@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
+  type AnalysisSections,
   Budget,
   buildDraft,
   buildEvidence,
@@ -18,6 +19,7 @@ import {
   privateTerms,
   quarantinedSources,
   readExtracts,
+  reportSections,
   SMALL_MODEL_INPUT_BUDGET,
   screen,
   screenDocuments,
@@ -53,7 +55,7 @@ import { sql, Workspace } from "@agentic-analytics/store";
 import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
-import { CONFIRMED_KEY, currentSemantics, DB, type MetricsOutput, meta, setMeta } from "./jobmeta.ts";
+import { CONFIRMED_KEY, currentNotDrafted, currentSemantics, DB, type MetricsOutput, meta, setMeta } from "./jobmeta.ts";
 import { type Logger, silentLogger } from "./log.ts";
 import { type RunResult, runPipeline, type StageContext, type StageDef, StagePause } from "./pipeline.ts";
 
@@ -170,6 +172,8 @@ async function metricsOf(ctx: StageContext): Promise<MetricsOutput> {
 interface MeasureOutput {
   readonly top: string[];
   readonly openQuestions: string[];
+  /** The scorecard, concentration and "Analyses not run" sections (M15); absent in a job measured before them. */
+  readonly sections?: AnalysisSections;
 }
 
 interface ExplainOutputStored extends ExplainResult {
@@ -324,8 +328,9 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const m = await metricsOf(ctx);
           // analyzeJob measures, detects and decomposes in one deterministic pass and stores the results; the
           // DETECT and DECOMPOSE stages below checkpoint and report what it stored.
-          const r = await analyzeJob(ws, m.defs, await loadCatalog(ws), m.range);
-          return { top: r.top, openQuestions: r.openQuestions } satisfies MeasureOutput;
+          const r = await analyzeJob(ws, m.defs, await loadCatalog(ws), { ...m.range, notDrafted: await currentNotDrafted(ws) });
+          const sections = { ...(r.scorecard ? { scorecard: r.scorecard } : {}), concentration: r.concentration, notRun: r.notRun };
+          return { top: r.top, openQuestions: r.openQuestions, sections } satisfies MeasureOutput;
         },
       },
       {
@@ -408,6 +413,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             facts,
             quality,
             only: measured.top,
+            ...(measured.sections ? { sections: measured.sections } : {}),
           });
           const toolCtx: ToolContext = {
             ws,
@@ -470,6 +476,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             decompositions: analysis.decompositions,
             facts: await factMap(),
             quality: [],
+            // The sections are EXPLAIN's (§2): DECIDE's request must fit small-model mode's input budget (§8.1).
             only: Object.values(ex.insightOf),
           });
           const d = await decide({
@@ -515,6 +522,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             facts: await factMap(),
             ...(m.partialPeriod ? { partialPeriod: m.partialPeriod } : {}),
             ...(semantics ? { semantics: await reportSemantics(ws, semantics) } : {}),
+            ...(measured.sections ? { sections: reportSections(measured.sections, ex.insightOf) } : {}),
           });
           const v = validateReport(report);
           if (!v.ok)

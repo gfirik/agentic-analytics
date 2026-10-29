@@ -41,14 +41,16 @@ describe("the mini golden set (coffee-roaster), arms A, B and C scripted", () =>
     expect(measure(r, "A")).toMatchObject({ numeric: { n: 1, of: 4 }, categorical: { n: 1, of: 1 }, traps: { n: 0, of: 1 } });
     // B: G1, G2, G4 from their own SQL, G3's SQL gives "wholesale", G5 refused after a refused read; G6 has no SQL → 3/4.
     expect(measure(r, "B")).toMatchObject({ numeric: { n: 3, of: 4 }, categorical: { n: 1, of: 1 }, traps: { n: 1, of: 1 } });
-    // C: the scripted planner answers all but G6, a fact the report doesn't carry (golden.test.ts).
-    expect(measure(r, "C")).toMatchObject({ numeric: { n: 3, of: 4 }, categorical: { n: 1, of: 1 }, traps: { n: 1, of: 1 } });
+    // C: the scripted planner answers all six; G6 (May's revenue) since M15 PR 10, when the scorecard's mean put every
+    // month's revenue fact in the report (golden.test.ts).
+    expect(measure(r, "C")).toMatchObject({ numeric: { n: 4, of: 4 }, categorical: { n: 1, of: 1 }, traps: { n: 1, of: 1 } });
   }, 120_000);
 
   it("unsupported numbers and citation validity (hand-computed from the canned answers)", () => {
-    // A claims 36,200 (golden), 48,510, −8,690, 39,380 (each 10% off: in no golden answer or fact) and 512,000 (the
-    // trap): 4 of 5 unsupported without cells. B claims 36,200, 44,100 and −7,900, all golden: 0 of 3.
-    expect(measure(r, "A")?.unsupported).toMatchObject({ numbers: 5, unsupportedWithoutCells: 4 });
+    // A claims 36,200 (golden), 48,510, −8,690, 39,380 (each 10% off) and 512,000 (the trap). 39,380 lies within the 0.5%
+    // support tolerance of arm C's scorecard mean of revenue, 237,200 ÷ 6 = 39,533.33 (off by 0.39%), so it counts as
+    // supported by chance: 3 of 5 unsupported without cells. B claims 36,200, 44,100 and −7,900, all golden: 0 of 3.
+    expect(measure(r, "A")?.unsupported).toMatchObject({ numbers: 5, unsupportedWithoutCells: 3 });
     expect(measure(r, "A")?.unsupported?.unsupported).toBeLessThanOrEqual(4);
     expect(measure(r, "B")?.unsupported).toEqual({ numbers: 3, unsupported: 0, unsupportedWithoutCells: 0 });
     // B's three numeric answers cite the statement they ran, which re-runs to the same rows: 3 of 3 valid.
@@ -59,13 +61,14 @@ describe("the mini golden set (coffee-roaster), arms A, B and C scripted", () =>
   });
 
   it("pairs the arms by task with a bootstrap interval; arm A's cut is stated beside its results", () => {
-    // Per task (G1..G6): A = 1,0,1,0,0,0; B = 1,1,1,1,1,0; C = 1,1,1,1,1,0. C − A: mean 3/6 = 0.5.
+    // Per task (G1..G6): A = 1,0,1,0,0,0; B = 1,1,1,1,1,0; C = 1,1,1,1,1,1. C − A: mean 4/6; C − B: 1/6; B − A: 3/6.
     expect(r.comparisons.map((c) => [c.pair, c.tasks, c.difference.mean])).toEqual([
-      ["C − A", 6, 0.5],
-      ["C − B", 6, 0],
+      ["C − A", 6, 4 / 6],
+      ["C − B", 6, 1 / 6],
       ["B − A", 6, 0.5],
     ]);
-    expect(r.comparisons[1]?.difference).toMatchObject({ low: 0, high: 0 });
+    // C − B differs on one task (G6), so its bootstrap interval runs from 0 to a half and does not clear 0.
+    expect(r.comparisons[1]?.difference).toMatchObject({ low: 0, high: 0.5 });
     expect(r.comparisons[1]?.adds).toBe(false);
     const md = ablationMarkdown(r);
     expect(md).toContain("Harness check, not an engine-vs-model comparison");

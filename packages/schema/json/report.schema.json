@@ -1470,6 +1470,391 @@
         "assumption",
         "signals"
       ]
+    },
+    "scorecard": {
+      "type": "object",
+      "properties": {
+        "period": {
+          "type": "string"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "vs_base": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "previous_period",
+                          "trailing_mean_3"
+                        ]
+                      },
+                      "periods": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "change": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "change_pct": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "method",
+                      "periods",
+                      "change"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "na": {
+                        "type": "string",
+                        "enum": [
+                          "no_cost_role",
+                          "no_quantity_role",
+                          "no_price_role",
+                          "no_item_dimension",
+                          "no_variable_cost",
+                          "no_dimension",
+                          "too_few_periods",
+                          "grain_not_comparable",
+                          "no_order_id",
+                          "no_customer_role",
+                          "no_refund_role",
+                          "no_discount_role",
+                          "no_status_role",
+                          "no_history"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "na"
+                    ]
+                  }
+                ]
+              },
+              "yoy": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "period": {
+                        "type": "string"
+                      },
+                      "change": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "change_pct": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "period",
+                      "change"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "na": {
+                        "type": "string",
+                        "enum": [
+                          "no_cost_role",
+                          "no_quantity_role",
+                          "no_price_role",
+                          "no_item_dimension",
+                          "no_variable_cost",
+                          "no_dimension",
+                          "too_few_periods",
+                          "grain_not_comparable",
+                          "no_order_id",
+                          "no_customer_role",
+                          "no_refund_role",
+                          "no_discount_role",
+                          "no_status_role",
+                          "no_history"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "na"
+                    ]
+                  }
+                ]
+              },
+              "material": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "materiality_inputs": {
+                "type": "object",
+                "properties": {
+                  "band": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mean": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "mean"
+                ]
+              }
+            },
+            "required": [
+              "metric_id",
+              "value",
+              "vs_base",
+              "yoy",
+              "material"
+            ]
+          }
+        }
+      },
+      "required": [
+        "period",
+        "rows"
+      ]
+    },
+    "concentration": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "metric_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dimension": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "pareto": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "window": {
+                  "type": "string",
+                  "enum": [
+                    "ttm",
+                    "ttm_prev"
+                  ]
+                },
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "classes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "class": {
+                        "type": "string",
+                        "enum": [
+                          "A",
+                          "B",
+                          "C"
+                        ]
+                      },
+                      "count": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "share": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "class",
+                      "count",
+                      "value",
+                      "share"
+                    ]
+                  }
+                },
+                "members": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "nonpositive_count": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "nonpositive_value": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "unkeyed_value": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "window",
+                "from",
+                "to",
+                "classes",
+                "members"
+              ]
+            }
+          },
+          "shares": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string"
+                },
+                "top1": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "top3": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "top5": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "top10": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "hhi": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "period",
+                "hhi"
+              ]
+            }
+          },
+          "trend": {
+            "type": "object",
+            "properties": {
+              "hhi_slope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "hhi_p": {
+                "type": "string",
+                "minLength": 1
+              },
+              "top1_slope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "top1_p": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "hhi_slope",
+              "hhi_p"
+            ]
+          },
+          "dependence": {
+            "type": "string",
+            "pattern": "^F\\d+$"
+          }
+        },
+        "required": [
+          "metric_id",
+          "dimension",
+          "column",
+          "pareto",
+          "shares"
+        ]
+      }
+    },
+    "analyses_not_run": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "analysis": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "no_cost_role",
+              "no_quantity_role",
+              "no_price_role",
+              "no_item_dimension",
+              "no_variable_cost",
+              "no_dimension",
+              "too_few_periods",
+              "grain_not_comparable",
+              "no_order_id",
+              "no_customer_role",
+              "no_refund_role",
+              "no_discount_role",
+              "no_status_role",
+              "no_history"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "needs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "analysis",
+          "reason_code",
+          "reason",
+          "needs"
+        ]
+      }
     }
   },
   "required": [

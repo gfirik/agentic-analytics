@@ -42,11 +42,10 @@ const fileOf = (d: string) => SMALL[d] ?? join(DATA, FILES[d] as string);
 const SPLITS: GoldenSplit[] = ["dev", "heldout"];
 const hasData = (d: string) => existsSync(fileOf(d));
 
-/** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass (the margin pack did, PR 8). */
+/** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass (the margin pack did, PR 8; the scorecard and "Analyses not run" took retail G12 and G14, hotel G12 and Montgomery G3, PR 10). */
 const M15_ITEMS: Record<string, string[]> = {
-  "online-retail-ii": ["G12", "G13", "G14"],
-  "hotel-bookings": ["G12"],
-  "montgomery-warehouse-sales": ["G1", "G2", "G3"],
+  "online-retail-ii": ["G13"],
+  "montgomery-warehouse-sales": ["G1", "G2"],
 };
 
 describe("the real datasets' golden sets", () => {
@@ -147,7 +146,9 @@ describe("the real datasets' golden sets", () => {
         ).toBe(true);
       }
     },
-    300_000,
+    // Five full jobs, each now stating the scorecard and concentration facts that V2 re-runs (M15 PR 10): alone the test
+    // takes about four minutes, and beside the rest of the suite on two workers it ran past five.
+    600_000,
   );
 });
 

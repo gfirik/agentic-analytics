@@ -421,6 +421,16 @@ Working for the refund rate:
 
 **Tests (PR 10):** this table from the dataset's monthly ground truth, the not-run entries for a table with and without cost, an HTML snapshot, and the schema drift check.
 
+**As built (PR 10, `scorecard.ts`).**
+
+- **Rows.** The pack KPIs are matched by id (`revenue`, `orders`, `units`, `aov`, `customers`, `new_customers`, `returning_customers`, `refund_rate`, `cancellation_rate`, `discount_rate`), then `gross_margin` and `gross_margin_pct`, then every other `sum`, `count` or `ratio` metric in the job's order, 12 at most. The margin pack's helper `costed_revenue` has no row. A metric with no value in the period (a ratio over nothing, or a series that ends earlier, such as new customers after the first month) has no row.
+- **Period.** The last of the job's periods (the report's `period.to` once a part-month is left out).
+- **Baseline.** `chooseBaseline` with `sameLastYear: false`: the previous period, else the trailing mean of 3 (a `trailing_mean_3` fact). With neither, `vs_base` is `{ na: "too_few_periods" }` and `material` is `null`.
+- **Band and mean.** Both are computed over the series' finite points up to the period, at most the last 36 of them (`BAND_PERIODS`, the cap of §11.3, so a daily series doesn't cite every day of the data). Those points are the facts' inputs, so V2 recomputes them from the same list; the band is 2 × 1.4826 × the MAD of the changes between consecutive known points, the last one (the change into the period) left out. With a previous-period base, that change is the one being tested. With a trailing-mean base (the previous period has no value), the change tested is the value against the mean, which is not a change between points and never enters the band, and the change left out is the one into the period from the last known point across the gap. Either way, no change into the tested period widens its own band (§2). Hand-computed in `scorecard.test.ts`: 10, 12, 11, 15, 13, 14, —, 20 gives the base (15 + 13 + 14) ÷ 3 = 14, the change +6, the band over +2, −1, +4, −2, +1 (+6 left out) = 2 × 1.4826 × 2 = 5.9304, and material. With fewer than 6 finite points there is no band and `material` is `null`. Δ% is passed to `materiality()` only when it is stated (a positive base); otherwise the change is not material.
+- **Year-on-year.** `yoyGap`: `grain_not_comparable` at week and day, `too_few_periods` when the calendar span from the job's first period to the last is shorter than a year plus one (13 months, 5 quarters, 2 years). The span counts calendar periods, not periods with data, so a month with no data inside the range doesn't hide the comparison. A year-ago point with no value is `too_few_periods` too.
+- **Labels.** `scorecard.<metric>.<vs_base|vs_base_pct|yoy|yoy_pct|band|mean>_<p>` with the metric's own id; the value is the measured fact (`revenue_2026-06`), and a trailing-mean base is `scorecard <metric> <p>:base`.
+- On coffee-roaster-v1 the engine's scorecard gives the table above exactly (`packages/analysis/test/scorecard.test.ts`).
+
 ## 13. Analyses not run
 
 This is a deterministic list built from each pack's requirements (§8–§12). It costs no model call. Each entry has:
@@ -436,7 +446,7 @@ The `reason` carries **no numerals**: V1's rule applies, so "fewer than 13 month
 |---|---|---|
 | `gross_margin`, `pvm_margin.v1` | `no_cost_role` | no `unit_cost` or `cost_amount` |
 | `pvm_margin.v1`, `pvm.v1` | `no_quantity_role`, `no_price_role`, `no_item_dimension` | the role is missing |
-| `contribution_margin` | `no_variable_cost` | always in M15 (no variable-cost role) |
+| `contribution_margin` | `no_variable_cost` | in M15, on every job with a pack revenue (no variable-cost role; a job with no sales has no margin to refine) |
 | `pareto.v1`, `concentration` | `no_dimension` | no dimension with an entity or grouping role |
 | `pareto.v1` (`ttm_prev`) | `too_few_periods` | the data doesn't cover the 12 months before the window |
 | `yoy` | `too_few_periods`, `grain_not_comparable` | §12 |
@@ -444,6 +454,17 @@ The `reason` carries **no numerals**: V1's rule applies, so "fewer than 13 month
 | `kpi.new_customers` | `no_history` | stated for the first period only |
 
 An analysis that the business model's order skipped is not "not run": every unlocked pack runs.
+
+**As built (PR 10, `not-run.ts`).** `analysesNotRun` builds the list from what the job knows at MEASURE:
+
+- the KPI pack's `notDrafted` list (metrics `salesKpiPack`), drafted again from the roles as they stand (the person's edits included). `gross_margin` with `no_cost_role` (or `no_quantity_role` on the unit-cost path) gives `gross_margin` and `pvm_margin.v1`; any other KPI gives `kpi.<id>`. A KPI the person defined themselves (its id is a job metric) is left out;
+- `gross_margin` and `pvm_margin.v1` with `no_cost_role` also when no column of the job, in any table, has a cost role (`profile_roles` as confirmed), even when no sales pack was drafted: a table with a year and a month column has no pack yet (Montgomery's G3, Online Retail II's G14). A `gross_margin` job metric leaves both out;
+- price–volume–mix on the pack's revenue (`packMetric`, a sum): `pvm.v1` (and `pvm_margin.v1` when margin exists) with `no_quantity_role` or `no_item_dimension` (`pvmReadiness`). PVM's price is revenue ÷ quantity (§4.2), so `no_price_role` is never stated;
+- `contribution_margin` with `no_variable_cost` whenever the job has a pack revenue;
+- the Pareto pack's `no_dimension` (`pareto.v1`, `concentration`) and `pareto.v1` `too_few_periods` (no year before the trailing year);
+- `yoy` by §12's rule (`yoyGap`, the calendar span from the job's first period to the last, as the scorecard decides it), and `kpi.new_customers` `no_history` when the job has a single period.
+
+Each reason is a fixed sentence per reason code (a KPI's reason starts with its name), with no numerals; `needs` lists the roles. Entries are unique by analysis and reason. The list travels in the MEASURE stage output to the report (`analyses_not_run`) and to EXPLAIN's fact sheet.
 
 ## 14. Fact labels
 

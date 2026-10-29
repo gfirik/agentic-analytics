@@ -28,6 +28,7 @@ import { dataNames, parseMeasured, quotedSpans } from "./labels.ts";
 import { lexiconProblem } from "./lexicon.ts";
 import { costRoleMetrics, marginClaimProblem, marginFactProblem } from "./margin-check.ts";
 import { type Recomputed, recomputeFacts, same, VerifyError } from "./recompute.ts";
+import { checkNotRun, verifyMaterial } from "./sections-check.ts";
 
 export interface VerifyContext {
   readonly ws: Workspace;
@@ -85,6 +86,9 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
       `${mismatched.length} fact(s) don't recompute: ${mismatched.map((m) => m.fact).join(", ")}`,
       { mismatched },
     );
+  // V2 on the scorecard's material flags (§12): recomputed from the row's facts with materiality(). After the facts' own
+  // check, so a wrong band or change is reported as the fact it is, not as the flag it feeds.
+  checks.push(...verifyMaterial(draft.scorecard, all));
 
   // V5 for facts: every cited input row exists in its table (a wrong row is an engine bug, like V2).
   const rows = await checkFactRows(ctx.ws, draft.facts, ctx.defs, ctx.catalog, ctx.grain);
@@ -492,6 +496,12 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     detail: headlineBroken ? `headline replaced by a finding's title: ${headlineBroken[1]}` : "headline",
   });
 
+  // V1 on "Analyses not run" (§13): a reason with a number in it is dropped and listed.
+  const notRun = checkNotRun(draft.analyses_not_run ?? [], jobYears);
+  for (const d of notRun.dropped) {
+    dropped.push(d);
+    checks.push({ check: "V1", passed: false, detail: d.reason });
+  }
   const verifiedFacts = new Set(v2.filter((r) => r.ok).map((r) => r.fact));
   // References to dropped findings and recommendations go too (assumptions, open questions).
   const live = new Set([...findings.map((f) => f.id), ...recommendations.map((r) => r.id), ...draft.metrics.map((m) => m.id)]);
@@ -504,6 +514,13 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
     recommendations,
     assumptions,
     open_questions: openQuestions,
+    ...(draft.analyses_not_run ? { analyses_not_run: notRun.kept } : {}),
+    // A dependence finding the passes dropped leaves its concentration entry (the facts stay; they are verified above).
+    ...(draft.concentration
+      ? {
+          concentration: draft.concentration.map(({ dependence, ...c }) => (dependence && live.has(dependence) ? { ...c, dependence } : c)),
+        }
+      : {}),
     facts: draft.facts.map((f) => ({ ...f, verified: verifiedFacts.has(f.id) })),
     verification: {
       numbers_checked: v2.length,

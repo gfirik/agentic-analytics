@@ -22,10 +22,17 @@ export const MIN_PERIODS = { trend: 4, anomaly: 6, yoy_months: 13, break_side: 3
 
 /**
  * The first baseline that applies (spec §2): same period last year (needs 13+ months of history), else the
- * previous period, else the trailing mean of the last 3 periods. `i` is the index of the target point.
+ * previous period, else the trailing mean of the last 3 periods. `i` is the index of the target point. With
+ * `sameLastYear: false` the first rule is skipped.
  */
-export function chooseBaseline(points: readonly Point[], i: number, grain: Grain = "month"): Baseline | undefined {
-  const lag = YEAR_LAG[grain];
+export function chooseBaseline(
+  points: readonly Point[],
+  i: number,
+  grain: Grain = "month",
+  options: { readonly sameLastYear?: boolean } = {},
+): Baseline | undefined {
+  // The scorecard (§12) has its own year-on-year column, so its baseline starts at the previous period.
+  const lag = options.sameLastYear === false ? undefined : YEAR_LAG[grain];
   const yearAgo = lag !== undefined ? points[i - lag] : undefined;
   if (lag !== undefined && points.length >= MIN_PERIODS.yoy_months && yearAgo && Number.isFinite(yearAgo.value)) {
     return { method: "same_period_last_year", value: yearAgo.value, periods: [yearAgo.period] };

@@ -4,22 +4,14 @@
 // Server-side React only: no hydration, no external requests, inline CSS and a small inline script.
 // The pragmas above select the automatic JSX runtime wherever this file is compiled: the CLI runs it through tsx
 // from the repo root, where no tsconfig sets `jsx` (without them RENDER failed with "React is not defined").
-import type { Citation, Claim, Evidence, Fact, Finding, Recommendation, Report, ReportMetric, Source } from "@agentic-analytics/schema";
+import type { Citation, Claim, Evidence, Finding, Recommendation, Report, Source } from "@agentic-analytics/schema";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CLIENT_SCRIPT } from "./client-script.ts";
 import { formatCell, formatFact, formatPeriod } from "./format.ts";
+import { type Ctx, Text } from "./parts.tsx";
+import { ConcentrationView, NotRunView, ScorecardView, SemanticsView } from "./sections.tsx";
 import { STYLES } from "./styles.ts";
-
-interface Ctx {
-  readonly facts: Map<string, Fact>;
-  readonly sources: Map<string, Source>;
-  readonly metrics: Map<string, ReportMetric>;
-  readonly findings: Map<string, Finding>;
-  readonly assumptions: Map<string, string>;
-  /** `${source_id}\u0000${quote}` → quote id used to highlight that passage in the evidence viewer. */
-  readonly quoteIds: Map<string, string>;
-}
 
 const quoteKey = (sourceId: string, quote: string) => `${sourceId}\u0000${quote}`;
 
@@ -92,33 +84,6 @@ function Chips({ citations, ctx }: { citations: readonly Citation[]; ctx: Ctx })
         <Cite key={`${c.source_id}-${i}`} c={c} ctx={ctx} />
       ))}
     </div>
-  );
-}
-
-/** Model text with `{{N…}}` placeholders → text with clickable, formatted numbers. */
-function Text({ text, ctx }: { text: string; ctx: Ctx }) {
-  const parts = text.split(/(\{\{N\d+\}\})/);
-  return (
-    <>
-      {parts.map((part, i) => {
-        const m = /^\{\{(N\d+)\}\}$/.exec(part);
-        if (!m) return part;
-        const f = ctx.facts.get(m[1] ?? "");
-        if (!f) return <span key={`${i}-missing`}>[missing {m[1]}]</span>;
-        return (
-          <button
-            key={`${i}-${f.id}`}
-            type="button"
-            className="num"
-            data-fact={f.id}
-            aria-haspopup="dialog"
-            title={`${f.label} — show how this was computed`}
-          >
-            {formatFact(f)}
-          </button>
-        );
-      })}
-    </>
   );
 }
 
@@ -361,76 +326,6 @@ function EvidenceView({ e, ctx }: { e: Evidence; ctx: Ctx }) {
   );
 }
 
-const KIND_LABEL: Record<string, string> = {
-  sales_lines: "sales lines",
-  invoices: "invoices",
-  bills: "bills",
-  inventory_snapshot: "inventory snapshot",
-  bank_cash: "bank and cash",
-  budget_plan: "budget or plan",
-  period_summary: "period summary",
-  other: "other",
-};
-
-/** Table kinds, the business model and each table's column roles with their evidence (report-schema §5b, §6). */
-function SemanticsView({ report, ctx }: { report: Report; ctx: Ctx }) {
-  const tables = [...new Set([...(report.table_kinds ?? []).map((k) => k.table_id), ...(report.roles ?? []).map((r) => r.table_id)])];
-  const file = (id: string) => report.sources.find((s) => s.id === id)?.file ?? id;
-  return (
-    <section aria-labelledby="semantics">
-      <h2 id="semantics">Column roles and table kinds</h2>
-      {report.business_model ? (
-        <p>
-          Business model: <b>{report.business_model.model}</b>{" "}
-          <span className={`tag ${report.business_model.status === "confirmed" ? "ok" : "warn"}`}>{report.business_model.status}</span>
-        </p>
-      ) : null}
-      <div className="list">
-        {tables.map((t) => {
-          const kind = report.table_kinds?.find((k) => k.table_id === t);
-          const roles = (report.roles ?? []).filter((r) => r.table_id === t);
-          return (
-            <div key={t} className="panel">
-              <p>
-                <span className="mono">{t}</span> {file(t)}
-                {kind ? (
-                  <>
-                    {" "}
-                    <span className="tag ok">{KIND_LABEL[kind.kind] ?? kind.kind}</span>
-                  </>
-                ) : null}
-              </p>
-              {roles.length ? (
-                <details>
-                  <summary className="hint">Column roles</summary>
-                  <ul>
-                    {roles.map((r) => (
-                      <li key={r.column}>
-                        <span className="mono">{r.column}</span> is <b>{r.role.replace(/_/g, " ")}</b>{" "}
-                        <span className={`tag ${r.status === "confirmed" ? "ok" : "warn"}`}>{r.status}</span>{" "}
-                        <span className="muted">
-                          {r.evidence
-                            .filter((e) => e.kind !== "type")
-                            .map((e, i) => (
-                              <span key={`${i}-${e.kind}`}>
-                                {i ? "; " : ""}
-                                <Text text={e.text} ctx={ctx} />
-                              </span>
-                            ))}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
   const v = report.verification;
   const verifiedOk = v.numbers_mismatched === 0 && v.rederivation_mismatches === 0;
@@ -474,6 +369,8 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
           </section>
         ) : null}
 
+        {report.scorecard?.rows.length ? <ScorecardView scorecard={report.scorecard} ctx={ctx} /> : null}
+
         <section aria-labelledby="findings">
           <h2 id="findings">Findings</h2>
           {report.findings.map((f) => (
@@ -487,6 +384,14 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
             <RecommendationView key={r.id} r={r} ctx={ctx} />
           ))}
         </section>
+
+        {report.concentration?.length ? (
+          <ConcentrationView
+            entries={report.concentration}
+            at={{ latest: report.scorecard?.period ?? report.period.to, grain: report.period.grain }}
+            ctx={ctx}
+          />
+        ) : null}
 
         {report.open_questions.length ? (
           <section aria-labelledby="oq">
@@ -507,6 +412,8 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
             </div>
           </section>
         ) : null}
+
+        {report.analyses_not_run?.length ? <NotRunView entries={report.analyses_not_run} /> : null}
 
         {report.assumptions.length ? (
           <section aria-labelledby="assumptions">

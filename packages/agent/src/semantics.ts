@@ -186,3 +186,37 @@ export async function semanticsParts(
     },
   };
 }
+
+/**
+ * What each business model puts first (semantics §4 "Effect on order"): wholesale puts Pareto and concentration by
+ * customer first, retail puts average order value and units first, subscription puts customers and new vs returning first.
+ * Services and unknown keep the default order.
+ */
+const LEADS: Readonly<Record<BusinessModel["model"], { readonly metrics: readonly string[]; readonly customerConcentration: boolean }>> = {
+  wholesale: { metrics: [], customerConcentration: true },
+  retail: { metrics: ["aov", "units"], customerConcentration: false },
+  subscription: { metrics: ["customers", "new_customers", "returning_customers"], customerConcentration: false },
+  services: { metrics: [], customerConcentration: false },
+  unknown: { metrics: [], customerConcentration: false },
+};
+
+/** A concentration statistic over the customer dimension (analysis-library §14): `top1_share.customer_2026-06`, `hhi.customer.trend.slope`. */
+const CUSTOMER_STAT = /^(?:top\d+_share|hhi|pareto\.[a-z_]+)\.customer[._]/;
+
+/**
+ * The findings that rely on the business model: those on the metrics it puts first, and for wholesale the concentration
+ * findings over customers. The assumption affects them (STATE "M15 PR 5"; semantics §4).
+ */
+export function businessModelAffects(
+  model: BusinessModel["model"],
+  findings: readonly Finding[],
+  usesMetric: (f: Finding, metric: string) => boolean,
+  facts: ReadonlyMap<string, Fact>,
+): string[] {
+  const lead = LEADS[model];
+  const onCustomers = (f: Finding) =>
+    f.type === "concentration_risk" && f.claims.some((c) => c.facts.some((id) => CUSTOMER_STAT.test(facts.get(id)?.label ?? "")));
+  return findings
+    .filter((f) => lead.metrics.some((m) => usesMetric(f, m)) || (lead.customerConcentration && onCustomers(f)))
+    .map((f) => f.id);
+}

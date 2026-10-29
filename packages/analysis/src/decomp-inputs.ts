@@ -3,11 +3,12 @@
 // pure functions in decompose.ts and pvm-margin.ts only combine what is read here.
 import { type Catalog, type Grain, type MarginTerms, runMetric } from "@agentic-analytics/metrics";
 import type { MetricDef } from "@agentic-analytics/schema";
-import { sql, type Workspace } from "@agentic-analytics/store";
+import type { Workspace } from "@agentic-analytics/store";
 import { type Pvm, type PvmItem, pvm, type RateMix, rateMix } from "./decompose.ts";
 import type { SeriesInfo } from "./factbook.ts";
 import { memberFilter } from "./members.ts";
 import { type MarginItem, type PvmMargin, pvmMargin } from "./pvm-margin.ts";
+import { type RoleRow, tableRoles } from "./roles.sql.ts";
 import { OTHER, point, type Series } from "./types.ts";
 
 export const valueAt = (s: Series, period: string): number => s.points.find((p) => p.period === period)?.value ?? 0;
@@ -17,14 +18,37 @@ export const valueAt = (s: Series, period: string): number => s.points.find((p) 
  * a product role. They replace header regexes; the roles are the detector's proposals or the user's confirmation, stored
  * next to the profile (`profile_roles`).
  */
-const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
+export const ITEM_ROLES = ["product", "product_id", "product_group"] as const;
 
-/** The columns of a table that have a role, best score first. */
-export async function columnsWithRole(ws: Workspace, tableId: string, roles: readonly string[]): Promise<string[]> {
-  const rows = await ws.all<{ column_name: string; role: string }>(
-    sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${tableId} ORDER BY score DESC, column_name`,
-  );
-  return rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
+type Table = NonNullable<ReturnType<Catalog["get"]>>;
+
+/** The columns among a table's stored roles (`tableRoles`, best score first) that have one of `roles`. */
+const withRole = (rows: readonly RoleRow[], roles: readonly string[]) =>
+  rows.filter((r) => roles.includes(r.role)).map((r) => r.column_name);
+
+/** The numeric quantity column of a table (role `quantity`) among its stored roles, best score first. */
+function quantityColumn(table: Table, rows: readonly RoleRow[]) {
+  return withRole(rows, ["quantity"])
+    .map((name) => table.columns.get(name))
+    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+}
+
+/** What PVM needs of a metric (§4.2, §13): a sum, a quantity column on its table, and an item among its dimensions. */
+export async function pvmReadiness(
+  ws: Workspace,
+  catalog: Catalog,
+  def: MetricDef,
+): Promise<{ readonly sum: boolean; readonly quantity: boolean; readonly item: boolean }> {
+  const table = catalog.get(def.table ?? "");
+  if (def.type !== "sum" || !table) return { sum: false, quantity: false, item: false };
+  // One read of the table's roles for both questions.
+  const rows = await tableRoles(ws, table.id);
+  const items = withRole(rows, ITEM_ROLES);
+  return {
+    sum: true,
+    quantity: quantityColumn(table, rows) !== undefined,
+    item: (def.dimensions ?? []).some((d) => items.includes(d)),
+  };
 }
 
 /**
@@ -47,10 +71,9 @@ export async function pvmFor(
   const table = catalog.get(def.table ?? "");
   const dimCol = table?.columns.get(dimension);
   if (def.type !== "sum" || !table || !dimCol) return undefined;
-  if (!(await columnsWithRole(ws, table.id, ITEM_ROLES)).includes(dimension)) return undefined;
-  const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
-    .map((name) => table.columns.get(name))
-    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+  const roles = await tableRoles(ws, table.id);
+  if (!withRole(roles, ITEM_ROLES).includes(dimension)) return undefined;
+  const qtyCol = quantityColumn(table, roles);
   if (!qtyCol) return undefined;
   // An "(other)" bucket mixes many items, so it has no unit price; contribution.v1 still covers this dimension.
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
@@ -201,9 +224,7 @@ export async function pvmMarginFor(
   // One table: the unit price and unit cost of an item divide by the same units, and the item column must be in it.
   if (!revenueDef || !costDef || !table || costDef.table !== revenueDef.table || !table.columns.has(dimension)) return undefined;
   if (items.some((m) => m.member?.value === OTHER)) return undefined;
-  const qtyCol = (await columnsWithRole(ws, table.id, ["quantity"]))
-    .map((name) => table.columns.get(name))
-    .find((c) => c && (c.type === "integer" || c.type === "decimal"));
+  const qtyCol = quantityColumn(table, await tableRoles(ws, table.id));
   if (!qtyCol) return undefined;
   // Quantity over the same lines as the revenue term, so unit price and unit cost divide by the same units.
   const qtyDef: MetricDef = {
@@ -278,9 +299,7 @@ export async function marginItemDimension(
 ): Promise<string | undefined> {
   const table = catalog.get(revenueDef?.table ?? "");
   if (!table) return undefined;
-  const rows = await ws.all<{ column_name: string; role: string }>(
-    sql`SELECT column_name, role FROM profile_roles WHERE table_id = ${table.id} ORDER BY score DESC, column_name`,
-  );
+  const rows = await tableRoles(ws, table.id);
   for (const role of ITEM_PREFERENCE) {
     const hit = rows.find((r) => r.role === role && dimensions.includes(r.column_name));
     if (hit) return hit.column_name;

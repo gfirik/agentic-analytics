@@ -14,7 +14,7 @@
       "sha256": "3b22c26428ec81ad9432ec81f063c3623921ea0865066b5412535a39d143773b",
       "file": "hotel-bookings.csv",
       "completed": true,
-      "seconds": 28.133,
+      "seconds": 39.647,
       "metrics": [
         "room_revenue",
         "room_nights",
@@ -46,7 +46,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "90 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+          "detail": "279 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
@@ -67,7 +67,7 @@
           "kind": "quality_issue",
           "about": "Missing values: Children is NA in 4 bookings (G1)",
           "pass": true,
-          "detail": "Q3 missing_value: 4 rows (N686), SQL 4; cites rows 40602, 40669, 40681…"
+          "detail": "Q3 missing_value: 4 rows (N736), SQL 4; cites rows 40602, 40669, 40681…"
         },
         {
           "id": "C6",
@@ -88,7 +88,7 @@
       "sha256": "b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851",
       "file": "montgomery-warehouse-sales.csv",
       "completed": true,
-      "seconds": 126.468,
+      "seconds": 155.318,
       "metrics": [],
       "findings": [],
       "quality": [
@@ -123,7 +123,7 @@
       "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
       "file": "nz-card-spend-by-industry.csv",
       "completed": true,
-      "seconds": 5.901,
+      "seconds": 6.645,
       "metrics": [
         "card_spend"
       ],
@@ -149,7 +149,7 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "380 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+          "detail": "386 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
@@ -170,7 +170,7 @@
           "kind": "quality_issue",
           "about": "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)",
           "pass": true,
-          "detail": "Q1 missing_value: 264 rows (N403), SQL 264; cites rows 2, 3, 4…"
+          "detail": "Q1 missing_value: 264 rows (N409), SQL 264; cites rows 2, 3, 4…"
         }
       ]
     },
@@ -184,7 +184,7 @@
       "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
       "file": "online_retail_II.sample10.csv",
       "completed": true,
-      "seconds": 18.541,
+      "seconds": 31.745,
       "metrics": [
         "revenue",
         "orders",
@@ -219,28 +219,28 @@
           "kind": "verified",
           "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
           "pass": true,
-          "detail": "43 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+          "detail": "309 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
         },
         {
           "id": "C3",
           "kind": "quality_issue",
           "about": "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)",
           "pass": true,
-          "detail": "Q1 prefixed_id: 2089 rows (N522), SQL 2089; cites rows 58, 117, 118…"
+          "detail": "Q1 prefixed_id: 2089 rows (N588), SQL 2089; cites rows 58, 117, 118…"
         },
         {
           "id": "C4",
           "kind": "quality_issue",
           "about": "Negative quantities (G1: 2,431 lines)",
           "pass": true,
-          "detail": "Q2 negative_quantity: 2431 rows (N523), SQL 2431; cites rows 58, 117, 118…"
+          "detail": "Q2 negative_quantity: 2431 rows (N589), SQL 2431; cites rows 58, 117, 118…"
         },
         {
           "id": "C5",
           "kind": "quality_issue",
           "about": "Missing customer IDs (G1: 21,051 lines)",
           "pass": true,
-          "detail": "Q3 missing_id: 21051 rows (N524), SQL 21051; cites rows 156, 157, 158…"
+          "detail": "Q3 missing_id: 21051 rows (N590), SQL 21051; cites rows 156, 157, 158…"
         },
         {
           "id": "C6",
@@ -259,5 +259,5 @@
       ]
     }
   ],
-  "seconds": 179.05
+  "seconds": 233.368
 }

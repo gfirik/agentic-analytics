@@ -5,6 +5,7 @@
 import {
   COST_BOUNDS,
   hhi,
+  MAD_SCALE,
   type MarginEffect,
   mad,
   mannKendall,
@@ -73,6 +74,12 @@ const RULES: Record<string, Rule> = {
     return { value: hhi(x.map((v) => v / total)), how: "Σ share²" };
   },
   theil_sen: (_f, x) => ({ value: theilSen(x), how: "Theil–Sen over the series" }),
+  // The scorecard's noise band (analysis-library §2, §12): 2 × 1.4826 × MAD of the inputs' consecutive changes, the last
+  // change (the one being tested) left out.
+  noise_band: (_f, x) => {
+    const changes = x.slice(1).map((v, i) => v - (x[i] as number));
+    return { value: 2 * MAD_SCALE * mad(changes.slice(0, -1)), how: "2 × 1.4826 × MAD of the changes, the last left out" };
+  },
   mann_kendall: (_f, x) => ({ value: mannKendall(x).p, how: "Mann–Kendall p" }),
   // The z of one residual: it must be the z of one of the series' period-over-period changes.
   // The z of the change into the fact's own period (named in its label) vs the series' other changes.

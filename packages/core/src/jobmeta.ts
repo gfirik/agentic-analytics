@@ -1,6 +1,6 @@
 // Job state that more than one file reads: the workspace file name, the key/value meta table, stage outputs, and the
 // two things the confirm step can change after PROFILE and METRICS_DRAFT (roles, and the metrics drafted from them).
-import type { Grain } from "@agentic-analytics/metrics";
+import { type Grain, type NotDrafted, salesKpiPack } from "@agentic-analytics/metrics";
 import type { ProfileSummary, SemanticsSummary } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
@@ -43,4 +43,15 @@ export const CONFIRMED_KEY = "confirmed_metrics";
 /** Roles, table kinds and the business model as they stand now: the person's edits, else PROFILE's proposals. */
 export async function currentSemantics(ws: Workspace): Promise<SemanticsSummary | undefined> {
   return (await meta<SemanticsSummary>(ws, SEMANTICS_KEY)) ?? (await stageOutput<ProfileSummary>(ws, "PROFILE"))?.semantics;
+}
+
+/**
+ * The KPIs the sales pack can't draft from the roles as they stand now (the person's edits included), for "Analyses
+ * not run" (analysis-library §13): the pack is drafted again, by code, from the current semantics.
+ */
+export async function currentNotDrafted(ws: Workspace): Promise<readonly NotDrafted[]> {
+  const profile = await stageOutput<ProfileSummary>(ws, "PROFILE");
+  if (!profile) return [];
+  const semantics = (await meta<SemanticsSummary>(ws, SEMANTICS_KEY)) ?? profile.semantics;
+  return salesKpiPack({ ...profile, ...(semantics ? { semantics } : {}) }).notDrafted;
 }

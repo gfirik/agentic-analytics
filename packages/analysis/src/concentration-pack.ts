@@ -10,12 +10,12 @@ import { CONCENTRATION_PARTS, type Member, PARETO_PARTS, type StatPart } from ".
 import type { Calc, StatRef } from "./types.ts";
 import { completeYears, type TrailingWindows, trailingWindows } from "./windows.ts";
 
-/** An analysis the pack could not run, and why (analysis-library §13). The reason carries no figure. */
-export interface NotRun {
-  readonly analysis: string;
+/** An analysis the pack could not run, and why (analysis-library §13); `not-run.ts` words it for the report. */
+export interface ConcentrationGap {
+  readonly analysis: "pareto.v1" | "concentration";
   readonly reason_code: "no_dimension" | "too_few_periods";
   /** The window it concerns, when it is one of several (`ttm_prev`). */
-  readonly window?: string;
+  readonly window?: "ttm_prev";
 }
 
 const isAdditiveCurrency = (d: MetricDef) => (d.type === "sum" || d.type === "count") && d.unit === "currency";
@@ -100,7 +100,7 @@ export async function sectionFacts(book: FactBook, facts: ConcentrationFacts, pl
 }
 
 /** What the pack could not run: no dimension with a role at all, or no data for the year before the trailing year. */
-export function notRun(dimensions: number, plan: SectionPlan | undefined): NotRun[] {
+export function notRun(dimensions: number, plan: SectionPlan | undefined): ConcentrationGap[] {
   if (!dimensions)
     return [
       { analysis: "pareto.v1", reason_code: "no_dimension" },

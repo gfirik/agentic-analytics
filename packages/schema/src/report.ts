@@ -232,6 +232,73 @@ export const BusinessModel = z.object({
   signals: z.array(z.object({ text: z.string(), fact: id.optional() })),
 });
 
+// §5b Analyses not run (analysis-library §13): no numbers, so the free-numeral rule applies to `reason`.
+export const NOT_RUN_REASONS = [
+  "no_cost_role",
+  "no_quantity_role",
+  "no_price_role",
+  "no_item_dimension",
+  "no_variable_cost",
+  "no_dimension",
+  "too_few_periods",
+  "grain_not_comparable",
+  "no_order_id",
+  "no_customer_role",
+  "no_refund_role",
+  "no_discount_role",
+  "no_status_role",
+  "no_history",
+] as const;
+export const NotRunReason = z.enum(NOT_RUN_REASONS);
+export const NotRun = z.object({ analysis: id, reason_code: NotRunReason, reason: z.string().min(1), needs: z.array(z.string()) });
+
+// §5b Scorecard (analysis-library §12): every cell is a fact id; `material` is a flag V2 recomputes from its facts.
+const NotApplicable = z.object({ na: NotRunReason });
+export const ScorecardRow = z.object({
+  metric_id: id,
+  value: id,
+  vs_base: z.union([
+    z.object({
+      method: z.enum(["previous_period", "trailing_mean_3"]),
+      periods: z.array(z.string()).min(1),
+      change: id,
+      change_pct: id.optional(),
+    }),
+    NotApplicable,
+  ]),
+  yoy: z.union([z.object({ period: z.string(), change: id, change_pct: id.optional() }), NotApplicable]),
+  material: z.boolean().nullable(),
+  materiality_inputs: z.object({ band: id.optional(), mean: id }).optional(),
+});
+export const Scorecard = z.object({ period: z.string(), rows: z.array(ScorecardRow) });
+
+// §5b Concentration (analysis-library §11): one entry per (metric, dimension); every number is a fact id.
+export const Concentration = z.object({
+  metric_id: id,
+  dimension: z.string(),
+  column: z.string(),
+  pareto: z.array(
+    z.object({
+      window: z.enum(["ttm", "ttm_prev"]),
+      from: z.string(),
+      to: z.string(),
+      classes: z.array(z.object({ class: z.enum(["A", "B", "C"]), count: id, value: id, share: id })),
+      members: id,
+      nonpositive_count: id.optional(),
+      nonpositive_value: id.optional(),
+      unkeyed_value: id.optional(),
+    }),
+  ),
+  shares: z.array(
+    z.object({ period: z.string(), top1: id.optional(), top3: id.optional(), top5: id.optional(), top10: id.optional(), hhi: id }),
+  ),
+  trend: z.object({ hhi_slope: id, hhi_p: id, top1_slope: id.optional(), top1_p: id.optional() }).optional(),
+  dependence: z
+    .string()
+    .regex(/^F\d+$/)
+    .optional(),
+});
+
 export const ModelRole = z.enum(["planner", "extractor", "judge", "embedder", "reranker"]);
 
 export const Report = z.object({
@@ -259,6 +326,9 @@ export const Report = z.object({
   roles: z.array(ColumnRole).optional(),
   table_kinds: z.array(TableKind).optional(),
   business_model: BusinessModel.optional(),
+  scorecard: Scorecard.optional(),
+  concentration: z.array(Concentration).optional(),
+  analyses_not_run: z.array(NotRun).optional(),
 });
 
 export type Report = z.infer<typeof Report>;
@@ -280,3 +350,8 @@ export type ColumnRole = z.infer<typeof ColumnRole>;
 export type TableKind = z.infer<typeof TableKind>;
 export type BusinessModel = z.infer<typeof BusinessModel>;
 export type RoleEvidence = z.infer<typeof RoleEvidence>;
+export type NotRun = z.infer<typeof NotRun>;
+export type NotRunReason = z.infer<typeof NotRunReason>;
+export type Scorecard = z.infer<typeof Scorecard>;
+export type ScorecardRow = z.infer<typeof ScorecardRow>;
+export type Concentration = z.infer<typeof Concentration>;

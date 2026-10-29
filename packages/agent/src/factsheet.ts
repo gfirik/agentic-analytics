@@ -3,6 +3,15 @@
 // quality issues. Every number is a fact with its id, value, unit and label; raw tables never reach the model.
 import type { StoredDecomposition, StoredInsight } from "@agentic-analytics/analysis";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
+import {
+  type AnalysisSections,
+  type SheetConcentration,
+  type SheetNotRun,
+  type SheetScorecardRow,
+  sheetConcentration,
+  sheetNotRun,
+  sheetScorecard,
+} from "./sections.ts";
 import { withheld, withheldKeys, withheldMember } from "./withhold.ts";
 
 export interface SheetFact {
@@ -28,6 +37,10 @@ export interface FactSheet {
   }[];
   readonly decompositions: readonly { id: string; insight: string; method: string; dimension: string; facts: Record<string, SheetFact> }[];
   readonly quality: readonly { id: string; kind: string; severity: string }[];
+  /** M15 (§2): the scorecard rows and concentration facts EXPLAIN can cite, and what could not be computed. */
+  readonly scorecard?: readonly SheetScorecardRow[];
+  readonly concentration?: readonly SheetConcentration[];
+  readonly not_run?: readonly SheetNotRun[];
 }
 
 /** Fact values rounded for reading (the report renders the exact fact; the model only needs magnitudes). */
@@ -48,7 +61,10 @@ export function buildFactSheet(input: {
   quality: readonly { id: string; kind: string; severity: string }[];
   /** Insight ids to include (the ranked top); default: every material insight. */
   only?: readonly string[];
+  /** The sections built by code (M15); each one given is listed. */
+  sections?: AnalysisSections;
 }): FactSheet {
+  const sec = input.sections;
   const pick = (ids: Record<string, string>): Record<string, SheetFact> =>
     Object.fromEntries(
       Object.entries(ids).flatMap(([role, id]) => {
@@ -89,5 +105,10 @@ export function buildFactSheet(input: {
         facts: withheldKeys(pick(d.facts)),
       })),
     quality: input.quality.map((q) => ({ id: q.id, kind: q.kind, severity: q.severity })),
+    ...(sec?.scorecard ? { scorecard: sheetScorecard(sec.scorecard, input.facts) } : {}),
+    ...(sec?.concentration?.length
+      ? { concentration: sheetConcentration(sec.concentration, input.facts, sec.scorecard?.period ?? input.period.to) }
+      : {}),
+    ...(sec?.notRun ? { not_run: sheetNotRun(sec.notRun) } : {}),
   };
 }

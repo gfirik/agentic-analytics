@@ -10,7 +10,9 @@ EXPLAIN and DECIDE.
 
 ## Public API
 
-- **`buildFactSheet(...)`**: the planner's only numeric input. It holds the objective, metrics (with assumption flags), the ranked insights, decompositions and quality issues. Every value is a fact.
+- **`buildFactSheet(...)`**: the planner's only numeric input. It holds the objective, metrics (with assumption flags), the ranked insights, decompositions and quality issues, and with `sections` (M15) the scorecard rows, the concentration facts and the not-run entries. Every value is a fact. EXPLAIN shows each finding only its metric's scorecard row and, for a concentration or dependence finding, its dimension's facts (`findingSections`); DECIDE gets none of the sections, so its request fits small-model mode's budget.
+- **`reportSections(sections, insightOf)`**, **`sectionFactIds`**: the report's `scorecard`, `concentration` (the dependence insight becomes its finding id) and `analyses_not_run`, and the facts they name, which the draft carries.
+- **`businessModelAffects(model, findings, usesMetric, facts)`**: the findings the business model's assumption affects (semantics §4): wholesale the concentration findings over customers, retail average order value and units, subscription the customer counts.
 - **`extractFromHits(ws, model, hits, task)`**: the quarantined extractor.
   - Output is validated by a strict schema.
   - Quotes must be exact substrings of the excerpt.
