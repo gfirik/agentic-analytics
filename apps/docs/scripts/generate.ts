@@ -120,8 +120,7 @@ ${rows.join("\n")}
 ## Example
 
 \`\`\`bash
-curl -F 'files[]=@examples/coffee-roaster/sales-2026.xlsx' -F 'files[]=@examples/coffee-roaster/email-0412.eml' \\
-  -F 'options={"currency":"USD"}' http://127.0.0.1:8080/v1/jobs
+curl -F 'files[]=@examples/coffee-roaster/sales-2026.xlsx' -F 'files[]=@examples/coffee-roaster/email-0412.eml' -F 'options={"currency":"USD"}' http://127.0.0.1:8080/v1/jobs
 curl -N http://127.0.0.1:8080/v1/jobs/<job_id>/events      # live progress (SSE)
 curl http://127.0.0.1:8080/v1/jobs/<job_id>/report?format=html > report.html
 \`\`\`
