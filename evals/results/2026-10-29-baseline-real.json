@@ -1,0 +1,269 @@
+{
+  "suite": "real",
+  "model": "baseline",
+  "note": "Baseline: the scripted heuristic, no language model. On real files it drafts metrics with the deterministic fallbacks (or uses the answer file's confirmed definitions) and finds changes with the analysis library; it writes no causes from documents (there are none). Each check reads report.json; its expected numbers come from the SQL in `evals/real/answers/`.",
+  "date": "2026-10-29",
+  "datasets": [
+    {
+      "dataset": "hotel-bookings",
+      "title": "Hotel booking demand datasets",
+      "publisher": "Data in Brief (Elsevier)",
+      "licence": "CC BY 4.0",
+      "citation": "Antonio, N., de Almeida, A., & Nunes, L. (2019). Hotel booking demand datasets. Data in Brief, 22, 41–49. https://doi.org/10.1016/j.dib.2018.11.126.",
+      "page": "https://doi.org/10.1016/j.dib.2018.11.126",
+      "sha256": "3b22c26428ec81ad9432ec81f063c3623921ea0865066b5412535a39d143773b",
+      "file": "hotel-bookings.csv",
+      "completed": true,
+      "seconds": 48.639,
+      "metrics": [
+        "room_revenue",
+        "room_nights",
+        "bookings",
+        "cancellation_rate"
+      ],
+      "findings": [
+        "trend_break: revenue 2017-04 → 2017-05 (contribution.v1)",
+        "improvement: revenue[customertype=Group] 2016-08 → 2017-08 (period_change.v1)",
+        "improvement: revenue 2017-08 (trend.v1)",
+        "regression: revenue[deposittype=Non Refund] 2016-08 → 2017-08 (period_change.v1)",
+        "anomaly: bookings 2015-10 → 2015-11 (contribution.v1)"
+      ],
+      "quality": [
+        "unparseable_value",
+        "unit_error",
+        "missing_value"
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "kind": "completes",
+          "about": "The job completes on 119,390 bookings with the published padding and \"NULL\" text left in",
+          "pass": true,
+          "detail": "report with 5 findings, 3 data-quality items"
+        },
+        {
+          "id": "C2",
+          "kind": "verified",
+          "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
+          "pass": true,
+          "detail": "564 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+        },
+        {
+          "id": "C3",
+          "kind": "seasonal_peak",
+          "about": "The summer peak: August is the top month of room revenue in 2015, 2016 and 2017 (G2)",
+          "pass": true,
+          "detail": "2015 peak 2015-08; 2016 peak 2016-08; 2017 peak 2017-08; 3/3 values equal SQL"
+        },
+        {
+          "id": "C4",
+          "kind": "seasonal_not_flagged",
+          "about": "The autumn fall is not reported as news: bookings in November are below October in both years (G2)",
+          "pass": false,
+          "detail": "1 of 5 findings: F5 2015-10→2015-11 (contribution.v1)"
+        },
+        {
+          "id": "C5",
+          "kind": "quality_issue",
+          "about": "Missing values: Children is NA in 4 bookings (G1)",
+          "pass": true,
+          "detail": "Q3 missing_value: 4 rows (N1021), SQL 4; cites rows 40602, 40669, 40681…"
+        },
+        {
+          "id": "C6",
+          "kind": "quality_issue",
+          "about": "The extreme ADR: 5,400 in one city-hotel booking against a median of 99.9 (G1), a likely decimal-point slip",
+          "pass": false,
+          "detail": "not reported (kinds reported: unparseable_value, unit_error, missing_value)"
+        }
+      ]
+    },
+    {
+      "dataset": "montgomery-warehouse-sales",
+      "title": "Warehouse and Retail Sales (Montgomery County, Maryland), 2017–2020",
+      "publisher": "Montgomery County, MD (Department of Liquor Control, on data.montgomerycountymd.gov)",
+      "licence": "Public domain",
+      "citation": "Source: Montgomery County, MD. Warehouse and Retail Sales, data.montgomerycountymd.gov/d/v76h-r7br (Public Domain).",
+      "page": "https://data.montgomerycountymd.gov/d/v76h-r7br",
+      "sha256": "b1f5450e132cb4981f27f213da943815e4d6157d036a4ca75669c7e634288851",
+      "file": "montgomery-warehouse-sales.csv",
+      "completed": true,
+      "seconds": 152.311,
+      "metrics": [
+        "revenue"
+      ],
+      "findings": [
+        "anomaly: revenue 2017-11 → 2017-12 (contribution.v1)",
+        "improvement: revenue[item_type=NON-ALCOHOL] 2019-03 → 2020-09 (period_change.v1)",
+        "regression: revenue 2020-09 (mix_shift.v1)"
+      ],
+      "quality": [
+        "unparseable_value",
+        "missing_id",
+        "missing_value"
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "kind": "completes",
+          "about": "The job completes on a file with a split year and month and three money-like measures",
+          "pass": true,
+          "detail": "report with 3 findings, 3 data-quality items"
+        },
+        {
+          "id": "C2",
+          "kind": "verified",
+          "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
+          "pass": true,
+          "detail": "375 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+        }
+      ]
+    },
+    {
+      "dataset": "nz-card-spend",
+      "title": "Electronic card transactions, September 2026",
+      "publisher": "Stats NZ (Tatauranga Aotearoa)",
+      "licence": "CC BY 4.0",
+      "citation": "This work is based on Stats NZ's data (Electronic card transactions: September 2026) which are licensed by Stats NZ for reuse under the Creative Commons Attribution 4.0 International licence.",
+      "page": "https://www.stats.govt.nz/information-releases/electronic-card-transactions-september-2026/",
+      "sha256": "63ff45be4c783950ae58d263f021a6c5b5dcd424c0b8b84732d978199d42ed9f",
+      "file": "nz-card-spend-by-industry.csv",
+      "completed": true,
+      "seconds": 6.043,
+      "metrics": [
+        "card_spend"
+      ],
+      "findings": [
+        "anomaly: card_spend 2020-03 → 2020-04 (contribution.v1)",
+        "anomaly: card_spend 2020-04 → 2020-05 (contribution.v1)",
+        "trend_break: card_spend 2016-09 → 2016-10 (contribution.v1)",
+        "improvement: card_spend 2026-09 (trend.v1)"
+      ],
+      "quality": [
+        "missing_value"
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "kind": "completes",
+          "about": "The job completes on the official CSV layout (Period as year.month, e.g. 2002.10)",
+          "pass": true,
+          "detail": "report with 4 findings, 1 data-quality item"
+        },
+        {
+          "id": "C2",
+          "kind": "verified",
+          "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
+          "pass": true,
+          "detail": "386 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+        },
+        {
+          "id": "C3",
+          "kind": "seasonal_peak",
+          "about": "The December peak: December is the top month of 2023, 2024 and 2025 (G1)",
+          "pass": true,
+          "detail": "2023 peak 2023-12; 2024 peak 2024-12; 2025 peak 2025-12; 3/3 values equal SQL"
+        },
+        {
+          "id": "C4",
+          "kind": "seasonal_not_flagged",
+          "about": "The regular January fall is not reported as news (G4: January is below December in 24 of 24 years)",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "id": "C5",
+          "kind": "quality_issue",
+          "about": "Suppressed values: Data_value is blank for 2000-01 to 2002-09 (G3: 264 lines)",
+          "pass": true,
+          "detail": "Q1 missing_value: 264 rows (N409), SQL 264; cites rows 2, 3, 4…"
+        }
+      ]
+    },
+    {
+      "dataset": "online-retail-ii",
+      "title": "Online Retail II",
+      "publisher": "UCI Machine Learning Repository",
+      "licence": "CC BY 4.0",
+      "citation": "Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D.",
+      "page": "https://archive.ics.uci.edu/dataset/502/online+retail+ii",
+      "sha256": "6d8dff8c0bff0e9a2b158b792b0bbc5940f4f81a597da3af3583f1ebaada7858",
+      "file": "online_retail_II.sample10.csv",
+      "completed": true,
+      "seconds": 35.845,
+      "metrics": [
+        "revenue",
+        "orders",
+        "units",
+        "customers",
+        "new_customers",
+        "returning_customers",
+        "aov"
+      ],
+      "findings": [
+        "improvement: revenue 2011-11 (trend.v1)",
+        "trend_break: returning_customers 2010-08 → 2010-09 (trend_break.v1)",
+        "anomaly: new_customers 2010-11 → 2010-12 (anomaly.v1)",
+        "anomaly: orders 2010-11 → 2010-12 (anomaly.v1)",
+        "anomaly: returning_customers 2010-11 → 2010-12 (anomaly.v1)"
+      ],
+      "quality": [
+        "prefixed_id",
+        "negative_quantity",
+        "missing_id"
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "kind": "completes",
+          "about": "The job completes on a real 105,797-line file",
+          "pass": true,
+          "detail": "report with 5 findings, 3 data-quality items"
+        },
+        {
+          "id": "C2",
+          "kind": "verified",
+          "about": "Every number re-computes (no mismatch, re-derivation mismatch or definition violation)",
+          "pass": true,
+          "detail": "491 numbers recomputed before the report shipped (a mismatch would have stopped the job), 0 claims dropped for breaking a definition"
+        },
+        {
+          "id": "C3",
+          "kind": "quality_issue",
+          "about": "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)",
+          "pass": true,
+          "detail": "Q1 prefixed_id: 2089 rows (N770), SQL 2089; cites rows 58, 117, 118…"
+        },
+        {
+          "id": "C4",
+          "kind": "quality_issue",
+          "about": "Negative quantities (G1: 2,431 lines)",
+          "pass": true,
+          "detail": "Q2 negative_quantity: 2431 rows (N771), SQL 2431; cites rows 58, 117, 118…"
+        },
+        {
+          "id": "C5",
+          "kind": "quality_issue",
+          "about": "Missing customer IDs (G1: 21,051 lines)",
+          "pass": true,
+          "detail": "Q3 missing_id: 21051 rows (N772), SQL 21051; cites rows 156, 157, 158…"
+        },
+        {
+          "id": "C6",
+          "kind": "seasonal_peak",
+          "about": "The Nov–Dec peak: November is the top month of 2010 and 2011 (G2)",
+          "pass": true,
+          "detail": "2010 peak 2010-11; 2011 peak 2011-11; 3/3 values equal SQL"
+        },
+        {
+          "id": "C7",
+          "kind": "no_finding_at",
+          "about": "No finding about December 2011, a partial month (G3: the data ends 2011-12-09)",
+          "pass": true,
+          "detail": "no finding at 2011-12"
+        }
+      ]
+    }
+  ],
+  "seconds": 242.85
+}
