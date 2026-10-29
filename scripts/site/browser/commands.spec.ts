@@ -83,7 +83,9 @@ test("no command block on the landing page or in the docs uses a backslash line 
   for (const path of paths) {
     await page.goto(path, { waitUntil: "domcontentloaded" });
     const broken = await page.evaluate(() =>
-      [...document.querySelectorAll("pre")].filter((p) => /\\[ \t]*\n/.test(p.textContent ?? "")).map((p) => (p.textContent ?? "").slice(0, 60)),
+      [...document.querySelectorAll("pre")]
+        .filter((p) => /\\[ \t]*\n/.test(p.textContent ?? ""))
+        .map((p) => (p.textContent ?? "").slice(0, 60)),
     );
     expect(broken, path).toEqual([]);
   }
@@ -100,7 +102,13 @@ test("a copy button copies exactly the command shown", async ({ browser }) => {
     await host.scrollIntoViewIfNeeded();
     const block = host.locator("pre, code[data-copy]").first();
     // What is shown: the block's text, without the button; blank lines dropped.
-    const shown = await block.evaluate((e) => (e.textContent ?? "").split("\n").map((l) => l.replace(/\s+$/, "")).join("\n").trim());
+    const shown = await block.evaluate((e) =>
+      (e.textContent ?? "")
+        .split("\n")
+        .map((l) => l.replace(/\s+$/, ""))
+        .join("\n")
+        .trim(),
+    );
     const expected = (await block.evaluate((e) => e.tagName)) === "CODE" ? shown.replace(/\s+/g, " ") : shown;
     await host.locator(".aa-copy-btn").first().click();
     const copied = await page.evaluate(() => navigator.clipboard.readText());
