@@ -86,7 +86,10 @@ describe("eval-deferred.sh", () => {
   it("runs nothing once every queued run has finished", () => {
     const repo = fakeRepo();
     mkdirSync(join(repo, "data", "cron", "deferred"), { recursive: true });
-    writeFileSync(join(repo, "data", "cron", "deferred", "done"), "golden-v1\nablation-smoke\nablation-golden\nrepeat-smoke\n");
+    writeFileSync(
+      join(repo, "data", "cron", "deferred", "done"),
+      "golden-v1\nablation-smoke\nablation-golden\nrepeat-smoke\ngolden-m15\nroles-m15\n",
+    );
     const r = night(repo);
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/every queued run has finished/);

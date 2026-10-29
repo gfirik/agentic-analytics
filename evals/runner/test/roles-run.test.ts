@@ -99,6 +99,16 @@ describe("scoring a proposal against a label", () => {
     expect(r.misses[0]).toMatchObject({ header: "Total", datasets: 2, wrong: 1, proposed: { measure: 1 } });
   });
 
+  it("a synthetic dataset is its own group, outside the pool (accuracy.md §11)", () => {
+    const [real] = expandRoleLabels(labels);
+    const realScores = scoreTable(real as NonNullable<typeof real>, got);
+    // The same six columns again as a synthetic dataset, all wrong: the pool stays 4/6, the group shows 0/6.
+    const synthetic = realScores.map((s) => ({ ...s, dataset: "synth-a", group: "synthetic" as const, correct: false }));
+    const r = summarizeRoles([...realScores, ...synthetic], [], { date: "2026-10-29", engine_commit: "abc" });
+    expect(r.pooled).toEqual({ correct: 4, total: 6, rate: (4 / 6) * 100 });
+    expect(r.byGroup.synthetic).toEqual({ correct: 0, total: 6, rate: 0 });
+  });
+
   it("prints the three rates and each miss", () => {
     const r = summarizeRoles(scoreTable(real as NonNullable<typeof real>, got), [], {
       date: "2026-10-23",

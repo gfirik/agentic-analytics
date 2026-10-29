@@ -4,7 +4,15 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BASELINE_REPORT_DIR, baselineReport, resultsMarkdown, resultsPage, type SuiteResult } from "../src/index.ts";
+import {
+  BASELINE_REPORT_DIR,
+  baselineReport,
+  M15_REPORT_DIR,
+  m15Report,
+  resultsMarkdown,
+  resultsPage,
+  type SuiteResult,
+} from "../src/index.ts";
 
 const score = (dataset: string, completed: boolean) =>
   ({
@@ -62,6 +70,31 @@ describe("the baseline report section (M14 PR 8)", () => {
       ]);
       const page = resultsPage(dir);
       expect(page.indexOf("## Baseline report (M14)")).toBeGreaterThan(page.indexOf("## Real public data"));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the M15 results section (M15 PR 11)", () => {
+  it("embeds pages 2 and up of m15/, leaves the PR 3 baselines out, and sits before the M14 baseline report", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aa-m15-report-"));
+    try {
+      expect(m15Report(dir)).toEqual([]);
+      const folder = join(dir, M15_REPORT_DIR);
+      mkdirSync(folder);
+      writeFileSync(join(folder, "0-baseline.md"), "# Old baseline\n");
+      writeFileSync(join(folder, "1-baseline-full.md"), "# Baseline\n");
+      expect(m15Report(dir)).toEqual([]);
+      writeFileSync(join(folder, "3-roles.md"), "# Roles\n\n## Misses\n\nnone\n");
+      writeFileSync(join(folder, "2-results.md"), "# Results\n\ntext\n");
+      writeFileSync(join(folder, "3-roles.json"), "{}");
+      expect(m15Report(dir)).toEqual(["## M15 against the bars", "", "### Results\n\ntext", "", "### Roles\n\n#### Misses\n\nnone", ""]);
+      mkdirSync(join(dir, BASELINE_REPORT_DIR));
+      writeFileSync(join(dir, BASELINE_REPORT_DIR, "1-a.md"), "# First\n");
+      const page = resultsPage(dir);
+      expect(page.indexOf("## M15 against the bars")).toBeGreaterThan(page.indexOf("## Real public data"));
+      expect(page.indexOf("## Baseline report (M14)")).toBeGreaterThan(page.indexOf("## M15 against the bars"));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

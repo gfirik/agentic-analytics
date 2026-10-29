@@ -223,7 +223,8 @@ export function summarizeRoles(
       evidence: (wrong[0] as ColumnScore).evidence,
     });
   }
-  const pooled = count(scores);
+  // accuracy.md §11: the committed synthetic datasets are their own group, outside the A1 pool.
+  const pooled = count(scores.filter((s) => s.group !== "synthetic"));
   return {
     suite: "roles",
     date: meta.date,
