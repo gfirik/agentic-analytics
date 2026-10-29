@@ -7,3 +7,5 @@ golden-v1 | eval -- --suite golden --model MODEL
 ablation-smoke | eval:ablation -- --arms A,B,C --suite smoke --model MODEL
 ablation-golden | eval:ablation -- --arms A,B,C --suite golden --model MODEL
 repeat-smoke | eval -- --suite smoke --repeat 5 --model MODEL
+golden-m15 | eval -- --suite golden --model MODEL
+roles-m15 | eval -- --suite roles --model MODEL
