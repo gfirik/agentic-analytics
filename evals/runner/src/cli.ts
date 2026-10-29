@@ -554,6 +554,7 @@ export function resultsPage(dir: string): string {
     "Public datasets run as they are published (evals/real/README.md): `bun run eval:real:fetch` downloads them and checks every SHA-256, `bun run eval:real` runs the engine and scores each report against the answer files in `evals/real/answers/`. Each check reads only report.json, and its expected numbers come from SQL written in the answer file. A failed check is an engine gap, listed in docs/progress/STATE.md; checks are not tuned to pass.",
     "",
     ...(real.length ? real.map(realResultsMarkdown) : ["No real-data runs yet.", ""]),
+    ...m15Report(dir),
     ...baselineReport(dir),
   ].join("\n");
 }
@@ -568,17 +569,34 @@ export const BASELINE_REPORT_DIR = "m14-baseline";
  * the page (and `bun run readme:check` stays the same on every clone).
  */
 export function baselineReport(dir: string): string[] {
-  const folder = join(dir, BASELINE_REPORT_DIR);
-  if (!existsSync(folder)) return [];
-  const pages = readdirSync(folder)
-    .filter((f) => f.endsWith(".md"))
+  return committedPages(dir, BASELINE_REPORT_DIR, "## Baseline report (M14)");
+}
+
+/** The committed M15 results against the acceptance bars (docs/plans/m15.md PR 11). */
+export const M15_REPORT_DIR = "m15";
+
+/**
+ * RESULTS.md's "M15 against the bars" section: the pages in `<results dir>/m15/` numbered 2 and up, in name order.
+ * Pages 0 and 1 are the PR 3 baselines of the M14 engine (the reference of acceptance A4); they stay committed as the
+ * record, and the results page quotes their rates, so the section shows the results only.
+ */
+export function m15Report(dir: string): string[] {
+  return committedPages(dir, M15_REPORT_DIR, "## M15 against the bars", (f) => Number.parseInt(f, 10) >= 2);
+}
+
+/** Committed markdown pages of `<dir>/<folder>` under one heading, in name order, each heading two levels down. */
+function committedPages(dir: string, folder: string, heading: string, keep: (file: string) => boolean = () => true): string[] {
+  const path = join(dir, folder);
+  if (!existsSync(path)) return [];
+  const pages = readdirSync(path)
+    .filter((f) => f.endsWith(".md") && keep(f))
     .sort();
   if (!pages.length) return [];
   return [
-    "## Baseline report (M14)",
+    heading,
     "",
     ...pages.flatMap((f) => [
-      readFileSync(join(folder, f), "utf8")
+      readFileSync(join(path, f), "utf8")
         .replace(/^(#{1,4}) /gm, "$1## ")
         .trimEnd(),
       "",
