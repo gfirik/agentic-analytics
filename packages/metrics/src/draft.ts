@@ -10,7 +10,7 @@ import type { Catalog } from "./catalog.ts";
 import { buildDigest, type Digest } from "./digest.ts";
 import { type KpiPack, type NotDrafted, salesKpiPack } from "./kpi-pack.ts";
 import { mergeMetricSets } from "./merge.ts";
-import { withGroupingDimensions, withRole } from "./profile-columns.ts";
+import { timeColumn, withGroupingDimensions, withRole } from "./profile-columns.ts";
 import { type ValidateOptions, type Validation, validateMetrics } from "./validate.ts";
 
 /** Common business metrics the model is guided by (spec §2.2). */
@@ -218,7 +218,7 @@ function fallbackSlices(summary: ProfileSummary, pack: KpiPack): MetricDef[] {
   const table = sales.table;
   const out: MetricDef[] = [];
   const quote = (v: string) => `'${v.replace(/'/g, "''")}'`;
-  const base = { table: table.name, time_column: table.date_column ?? "", status: "assumed" as const };
+  const base = { table: table.name, time_column: timeColumn(summary, table) ?? "", status: "assumed" as const };
   const channel = withRole(summary, table, "channel").find((c) => c.type === "category" && c.distinct_count >= 2 && c.distinct_count <= 5);
   for (const member of (channel?.top_values ?? []).filter((m) => safeMemberName(m.value))) {
     const id = `${member.value

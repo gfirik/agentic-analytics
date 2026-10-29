@@ -3,6 +3,7 @@
 import type { ProfileSummary, Role } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { screen } from "@agentic-analytics/schema";
+import { PERIOD_COLUMN } from "./catalog.ts";
 
 /** Values that mark a refund or a cancellation (also in Russian and Uzbek). */
 export const REFUND_VALUE = /refund|return|cancel|chargeback|возврат|отмен|qaytar/i;
@@ -15,6 +16,15 @@ export const ID_LIKE_SHARE = 0.5;
 export const ID_LIKE_MIN_ROWS = 500;
 
 export type ProfiledTable = ProfileSummary["tables"][number];
+
+/**
+ * The column a table's metrics are measured per period by: its date column, or the catalog's stand-in `_period` when
+ * its period is a year and a month column (semantics §2.1 "Period parts"). Undefined for a table with neither.
+ */
+export function timeColumn(summary: ProfileSummary, table: ProfiledTable): string | undefined {
+  if (table.date_column) return table.date_column;
+  return summary.semantics?.roles.find((r) => r.table_id === table.table_id)?.period_parts ? PERIOD_COLUMN : undefined;
+}
 
 /**
  * The columns a change can be explained by (customer, channel, product, …): categories with 2 to
