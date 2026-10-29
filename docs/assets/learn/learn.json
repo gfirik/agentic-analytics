@@ -1699,7 +1699,7 @@
         "check": "C5",
         "about": "Missing values: Children is NA in 4 bookings (G1)",
         "pass": true,
-        "detail": "Q3 missing_value: 4 rows (N736), SQL 4; cites rows 40602, 40669, 40681…"
+        "detail": "Q3 missing_value: 4 rows (N1021), SQL 4; cites rows 40602, 40669, 40681…"
       },
       {
         "dataset": "hotel-bookings",
@@ -1739,7 +1739,7 @@
         "check": "C3",
         "about": "Cancellations: invoice numbers starting with C (G1: 2,089 lines, 816 invoices)",
         "pass": true,
-        "detail": "Q1 prefixed_id: 2089 rows (N588), SQL 2089; cites rows 58, 117, 118…"
+        "detail": "Q1 prefixed_id: 2089 rows (N770), SQL 2089; cites rows 58, 117, 118…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1747,7 +1747,7 @@
         "check": "C4",
         "about": "Negative quantities (G1: 2,431 lines)",
         "pass": true,
-        "detail": "Q2 negative_quantity: 2431 rows (N589), SQL 2431; cites rows 58, 117, 118…"
+        "detail": "Q2 negative_quantity: 2431 rows (N771), SQL 2431; cites rows 58, 117, 118…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1755,7 +1755,7 @@
         "check": "C5",
         "about": "Missing customer IDs (G1: 21,051 lines)",
         "pass": true,
-        "detail": "Q3 missing_id: 21051 rows (N590), SQL 21051; cites rows 156, 157, 158…"
+        "detail": "Q3 missing_id: 21051 rows (N772), SQL 21051; cites rows 156, 157, 158…"
       },
       {
         "dataset": "online-retail-ii",
@@ -1774,7 +1774,7 @@
         "detail": "no finding at 2011-12"
       }
     ],
-    "realFile": "evals/results/2026-10-28-baseline-real.json"
+    "realFile": "evals/results/2026-10-29-baseline-real.json"
   },
   "retrieval": {
     "query": "wholesale price increase standing order paused",
