@@ -42,10 +42,14 @@ const fileOf = (d: string) => SMALL[d] ?? join(DATA, FILES[d] as string);
 const SPLITS: GoldenSplit[] = ["dev", "heldout"];
 const hasData = (d: string) => existsSync(fileOf(d));
 
-/** Dev items written for M15 (PR 3) that need an M15 engine pack; remove an id here when its pack makes it pass (the margin pack did, PR 8; the scorecard and "Analyses not run" took retail G12 and G14, hotel G12 and Montgomery G3, PR 10). */
+/**
+ * Dev items written for M15 (PR 3) that still miss; remove an id here when it passes (the margin pack took its items, PR 8;
+ * the scorecard and "Analyses not run" took retail G12 and G14, hotel G12 and Montgomery G3, PR 10; the year+month KPI
+ * pack took Montgomery G1 and G2, PR 11 prep). Retail G13 counts January–December 2011 with the part-month December, while
+ * the spec's trailing window ends at the last complete month (449, not 432): a counted miss until M21 re-derives it.
+ */
 const M15_ITEMS: Record<string, string[]> = {
   "online-retail-ii": ["G13"],
-  "montgomery-warehouse-sales": ["G1", "G2"],
 };
 
 describe("the real datasets' golden sets", () => {
