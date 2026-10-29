@@ -9,8 +9,7 @@ The bot talks to the engine only through the HTTP API, so it can run anywhere th
 
 ```bash
 bun run aa serve                                            # the engine
-TELEGRAM_BOT_TOKEN=… TELEGRAM_ALLOWED_CHATS=<your chat id> \
-  bun run --filter @agentic-analytics/telegram start
+TELEGRAM_BOT_TOKEN=… TELEGRAM_ALLOWED_CHATS=<your chat id> bun run --filter @agentic-analytics/telegram start
 ```
 
 1. Create a bot with @BotFather (free) and put its token in `TELEGRAM_BOT_TOKEN`.

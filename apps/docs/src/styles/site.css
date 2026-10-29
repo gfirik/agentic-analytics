@@ -179,10 +179,25 @@ main:focus {
   padding: var(--aa-space-2) var(--aa-space-4);
   border-bottom: 1px solid var(--aa-rule);
 }
+/* Commands never wrap: one line each, scrolling sideways inside the box where the column is narrower than the command
+   (the docs' Expressive Code blocks do the same). .aa-scroll is that for an inline command in a cell. */
+.aa-code pre,
+.aa-hero-cmd pre {
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.aa-scroll {
+  display: block;
+  overflow-x: auto;
+  white-space: pre;
+}
+.aa-scroll:focus-visible {
+  outline-offset: 2px;
+}
 .aa-code pre {
   margin: 0;
   padding: var(--aa-space-4);
-  overflow-x: auto;
   font-size: var(--aa-text-code);
   line-height: 1.7;
   color: var(--aa-ink);
