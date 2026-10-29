@@ -228,13 +228,14 @@ function suiteModel(
 export async function evalCommand(a: EvalArgs, d: EvalDeps): Promise<SuiteResult> {
   const baseline = a.model === "baseline";
   if (!baseline && !d.modelFor) throw new EvalRunError("NO_MODEL", `no model client for ${a.model}`);
+  // The flags are checked before any dataset is built: a usage error costs nothing.
+  const carried = (a.passes ?? 1) > 1;
+  if (carried && a.only?.length) throw new EvalRunError("USAGE", "--passes goes with a whole suite, not --only");
   const all = selectDatasets(a.suite, a.only);
   const modelName = (a.label ?? a.name ?? a.model) + (a.smallModel ? " (small-model mode)" : "");
   // One clock reading for the pass: its date in `passes` and the result's date are the same day, even past midnight.
   const at = (d.now ?? (() => new Date()))();
   const today = at.toISOString().slice(0, 10);
-  const carried = (a.passes ?? 1) > 1;
-  if (carried && a.only?.length) throw new EvalRunError("USAGE", "--passes goes with a whole suite, not --only");
   // The latest file of this row (`<date><suffix>.json`); a pass carries it on only while it is resuming (planResume).
   const suffix = evalSlug("", a);
   const prevFile = carried
