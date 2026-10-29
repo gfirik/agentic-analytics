@@ -11,9 +11,10 @@ import { Workspace } from "@agentic-analytics/store";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { recomputeFacts } from "../src/index.ts";
 
-// Retail sales a month — 2018: X 60, Y 30, Z 10; 2019: X 40, Y 40, Z 20. Warehouse sales: X 5, Y 5, Z 90 every month.
+// Store sales a month — 2018: X 60, Y 30, Z 10; 2019: X 40, Y 40, Z 20. Bulk sales: X 5, Y 5, Z 90 every month. The
+// first money column sorts after the second by name, so the test tells column order from name order.
 const csv = (() => {
-  const rows = ["Calendar Year,Month,Supplier,Retail Sales,Warehouse Sales"];
+  const rows = ["Calendar Year,Month,Supplier,Store Sales,Bulk Sales"];
   for (const [year, retail] of [
     [2018, [60, 30, 10]],
     [2019, [40, 40, 20]],
@@ -56,7 +57,7 @@ describe("a year and month table", () => {
   it("gets the pack's revenue on `_period`, from the first money column with the amount role", () => {
     const revenue = defs.find((d) => d.id === "revenue");
     expect(revenue?.time_column).toBe(PERIOD_COLUMN);
-    expect(revenue?.expression).toBe("retail_sales");
+    expect(revenue?.expression).toBe("store_sales");
   });
 
   it("states revenue per month and the supplier Pareto: 2019 is X 480, Y 480, Z 240 of 1,200", () => {
