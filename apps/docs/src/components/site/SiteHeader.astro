@@ -3,18 +3,20 @@
 // Under 45rem the links fold into a menu button: aria-expanded/aria-controls, Escape closes it and returns focus.
 // Without JS the links stay visible and wrap.
 import Logo from "./Logo.astro";
-import { DOCS_HOME, GITHUB_URL, withBase } from "./site.ts";
+import { linkHref, SITE_LINKS } from "./site.ts";
 
-const links = [
-  { href: withBase("/#how"), label: "How it works" },
-  { href: withBase("/#results"), label: "Results" },
-  { href: withBase(DOCS_HOME), label: "Docs" },
-  { href: GITHUB_URL, label: "GitHub" },
-];
+interface Props {
+  /** In the docs the header sits in Starlight's fixed bar: one row, the search in the `search` slot, and no menu button
+   * of its own (Starlight's own button opens the sidebar). The links are the same ones. */
+  docs?: boolean;
+}
+const { docs = false } = Astro.props;
+const links = SITE_LINKS.map((l) => ({ href: linkHref(l), label: l.label }));
+const hasSearch = Astro.slots.has("search");
 ---
 
-<header class="aa-header">
-  <script is:inline>
+<header class="aa-header" data-docs={docs ? "" : undefined}>
+  {!docs && <script is:inline>
     // Before first paint: with JS the links fold into the menu under 45rem, so the header has its final height from
     // the first frame (the bundled script below runs deferred; collapsing then moved the page, CLS 0.056, M13k).
     // If the menu script never runs, the links come back rather than a Menu button that does nothing. A module that
@@ -24,15 +26,16 @@ const links = [
     setTimeout(() => {
       if (!document.documentElement.dataset.menuReady) document.documentElement.classList.remove("aa-has-menu");
     }, 4000);
-  </script>
+  </script>}
   <div class="aa-header-inner">
     <Logo />
-    <button type="button" class="aa-menu-button" aria-expanded="false" aria-controls="aa-site-menu" data-aa-menu hidden>
+    {hasSearch && <div class="aa-header-search print:hidden"><slot name="search" /></div>}
+    {!docs && <button type="button" class="aa-menu-button" aria-expanded="false" aria-controls="aa-site-menu" data-aa-menu hidden>
       <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"
         ><path d="M2 4.5h12M2 8h12M2 11.5h12" stroke="currentColor" stroke-width="1.5"></path></svg
       >
       Menu
-    </button>
+    </button>}
     <nav id="aa-site-menu" class="aa-site-menu" aria-label="Main">
       <ul>
         {
@@ -84,6 +87,31 @@ const links = [
     justify-content: space-between;
     flex-wrap: wrap;
     gap: var(--aa-space-2) var(--aa-space-5);
+  }
+  .aa-header[data-docs] .aa-header-inner {
+    height: 100%;
+    min-height: 0;
+    flex-wrap: nowrap;
+    border-bottom: 0;
+  }
+  .aa-header[data-docs] {
+    height: 100%;
+    border-bottom: 0;
+  }
+  .aa-header-search {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    max-width: 24rem;
+    margin-inline-end: auto;
+  }
+  .aa-header[data-docs] .aa-site-menu {
+    display: none;
+  }
+  @media (min-width: 50rem) {
+    .aa-header[data-docs] .aa-site-menu {
+      display: flex;
+    }
   }
   .aa-site-menu {
     display: flex;

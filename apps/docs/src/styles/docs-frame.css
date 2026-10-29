@@ -1,0 +1,160 @@
+/* The docs frame (DESIGN.md §7): the landing page's 1440px frame, a sidebar | content | "On this page" rail row inside
+   it, and the sidebar's own look. Starlight fixes the header and the sidebar to the viewport edge; here both are
+   pulled in to the frame, so nothing hangs at the left of a wide screen with an empty area at the right. Tokens:
+   tokens.css; the article, the rail column and the sidenotes' column: starlight.css. */
+
+:root {
+  /* The space either side of the frame on a screen wider than 1440px. */
+  --aa-frame-edge: max(0px, calc((100vw - var(--aa-container)) / 2));
+}
+
+/* ── Header: the landing page's, held in the frame (SiteHeader.astro) ── */
+.header,
+:root[data-has-sidebar] .header {
+  padding: 0;
+  border-bottom: 1px solid var(--aa-rule);
+  background: var(--aa-page);
+}
+
+@media (min-width: 50rem) {
+  :root[data-has-sidebar] {
+    --sl-content-inline-start: calc(var(--aa-frame-edge) + var(--sl-sidebar-width));
+  }
+  .main-frame {
+    padding-inline-end: var(--aa-frame-edge);
+  }
+  .sidebar-pane {
+    inset-inline-start: var(--aa-frame-edge);
+    border-inline-start: 1px solid var(--aa-rule);
+  }
+}
+
+/* ── Sidebar: group headings in the ledger label, items on a 2px rule, the current page marked in ink ── */
+.sidebar-pane {
+  background: var(--aa-surface);
+  border-inline-end: 1px solid var(--aa-rule);
+}
+.sidebar-content {
+  gap: var(--aa-space-5);
+  padding-block: var(--aa-space-5) var(--aa-space-7);
+}
+.sidebar-content ul {
+  gap: 0.125rem;
+}
+.sidebar-content .large {
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: var(--aa-label-tracking);
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.sidebar-content summary {
+  padding-block: 0.4rem;
+}
+/* Space between the top-level groups, a hairline above each but the first. */
+.sidebar-content > sl-sidebar-state-persist > ul > li + li {
+  margin-top: var(--aa-space-3);
+  padding-top: var(--aa-space-3);
+  border-top: 1px solid var(--aa-rule);
+}
+.sidebar-content a {
+  padding-block: 0.375rem;
+  color: var(--aa-ink-2);
+  font-size: var(--aa-text-small);
+  line-height: 1.35;
+  border-radius: 0;
+  border-inline-start: 2px solid transparent;
+}
+.sidebar-content a:hover {
+  color: var(--aa-ink);
+  background: var(--aa-mark);
+}
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover,
+.sidebar-content a[aria-current="page"]:focus {
+  color: var(--aa-ink);
+  background: var(--aa-raised);
+  border-inline-start-color: var(--aa-ink);
+  box-shadow: inset 0 0 0 1px var(--aa-rule);
+  font-weight: 600;
+}
+.sidebar-content ul ul li {
+  border-inline-start: 0;
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+/* ── The rail: "On this page", beside the article (TwoColumnContent.astro, PageSidebar.astro) ── */
+.aa-two-col {
+  position: relative;
+}
+.main-pane {
+  isolation: isolate;
+}
+/* Under 1200px the aside holds only Starlight's TOC bar, which is fixed under the header. */
+.aa-toc-margin {
+  display: none;
+}
+@media (min-width: 72rem) and (max-width: 74.99rem) {
+  /* Starlight drops its mobile TOC bar at 72rem; the site keeps it until 1200px. */
+  :root {
+    --sl-mobile-toc-height: 3rem;
+  }
+  [data-has-toc] {
+    scroll-padding-top: calc(1.5rem + var(--sl-nav-height) + var(--sl-mobile-toc-height));
+  }
+}
+@media (min-width: 75rem) {
+  .aa-toc-mobile {
+    display: none;
+  }
+  .aa-toc-margin {
+    display: block;
+  }
+  /* Laid over the rail column of the article (centred in the pane, like the article), the full height of the page, so
+     its inner box can stick. Only the TOC itself takes pointer events: sidenotes beside it stay selectable. */
+  .aa-margin-toc {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(
+      var(--sl-content-pad-x) + max(0px, (100% - 2 * var(--sl-content-pad-x) - var(--sl-content-width)) / 2) +
+        var(--aa-article) + var(--aa-margin-gap)
+    );
+    width: var(--aa-margin-col);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .aa-margin-toc-inner {
+    position: sticky;
+    top: var(--sl-nav-height);
+    /* As tall as the screen allows below the header: the list fits at 1000px tall without an inner scrollbar. It
+       steps aside for figures and sidenotes passing beneath. */
+    max-height: calc(100vh - var(--sl-nav-height) - var(--aa-space-8));
+    overflow-y: auto;
+    padding: var(--aa-space-5) 0 var(--aa-space-3);
+    border-bottom: 1px solid var(--aa-rule);
+    background: var(--aa-page);
+    pointer-events: auto;
+    scrollbar-width: thin;
+    transition: opacity var(--aa-fast) var(--aa-ease);
+  }
+  .aa-margin-toc-inner.is-covered {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* Figures and code run across the rail too, to the pane's full width (from 1000px), and clear any sidenote beside them.
+   Article + gap + rail always fit beside the sidebar: between 1000 and ~1100px the article gives up a little measure
+   rather than letting notes and figures run off the page. */
+@media (min-width: 62.5rem) {
+  .sl-markdown-content {
+    max-width: min(var(--aa-article), 100% - var(--aa-margin-gap) - var(--aa-margin-col));
+  }
+  .sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-stages, .aa-home, .expressive-code) {
+    clear: right;
+    margin-right: calc(-1 * (var(--aa-margin-gap) + var(--aa-margin-col)));
+  }
+}

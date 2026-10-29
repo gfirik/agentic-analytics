@@ -1,0 +1,127 @@
+---
+// The docs home: one card per section (Start, How it works, Learn, Reference), then the rest as a short list. Markup
+// only; the content is in docs-home.ts.
+import { withBase } from "../site/site.ts";
+import { MAIN_SECTIONS, MORE_SECTIONS } from "./docs-home.ts";
+
+const href = (slug: string) => withBase(`${slug}/`);
+---
+
+<div class="aa-home not-content">
+  <ul class="aa-home-cards">
+    {
+      MAIN_SECTIONS.map((s) => (
+        <li class="aa-home-card">
+          <h2 class="aa-label">{s.title}</h2>
+          <p class="aa-home-summary">{s.summary}</p>
+          <ul class="aa-home-links">
+            {s.links.map((l) => (
+              <li>
+                <a href={href(l.slug)}>{l.label}</a>
+              </li>
+            ))}
+          </ul>
+          <a class="aa-home-open" href={href(s.slug)}>
+            Open {s.title}<span aria-hidden="true"> →</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+  <h2 class="aa-label aa-home-more-title">More</h2>
+  <ul class="aa-home-more">
+    {
+      MORE_SECTIONS.map((l) => (
+        <li>
+          <a href={href(l.slug)}>{l.label}</a>
+        </li>
+      ))
+    }
+  </ul>
+</div>
+
+<style>
+  .aa-home {
+    font-family: var(--aa-font-sans);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .aa-home-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: var(--aa-space-4);
+  }
+  .aa-home-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--aa-space-3);
+    padding: var(--aa-space-5);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+  }
+  .aa-home .aa-home-card h2,
+  .aa-home .aa-home-more-title {
+    margin: 0;
+    font-family: var(--aa-font-mono);
+    font-size: var(--aa-text-label);
+    font-weight: 500;
+    color: var(--aa-ink-3);
+  }
+  .aa-home-summary {
+    margin: 0;
+    color: var(--aa-ink);
+    font-size: var(--aa-text-body);
+    line-height: 1.5;
+  }
+  .aa-home-links {
+    display: grid;
+    gap: var(--aa-space-1);
+    padding-top: var(--aa-space-3);
+    border-top: 1px solid var(--aa-rule);
+  }
+  .aa-home .aa-home-links a,
+  .aa-home .aa-home-more a,
+  .aa-home .aa-home-open {
+    color: var(--aa-ink-2);
+    font-size: var(--aa-text-small);
+    text-decoration: none;
+  }
+  .aa-home-links a {
+    display: block;
+    padding-block: 0.25rem;
+  }
+  .aa-home .aa-home-links a:hover,
+  .aa-home .aa-home-more a:hover {
+    color: var(--aa-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .aa-home .aa-home-open {
+    color: var(--aa-ink);
+    margin-top: auto;
+    padding-top: var(--aa-space-2);
+    color: var(--aa-ink);
+    font-size: var(--aa-text-small);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .aa-home .aa-home-open:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .aa-home .aa-home-more-title {
+    margin: var(--aa-space-7) 0 var(--aa-space-2);
+  }
+  .aa-home-more {
+    display: grid;
+    gap: var(--aa-space-1);
+  }
+  .aa-home-more a {
+    display: inline-block;
+    padding-block: 0.25rem;
+  }
+</style>

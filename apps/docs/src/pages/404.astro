@@ -1,11 +1,11 @@
 ---
 // The site's 404 (Starlight's own is turned off: disable404Route). GitHub Pages serves it for any missing path.
 import BaseLayout from "../components/site/BaseLayout.astro";
-import { DOCS_HOME, withBase } from "../components/site/site.ts";
+import { START_HERE, withBase } from "../components/site/site.ts";
 
 const ways = [
   { href: withBase("/"), label: "Home", note: "What it does, the report, the evals" },
-  { href: withBase(DOCS_HOME), label: "What it is", note: "A one-minute read" },
+  { href: withBase(START_HERE), label: "What it is", note: "A one-minute read" },
   { href: withBase("start/quickstart/"), label: "Quickstart", note: "From a clone to a verified report" },
   { href: withBase("use-it/cli/"), label: "CLI reference", note: "Every aa command" },
 ];

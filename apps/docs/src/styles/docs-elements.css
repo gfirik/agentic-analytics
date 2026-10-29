@@ -1,0 +1,121 @@
+/* Docs elements on the landing page's tokens (DESIGN.md §7): tables, callouts, previous/next cards and the footer meta.
+   Prose, headings, code and the page title are in starlight.css. */
+
+/* Tables in prose are ledgers: ruled rows in a hairline frame, a tinted label row; wide ones scroll inside themselves.
+   A component marked .not-content (the pipeline stages) keeps its own table and code styles. */
+.sl-markdown-content table:where(:not(.not-content *)) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  border-collapse: collapse;
+  background: var(--aa-raised);
+  font-variant-numeric: tabular-nums;
+}
+/* A table in its own focusable scroll wrapper (.aa-ledger-wrap) is laid out as a table; the wrapper scrolls. */
+.sl-markdown-content .aa-ledger-wrap table {
+  display: table;
+  overflow: visible;
+  min-width: 100%;
+}
+.sl-markdown-content :is(th, td):where(:not(.not-content *)) {
+  border: 0;
+  border-bottom: 1px solid var(--aa-rule);
+  padding: var(--aa-space-2) var(--aa-space-3);
+  background: transparent;
+  vertical-align: top;
+}
+.sl-markdown-content tr:last-child :is(td):where(:not(.not-content *)) {
+  border-bottom: 0;
+}
+.sl-markdown-content th:where(:not(.not-content *)) {
+  border-bottom: 1px solid var(--aa-rule-strong);
+  background: var(--aa-surface);
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: var(--aa-label-tracking);
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+  text-align: left;
+}
+.sl-markdown-content tr:nth-child(2n) {
+  background: transparent;
+}
+
+/* Callouts: a raised card with a hairline frame and an ink rule, no tinted hue; the title is a ledger label. */
+.starlight-aside {
+  border: 1px solid var(--aa-rule);
+  border-inline-start: 3px solid var(--aa-ink);
+  border-radius: var(--aa-radius);
+  background: var(--aa-raised);
+  padding: var(--aa-space-4) var(--aa-space-5);
+}
+.starlight-aside__title {
+  color: var(--aa-ink-2);
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  font-weight: 500;
+  letter-spacing: var(--aa-label-tracking);
+  text-transform: uppercase;
+}
+
+/* Previous / next: two equal cards, the direction as a ledger label above the page's title. */
+.pagination-links {
+  max-width: var(--aa-article);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--aa-space-4);
+}
+.pagination-links a {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--aa-space-1);
+  padding: var(--aa-space-4) var(--aa-space-5);
+  border: 1px solid var(--aa-rule);
+  border-radius: var(--aa-radius);
+  box-shadow: none;
+  color: var(--aa-ink-2);
+  background: var(--aa-raised);
+  transition: border-color var(--aa-fast) var(--aa-ease);
+}
+.pagination-links a[rel="next"] {
+  grid-column: 2;
+  align-items: flex-end;
+  text-align: end;
+}
+.pagination-links a:hover {
+  border-color: var(--aa-ink);
+}
+.pagination-links a > span:first-child,
+.pagination-links a > svg {
+  display: none;
+}
+.pagination-links a span:not(.link-title) {
+  font-family: var(--aa-font-mono);
+  font-size: var(--aa-text-label);
+  letter-spacing: var(--aa-label-tracking);
+  text-transform: uppercase;
+  color: var(--aa-ink-3);
+}
+.pagination-links .link-title {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--aa-font-display);
+  font-size: 1.25rem;
+  line-height: 1.3;
+  color: var(--aa-ink);
+}
+@media (max-width: 40rem) {
+  .pagination-links {
+    grid-template-columns: 1fr;
+  }
+  .pagination-links a[rel="next"] {
+    grid-column: 1;
+  }
+}
+.meta,
+.meta a {
+  color: var(--aa-ink-2);
+}

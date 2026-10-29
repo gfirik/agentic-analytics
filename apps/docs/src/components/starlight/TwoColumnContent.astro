@@ -34,7 +34,7 @@
   // Without JS the TOC stays on top.
   const toc = document.querySelector<HTMLElement>(".aa-margin-toc-inner");
   const wide = [
-    ...document.querySelectorAll<HTMLElement>(".sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-stages, .aa-sn-note)"),
+    ...document.querySelectorAll<HTMLElement>(".sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-stages, .expressive-code, .aa-sn-note)"),
   ];
   if (toc && wide.length) {
     let frame = 0;

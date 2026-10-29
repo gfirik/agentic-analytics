@@ -33,6 +33,8 @@ export default defineConfig({
         "./src/styles/tokens.css",
         "./src/styles/components.css",
         "./src/styles/starlight.css",
+        "./src/styles/docs-frame.css",
+        "./src/styles/docs-elements.css",
         "./src/styles/notes.css",
       ],
       components: {
@@ -92,6 +94,7 @@ export default defineConfig({
       // Navigation (M13f): sections in reading order, each opening with a page that says what the section is for.
       // Learn (M13g) is the beginner path, between the reference-level "How it works" and "Use it".
       sidebar: [
+        "docs",
         {
           label: "Start",
           items: [
