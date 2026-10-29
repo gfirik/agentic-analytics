@@ -2,9 +2,18 @@
 // run the implausibility rules and entity matching, and return the profile summary (`profile.json`) that
 // metric drafting reads in M4.
 import type { IngestResult } from "@agentic-analytics/ingest";
-import { type IssueRow, insertIssues, loadJob, type NormalizedTable, type SectionRow, type Workspace } from "@agentic-analytics/store";
+import {
+  type IssueRow,
+  insertIssues,
+  loadJob,
+  type NormalizedTable,
+  type SectionRow,
+  tableName,
+  type Workspace,
+} from "@agentic-analytics/store";
 import { ASSUME_BELOW, type Entity, matchEntities } from "./entities.ts";
 import { type ColumnIssue, type Grain, normalizeTable } from "./normalize.ts";
+import { periodPartsCoverage } from "./profile.sql.ts";
 import { inferBusinessModel } from "./roles/business.ts";
 import { detectRoles, type TableRoles } from "./roles/detect.ts";
 import { classifyTable, type KindResult } from "./roles/kinds.ts";
@@ -100,6 +109,13 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
     const named = tables[tables.length - 1];
     const roles = await detectRoles(ws, n.table, profile);
     await saveRoles(ws, roles);
+    // A table whose period is a year and a month column has no date column, but it has a date range: the job's
+    // period range and the KPI pack read it (semantics §2.1 "Period parts").
+    if (roles.period_parts && !profile.date_column && named) {
+      const { year, month } = roles.period_parts;
+      const cov = await ws.one<{ first: string | null; last: string | null }>(periodPartsCoverage(tableName(n.table.id), year, month));
+      if (cov?.first && cov.last) tables[tables.length - 1] = { ...named, date_first: cov.first, date_last: cov.last, grain: "month" };
+    }
     const kind = await classifyTable(ws, roles, profile, [named?.name ?? "", named?.file ?? "", named?.sheet ?? ""].filter(Boolean));
     await saveTableKind(ws, kind);
     allRoles.push(roles);

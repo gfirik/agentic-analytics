@@ -3,17 +3,18 @@
 import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import type { MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
-import { type ConcentrationFacts, DIMENSION_ROLES, dimensionLabels } from "./concentration-facts.ts";
+import { type ConcentrationFacts, concentrationColumns, DIMENSION_ROLES, dimensionLabels } from "./concentration-facts.ts";
 import { type ConcentrationTrend, concentrationTrend, periodStat, trendCalcs } from "./concentration-templates.ts";
 import type { FactBook } from "./factbook.ts";
 import { CONCENTRATION_PARTS, type Member, PARETO_PARTS, type StatPart } from "./pareto.ts";
+import { tableRoles } from "./roles.sql.ts";
 import type { Calc, StatRef } from "./types.ts";
 import { completeYears, type TrailingWindows, trailingWindows } from "./windows.ts";
 
 /** An analysis the pack could not run, and why (analysis-library §13); `not-run.ts` words it for the report. */
 export interface ConcentrationGap {
   readonly analysis: "pareto.v1" | "concentration";
-  readonly reason_code: "no_dimension" | "too_few_periods";
+  readonly reason_code: "no_dimension" | "no_amount_role" | "too_few_periods";
   /** The window it concerns, when it is one of several (`ttm_prev`). */
   readonly window?: "ttm_prev";
 }
@@ -99,14 +100,50 @@ export async function sectionFacts(book: FactBook, facts: ConcentrationFacts, pl
   if (plan.calcs.length) await book.calcs(plan.calcs, context);
 }
 
-/** What the pack could not run: no dimension with a role at all, or no data for the year before the trailing year. */
-export function notRun(dimensions: number, plan: SectionPlan | undefined): ConcentrationGap[] {
-  if (!dimensions)
+/**
+ * What the pack could not run (§13): no additive money metric to measure (`no_amount_role`), no dimension with a role
+ * (`no_dimension`), or no data for the year before the trailing year.
+ */
+export function notRun(setup: Pick<ConcentrationSetup, "pack" | "dimensions">, plan: SectionPlan | undefined): ConcentrationGap[] {
+  const missing = !setup.pack ? "no_amount_role" : !setup.dimensions.length ? "no_dimension" : undefined;
+  if (missing)
     return [
-      { analysis: "pareto.v1", reason_code: "no_dimension" },
-      { analysis: "concentration", reason_code: "no_dimension" },
+      { analysis: "pareto.v1", reason_code: missing },
+      { analysis: "concentration", reason_code: missing },
     ];
   return plan && !plan.windows.ttmPrev ? [{ analysis: "pareto.v1", window: "ttm_prev", reason_code: "too_few_periods" }] : [];
+}
+
+/**
+ * The pack metric's role columns it was not split by (§11 covers each column with an entity or grouping role): their
+ * per-period members are measured for the pack alone. One column per dimension: a dimension the metric is already split
+ * by, or a second column of the same one (a product name beside its code, which restates the same members), is not
+ * measured again. Empty when there is no pack metric or it has no table.
+ */
+export async function unsplitPackColumns(
+  ws: Workspace,
+  catalog: Catalog,
+  defs: readonly MetricDef[],
+  splits: ReadonlyMap<string, readonly string[]>,
+): Promise<{ readonly metric?: string; readonly columns: readonly string[] }> {
+  const pack = packMetric(defs);
+  const table = catalog.get(pack?.table ?? "");
+  if (!pack || !table) return { columns: [] };
+  const split = new Set([...(splits.get(pack.id) ?? []), ...(pack.dimensions ?? [])]);
+  const dimOf = (role: string) => Object.entries(DIMENSION_ROLES).find(([, roles]) => roles.includes(role))?.[0];
+  const stored = (await tableRoles(ws, table.id)).flatMap((r) => {
+    const dim = dimOf(r.role);
+    return dim ? [{ column: r.column_name, dim }] : [];
+  });
+  const covered = new Set(stored.filter((r) => split.has(r.column)).map((r) => r.dim));
+  const columns: string[] = [];
+  // Best score first (`tableRoles`), so a dimension's first column is the one its role fits best.
+  for (const r of stored)
+    if (!split.has(r.column) && !covered.has(r.dim)) {
+      covered.add(r.dim);
+      columns.push(r.column);
+    }
+  return { metric: pack.id, columns };
 }
 
 export interface ConcentrationSetup {
@@ -139,7 +176,7 @@ export async function setupConcentration(
     if (!table) continue;
     // Labelled over every dimension of the metric, as the `concentration` tool does, so both paths name a column alike;
     // only the columns the metric was split by are planned.
-    const l = await dimensionLabels(ws, table.id, def?.dimensions ?? columns);
+    const l = await dimensionLabels(ws, table.id, await concentrationColumns(ws, table.id, def?.dimensions ?? columns));
     labels.set(metric, l.labels);
     grouping.set(
       metric,

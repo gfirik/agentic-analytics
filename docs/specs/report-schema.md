@@ -187,7 +187,7 @@ Concentration = {
 // analysis-library §13: no numbers, so V1's free-numeral rule applies to `reason`
 NotRunReason = "no_cost_role"|"no_quantity_role"|"no_price_role"|"no_item_dimension"|"no_variable_cost"|"no_dimension"
              | "too_few_periods"|"grain_not_comparable"|"no_order_id"|"no_customer_role"|"no_refund_role"
-             | "no_discount_role"|"no_status_role"|"no_history"
+             | "no_discount_role"|"no_status_role"|"no_history"|"no_amount_role"
 NotRun = { analysis: string, reason_code: NotRunReason, reason: string, needs: string[] }
 ```
 

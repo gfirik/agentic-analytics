@@ -58,6 +58,17 @@ export async function dimensionLabels(
   return { labels, grouping };
 }
 
+/**
+ * The columns a metric's concentration is labelled over: its dimensions, then every other column of its table with an
+ * entity or grouping role (§11: the pack covers each such column, split dimension or not). The pack and the
+ * `concentration` tool label over this same list, so both name a column alike.
+ */
+export async function concentrationColumns(ws: Workspace, tableId: string, dimensions: readonly string[]): Promise<string[]> {
+  const roles = new Set(Object.values(DIMENSION_ROLES).flat());
+  const extra = (await tableRoles(ws, tableId)).filter((r) => roles.has(r.role) && !dimensions.includes(r.column_name));
+  return [...dimensions, ...new Set(extra.map((r) => r.column_name))];
+}
+
 const isPareto = (part: StatPart): part is ParetoPart => (PARETO_PARTS as readonly string[]).includes(part);
 
 /** The fixed label of a statistic (§14); `dim` is the dimension's label name, qualified when the metric is not the pack's. */

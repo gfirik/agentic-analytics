@@ -5,7 +5,7 @@
 import type { ProfileSummary } from "@agentic-analytics/profile";
 import type { MetricDef, RatioTerm } from "@agentic-analytics/schema";
 import { marginPack } from "./margin-pack.ts";
-import { groupingColumns, type ProfiledTable, REFUND_VALUE, withRole } from "./profile-columns.ts";
+import { groupingColumns, type ProfiledTable, REFUND_VALUE, timeColumn, withRole } from "./profile-columns.ts";
 
 /** Values that mark a cancellation; the rest of REFUND_VALUE is a refund or a return (§8.1 "Revenue lines"). */
 const CANCEL_VALUE = /cancel|void|отмен|bekor/i;
@@ -127,7 +127,7 @@ function revenueOf(summary: ProfileSummary, table: ProfiledTable): { expression:
 function salesTable(
   summary: ProfileSummary,
 ): { table: ProfiledTable; revenue: NonNullable<ReturnType<typeof revenueOf>>; sales: boolean } | undefined {
-  const dated = [...summary.tables].filter((t) => t.date_column).sort((a, b) => b.detail_rows - a.detail_rows);
+  const dated = [...summary.tables].filter((t) => timeColumn(summary, t)).sort((a, b) => b.detail_rows - a.detail_rows);
   const groups = [
     ...KIND_ORDER.map((k) => dated.filter((t) => kindOf(summary, t) === k)),
     dated.filter((t) => !KIND_ORDER.includes(kindOf(summary, t) as never)),
@@ -157,7 +157,7 @@ export function salesKpiPack(summary: ProfileSummary): KpiPack {
     table,
     table.columns.find((c) => classes[0]?.column === c.name),
   ).filter((c) => !statusNames.has(c));
-  const base = { table: table.name, time_column: table.date_column ?? "", status: "assumed" as const };
+  const base = { table: table.name, time_column: timeColumn(summary, table) ?? "", status: "assumed" as const };
   const withLines = lines.length ? { filters: lines } : {};
   const money = revenue.currency ? { currency: revenue.currency } : {};
   const defs: MetricDef[] = [];

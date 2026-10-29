@@ -248,6 +248,7 @@ export const NOT_RUN_REASONS = [
   "no_discount_role",
   "no_status_role",
   "no_history",
+  "no_amount_role",
 ] as const;
 export const NotRunReason = z.enum(NOT_RUN_REASONS);
 export const NotRun = z.object({ analysis: id, reason_code: NotRunReason, reason: z.string().min(1), needs: z.array(z.string()) });

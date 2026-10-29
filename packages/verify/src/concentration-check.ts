@@ -39,8 +39,10 @@ export async function recheckStat(
     .filter(([k]) => /^\$\d+$/.test(k))
     .sort((x, y) => Number(x[0].slice(1)) - Number(y[0].slice(1)))
     .map(([, v]) => v as string | number | boolean | null);
-  const rows = await ws.all<{ key: string | null; total: number; value: number | null }>({ text: f.computation.sql ?? "", params });
-  const members: Member[] = rows.map((r) => ({ key: r.key, total: Number(r.total) }));
+  const rows = await ws.all<{ key: string | null; total: number | null; value: number | null }>({ text: f.computation.sql ?? "", params });
+  // A member whose metric has no value over the window (every row's measure missing: its total is NULL) has no value to
+  // rank or to count as non-positive; the template's `total > 0` and `total <= 0` leave it out the same way.
+  const members: Member[] = rows.flatMap((r) => (r.total === null ? [] : [{ key: r.key, total: Number(r.total) }]));
   const rerun = Number(rows[0]?.value ?? 0);
   const computed = statValue(stat.part, members, { a: stat.a, b: stat.b });
   const how = ruleOf(stat.part);

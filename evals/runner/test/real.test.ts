@@ -355,6 +355,8 @@ describe("the published real-data results", () => {
         x.datasets.map((d) => [d.dataset, d.completed, d.checks.map((c) => [c.id, c.pass, c.detail])]);
       expect(outcome(r)).toEqual(outcome(committed));
     },
-    300_000,
+    // About four minutes alone since the concentration pack covers every role column (M15 PR 11 prep: Montgomery
+    // County's job alone is about 150 s), and longer beside the golden run inside the full suite.
+    600_000,
   );
 });

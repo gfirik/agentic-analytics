@@ -37,6 +37,20 @@ export const dateCoverage = (table: string, column: string): Sql =>
       count(DISTINCT dayofweek(${ident(column)})) AS weekdays
       FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL`;
 
+/**
+ * First and last month of a table whose period is a year and a month column (semantics §2.1 "Period parts"), dated as
+ * the metric compiler dates its rows (`timeExpr`): the first day of the month, January for a year alone, and no date
+ * for a month outside 1–12.
+ */
+export const periodPartsCoverage = (table: string, year: string, month?: string): Sql => {
+  const y = sql`CAST(${ident(year)} AS INTEGER)`;
+  const date = month
+    ? sql`CASE WHEN CAST(${ident(month)} AS INTEGER) BETWEEN 1 AND 12 THEN make_date(${fragment(y)}, CAST(${ident(month)} AS INTEGER), 1) END`
+    : sql`make_date(${fragment(y)}, 1, 1)`;
+  return sql`SELECT min(${fragment(date)})::VARCHAR AS first, max(${fragment(date)})::VARCHAR AS last
+      FROM ${ident(table)} WHERE ${fragment(detail)}`;
+};
+
 const STEP = { day: "1 DAY", week: "1 WEEK", month: "1 MONTH" } as const;
 const FORMAT = { day: "%Y-%m-%d", week: "%Y-%m-%d", month: "%Y-%m" } as const;
 

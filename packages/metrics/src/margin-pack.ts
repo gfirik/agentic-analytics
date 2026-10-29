@@ -4,7 +4,7 @@
 import type { ProfileSummary } from "@agentic-analytics/profile";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { COST_METRIC, COSTED_REVENUE_METRIC, MARGIN_METRIC, MARGIN_PCT_METRIC } from "./margin.ts";
-import { type ProfiledTable, withRole } from "./profile-columns.ts";
+import { type ProfiledTable, timeColumn, withRole } from "./profile-columns.ts";
 
 export interface MarginInput {
   readonly summary: ProfileSummary;
@@ -35,7 +35,7 @@ export function marginPack(input: MarginInput): MarginPack {
   if (!costAmount && !qty) return { defs: [], assumptions: [], missing: "no_quantity_role" };
   const column = (costAmount ?? unitCost) as Column;
   const expression = costAmount ? costAmount.name : `${(qty as Column).name} * ${column.name}`;
-  const base = { table: table.name, time_column: table.date_column ?? "", status };
+  const base = { table: table.name, time_column: timeColumn(summary, table) ?? "", status };
   const withLines = lines.length ? { filters: [...lines] } : {};
   // Like revenue: a currency the data doesn't mark is filled in by validation (the --currency default).
   const money = { unit: "currency" as const, ...(revenue.currency ? { currency: revenue.currency } : {}) };

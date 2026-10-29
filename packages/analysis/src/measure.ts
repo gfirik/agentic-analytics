@@ -28,11 +28,49 @@ export const isGrossMargin = (def: MetricDef | undefined, defs: readonly MetricD
 
 const sumAbs = (pts: readonly { value: number }[]) => pts.reduce((a, p) => a + Math.abs(p.value), 0);
 
+type Range = { readonly from: string; readonly to: string; readonly grain: Grain };
+
+/** Every member's value per period of `metric` split by `dimension`, uncapped (the metric's own grouped query). */
+async function memberValues(
+  ws: Workspace,
+  metric: string,
+  defs: readonly MetricDef[],
+  catalog: Catalog,
+  range: Range,
+  dimension: string,
+): Promise<Map<string | null, { period: string; value: number }[]>> {
+  const grouped = await runMetric(ws, metric, defs, catalog, { ...range, groupBy: [dimension] });
+  const byMember = new Map<string | null, { period: string; value: number }[]>();
+  for (const r of grouped) {
+    const key = (r[dimension] as string | null) ?? null;
+    byMember.set(key, [...(byMember.get(key) ?? []), { period: r.period, value: Number(r.value ?? 0) }]);
+  }
+  return byMember;
+}
+
+/**
+ * The per-period members of the pack metric over `columns`, role columns it was not split by (analysis-library §11: the
+ * pack covers every column with an entity or grouping role). Only the concentration statistics read them: no member
+ * series, so no member findings and no change to ranking.
+ */
+export async function concentrationMembers(
+  ws: Workspace,
+  metric: string,
+  defs: readonly MetricDef[],
+  catalog: Catalog,
+  range: Range,
+  columns: readonly string[],
+  perPeriod: Map<string, Map<string, Member[]>>,
+): Promise<void> {
+  for (const column of columns)
+    perPeriod.set(`${metric}|${column}`, membersByPeriod(await memberValues(ws, metric, defs, catalog, range, column)));
+}
+
 export async function measureMetrics(
   ws: Workspace,
   defs: readonly MetricDef[],
   catalog: Catalog,
-  range: { readonly from: string; readonly to: string; readonly grain: Grain },
+  range: Range,
   maxMembers: number,
   series: Map<string, SeriesInfo>,
   openQuestions: string[],
@@ -68,12 +106,7 @@ export async function measureMetrics(
     series.set(total.id, { series: total, def });
     totals.push(total);
     for (const dimension of splittable ? (isGrossMargin(def, defs) ? marginDimensions(def, defs) : (def.dimensions ?? [])) : []) {
-      const grouped = await runMetric(ws, def.id, defs, catalog, { ...range, groupBy: [dimension] });
-      const byMember = new Map<string | null, { period: string; value: number }[]>();
-      for (const r of grouped) {
-        const key = (r[dimension] as string | null) ?? null;
-        byMember.set(key, [...(byMember.get(key) ?? []), { period: r.period, value: Number(r.value ?? 0) }]);
-      }
+      const byMember = await memberValues(ws, def.id, defs, catalog, range, dimension);
       perPeriod.set(`${def.id}|${dimension}`, membersByPeriod(byMember));
       const ranked = [...byMember.entries()].sort((a, b) => sumAbs(b[1]) - sumAbs(a[1]) || String(a[0]).localeCompare(String(b[0])));
       const kept = ranked.slice(0, maxMembers);
