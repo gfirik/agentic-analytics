@@ -119,8 +119,10 @@
     top: 0;
     bottom: 0;
     left: calc(
-      var(--sl-content-pad-x) + max(0px, (100% - 2 * var(--sl-content-pad-x) - var(--sl-content-width)) / 2) +
-        var(--aa-article) + var(--aa-margin-gap)
+      var(--sl-content-pad-x) +
+      max(0px, (100% - 2 * var(--sl-content-pad-x) - var(--sl-content-width)) / 2) +
+      var(--aa-article) +
+      var(--aa-margin-gap)
     );
     width: var(--aa-margin-col);
     pointer-events: none;
