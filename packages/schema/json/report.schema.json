@@ -1543,7 +1543,8 @@
                           "no_refund_role",
                           "no_discount_role",
                           "no_status_role",
-                          "no_history"
+                          "no_history",
+                          "no_amount_role"
                         ]
                       }
                     },
@@ -1594,7 +1595,8 @@
                           "no_refund_role",
                           "no_discount_role",
                           "no_status_role",
-                          "no_history"
+                          "no_history",
+                          "no_amount_role"
                         ]
                       }
                     },
@@ -1834,7 +1836,8 @@
               "no_refund_role",
               "no_discount_role",
               "no_status_role",
-              "no_history"
+              "no_history",
+              "no_amount_role"
             ]
           },
           "reason": {

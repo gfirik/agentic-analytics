@@ -28,6 +28,7 @@ const NEEDS: Readonly<Record<NotRunReason, readonly string[]>> = {
   no_discount_role: ["discount"],
   no_status_role: ["status"],
   no_history: [],
+  no_amount_role: ["amount", "quantity", "unit_price"],
 };
 
 /** The sentence for each reason. No numerals: "fewer than 13 months" is "not enough history" (§13). */
@@ -47,6 +48,7 @@ const REASON: Readonly<Record<NotRunReason, string>> = {
   no_discount_role: "There is no discount column.",
   no_status_role: "No status column marks cancelled lines.",
   no_history: "Every customer is new in the first period of the data, so new customers can't be told apart.",
+  no_amount_role: "There is no money column (an amount, or a quantity and a unit price) to measure shares of.",
 };
 
 /** Reasons for an analysis whose wording differs from the reason's default. */

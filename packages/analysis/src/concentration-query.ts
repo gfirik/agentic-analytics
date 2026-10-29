@@ -5,7 +5,7 @@
 import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import type { Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
-import { ConcentrationFacts, dimensionLabels } from "./concentration-facts.ts";
+import { ConcentrationFacts, concentrationColumns, dimensionLabels } from "./concentration-facts.ts";
 import { packMetric } from "./concentration-pack.ts";
 import { FactBook } from "./factbook.ts";
 import { CONCENTRATION_PARTS, PARETO_PARTS, type StatPart } from "./pareto.ts";
@@ -85,7 +85,7 @@ export async function concentrationFacts(
   checkPeriod("to", q.to, q.range);
   if (q.from > q.to) throw new ConcentrationError("BAD_PERIOD", `from ${q.from} is after to ${q.to}`);
   const table = catalog.get(def.table ?? "");
-  const { labels } = await dimensionLabels(ws, table?.id ?? "", def.dimensions ?? []);
+  const { labels } = await dimensionLabels(ws, table?.id ?? "", await concentrationColumns(ws, table?.id ?? "", def.dimensions ?? []));
   const label = labels.get(q.dimension) ?? q.dimension;
   // Labels without the metric belong to the pack's metric; another metric names itself (analysis-library §14).
   const dim = packMetric(defs)?.id === def.id ? label : `${label}[${def.id}]`;

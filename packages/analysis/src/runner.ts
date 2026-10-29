@@ -6,13 +6,13 @@ import type { Fact, MetricDef, NotRun, Scorecard } from "@agentic-analytics/sche
 import type { Workspace } from "@agentic-analytics/store";
 import { MIN_PERIODS } from "./baselines.ts";
 import { ConcentrationFacts } from "./concentration-facts.ts";
-import { notRun, sectionFacts, setupConcentration } from "./concentration-pack.ts";
+import { notRun, sectionFacts, setupConcentration, unsplitPackColumns } from "./concentration-pack.ts";
 import { type ConcentrationEntry, concentrationSection } from "./concentration-section.ts";
 import { concentration, dependence } from "./concentration-templates.ts";
 import { marginItemDimension, pvmFor, pvmMarginFor, pvmReadiness, rateMixFor, valueAt } from "./decomp-inputs.ts";
 import { cancelsOut, type Pvm, type RateMix } from "./decompose.ts";
 import { FactBook, factOf, type SeriesInfo } from "./factbook.ts";
-import { isGrossMargin, measureMetrics } from "./measure.ts";
+import { concentrationMembers, isGrossMargin, measureMetrics } from "./measure.ts";
 import { contributionFacts } from "./members.ts";
 import { analysesNotRun, COST_ROLES } from "./not-run.ts";
 import { curve, statValue } from "./pareto.ts";
@@ -105,17 +105,27 @@ export async function analyzeJob(
   // MEASURE (spec §1): every metric per period, and per dimension member (top N + "other").
   const { totals, members, perPeriod, jobPeriods } = await measureMetrics(ws, defs, catalog, range, maxMembers, series, openQuestions);
 
-  // Concentration (analysis-library §11): label names for the dimensions and the pack's windows.
+  // Concentration (analysis-library §11): label names for the dimensions and the pack's windows. The pack also covers
+  // the role columns its metric was not split by (a customer id, a product code): their per-period members are read
+  // here for the section only, so they make no member series and no member findings.
+  const splits = new Map([...members].map(([metric, dims]) => [metric, dims.map((d) => d.dimension)]));
+  const unsplit = await unsplitPackColumns(ws, catalog, defs, splits);
+  if (unsplit.metric && unsplit.columns.length) {
+    await concentrationMembers(ws, unsplit.metric, defs, catalog, range, unsplit.columns, perPeriod);
+    splits.set(unsplit.metric, [...(splits.get(unsplit.metric) ?? []), ...unsplit.columns]);
+  }
   const setup = await setupConcentration(
     ws,
     catalog,
     defs,
-    new Map([...members].map(([metric, dims]) => [metric, dims.map((d) => d.dimension)])),
+    splits,
     (metric) => (series.get(metric)?.series.points ?? []).map((p) => p.period),
     perPeriod,
     grain,
   );
-  const lead = setup.dimensions[0];
+  // Single-customer dependence (§11.4) is a finding, so it reads only the dimensions the metric was split by: a column
+  // measured for the section alone never adds a finding.
+  const lead = setup.dimensions.find((d) => !unsplit.columns.includes(d.column));
 
   // DETECT (spec §3).
   const found: Insight[] = [];
@@ -443,7 +453,7 @@ export async function analyzeJob(
       metrics: new Set(defs.map((d) => d.id)),
       costRole: await anyColumnWithRole(ws, COST_ROLES),
       ...(sales ? { sales } : {}),
-      concentration: notRun(setup.dimensions.length, lead?.plan),
+      concentration: notRun(setup, setup.dimensions[0]?.plan),
       grain,
       periods: jobPeriods,
     }),
