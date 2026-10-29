@@ -65,10 +65,11 @@
 
   /* The reading frame: article (≈ 64ch of the serif at 17px) | gap | margin column. The margin column narrows a little
      between 1000 and 1200px so the article keeps a readable measure next to the sidebar. */
-  --aa-article: 36rem;
-  --aa-margin-col: clamp(11rem, 100vw - var(--sl-sidebar-width) - 3rem - var(--aa-article) - var(--aa-margin-gap), 16.25rem);
+  --aa-article: 38rem; /* ~70 characters of the serif at 17px */
+  --aa-margin-gap: 2.5rem;
+  --aa-margin-col: clamp(11rem, 100vw - var(--sl-sidebar-width) - 3rem - var(--aa-article) - var(--aa-margin-gap), 24rem);
   --sl-content-width: calc(var(--aa-article) + var(--aa-margin-gap) + var(--aa-margin-col));
-  --sl-content-margin-inline: 0 auto;
+  --sl-content-margin-inline: auto;
 }
 
 @media (max-width: 40rem) {
@@ -88,111 +89,6 @@ body {
 :focus-visible {
   outline: 2px solid var(--aa-ink);
   outline-offset: 2px;
-}
-
-/* ── Header and frame ── */
-.header {
-  border-bottom: 1px solid var(--aa-rule);
-}
-header.header {
-  background: var(--aa-page);
-}
-.sidebar-pane {
-  background: var(--aa-surface);
-  border-inline-end: 1px solid var(--aa-rule);
-}
-
-/* ── Sidebar: mono section labels, sans items, the current page marked by a 2px ink rule ── */
-.sidebar-content .large {
-  font-family: var(--aa-font-mono);
-  font-size: var(--aa-text-label);
-  font-weight: 500;
-  letter-spacing: var(--aa-label-tracking);
-  text-transform: uppercase;
-  color: var(--aa-ink-3);
-}
-.sidebar-content summary {
-  padding-block: 0.35rem;
-}
-.sidebar-content a {
-  color: var(--aa-ink-2);
-  border-radius: 0;
-  border-inline-start: 2px solid transparent;
-}
-.sidebar-content a:hover {
-  color: var(--aa-ink);
-  background: var(--aa-mark);
-}
-.sidebar-content a[aria-current="page"],
-.sidebar-content a[aria-current="page"]:hover,
-.sidebar-content a[aria-current="page"]:focus {
-  color: var(--aa-ink);
-  background: transparent;
-  border-inline-start-color: var(--aa-ink);
-  font-weight: 600;
-}
-.sidebar-content ul ul li {
-  border-inline-start: 0;
-  margin-inline-start: 0;
-  padding-inline-start: 0;
-}
-
-/* ── The margin column and its TOC (TwoColumnContent.astro, PageSidebar.astro) ── */
-.aa-two-col {
-  position: relative;
-}
-.main-pane {
-  isolation: isolate;
-}
-/* Under 1200px the aside holds only Starlight's TOC bar, which is fixed under the header. */
-.aa-toc-margin {
-  display: none;
-}
-@media (min-width: 72rem) and (max-width: 74.99rem) {
-  /* Starlight drops its mobile TOC bar at 72rem; the site keeps it until 1200px. */
-  :root {
-    --sl-mobile-toc-height: 3rem;
-  }
-  [data-has-toc] {
-    scroll-padding-top: calc(1.5rem + var(--sl-nav-height) + var(--sl-mobile-toc-height));
-  }
-}
-@media (min-width: 75rem) {
-  .aa-toc-mobile {
-    display: none;
-  }
-  .aa-toc-margin {
-    display: block;
-  }
-  /* Laid over the margin column of the article, the full height of the page, so its inner box can stick. Only the
-     TOC itself takes pointer events: sidenotes beside it stay selectable. */
-  .aa-margin-toc {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc(var(--sl-content-pad-x) + var(--aa-article) + var(--aa-margin-gap));
-    width: var(--aa-margin-col);
-    pointer-events: none;
-    z-index: 2;
-  }
-  .aa-margin-toc-inner {
-    position: sticky;
-    top: var(--sl-nav-height);
-    /* As tall as the screen allows below the header (site v3, finding 11): with h2s only on Learn pages, the list fits
-       at 1000px tall without an inner scrollbar. It still steps aside for figures and sidenotes passing beneath. */
-    max-height: calc(100vh - var(--sl-nav-height) - var(--aa-space-8));
-    overflow-y: auto;
-    padding: var(--aa-space-5) 0 var(--aa-space-3);
-    border-bottom: 1px solid var(--aa-rule);
-    background: var(--aa-page);
-    pointer-events: auto;
-    scrollbar-width: thin;
-    transition: opacity var(--aa-fast) var(--aa-ease);
-  }
-  .aa-margin-toc-inner.is-covered {
-    opacity: 0;
-    visibility: hidden;
-  }
 }
 
 /* ── Table of contents ── */
@@ -317,61 +213,6 @@ mobile-starlight-toc .toggle {
   overflow-wrap: anywhere;
 }
 
-/* Tables in prose are ledgers too: ruled, no outer box, labels for heads; wide ones scroll inside themselves. A component
-   marked .not-content (the pipeline stages) keeps its own table and code styles. */
-.sl-markdown-content table:where(:not(.not-content *)) {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-/* A table in its own focusable scroll wrapper (.aa-ledger-wrap) is laid out as a table; the wrapper scrolls. */
-.sl-markdown-content .aa-ledger-wrap table {
-  display: table;
-  overflow: visible;
-  min-width: 100%;
-}
-.sl-markdown-content :is(th, td):where(:not(.not-content *)) {
-  border: 0;
-  border-bottom: 1px solid var(--aa-rule);
-  padding: var(--aa-space-2) var(--aa-space-3);
-  background: transparent;
-  vertical-align: top;
-}
-.sl-markdown-content th:where(:not(.not-content *)) {
-  border-bottom: 1px solid var(--aa-rule-strong);
-  font-family: var(--aa-font-mono);
-  font-size: var(--aa-text-label);
-  font-weight: 500;
-  letter-spacing: var(--aa-label-tracking);
-  text-transform: uppercase;
-  color: var(--aa-ink-3);
-  text-align: left;
-}
-.sl-markdown-content :is(th, td):first-child:where(:not(.not-content *)) {
-  padding-inline-start: 0;
-}
-.sl-markdown-content tr:nth-child(2n) {
-  background: transparent;
-}
-
-/* Asides: a hairline box with an ink rule, no tinted hue. */
-.starlight-aside {
-  border: 1px solid var(--aa-rule);
-  border-inline-start: 2px solid var(--aa-ink);
-  border-radius: 0;
-  background: var(--aa-surface);
-}
-.starlight-aside__title {
-  color: var(--aa-ink);
-  font-family: var(--aa-font-mono);
-  font-size: var(--aa-text-label);
-  font-weight: 500;
-  letter-spacing: var(--aa-label-tracking);
-  text-transform: uppercase;
-}
-
 /* Code inside a heading keeps the heading's scale (the one exception to one code size, DESIGN.md §4). */
 .sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code {
   font-size: 0.875em;
@@ -394,44 +235,6 @@ mobile-starlight-toc .toggle {
   letter-spacing: var(--aa-label-tracking);
   text-transform: uppercase;
   color: var(--aa-ink-3);
-}
-
-/* Full-width figures (diagrams that need room): from 1000px they run across the margin column too, and clear any
-   sidenote beside them. */
-@media (min-width: 62.5rem) {
-  /* Article + gap + margin column always fit beside the sidebar: between 1000 and ~1072px the article gives up a
-     little measure rather than letting notes and figures run off the page. */
-  .sl-markdown-content {
-    max-width: min(var(--aa-article), 100% - var(--aa-margin-gap) - var(--aa-margin-col));
-  }
-  .sl-markdown-content :is(.aa-fullwidth, .aa-flow, .aa-diagram, .aa-stages) {
-    clear: right;
-    margin-right: calc(-1 * (var(--aa-margin-gap) + var(--aa-margin-col)));
-  }
-}
-
-/* ── Pagination and the footer meta ── */
-.pagination-links {
-  max-width: var(--aa-article);
-}
-.pagination-links a {
-  border: 1px solid var(--aa-rule);
-  border-radius: var(--aa-radius);
-  box-shadow: none;
-  color: var(--aa-ink-2);
-  background: var(--aa-raised);
-}
-.pagination-links a:hover {
-  border-color: var(--aa-ink);
-}
-.pagination-links .link-title {
-  font-family: var(--aa-font-display);
-  font-size: 1.375rem;
-  color: var(--aa-ink);
-}
-.meta,
-.meta a {
-  color: var(--aa-ink-2);
 }
 
 /* ── Search (Pagefind) ── */

@@ -177,14 +177,15 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ### Docs and Learn (the bound appendix)
 
-- **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (≈ 64ch) | **margin column** (~260px, narrowing to 176px between 1000 and 1200px) for sidenotes.
+- **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (38rem, about 70 characters) | **rail** (up to 384px, narrowing to 176px between 1000 and 1200px) for the TOC and sidenotes. The whole row sits centred in the landing page's 1440px frame (`docs-frame.css`), under the landing page's own header (`SiteHeader.astro`, with the search in its slot), so a 1440 or 1920 screen has no empty area at the right.
+  - **Docs home** (`/docs/`, `DocsHome.astro`): a card per section (Start, How it works, Learn, Reference), then the rest as a list.
   - Built by overriding Starlight's `TwoColumnContent` and `PageSidebar`.
   - The article is left-aligned next to the sidebar.
 - **The on-page TOC** sits at the top of the margin column and is sticky, with the page background and a height cap (the screen below the header, less `--aa-space-8`); Learn stage pages list their h2s only (`tableOfContents.maxHeadingLevel: 2`), so the list fits with no inner scrollbar; it marks the current heading with an ink rule. Under 1200px it collapses into Starlight's TOC bar. While a full-width figure or a sidenote passes beneath it, it steps aside (JS), so neither is covered; without JS it stays on top.
 - **Sidebar:** mono section labels, sans items, the active item marked with a 2px ink rule on the left.
 - **Measure between 1000 and ~1072px:** article, gap and margin column always fit beside the sidebar; the article gives up a little measure there rather than letting notes and figures run off the page.
 - **Sidenotes** for fact IDs and sources, definitions of terms (with a glossary link) and caveats (§6). From 1000px they sit in the margin; under 1000px they are tap-to-expand inline notes.
-- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline stages) run across the margin column from 1000px, clearing any sidenote beside them.
+- **Full-width figures** (`.aa-fullwidth`, and automatically the stage diagram, Mermaid diagrams and the pipeline stages) run across the rail from 1000px (code blocks too), clearing any sidenote beside them.
 - **Epigraph-style lead** at the top of each Learn stage page: one sentence on the problem the stage solves, in serif italic (`epigraph` frontmatter, rendered by `PageTitle.astro`).
 - **Headings:** `h1`/`h2` in the serif, no rule under `h2`; `h3` in Plex Sans 600.
 - **The header** is shared with the landing page. Search (Pagefind) stays. There is no theme control.
