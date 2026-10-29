@@ -382,6 +382,207 @@ Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository. ht
 Metrics: revenue, orders, units, customers, new_customers, returning_customers, aov. Data-quality kinds: prefixed_id, negative_quantity, missing_id. Findings: improvement: revenue 2011-11 (trend.v1); trend_break: returning_customers 2010-08 → 2010-09 (trend_break.v1); anomaly: new_customers 2010-11 → 2010-12 (anomaly.v1); anomaly: orders 2010-11 → 2010-12 (anomaly.v1); anomaly: returning_customers 2010-11 → 2010-12 (anomaly.v1).
 
 
+## M15 against the bars
+
+### Results against the bars (M15 PR 11)
+
+The M15 engine on its acceptance bars (docs/plans/m15.md A1–A4), measured 2026-10-29 on this machine, offline, with no language model. Each run went through `scripts/heavy.sh`, one at a time. The engine is main `4d5a5c1`, after #117–#121. `packages/` and `apps/` are identical to it at the runs' `engine_commit` `a9d9da4`, because this branch changes only eval tooling and results. Labels and golden items are agent-reviewed, not maintainer-reviewed. Counts are shown beside every rate, and nothing is rounded up.
+
+| Bar | Acceptance | Offline result | Met offline |
+|---|---|---|---|
+| A1 | Role detection right on ≥ 95% of columns, real datasets plus the 30 generated | **424/424 = 100.0%** (real alone 64/64; fitted, see below) | yes |
+| A2 | Margin facts pass V2 | 0 V2 mismatches: unit fixtures, the margin job (486 numbers), the 30 and the real tier | yes |
+| A3 | The margin PVM identity holds on ≥ 20 random cases | 200 seeded cases + 50 zero-base cases + 3 hand-computed cases hold | yes |
+| A4 | Golden kpi, margin and Pareto items reach max(M14 baseline + 15 pp, 85%) | kpi 8/15 = 53.3%, margin 5/7 = 71.4%, pareto 2/6 = 33.3% (scripted) | **no**: below the bar on all three (see A4) |
+| Regression | The 30 and the real tier keep their bars and 0 number mismatches | full suite 30/30 jobs, 0 mismatches, recall@5 48/50 = 96.0%; real tier 18/20 checks (hotel C4 and C6, as before) | yes |
+
+A1–A3 and the regression set hold offline. A4 is below its bar offline, for the reasons below. Its real-model check is DEFERRED, and the deferred slot is paused because no free model can run the engine (docs/progress/STATE.md "Deferred checks").
+
+#### A1: role detection
+
+Command: `bun run eval:real:fetch && bun run eval:roles`. The full page and its caveats are under "A1: role detection against the hand labels" below, and the data is in `3-roles.json`.
+
+| Group | Correct / columns | Rate |
+|---|---|---|
+| **Pooled: real + the 30 generated (the acceptance figure)** | **424 / 424** | **100.0%** |
+| Real datasets alone (Online Retail II 8, NZ card spend 14, hotel bookings 33, Montgomery County 9) | 64 / 64 | 100.0% |
+| The 30 generated businesses (two header layouts) | 360 / 360 | 100.0% |
+| Distinct (layout, column) pairs | 88 / 88 | 100.0% |
+| Outside the pool: wholesale-margin-v1 (synthetic) | 12 / 12 | 100.0% |
+| With the synthetic columns pooled (not the acceptance figure) | 436 / 436 | 100.0% |
+| Table kinds (information, no bar) | 65 / 65 | 100.0% |
+
+- **The 424 pool.** accuracy.md §11 and Decision 4 keep the committed synthetic datasets out of the pool. The harness used to pool them (436 on 2026-10-23), and this branch fixed that in one line.
+- **coffee-roaster-v1** has no role labels, so it is in neither figure.
+- **Caveat:** the detector's rules were fitted while reading the labelled columns. The labels came first, but the rules were tuned against them, so 100% is a fitted score. The closest held-out evidence is Montgomery County 7/9, scored before the year+month fix.
+
+#### A2: margin facts pass V2
+
+| Check | Command | Result |
+|---|---|---|
+| (a) Unit: every margin function on the hand-computed fixtures, plus tampering | `bunx vitest run packages/verify/test/margin-v2.test.ts` | 21/21 tests pass. `gross_margin`, `gross_margin_pct` and each `pvm_margin.v1` effect recompute through V2 with 0 mismatches. A value tampered by +0.01 is a mismatch for every margin function. The V4 cost-role checks pass |
+| (b) End to end on wholesale-margin-v1 | the job `evals/runner/test/margin-job.test.ts` runs (scripted baseline model, today 2026-07-03, GBP), with report.json kept | 486 numbers checked, **0 V2 mismatches**, 0 definition violations, 0 claims dropped. Margin facts: `gross_margin` 22, `gross_margin_pct` 12, `pvm_margin.v1` 4. `margin-job.test.ts`: 2/2 pass |
+| (c) No regression | `bun run eval -- --suite full --model baseline`; `bun run eval:real` | 0 number mismatches on all 30 jobs and all 4 real datasets (C2 passes on each: hotel 564 numbers, Montgomery 375, NZ 386, Online Retail II 491) |
+
+The (b) demo as a user runs it, `bun run aa analyze evals/datasets/wholesale-margin-v1/files --yes --currency GBP --today 2026-07-03`, needs a configured model and stays DEFERRED ([M15 PR 8]). The same job runs here with the scripted model.
+
+#### A3: the margin PVM identity
+
+Command: `bunx vitest run packages/analysis/test/pvm-margin.test.ts`. 7/7 tests pass:
+
+- **The identity:** price + volume + mix + cost + new + lost + unpriced = Δmargin within a relative 1e-9 over **200 seeded random cases** (mulberry32, fixed seed; 1–12 items; new, lost, unpriced and uncosted items; returns), and V2 recomputes each effect.
+- **Zero base:** it also holds over **50 seeded cases** whose common items' base quantity is exactly 0.
+- **Hand-computed cases:** case 1 (ΔM = −8), case 2 (ΔM = −22 over all seven effects) and the zero-base case (3 = 0 + 1 + 2 + 0).
+- **Reduction:** with no cost, it reduces to `pvm.v1`.
+
+#### A4: golden items per capability (scripted)
+
+Command: `bun run eval:real:fetch && bun run eval -- --suite golden --model baseline`, over counted dev items. The full per-item page is under "Golden v1: baseline · dev split · 2026-10-29" below, and the data is in `4-golden-dev.json`. The M14 baseline is `1-baseline-m14-engine-full`.
+
+| Capability | Passed / counted | Rate | M14 baseline | Bar | Met | Misses | Best a scripted run can score |
+|---|---|---|---|---|---|---|---|
+| kpi | 8 / 15 | 53.3% | 6 / 15 = 40.0% | 85% | **no** | 7, all `ask` | 8 / 15 = 53.3% |
+| margin | 5 / 7 | 71.4% | 0 / 7 = 0.0% | 85% | **no** | 2, both `ask` (the retail G8 and hotel G8 traps) | 5 / 7 = 71.4% |
+| pareto | 2 / 6 | 33.3% | 0 / 6 = 0.0% | 85% | **no** | 3 `ask` (hotel G6, NZ G5, retail G5) and retail G13 | 3 / 6 = 50.0% |
+
+**The offline acceptance is below the bar on all three capabilities, and offline it can't reach it.**
+
+- **The `ask` items.** The scripted baseline answers no follow-up question, so every `ask` item is a miss. That is 12 of the 28 counted kpi, margin and Pareto items: 7 of 15 kpi, 2 of 7 margin, 3 of 6 Pareto. Every item read from the report (`fact`, `driver`, `not_run`) passes in kpi and margin. So even a perfect report scores at most 53.3%, 71.4% and 50.0%, all under 85%. Only a model answering the `ask` items can meet the bar, and that run is DEFERRED.
+- **Retail G13**, a recorded miss that is not edited. The item expects 432 class-A customers over January to December 2011, which counts the part-month December (the data ends 2011-12-09). The engine's `pareto.a_count.customer_ttm` is 449, from the spec's window (analysis-library §11.1): the 12 months to the report's last complete month, 2010-12 to 2011-11. DuckDB on the raw file gives 449 of 1,219 positive customers for that window. A golden item is not edited after the engine exists. It gets an independent re-derivation at M21 ([M15 PR 11 prep]).
+- **Gains over the M14 baseline:** kpi +2 items (aov `aov_2010-11` and the hotel cancellation-rate change, both new facts). Margin +5: the three margin-dataset facts, and the retail G14 and Montgomery G3 traps answered by "Analyses not run". Pareto +2: Montgomery's top-5 share and HHI.
+- **Granularity:** with 7 margin items one pass moves the rate 14.3 points, and with 6 Pareto items 16.7 points. 85% needs 13 of 15, 6 of 7 and 6 of 6.
+- **The real-model check (DEFERRED):** `golden-m15 | eval -- --suite golden --model MODEL` is queued in `evals/deferred.txt`; the absolute 85% applies. M14's queued `golden-v1` real-model run has not run on an M14 engine, so the scripted baseline stays the M14 baseline of record (Decision 5).
+
+#### Regression set
+
+| Run | Command | Result | Before (M15 PR 11 prep, pre-#120) |
+|---|---|---|---|
+| The 30, offline baseline | `bun run eval -- --suite full --model baseline` | 30/30 jobs, 0 number mismatches, planted recall@5 **48/50 = 96.0%** (misses: distributor-v2 P2, agency-v2 P2), distractors reported 0/50, every bar met. Data: `5-regression-full-baseline.json` | 30/30, 0 mismatches, 96.0%, the same two misses |
+| Real tier, offline baseline | `bun run eval:real:fetch && bun run eval:real` | **18/20 checks**: Online Retail II 7/7, NZ card spend 5/5, Montgomery County 2/2, hotel bookings 4/6 (C4: a seasonal October to November fall reported as F5; C6: the 5,400 ADR outlier not reported). Data: `6-regression-real-baseline.json` | 18/20, the same two |
+
+#### The margin dataset's planted recall (scored by hand)
+
+wholesale-margin-v1 has no answer key in the 30's format, so its report was scored by hand against the dataset README's planted events. The data is in `7-margin-planted-recall.json`.
+
+| Event | Expected | Report | Result |
+|---|---|---|---|
+| Margin squeeze at flat revenue, 2026-03 | gross margin 16,414.24 → 14,172.40 (−2,241.84); cost effect −1,902.00, price −325.8516, volume −26.2943, mix 12.3059 | F1 (rank 1), with exactly these values; F2 is the margin % move | **found, rank 1** |
+| Price rise outrunning its cost rise, 2026-05 | gross margin +818.20 | not in the 5 findings: F3–F5 are the 2026-05 → 2026-06 changes and a cost trend, because ranking prefers the latest month | **missed** |
+| Distractor: coffee units, 2026-04 | not reported | not reported | **correct** |
+
+Planted recall@5 is **1/2 = 50%**, and the distractor is not reported. Information only: there is no bar for this dataset.
+
+#### Gaps
+
+- **A4 is below the bar offline** (the `ask` items and G13, above). Its real-model check is DEFERRED, and the deferred slot is paused: no free model the slot can use fits the engine's EXPLAIN requests (about 39,000 tokens against an 8,000 tokens-a-minute free tier).
+- **A1 is a fitted score.** No held-out role labels exist yet.
+- **Margin is proven on synthetic data only.** No real dataset with a cost column passed the licence check (plan, Risks). The real-data coverage gap for margin carries to M21.
+- **The margin dataset's 2026-05 price event** is not in the top 5. The latest-month preference in ranking pushes it out.
+- **Hotel C4 and C6** in the real tier, and **retail G7** (no driver on anomaly findings), are unchanged.
+- **The roles tie-break is not measured yet.** The `roles-m15` queue line runs `--suite roles --model MODEL`, and today's CLI refuses a model on that suite, so the measurement needs building before that line can run.
+
+### A1: role detection against the hand labels
+
+Measured 2026-10-29 by `bun run eval:real:fetch && bun run eval:roles` (`aa eval --suite roles`, the detector's proposal before any confirmation, no model). Engine: `packages/` and `apps/` identical to main `4d5a5c1` (the run's `engine_commit` `a9d9da4` is this branch, which changes only eval tooling and results). Machine-readable: `3-roles.json`. Labels are agent-reviewed, not maintainer-reviewed (evals/roles/README.md).
+
+| Rate | Correct / columns | Rate | Bar | Met |
+|---|---|---|---|---|
+| **Pooled per column: real + the 30 generated (the A1 figure)** | **424 / 424** | **100.0%** | ≥ 95% | **yes** |
+| Real datasets alone | 64 / 64 | 100.0% | ≥ 95% (below it is a known gap) | yes |
+| The 30 generated businesses | 360 / 360 | 100.0% | — | — |
+| Distinct (layout, column) pairs | 88 / 88 | 100.0% | — | — |
+| Synthetic, outside the pool: wholesale-margin-v1 | 12 / 12 | 100.0% | — | — |
+| Table kinds (information, no bar) | 65 / 65 tables | 100.0% | — | — |
+
+Per real dataset: Online Retail II 8/8, NZ card spend 14/14, hotel bookings 33/33, Montgomery County 9/9. No dataset was skipped and no column missed.
+
+**The pool.** The harness used to pool the synthetic margin dataset into the A1 figure (436/436 on 2026-10-23, `evals/results/roles/2026-10-23-roles.json`). accuracy.md §11 and the plan's Decision 4 keep it outside the pool, so this branch fixed the harness to match (one line in `summarizeRoles`): the acceptance figure is 424/424, and the 12 synthetic columns are reported as their own group. With them pooled it would read 436/436 (100.0%). coffee-roaster-v1 has no role labels, so it is in neither figure. The distinct-pair count (88) still includes the margin dataset's 12 columns: real 64, the two generated layouts 12, synthetic 12.
+
+**Caveat: the rules were fitted to these labels.** The labels were written before the detector existed (PR 3), but the detector's name lists, value patterns and identities were then built and tuned while reading the labelled columns (PR 4 onward), so 100% here is a fitted score, not a held-out one. The nearest thing to a held-out result is the two datasets added late, scored before the year+month fix: Montgomery County 7/9 and the margin dataset 12/12 (docs/progress/STATE.md, [M15 PR 4]). Unseen layouts will score lower; the release run (M21) needs new, unlabelled-at-build-time data to say how much.
+
+### Golden v1: baseline · dev split · 2026-10-29
+
+Engine commit: a9d9da47cc637aba70cc63643fcea98664f8982d.
+
+Items are agent-reviewed, not maintainer-reviewed. An item counts toward the bars only when its independent re-derivation agreed. The baseline is the scripted heuristic with no language model: it answers no follow-up question, so every `ask` item (traps included) is a miss, never n/a.
+
+#### Capabilities
+
+```
+capability   passed/counted   rate     M14 baseline          bar (max(baseline + 15 pp, 85%))
+kpi          8/15             53.3%    6/15 = 40.0%          85.0%
+margin       5/7              71.4%    0/7 = 0.0%            85.0%
+pareto       2/6              33.3%    0/6 = 0.0%            85.0%
+```
+
+#### hotel-bookings
+
+Job completed in 48.2 s · 3/9 items pass · counted toward the bars: 3/8 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 1809324.75 | 1809324.7500000042 | What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, both hotels together (EUR)? |
+| G2 | numeric | fact | yes | 1970181.6 | 1970181.6000000036 | What was room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2017, the last month in the data, both hotels together (EUR)? |
+| G3 | numeric | ask | **no** | 41.73 | no answer (FakeModel has no scripted response for role=planner promptHash=0b4bb359: Answer the question.) | What share of the city hotel's bookings, in percent, were cancelled (all arrival dates)? |
+| G4 | categorical | ask | **no** | Non Refund | no answer (FakeModel has no scripted response for role=planner promptHash=17d03688: Answer the question.) | Which deposit type has the highest cancellation rate, both hotels and all arrival dates together? |
+| G5 | numeric | ask | **no** | 118669.91 | no answer (FakeModel has no scripted response for role=planner promptHash=daad520f: Answer the question.) | By how much did room revenue (ADR × nights, bookings not cancelled), both hotels together, change from April 2017 to May 2017 arrivals (May minus April, EUR)? |
+| G6 | numeric | ask | **no** | 81.98 | no answer (FakeModel has no scripted response for role=planner promptHash=cfdeccf2: Answer the question.) | What share of all bookings, in percent, came through the travel agent and tour operator channel (TA/TO), cancelled bookings included? |
+| G7 | categorical | ask | **no** | Resort Hotel | no answer (FakeModel has no scripted response for role=planner promptHash=ecc7e2e4: Answer the question.) | Which hotel had more room revenue (ADR × nights, bookings not cancelled) for arrivals in August 2016, the resort hotel or the city hotel? |
+| G8 | trap | ask | **no** | refusal | no answer (FakeModel has no scripted response for role=planner promptHash=9c46bce9: Answer the question.) | What was the gross operating profit margin of the two hotels in 2016? |
+| G12 | numeric | fact | yes | 0.8273 | 0.8272738118990048 | By how many percentage points did the cancellation rate (the share of bookings cancelled, by arrival month, both hotels together) change from August 2016 to August 2017, the last month in the data? |
+
+#### montgomery-warehouse-sales
+
+Job completed in 143.8 s · 3/3 items pass · counted toward the bars: 2/2 numeric and categorical, 1/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 29.923 | 29.922972809811704 | What share of 2019 retail sales (rtl_sales, January to November, the months the file has), in percent, came from the five suppliers with the most retail sales that year? Lines with no supplier are left out of the total, and so are suppliers whose 2019 retail sales are not positive. |
+| G2 | numeric | fact | yes | 0.031832 | 0.03183241326846333 | What was the Herfindahl-Hirschman index (the sum of squared shares) of the suppliers' 2019 retail sales (rtl_sales), as a fraction between 0 and 1? Lines with no supplier are left out of the total, and so are suppliers whose 2019 retail sales are not positive. |
+| G3 | trap | not_run | yes | refusal | not run: There is no cost column (unit cost or cost amount), so margin can't be computed. | What was the gross margin on Montgomery County's retail sales in 2019? |
+
+#### nz-card-spend
+
+Job completed in 5.6 s · 3/7 items pass · counted toward the bars: 3/6 numeric and categorical, 0/1 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 11321.6 | 11321.6 | What was total card spending, all industry groups together, in December 2025 (NZD million)? |
+| G2 | numeric | fact | yes | 9190.7 | 9190.7 | What was total card spending, all industry groups together, in September 2026, the latest month (NZD million)? |
+| G3 | categorical | driver | yes | Durables | Durables | Which industry group contributed the largest decrease in NZD to the fall in card spending from March to April 2020? |
+| G4 | numeric | ask | **no** | -3803.7 | no answer (FakeModel has no scripted response for role=planner promptHash=2af27482: Answer the question.) | By how much did total card spending, all industry groups together, change from March 2020 to April 2020 (NZD million)? |
+| G5 | numeric | ask | **no** | 29.015 | no answer (FakeModel has no scripted response for role=planner promptHash=cc051e9c: Answer the question.) | What share of 2025 card spending, in percent, was in the Consumables industry group? |
+| G6 | numeric | ask | **no** | 1.25 | no answer (FakeModel has no scripted response for role=planner promptHash=095d7740: Answer the question.) | By what percentage was total card spending, all industry groups together, in September 2026 above September 2025, the same month a year earlier? |
+| G7 | trap | ask | **no** | refusal | no answer (FakeModel has no scripted response for role=planner promptHash=3e1fa29b: Answer the question.) | What was the average value of a card transaction in 2025? |
+
+#### online-retail-ii
+
+Job completed in 36.5 s · 4/11 items pass · counted toward the bars: 3/9 numeric and categorical, 1/2 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 140447.11 | 140447.10999999937 | What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in November 2010? |
+| G2 | numeric | fact | yes | 201 | 201 | How many distinct invoices (cancellation invoices included) were there in December 2010? |
+| G3 | numeric | ask | **no** | 145480.93 | no answer (FakeModel has no scripted response for role=planner promptHash=69b47fc8: Answer the question.) | What were net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) in the best-selling month of 2011? |
+| G4 | numeric | ask | **no** | 37570.84 | no answer (FakeModel has no scripted response for role=planner promptHash=8d8722ad: Answer the question.) | By how much did net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) change from October 2011 to November 2011? |
+| G5 | numeric | ask | **no** | 13.7 | no answer (FakeModel has no scripted response for role=planner promptHash=02359b69: Answer the question.) | What share of 2010 net sales, in percent, came from the ten customers with the highest 2010 net sales? Lines with no customer ID stay in the total. |
+| G6 | numeric | ask | **no** | 3.58 | no answer (FakeModel has no scripted response for role=planner promptHash=82d1ea56: Answer the question.) | By what percentage were November 2011 net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) above November 2010, the same month a year earlier? |
+| G7 | categorical | driver | **no** | United Kingdom | no driver | Which country accounted for most of the fall in invoices from November to December 2010? |
+| G8 | trap | ask | **no** | refusal | no answer (FakeModel has no scripted response for role=planner promptHash=c8c2bd02: Answer the question.) | What was the gross margin on 2011 sales? |
+| G12 | numeric | fact | yes | 383.74 | 383.73527322404203 | What was the average order value in November 2010: net sales (quantity × price over all lines, cancellations, postage, fees and manual adjustments included) divided by the number of distinct invoices (cancellation invoices included)? |
+| G13 | numeric | fact | **no** | 432 | 449 | Rank customers by their net sales (quantity × price, cancellations netted in) over the 12 months from January to December 2011 and keep only customers with positive net sales. How many customers does class A hold, where class A is the customers whose cumulative share of the total, counted from the largest down, is at most 80%? |
+| G14 | trap | not_run | yes | refusal | not run: There is no cost column (unit cost or cost amount), so margin can't be computed. | What was the gross margin (net sales minus the cost of the goods sold) in November 2010? |
+
+#### wholesale-margin-v1
+
+Job completed in 8.4 s · 3/3 items pass · counted toward the bars: 3/3 numeric and categorical, 0/0 traps; 0 not counted.
+
+| Item | Kind | Source | Pass | Expected | Got | Question |
+|---|---|---|---|---|---|---|
+| G1 | numeric | fact | yes | 14172.4 | 14172.400000000001 | What was gross margin (net sales minus quantity × standard cost over all lines) in March 2026, in GBP? |
+| G2 | numeric | fact | yes | 25.1904 | 25.190425349952285 | What was the gross margin percentage (gross margin divided by net sales) in June 2026, the latest month, in percent? |
+| G3 | numeric | fact | yes | -1902 | -1902 | Of the change in gross margin from February to March 2026, how much came from unit costs rising (the cost effect: minus the sum over products of March units × (March standard cost − February standard cost)), in GBP? |
+
 ## Baseline report (M14)
 
 ### The runs

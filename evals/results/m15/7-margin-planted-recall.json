@@ -1,0 +1,28 @@
+{
+  "dataset": "wholesale-margin-v1",
+  "date": "2026-10-29",
+  "engine_commit": "a9d9da47cc637aba70cc63643fcea98664f8982d",
+  "model": "baseline",
+  "scoring": "by hand from report.json (no answer key in the 30's format); planted recall@5 over the README's planted events",
+  "job": { "command": "runJob on files/invoice-lines.csv, today 2026-07-03, currency GBP, the scripted baseline model and the hash embedder (the job evals/runner/test/margin-job.test.ts runs)", "seconds": 8.8, "findings": 5 },
+  "verification": { "numbers_checked": 486, "numbers_mismatched": 0, "definition_violations": 0, "claims_dropped": 0 },
+  "margin_facts": { "gross_margin": 22, "gross_margin_pct": 12, "pvm_margin.v1": 4 },
+  "planted": [
+    {
+      "id": "squeeze-2026-03",
+      "detected": true,
+      "rank": 1,
+      "finding": "F1 trend_break: gross margin 2026-02 -> 2026-03",
+      "values": { "gross_margin_2026-02": 16414.24, "gross_margin_2026-03": 14172.4, "change": -2241.84, "pvm_margin.volume_2026-03": -26.2943, "pvm_margin.mix_2026-03": 12.3059, "pvm_margin.price_2026-03": -325.8516, "pvm_margin.cost_2026-03": -1902 },
+      "matches_expectations": true
+    },
+    {
+      "id": "price-event-2026-05",
+      "detected": false,
+      "rank": null,
+      "note": "not in the 5 findings; F3-F5 are 2026-05 -> 2026-06 changes and a cost trend, because ranking prefers the latest month; no pvm_margin fact for 2026-05 in the report"
+    }
+  ],
+  "recall_at_5": { "found": 1, "planted": 2 },
+  "distractors": [ { "id": "coffee-units-2026-04", "reported": false } ]
+}
