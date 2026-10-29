@@ -126,66 +126,64 @@ Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (448 calls, 
 
 </details>
 
-### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-23
+### openai-compatible:groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) · full suite · 2026-10-27
 
-The after of the M14a real-model before/after: run over two nights (2026-10-22 and 2026-10-23) on the engine with the M14a fixes and M14 (main 7fa1eb1 to 01a594f; no engine code changed between the passes). 28 of 30 jobs finished; agency-v3 stopped at the planner's daily rate limit and printing_shop-v3 failed (the planner's EXPLAIN output failed validation after 3 attempts); both count as misses. Against the before (2026-10-21, every job finished): planted recall@5 68% → 84%.
+Passes: 2026-10-27 (1 of up to 2; unfinished jobs run again on the next pass).
 
-Passes: 2026-10-22, 2026-10-23 (2 of up to 2; partial: jobs still unfinished after the last pass).
+30 datasets · 2103 s · 620842 tokens
 
-30 datasets · 3228 s · 1050723 tokens
+Usage: 297,412 tokens in, 64,698 out · 481 calls (236 cached at 0 tokens, 21 without a token count)
 
-Usage: 511,438 tokens in, 105,040 out · 872 calls (448 cached at 0 tokens, 71 without a token count)
-
-Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (540 calls, 313 cached); judge → openai-compatible:groq:openai/gpt-oss-20b (132 calls, 122 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (200 calls, 13 cached, 71 failed)
+Served by: extractor → openai-compatible:groq:openai/gpt-oss-120b (356 calls, 189 cached, 4 failed); judge → openai-compatible:groq:openai/gpt-oss-20b (48 calls, 47 cached); planner → openai-compatible:groq:qwen/qwen3.8-27b (77 calls, 0 cached, 17 failed)
 
 | Metric | Result | v0.1 bar | Pass |
 |---|---|---|---|
-| Jobs completed | 93.3% | 100% | **no** |
-| Number mismatches | 0 | 0 | n/a (partial run) |
-| Planted recall@5 | 84.0% | ≥ 80% | n/a (partial run) |
-| Driver accuracy | 100.0% | ≥ 90% | n/a (partial run) |
-| Cause grade accuracy | 83.3% | ≥ 80% | n/a (partial run) |
-| Distractor FP rate | 0.0% | ≤ 10% | n/a (partial run) |
-| Quality-issue recall | 95.0% | ≥ 90% | n/a (partial run) |
-| Citation precision | 99.2% | ≥ 95% | n/a (partial run) |
-| Definition adherence | 100.0% | 100% | n/a (partial run) |
-| Recommendation grounding | 100.0% | 100% | n/a (partial run) |
-| Recommendation relevance | 46.4% | ≥ 70% | n/a (partial run) |
+| Jobs completed | 36.7% | 100% | **no** |
+| Number mismatches | 0 | 0 | n/a (resumes next pass) |
+| Planted recall@5 | 30.0% | ≥ 80% | n/a (resumes next pass) |
+| Driver accuracy | 90.9% | ≥ 90% | n/a (resumes next pass) |
+| Cause grade accuracy | 81.3% | ≥ 80% | n/a (resumes next pass) |
+| Distractor FP rate | 0.0% | ≤ 10% | n/a (resumes next pass) |
+| Quality-issue recall | 40.0% | ≥ 90% | n/a (resumes next pass) |
+| Citation precision | 100.0% | ≥ 95% | n/a (resumes next pass) |
+| Definition adherence | 81.8% | 100% | n/a (resumes next pass) |
+| Recommendation grounding | 100.0% | 100% | n/a (resumes next pass) |
+| Recommendation relevance | 36.4% | ≥ 70% | n/a (resumes next pass) |
 
 <details><summary>Per dataset</summary>
 
 | Dataset | Done | Planted found | Distractors reported | Quality found | Findings | Time |
 |---|---|---|---|---|---|---|
-| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 83.9 s |
-| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 161.1 s |
-| coffee_roaster-v3 | yes | 2/2 | none | 1/1 | 3 | 113.8 s |
-| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 142.4 s |
-| printing_shop-v2 | yes | 2/2 | none | 1/1 | 3 | 99.6 s |
-| printing_shop-v3 | no (INVALID_OUTPUT: EXPLAIN failed: structured output failed val) | 0/2 | none | 0/1 | 0 | 6.0 s |
-| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 187.4 s |
-| clinic-v2 | yes | 2/2 | none | 1/1 | 3 | 147.8 s |
-| clinic-v3 | yes | 2/2 | none | 1/1 | 3 | 98.6 s |
-| online_store-v1 | yes | 1/1 | none | 2/2 | 3 | 130.6 s |
-| online_store-v2 | yes | 2/2 | none | 1/1 | 3 | 81.8 s |
-| online_store-v3 | yes | 1/2 | none | 1/1 | 3 | 152.5 s |
-| distributor-v1 | yes | 1/1 | none | 2/2 | 3 | 91.1 s |
-| distributor-v2 | yes | 1/2 | none | 1/1 | 3 | 104.4 s |
-| distributor-v3 | yes | 2/2 | none | 1/1 | 3 | 11.1 s |
-| restaurant-v1 | yes | 1/1 | none | 2/2 | 3 | 53.2 s |
-| restaurant-v2 | yes | 2/2 | none | 1/1 | 3 | 79.1 s |
-| restaurant-v3 | yes | 2/2 | none | 1/1 | 3 | 126.4 s |
-| saas-v1 | yes | 1/1 | none | 2/2 | 3 | 96.8 s |
-| saas-v2 | yes | 2/2 | none | 1/1 | 3 | 95.0 s |
-| saas-v3 | yes | 2/2 | none | 1/1 | 3 | 61.8 s |
-| logistics-v1 | yes | 1/1 | none | 2/2 | 3 | 180.8 s |
-| logistics-v2 | yes | 2/2 | none | 1/1 | 3 | 92.2 s |
-| logistics-v3 | yes | 2/2 | none | 1/1 | 3 | 181.7 s |
-| construction_supplier-v1 | yes | 1/1 | none | 2/2 | 3 | 90.2 s |
-| construction_supplier-v2 | yes | 1/2 | none | 1/1 | 3 | 106.8 s |
-| construction_supplier-v3 | yes | 2/2 | none | 1/1 | 3 | 98.2 s |
-| agency-v1 | yes | 1/1 | none | 2/2 | 3 | 98.8 s |
-| agency-v2 | yes | 1/2 | none | 1/1 | 3 | 93.5 s |
-| agency-v3 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 161.2 s |
+| coffee_roaster-v1 | yes | 1/1 | none | 2/2 | 3 | 67.7 s |
+| coffee_roaster-v2 | yes | 2/2 | none | 1/1 | 3 | 123.5 s |
+| coffee_roaster-v3 | yes | 2/2 | none | 1/1 | 3 | 176.1 s |
+| printing_shop-v1 | yes | 1/1 | none | 2/2 | 3 | 181.8 s |
+| printing_shop-v2 | no (INVALID_OUTPUT: EXPLAIN failed: structured output failed val) | 0/2 | none | 0/1 | 0 | 103.0 s |
+| printing_shop-v3 | no (INVALID_OUTPUT: EXPLAIN failed: structured output failed val) | 0/2 | none | 0/1 | 0 | 80.6 s |
+| clinic-v1 | yes | 1/1 | none | 2/2 | 3 | 89.1 s |
+| clinic-v2 | yes | 2/2 | none | 1/1 | 3 | 136.1 s |
+| clinic-v3 | yes | 2/2 | none | 1/1 | 3 | 164.5 s |
+| online_store-v1 | yes | 1/1 | none | 2/2 | 3 | 128.9 s |
+| online_store-v2 | yes | 2/2 | none | 1/1 | 3 | 97.8 s |
+| online_store-v3 | yes | 1/2 | none | 1/1 | 3 | 125.4 s |
+| distributor-v1 | yes | 1/1 | none | 2/2 | 3 | 93.1 s |
+| distributor-v2 | no (RATE_LIMITED: DECIDE failed: every route is rate-limited: op) | 0/2 | none | 0/1 | 0 | 126.1 s |
+| distributor-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 17.6 s |
+| restaurant-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 10.6 s |
+| restaurant-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 55.1 s |
+| restaurant-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 17.7 s |
+| saas-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 3.8 s |
+| saas-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 12.8 s |
+| saas-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 57.1 s |
+| logistics-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 35.2 s |
+| logistics-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 15.2 s |
+| logistics-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 17.8 s |
+| construction_supplier-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 59.9 s |
+| construction_supplier-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 14.2 s |
+| construction_supplier-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 13.1 s |
+| agency-v1 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/1 | none | 0/2 | 0 | 63.3 s |
+| agency-v2 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 9.6 s |
+| agency-v3 | no (RATE_LIMITED: EXPLAIN failed: every route is rate-limited: o) | 0/2 | none | 0/1 | 0 | 5.8 s |
 
 </details>
 
