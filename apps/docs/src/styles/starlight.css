@@ -66,6 +66,7 @@
   /* The reading frame: article (≈ 64ch of the serif at 17px) | gap | margin column. The margin column narrows a little
      between 1000 and 1200px so the article keeps a readable measure next to the sidebar. */
   --aa-article: 38rem; /* ~70 characters of the serif at 17px */
+  --aa-margin-gap: 2.5rem;
   --aa-margin-col: clamp(11rem, 100vw - var(--sl-sidebar-width) - 3rem - var(--aa-article) - var(--aa-margin-gap), 24rem);
   --sl-content-width: calc(var(--aa-article) + var(--aa-margin-gap) + var(--aa-margin-col));
   --sl-content-margin-inline: auto;

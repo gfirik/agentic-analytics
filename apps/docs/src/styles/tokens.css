@@ -59,8 +59,8 @@
   --aa-container: 90rem; /* 1440px: the landing frame, header and footer (site v4); docs keep their reading measure */
   --aa-gutter: 2rem; /* 32px outer gutters, 16px under 480px */
   --aa-grid-size: 24px;
-  --aa-margin-col: 24rem; /* docs rail and sidenote column, 384px */
-  --aa-margin-gap: 2.5rem;
+  --aa-margin-col: 16.25rem; /* docs margin column, ~260px */
+  --aa-margin-gap: 2rem;
   --aa-radius-chip: 2px;
   --aa-radius: 4px;
 

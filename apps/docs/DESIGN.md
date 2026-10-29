@@ -177,7 +177,7 @@ The scale (rem, root 16px; mobile values apply under 640px):
 
 ### Docs and Learn (the bound appendix)
 
-- **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (38rem, about 70 characters) | **rail** (384px, narrowing to 176px between 1000 and 1200px) for the TOC and sidenotes. The whole row sits centred in the landing page's 1440px frame (`docs-frame.css`), under the landing page's own header (`SiteHeader.astro`, with the search in its slot), so a 1440 or 1920 screen has no empty area at the right.
+- **Columns:** left sidebar (240px, `surface`, hairline edge) | article column (38rem, about 70 characters) | **rail** (up to 384px, narrowing to 176px between 1000 and 1200px) for the TOC and sidenotes. The whole row sits centred in the landing page's 1440px frame (`docs-frame.css`), under the landing page's own header (`SiteHeader.astro`, with the search in its slot), so a 1440 or 1920 screen has no empty area at the right.
   - **Docs home** (`/docs/`, `DocsHome.astro`): a card per section (Start, How it works, Learn, Reference), then the rest as a list.
   - Built by overriding Starlight's `TwoColumnContent` and `PageSidebar`.
   - The article is left-aligned next to the sidebar.
