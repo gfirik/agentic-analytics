@@ -4,6 +4,7 @@ import { ingest } from "@agentic-analytics/ingest";
 import { type NormalizedTable, sql, Workspace } from "@agentic-analytics/store";
 import { afterEach, describe, expect, it } from "vitest";
 import { inRange, normalizeEntity, profileJob, profileTable, runRules, sameNumbers } from "../src/index.ts";
+import { similarPairs } from "../src/profile.sql.ts";
 
 const root = join(import.meta.dirname, "..", "..", "..");
 const files = (...paths: string[]) =>
@@ -145,6 +146,18 @@ describe("entity normalization", () => {
 
   it("knows whether a cell lies in a range", () => {
     expect([inRange("J3", "H1:L7"), inRange("G3", "H1:L7"), inRange("A1", "A1")]).toEqual([true, false, true]);
+  });
+
+  it("the length band leaves out no similar pair: the same pairs as comparing every name with every other", async () => {
+    const ws = await workspace();
+    // Typos, a shared prefix across lengths ("abc" … "abcdefghij"), and multi-byte names (DuckDB compares bytes).
+    const names = ["hotel group", "hotel grop", "hotell group", "bodrum", "bodrun", "martha", "marhta", "dixon", "dicksonx"];
+    names.push(...Array.from({ length: 8 }, (_, i) => "abcdefghij".slice(0, i + 3)), "ééé", "éé", "eee", "ee", "кофе", "кофейня");
+    const every = await ws.all<{ a: string; b: string }>(sql`WITH v AS (SELECT DISTINCT unnest(${JSON.stringify(names)}::VARCHAR[]) AS n)
+      SELECT a.n AS a, b.n AS b FROM v a JOIN v b ON a.n < b.n WHERE jaro_winkler_similarity(a.n, b.n) >= 0.92 ORDER BY a, b`);
+    const banded = await ws.all<{ a: string; b: string }>(similarPairs(names, 0.92));
+    expect(every.length).toBeGreaterThan(5);
+    expect(banded.map(({ a, b }) => [a, b])).toEqual(every.map(({ a, b }) => [a, b]));
   });
 });
 

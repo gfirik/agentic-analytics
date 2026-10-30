@@ -150,9 +150,10 @@ describe("the real datasets' golden sets", () => {
         ).toBe(true);
       }
     },
-    // Five full jobs, each now stating the scorecard and concentration facts that V2 re-runs (M15 PR 10): alone the test
-    // takes about four minutes, and beside the rest of the suite on two workers it ran past five.
-    600_000,
+    // Five full jobs: about three and a half minutes beside the real-data re-run on two workers. Entity matching wrote a
+    // row per statement and compared every pair of names, and Montgomery County's tens of thousands of item names made
+    // its profile take two minutes; with bulk appends and a length band it takes about forty seconds.
+    400_000,
   );
 });
 

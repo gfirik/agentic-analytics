@@ -122,8 +122,18 @@ export const distinctValues = (table: string, column: string): Sql =>
   sql`SELECT ${ident(column)}::VARCHAR AS raw, count(*) AS n FROM ${ident(table)}
       WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL GROUP BY 1 ORDER BY 1`;
 
-/** Pairs of distinct normalized names with Jaro–Winkler similarity at or above `min` (DuckDB built-in). */
-export const similarPairs = (names: readonly string[], min: number): Sql =>
-  sql`WITH v AS (SELECT DISTINCT unnest(${JSON.stringify(names)}::VARCHAR[]) AS n)
-      SELECT a.n AS a, b.n AS b, jaro_winkler_similarity(a.n, b.n) AS s FROM v a JOIN v b ON a.n < b.n
+/**
+ * Pairs of distinct normalized names with Jaro–Winkler similarity at or above `min` (DuckDB built-in). Names whose
+ * lengths are too far apart can't reach `min`, so they are never compared: Jaro is at most (2 + r) / 3 for the length
+ * ratio r = shorter / longer, and the prefix bonus at most 0.4 (1 − Jaro), so JW ≥ min needs r ≥ 5 min − 4 (0.6 at
+ * 0.92). Lengths are in bytes, as DuckDB compares them. The band is a hair wider than the bound, so a pair right on it
+ * ("abcdef", "abcdefghij": exactly 0.92) is still compared despite floating-point error. Without the band the join
+ * compares every pair: tens of thousands of item names took over half a minute.
+ */
+export const similarPairs = (names: readonly string[], min: number): Sql => {
+  const ratio = 5 * min - 4 - 1e-9;
+  return sql`WITH v AS (SELECT DISTINCT unnest(${JSON.stringify(names)}::VARCHAR[]) AS n), w AS (SELECT n, strlen(n) AS l FROM v)
+      SELECT a.n AS a, b.n AS b, jaro_winkler_similarity(a.n, b.n) AS s FROM w a JOIN w b
+        ON a.n < b.n AND b.l >= a.l * ${ratio} AND a.l >= b.l * ${ratio}
       WHERE jaro_winkler_similarity(a.n, b.n) >= ${min} ORDER BY a, b`;
+};
