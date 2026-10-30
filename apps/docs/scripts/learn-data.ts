@@ -555,7 +555,7 @@ async function cliRuns() {
     symlinkSync(join(ROOT, "examples"), join(tmp, "examples"));
     // The CLI's HOME is this empty folder, but DuckDB keeps its extensions under $HOME/.duckdb: link the real one, so
     // the full-text extension every engine run on this machine has installed is reused, not downloaded again (offline,
-    // a download fails the run).
+    // a download fails the run). Like any engine run, it creates ~/.duckdb if missing and installs into it when it must.
     const duckdb = join(homedir(), ".duckdb");
     mkdirSync(duckdb, { recursive: true });
     symlinkSync(duckdb, join(tmp, ".duckdb"));

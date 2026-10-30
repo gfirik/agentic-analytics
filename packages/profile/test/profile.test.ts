@@ -153,6 +153,7 @@ describe("entity normalization", () => {
     // Typos, a shared prefix across lengths ("abc" … "abcdefghij"), and multi-byte names (DuckDB compares bytes).
     const names = ["hotel group", "hotel grop", "hotell group", "bodrum", "bodrun", "martha", "marhta", "dixon", "dicksonx"];
     names.push(...Array.from({ length: 8 }, (_, i) => "abcdefghij".slice(0, i + 3)), "ééé", "éé", "eee", "ee", "кофе", "кофейня");
+    // The oracle is deliberately the old unbanded join, written out here, not routed through similarPairs.
     const every = await ws.all<{ a: string; b: string }>(sql`WITH v AS (SELECT DISTINCT unnest(${JSON.stringify(names)}::VARCHAR[]) AS n)
       SELECT a.n AS a, b.n AS b FROM v a JOIN v b ON a.n < b.n WHERE jaro_winkler_similarity(a.n, b.n) >= 0.92 ORDER BY a, b`);
     const banded = await ws.all<{ a: string; b: string }>(similarPairs(names, 0.92));
@@ -221,8 +222,17 @@ describe("M3 acceptance on coffee-roaster-v1", () => {
       ["OOO Hotel Group", 1],
     ]);
     expect(hotel?.canonical_name).toBe("OOO Hotel Group"); // 8 orders in Jan–Feb vs 4 in March
-    const linked = await ws.all(sql`SELECT raw_value FROM entity_links WHERE entity_id = ${hotel?.id ?? ""} ORDER BY 1`);
-    expect(linked).toEqual([{ raw_value: "Hotel Group LLC" }, { raw_value: "OOO Hotel Group" }]);
+    // Read back as stored: the appender writes numbers as doubles, and row_count is a BIGINT column.
+    const linked = await ws.all(
+      sql`SELECT raw_value, confidence, row_count FROM entity_links WHERE entity_id = ${hotel?.id ?? ""} ORDER BY 1`,
+    );
+    expect(linked).toEqual(
+      [...(hotel?.links ?? [])]
+        .sort((a, b) => a.raw_value.localeCompare(b.raw_value))
+        .map((l) => ({ raw_value: l.raw_value, confidence: l.confidence, row_count: l.row_count })),
+    );
+    expect(linked.map((l) => l.raw_value)).toEqual(["Hotel Group LLC", "OOO Hotel Group"]);
+    expect(linked.every((l) => Number.isInteger(l.row_count) && (l.row_count as number) > 0)).toBe(true);
   });
 
   it("keeps different pack sizes as different products", async () => {
