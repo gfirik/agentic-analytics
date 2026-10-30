@@ -196,17 +196,28 @@ for (const d of ["architecture", "pipeline"])
 //    computed by the eval runner's own summarize(), the same function that writes evals/RESULTS.md.
 {
   const RESULTS = join(ROOT, "evals", "results");
-  const latest = (suffix: string) => {
+  /** The newest results file with this suffix that `keep` accepts. */
+  const latest = (suffix: string, keep: (data: unknown) => boolean = () => true) => {
     const name = readdirSync(RESULTS)
       .filter((f) => f.endsWith(suffix))
       .sort()
-      .at(-1);
+      .reverse()
+      .find((f) => keep(JSON.parse(readFileSync(join(RESULTS, f), "utf8"))));
     if (!name) throw new LandingDataError(`no evals/results/*${suffix}`);
     return { name, data: JSON.parse(readFileSync(join(RESULTS, name), "utf8")) as unknown };
   };
   type SuiteFile = { suite: string; model: string; note?: string; date: string; datasets: number; scores: DatasetScore[]; passes?: Passes };
+  // The latest closed run: one between the passes of a nightly run still has jobs to run, so its rates aren't a
+  // result yet (EVALS §4; the README table leaves it out too).
+  const closed = (data: unknown) => {
+    const s = data as SuiteFile;
+    return (
+      suiteRunLabels({ completed: s.scores.filter((x) => x.completed).length, datasets: s.scores.length, passes: s.passes ?? null })
+        .status !== "resuming"
+    );
+  };
   const suite = (suffix: string) => {
-    const { name, data } = latest(suffix);
+    const { name, data } = latest(suffix, closed);
     const s = data as SuiteFile;
     return {
       file: `evals/results/${name}`,
