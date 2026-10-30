@@ -202,7 +202,7 @@ The engine on three public datasets with their real mess left in: a UK online re
 
 ### Real-model runs
 
-Free models on generated businesses with planted events, distractors and data-quality issues, scored against an answer key. The smoke suite (3 businesses) is the quick check of a model; the full suite (30 businesses) is the nightly regression check: each run takes up to two nights within the free tier's daily quota (the second night runs only the businesses the first night's quota stopped) and is published in a PR, so the latest published run is partial only if businesses are still unfinished after the second night. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
+Free models on generated businesses with planted events, distractors and data-quality issues, scored against an answer key. The smoke suite (3 businesses) is the quick check of a model; the full suite (30 businesses) is the nightly regression check: each run takes up to two nights within the free tier's daily quota (the second night runs only the businesses the first night's quota stopped) and is published in a PR, so the latest published run is partial only if businesses are still unfinished after the second night. A run whose second night hasn't run yet is not in this table; [evals/RESULTS.md](evals/RESULTS.md) lists it. The table shows real models only; the scripted baseline that checks the harness is in [evals/RESULTS.md](evals/RESULTS.md).
 
 <!-- table:evals:start -->
 | Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |
@@ -215,7 +215,6 @@ Free models on generated businesses with planted events, distractors and data-qu
 | configured (small-model mode) | full (30), **partial: 21 of 30 jobs finished** | 70% | 48% | 100% | 0 | 100% | 34 min, 801k tokens | hosted | 2026-10-19 |
 | groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30) | 100% | 68% | 100% | 0 | 100% | 28 min, 1008k tokens | Groq free tier (hosted) | 2026-10-21 |
 | groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **partial: 28 of 30 jobs finished** | 93% | 84% | 100% | 0 | 99% | 54 min, 1051k tokens | Groq free tier (hosted) | 2026-10-23 |
-| groq:qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (small-model mode) | full (30), **in progress: 11 of 30 jobs finished, the next pass runs the rest** | 37% | 30% | 91% | 0 | 100% | 35 min, 621k tokens | Groq free tier (hosted) | 2026-10-27 |
 <!-- table:evals:end -->
 
 The 2026-10-21 full row is the *before* of M14a: the engine before its fixes (#44–#49), scored before code-quality fix 9. The 2026-10-23 full row is the *after*: the same Groq roles on the fixed engine over two nights, with planted recall@5 at 84% against 68% before; 2 of 30 jobs didn't finish (one hit the planner's daily rate limit, one failed output validation) and count as misses. The "planner, extractor, judge" smoke row and the 2026-10-19 "configured" row (the same Groq roles; kept as history, partial) ran the M13a engine; the three single-model smoke rows predate it. Partial runs count unfinished jobs as misses. Details and caveats: [evals/RESULTS.md](evals/RESULTS.md).
