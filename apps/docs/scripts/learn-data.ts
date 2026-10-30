@@ -15,7 +15,7 @@
 //   5. one injection fixture through a full job, the injection screen on every fixture, and the URL checks.
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { privateTerms, screen } from "@agentic-analytics/agent";
 import { JobManager, runJob } from "@agentic-analytics/core";
@@ -553,6 +553,12 @@ async function cliRuns() {
   const tmp = mkdtempSync(join(tmpdir(), "aa-learn-cli-"));
   try {
     symlinkSync(join(ROOT, "examples"), join(tmp, "examples"));
+    // The CLI's HOME is this empty folder, but DuckDB keeps its extensions under $HOME/.duckdb: link the real one, so
+    // the full-text extension every engine run on this machine has installed is reused, not downloaded again (offline,
+    // a download fails the run).
+    const duckdb = join(homedir(), ".duckdb");
+    mkdirSync(duckdb, { recursive: true });
+    symlinkSync(duckdb, join(tmp, ".duckdb"));
     const jobs = join(tmp, "jobs");
     const scripted = { AA_DEMO_MODEL: "scripted", AA_JOBS_DIR: jobs };
     const base = "--embedder hash --today 2026-07-01 --currency USD";
