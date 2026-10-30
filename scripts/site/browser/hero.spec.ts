@@ -497,7 +497,14 @@ test("hero glow: the lead and headline keep AA over the accent at its strongest 
       content:
         ".aa-statement *{color:transparent!important;text-decoration-color:transparent!important} .aa-hf-grid,.aa-hf-grain,.aa-hf-net{display:none!important}",
     });
-    await page.waitForTimeout(200);
+    // Wait for the hidden text to be painted, not a fixed time: beside other spec files on CI's workers, 200 ms was
+    // sometimes too short and the screenshot still held the text (a ratio of exactly 1).
+    await page.waitForFunction(() =>
+      [".aa-statement > .aa-lead", ".aa-hero-title"].every(
+        (s) => getComputedStyle(document.querySelector(s) as Element).color === "rgba(0, 0, 0, 0)",
+      ),
+    );
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const png = (await page.screenshot()).toString("base64");
     const ratios = await page.evaluate(
       async ({ png, colours }) => {
