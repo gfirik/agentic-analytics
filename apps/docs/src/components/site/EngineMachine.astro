@@ -979,16 +979,17 @@ const stillAlt = `The engine drawn as a factory line: ${stations.length} station
   }
   .aa-station-run > div {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: var(--aa-space-3);
     align-items: baseline;
     padding: var(--aa-space-1) 0;
     border-bottom: 1px solid var(--aa-rule);
   }
   .aa-station-run dt {
+    min-width: 9ch; /* a long value wraps in its own column; it never squeezes the label to a few letters a line */
     font: 400 var(--aa-text-note) / 1.5 var(--aa-font-sans);
     color: var(--aa-ink-2);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word; /* unlike "anywhere", it keeps the label's min-content a whole word */
   }
   .aa-station-run dd {
     margin: 0;

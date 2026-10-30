@@ -1,6 +1,6 @@
 // Entity matching (ingestion spec §7): link spellings of the same customer, supplier or product across
 // columns and files. Exact match after normalization, else Jaro–Winkler ≥ 0.92 (DuckDB) plus token overlap.
-import { type NormalizedTable, sql, tableName, type Workspace } from "@agentic-analytics/store";
+import { type NormalizedTable, tableName, type Workspace } from "@agentic-analytics/store";
 import { transliterate } from "./names.ts";
 import { distinctValues, similarity as similarityOf, similarPairs } from "./profile.sql.ts";
 
@@ -197,13 +197,14 @@ export async function matchEntities(ws: Workspace, tables: readonly NormalizedTa
       entities.push({ id, kind, canonical_name: canonical, links });
     }
   }
-  for (const e of entities) {
-    await ws.run(sql`INSERT INTO entities VALUES (${e.id}, ${e.kind}, ${e.canonical_name})`);
-    for (const l of e.links) {
-      await ws.run(
-        sql`INSERT INTO entity_links VALUES (${l.entity_id}, ${l.source_id}, ${l.column}, ${l.raw_value}, ${l.normalized}, ${l.confidence}, ${l.row_count})`,
-      );
-    }
-  }
+  // One appender per table, not a statement per row: a file with tens of thousands of item names has as many entities.
+  await ws.append(
+    "entities",
+    entities.map((e) => [e.id, e.kind, e.canonical_name]),
+  );
+  await ws.append(
+    "entity_links",
+    entities.flatMap((e) => e.links.map((l) => [l.entity_id, l.source_id, l.column, l.raw_value, l.normalized, l.confidence, l.row_count])),
+  );
   return entities;
 }
