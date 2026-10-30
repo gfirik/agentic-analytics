@@ -355,8 +355,8 @@ describe("the published real-data results", () => {
         x.datasets.map((d) => [d.dataset, d.completed, d.checks.map((c) => [c.id, c.pass, c.detail])]);
       expect(outcome(r)).toEqual(outcome(committed));
     },
-    // About four minutes alone since the concentration pack covers every role column (M15 PR 11 prep: Montgomery
-    // County's job alone is about 150 s), and longer beside the golden run inside the full suite.
-    600_000,
+    // About three minutes beside the golden run on two workers; Montgomery County's job is the longest, about 65 s
+    // (its entity matching took two minutes before bulk appends and a length band).
+    400_000,
   );
 });
