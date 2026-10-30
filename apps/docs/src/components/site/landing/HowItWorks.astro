@@ -1,0 +1,19 @@
+---
+// §1 How it works (DESIGN.md §5): a band, the head above the pipeline stages (PipelineStages.astro) at the full width,
+// drawing themselves in as they first scroll into view.
+import PipelineStages from "../PipelineStages.astro";
+import SectionHead from "./SectionHead.astro";
+---
+
+<section id="how" class="aa-sheet" data-reveal aria-labelledby="aa-how-title">
+  <div class="aa-cell aa-band">
+    {/* Site v5 PR 2: the machine above says what each station does, so this head no longer repeats "files in, a
+        checked report out"; it says what these panels add: what one run's stages actually produced. */}
+    <SectionHead n={1} label="How it works" id="aa-how-title" title="What one run produced, stop by stop.">
+      The files it read, the SQL it ran, the figures and the checks, from the same run.
+    </SectionHead>
+    <div class="aa-how">
+      <PipelineStages draw />
+    </div>
+  </div>
+</section>

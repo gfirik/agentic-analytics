@@ -1,0 +1,26 @@
+---
+// The engine machine's band (DESIGN.md §5, §6), directly under the hero. Site v5: the machine's stage fills the screen
+// with no frame around it, so the section has no cell; its head goes into the machine's "head" slot (over the stage's
+// top left from 60rem, above it below that). The lead's station count comes from the recorded run's pipeline data.
+import pipeline from "../../../../../../docs/assets/readme/pipeline.json";
+import type { PipelineData } from "../../pipeline-scene.ts";
+import EngineMachine from "../EngineMachine.astro";
+import { machineStations } from "../engine-machine.ts";
+import SectionHead from "./SectionHead.astro";
+---
+
+<section id="engine" class="aa-sheet aa-engine-band" aria-labelledby="aa-engine-title">
+  <EngineMachine>
+    <SectionHead
+      slot="head"
+      class="aa-engine-head"
+      field={false}
+      label="The engine, opened up"
+      id="aa-engine-title"
+      title="A small factory for business questions."
+    >
+      {machineStations(pipeline as unknown as PipelineData).length} stations, from your files to a checked report. The models work behind glass;
+      every number is made by the database.
+    </SectionHead>
+  </EngineMachine>
+</section>

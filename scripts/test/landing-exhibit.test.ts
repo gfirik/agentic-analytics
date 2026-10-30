@@ -224,9 +224,16 @@ describe("landing markup", () => {
     return out.replace(/\s[a-z-]+="[^"]*"/g, "").replace(ALLOWED, "");
   };
 
-  it("index.astro, Exhibit.astro and PipelineStages.astro type no figures in their text", () => {
+  it("the landing page's sections, Exhibit.astro and PipelineStages.astro type no figures in their text", () => {
     for (const [f, known] of [
-      ["pages/index.astro", "you can audit."],
+      ["pages/index.astro", "<Hero />"],
+      ["components/site/landing/Hero.astro", "you can audit."],
+      ["components/site/landing/EngineBand.astro", "stations, from your files"],
+      ["components/site/landing/HowItWorks.astro", "from the same run."],
+      ["components/site/landing/WhyDifferent.astro", "The model never does arithmetic"],
+      ["components/site/landing/Results.astro", "How quality is measured"],
+      ["components/site/landing/Quickstart.astro", "Four doors, one engine"],
+      ["components/site/landing/SectionHead.astro", "<slot />"],
       ["components/site/Exhibit.astro", "Recorded from a real engine run."],
       ["components/site/PipelineStages.astro", "Play"],
     ] as const) {
@@ -295,8 +302,8 @@ describe("results table run labels (docs/EVALS.md §4)", () => {
       flag: null,
     });
   });
-  it("index.astro takes the labels from the generated data, never from its own count", () => {
-    const page = readFileSync(join(import.meta.dirname, "../../apps/docs/src/pages/index.astro"), "utf8");
+  it("the landing page's results table takes the labels from the generated data, never from its own count", () => {
+    const page = readFileSync(join(import.meta.dirname, "../../apps/docs/src/components/site/landing/Results.astro"), "utf8");
     expect(page).not.toMatch(/completed\s*<\s*(\w+\.)*datasets|n\/a \(partial run\)/);
     expect(page).toContain("const { flag, status, completed, datasets } = c.suite;");
   });
