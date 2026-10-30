@@ -27,7 +27,7 @@ jobs:
         include:
           - { runner: ubuntu-latest, name: aa-linux-x64 }
           - { runner: ubuntu-24.04-arm, name: aa-linux-arm64 }
-          - { runner: macos-14, name: aa-macos-arm64 }
+          - { runner: macos-15, name: aa-macos-arm64 }
           - { runner: windows-latest, name: aa-windows-x64.exe }
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
