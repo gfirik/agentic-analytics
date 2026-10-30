@@ -1,0 +1,206 @@
+---
+// §2 Why it's different (DESIGN.md §5): a band, the head above exactly three proofs, each with one real example from
+// the recorded run (src/data/exhibit.json and the pipeline scene's data): the report's first sentence as the model
+// wrote it (placeholders) and as the reader sees it, the metric's definition with the SQL it compiles to, and a quoted
+// citation. Nothing is typed by hand.
+import pipeline from "../../../../../../docs/assets/readme/pipeline.json";
+import exhibit from "../../../data/exhibit.json";
+import { firstSentence, type LinePart, placeholders } from "../exhibit.ts";
+import { withBase } from "../site.ts";
+import { check } from "./marks.ts";
+import SectionHead from "./SectionHead.astro";
+
+const notes = (
+  exhibit as unknown as { notes: Record<string, { id: string; value: string; quote?: string; label: string; sql?: string[] }> }
+).notes;
+// The first cell: the report's first sentence as the model wrote it (placeholders) and as the reader sees it.
+const sentence = firstSentence((exhibit as unknown as { lines: LinePart[][] }).lines[0] ?? []);
+const cause = Object.values(notes).find((n) => n.quote);
+const metric = pipeline.metric;
+// The metric's compiled SQL, two lines from the first SQL fact's recorded query (landing-data.ts exhibitData()).
+const compiled = (exhibit as unknown as { compiled: { fact: string; lines: string[] } }).compiled;
+---
+
+<section id="why" class="aa-sheet" data-reveal aria-labelledby="aa-why-title">
+  <div class="aa-cell aa-band">
+    <SectionHead n={2} label="Why it's different" id="aa-why-title" title="Built so you don't have to take its word for it.">
+      Three rules the engine can't break.
+    </SectionHead>
+    <ul class="aa-proofs">
+      <li class="aa-proof">
+        <p class="aa-label">01 · Arithmetic</p>
+        <h3 class="aa-h3">The model never does arithmetic</h3>
+        <p>The model writes placeholders; every figure is a fact computed by SQL or a deterministic function, then recomputed.</p>
+        <div class="aa-proof-ex">
+          <p class="aa-label aa-proof-cap">The model writes</p>
+          <code class="aa-proof-raw">{placeholders(sentence)}</code>
+          <p class="aa-label aa-proof-cap">You read</p>
+          <p class="aa-proof-out">
+            {
+              sentence.map((p) =>
+                p.fact ? (
+                  <span class="aa-num"><span class="aa-fig">{notes[p.fact]?.value ?? p.fact}</span><a
+                      class="aa-chip"
+                      href={`#fact-${p.fact}`}
+                      aria-label={`${p.fact}, verified`}><Fragment set:html={check} />{p.fact}</a></span>
+                ) : (
+                  p.text
+                ),
+              )
+            }
+          </p>
+        </div>
+        <a class="aa-more" href={withBase("how-it-works/pipeline/")}>The pipeline</a>
+      </li>
+      <li class="aa-proof">
+        <p class="aa-label">02 · Definitions</p>
+        <h3 class="aa-h3">Definitions you confirm</h3>
+        <p>Each metric is drafted in plain words and YAML before anything is measured. You accept, edit or drop it.</p>
+        <div class="aa-proof-ex">
+          <p class="aa-proof-def">
+            <code>{metric.id}</code>: {metric.formula}, per {metric.grain} · {metric.status} · compiles to
+          </p>
+          <pre class="aa-proof-code" data-language="sql"><code>{compiled.lines.join("\n")}</code></pre>
+        </div>
+        <a class="aa-more" href={withBase("how-it-works/metrics/")}>The metric layer</a>
+      </li>
+      <li class="aa-proof">
+        <p class="aa-label">03 · Citations</p>
+        <h3 class="aa-h3">Every claim is cited</h3>
+        <p>Causes come from your documents, quoted exactly and checked against the source, and graded by how strong they are.</p>
+        <div class="aa-proof-ex">
+          {
+            cause ? (
+              <p class="aa-proof-example">
+                <q>{cause.quote}</q>{" "}
+                <a class="aa-chip" href={`#source-${cause.id}`} aria-label={`${cause.id}, checked`}>
+                  <Fragment set:html={check} />
+                  {cause.id}
+                </a>
+                <span class="aa-proof-src">{cause.label}</span>
+              </p>
+            ) : null
+          }
+        </div>
+        <a class="aa-more" href={withBase("how-it-works/verifier/")}>The verifier</a>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<style>
+  /* §2: three proofs. Stacked under 52rem; from there three cells side by side across the band, their five parts on
+     rows shared across the cells (subgrid), so the example boxes line up and match in height (site v3, finding 13).
+     Site v5: the wide row's three ruled rows beside the head are gone with the head column. */
+  .aa-proofs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    border-top: 1px solid var(--aa-rule);
+  }
+  .aa-proof {
+    display: grid;
+    gap: var(--aa-space-3);
+    padding: var(--aa-space-6) 0;
+  }
+  .aa-proof + .aa-proof {
+    border-top: 1px solid var(--aa-rule);
+  }
+  @media (min-width: 52rem) {
+    .aa-proofs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .aa-proof {
+      grid-row: span 5;
+      grid-template-rows: subgrid;
+      padding: var(--aa-space-6) var(--aa-space-5);
+    }
+    .aa-proof:first-child {
+      padding-left: 0;
+    }
+    .aa-proof:last-child {
+      padding-right: 0;
+    }
+    .aa-proof + .aa-proof {
+      border-top: 0;
+      border-left: 1px solid var(--aa-rule);
+    }
+  }
+  @media (min-width: 68.75rem) {
+    .aa-proof {
+      padding-inline: var(--aa-space-6);
+    }
+  }
+  .aa-proofs p:not(.aa-label) {
+    color: var(--aa-ink-2);
+    font-size: var(--aa-text-small);
+  }
+  .aa-proof-ex {
+    display: grid;
+    align-content: start;
+    gap: var(--aa-space-2);
+    padding: var(--aa-space-3);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-raised);
+  }
+  .aa-proofs .aa-proof-ex > * {
+    margin: 0;
+  }
+  .aa-proof-raw {
+    display: block;
+    font-size: var(--aa-text-code);
+    line-height: 1.6;
+    color: var(--aa-ink-2);
+    overflow-wrap: anywhere;
+  }
+  .aa-proofs p.aa-proof-out {
+    font-size: var(--aa-text-small);
+    line-height: 1.75;
+    color: var(--aa-ink);
+  }
+  .aa-proofs .aa-proof-example {
+    color: var(--aa-ink);
+  }
+  .aa-proof-example code {
+    font-size: var(--aa-text-code);
+  }
+  .aa-proof-src {
+    display: block;
+    margin-top: var(--aa-space-1);
+    font: 400 var(--aa-text-label) / 1.4 var(--aa-font-mono);
+    color: var(--aa-ink-3);
+  }
+  .aa-proofs p.aa-proof-def {
+    color: var(--aa-ink);
+    font-size: var(--aa-text-note);
+  }
+  .aa-proof-code {
+    margin: 0;
+    padding: var(--aa-space-3);
+    border: 1px solid var(--aa-rule);
+    border-radius: var(--aa-radius);
+    background: var(--aa-page);
+    font-size: var(--aa-text-code);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .aa-more {
+    justify-self: start;
+    font-weight: 500;
+    font-size: var(--aa-text-small);
+  }
+  /* Its arrow steps 3px forward on hover (transform only). */
+  .aa-more::after {
+    content: "→";
+    display: inline-block;
+    margin-left: 0.3em;
+    transition: transform var(--aa-fast) var(--aa-ease);
+  }
+  .aa-more:hover::after {
+    transform: translateX(3px);
+  }
+</style>
