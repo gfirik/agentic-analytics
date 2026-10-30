@@ -1,5 +1,5 @@
-// The engine machine's live view (DESIGN.md §6 "Engine machine", §7): the chunk EngineMachine.astro starts on idle
-// after load, once the band is near. It draws machine-scene.ts (batched by machine-batch.ts) with three.js over the still
+// The engine machine's live view (DESIGN.md §6 "Engine machine", §7): the chunk engine-machine-client.ts starts on
+// idle after load, once the band is near. It draws machine-scene.ts (batched by machine-batch.ts) with three.js over the still
 // frame and places the station labels (the HTML buttons the server rendered) from projected coordinates. The page script
 // owns the scroll position, the mode, the station card and the list; this module only moves the camera to where it is
 // told (the tour) or hands it to the reader (explore: three's OrbitControls), highlights pieces, and reports which piece
