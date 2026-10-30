@@ -23,7 +23,7 @@ The product site: a custom landing page and the Astro Starlight docs, deployed t
 
 Everything it writes is gitignored. The pipeline stages' data is the exception: it is the README GIF's data, so it is checked in at `docs/assets/readme/pipeline.json`. `scripts/pipeline-data.ts --write` regenerates it from one web-enabled run (scripted planner, offline web fixture) — the event log's stage order, the verified report's facts and citations, the verifier's check table — and a test (`scripts/test/pipeline.test.ts`) reruns the engine and fails if the file drifts.
 
-The Learn section's data is checked in too, at `docs/assets/learn/learn.json`: `scripts/learn-data.ts --write` records it from real runs (the same web-enabled run as `pipeline.json`, the CLI's own output for each tutorial, the MCP server, the model router on a scripted transport, an injection fixture), and `scripts/test/learn.test.ts` re-records it and fails on drift.
+The Learn section's data is checked in too, at `docs/assets/learn/learn.json`: `scripts/learn-data.ts --write` records it from real runs (the same web-enabled run as `pipeline.json`, the CLI's own output for each tutorial, the MCP server, the model router on a scripted transport, an injection fixture), one module per stage in `scripts/learn/` (`run.ts`, `cli.ts`, `mcp.ts`, `router.ts`, `security.ts`, plus `real.ts`, `flows.ts` and `shared.ts`), and `scripts/test/learn.test.ts` re-records it and fails on drift.
 
 Mermaid diagrams come from the same `docs/assets/diagrams/*.mmd` files the README embeds.
 
