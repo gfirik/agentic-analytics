@@ -67,6 +67,9 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
         .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as ResultFile)
         // The real-data tier has its own table (realDataTable).
         .filter((r) => !r.model.startsWith("baseline") && r.suite !== "real")
+        // A run between the passes of a nightly run is not shown: its unfinished jobs are still to run, so its rates
+        // aren't a result yet. RESULTS.md lists it as resuming (EVALS §4).
+        .filter((r) => runStatus(finished(r), r.datasets, r.passes) !== "resuming")
     : [];
   const head = [
     "| Model | Suite | Jobs completed | Planted recall@5 | Driver accuracy | Number mismatches | Citation precision | Cost / time | Hardware | Date |",
@@ -84,20 +87,19 @@ export function evalsTable(dir = join(ROOT, "evals/results")): string {
       const hosted = hostOf(r.model);
       const tokens = r.tokens.input + r.tokens.output;
       // A run whose jobs didn't all finish (a free tier's daily quota) is labelled partial: its rates count the
-      // unfinished jobs as misses, so they are not the model's quality. A run carried over nightly passes is partial
-      // only once its last pass is done; before that its unfinished jobs are still to run (EVALS §4).
-      const done = Math.round((r.bars.find((b) => b.metric === "Jobs completed")?.value ?? 1) * r.datasets);
-      const status = runStatus(done, r.datasets, r.passes);
+      // unfinished jobs as misses, so they are not the model's quality.
+      const done = finished(r);
       const suite =
-        status === "partial"
+        done < r.datasets
           ? `${r.suite} (${r.datasets}), **partial: ${done} of ${r.datasets} jobs finished**`
-          : status === "resuming"
-            ? `${r.suite} (${r.datasets}), **in progress: ${done} of ${r.datasets} jobs finished, the next pass runs the rest**`
-            : `${r.suite} (${r.datasets})`;
+          : `${r.suite} (${r.datasets})`;
       return `| ${r.model.replace(/^openai-compatible:/, "")} | ${suite} | ${pct(r, "Jobs completed")} | ${pct(r, "Planted recall@5")} | ${pct(r, "Driver accuracy")} | ${num(r, "Number mismatches")} | ${pct(r, "Citation precision")} | ${Math.round(r.seconds / 60)} min, ${Math.round(tokens / 1000)}k tokens | ${hosted} | ${r.date ?? "n/a"} |`;
     }),
   ].join("\n");
 }
+
+/** The jobs a run finished, from its "Jobs completed" rate. */
+const finished = (r: ResultFile) => Math.round((r.bars.find((b) => b.metric === "Jobs completed")?.value ?? 1) * r.datasets);
 
 /** Where a run's model ran, from its model string: a vLLM label names its hardware (aa eval --label). */
 export function hostOf(model: string): string {
