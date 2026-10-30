@@ -161,7 +161,7 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
   });
 
   it("small-model mode: at most three findings and two recommendations, no tool loop", async () => {
-    const m = coffeePlanner({ small: true });
+    const m = coffeePlanner();
     const r = await runJob({ dir: tempDir(), files, options: { ...options, smallModel: true } }, { model: m, embedder: hashEmbedder() });
     expect(r.report.findings.length).toBeLessThanOrEqual(3);
     expect(r.report.recommendations.length).toBeLessThanOrEqual(2);
@@ -196,7 +196,7 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
     // The coffee fixture's small-model DECIDE request is about 5,700 estimated tokens; 3,500 takes most trimming steps.
     const budget = 3500;
     const run = async (inputTokens?: number) => {
-      const m = coffeePlanner({ small: true });
+      const m = coffeePlanner();
       const r = await runJob(
         { dir: tempDir(), files, options: { ...options, smallModel: true, ...(inputTokens ? { budget: { inputTokens } } : {}) } },
         { model: m, embedder: hashEmbedder() },
@@ -220,7 +220,7 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
   }, 180_000);
 
   it("small-model mode: a DECIDE request that can't fit the budget is not sent, and the report ships its findings without recommendations (§8.1)", async () => {
-    const m = coffeePlanner({ small: true });
+    const m = coffeePlanner();
     const r = await runJob(
       { dir: tempDir(), files, options: { ...options, smallModel: true, budget: { inputTokens: 500 } } },
       { model: m, embedder: hashEmbedder() },

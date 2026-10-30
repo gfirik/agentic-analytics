@@ -44,6 +44,25 @@ describe("aa analyze", () => {
     expect(report.roles?.find((r) => r.table_id === "T1" && r.column === "amount")?.assumption).toBeDefined();
   }, 180_000);
 
+  it("--small-model on the scripted planner the CLI builds once (AA_DEMO_MODEL=scripted): the job completes", async () => {
+    // The planner was built for normal mode only, so a small-model job failed at EXPLAIN (QA on #117). Its own job
+    // folder, so `aa jobs ls` below lists only this file's other jobs.
+    const planner = coffeePlanner();
+    const small = new JobManager({
+      root: join(tmp, "jobs-small"),
+      model: planner,
+      deps: () => ({ model: planner, embedder: hashEmbedder() }),
+    });
+    const r = await analyzeCommand(
+      { files, options: { ...options, smallModel: true }, out: join(tmp, "out-small"), jobId: "cli-small" },
+      { manager: small, print: () => {} },
+    );
+    expect(r.code).toBe(0);
+    const report = JSON.parse(readFileSync(r.reportPath as string, "utf8")) as Report;
+    expect(report.findings.length).toBeGreaterThan(0);
+    expect(report.findings.length).toBeLessThanOrEqual(3);
+  }, 180_000);
+
   it("interactive review: roles and metrics on one screen; accepting everything confirms both", async () => {
     const lines: string[] = [];
     const asked: string[] = [];
