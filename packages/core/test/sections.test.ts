@@ -66,7 +66,7 @@ describe("the scorecard in report.json (analysis-library §12)", () => {
     try {
       const s = await runJob(
         { dir: small, files, options: { today: "2026-07-01", currency: "USD", smallModel: true } },
-        { model: coffeePlanner({ small: true }), embedder: hashEmbedder() },
+        { model: coffeePlanner(), embedder: hashEmbedder() },
       );
       const cells = (r: Report) => (r.scorecard?.rows ?? []).map((x) => [x.metric_id, fact(x.value).label, x.material]);
       expect(s.report.scorecard?.rows.map((x) => [x.metric_id, s.report.facts.find((f) => f.id === x.value)?.label, x.material])).toEqual(

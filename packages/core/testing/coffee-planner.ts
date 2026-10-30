@@ -339,19 +339,20 @@ function answer(r: FakeRequest): unknown {
 }
 
 /**
- * The scripted model for a full coffee-roaster job (normal or small-model mode). `sloppyDecide` answers DECIDE as the nightly runs' real planner often did (M14a): a numeral sentence in one
+ * The scripted model for a full coffee-roaster job, normal or small-model mode: the mode is read from the explanation
+ * prompt the job sends ("Write the explanation" or "Fill the form"), so one planner serves both. `sloppyDecide` answers DECIDE as the nightly runs' real planner often did (M14a): a numeral sentence in one
  * candidate's risk, an empty not_advised, and one extra candidate whose rationale carries a free numeral.
  */
 export function coffeePlanner(
-  options: { small?: boolean; web?: boolean; sloppyDecide?: boolean; searchDates?: { from: string; to: string } } = {},
+  options: { web?: boolean; sloppyDecide?: boolean; searchDates?: { from: string; to: string } } = {},
 ): FakeModel {
-  const small = options.small === true;
   const web = options.web === true;
   const decideAnswer = options.sloppyDecide ? sloppy : candidates;
   return new FakeModel([
     { role: "extractor", match: "<document", repeat: true, object: extract },
     { role: "planner", match: "Investigate finding", repeat: true, steps: (r: FakeRequest) => investigate(r, web, options.searchDates) },
-    { role: "planner", match: /Write the explanation|Fill the form/, repeat: true, object: (r: FakeRequest) => explanation(r, small) },
+    { role: "planner", match: "Write the explanation", repeat: true, object: (r: FakeRequest) => explanation(r, false) },
+    { role: "planner", match: "Fill the form", repeat: true, object: (r: FakeRequest) => explanation(r, true) },
     { role: "planner", match: "Propose the candidate actions", repeat: true, object: decideAnswer },
     { role: "planner", match: "Write the headline", repeat: true, object: headline },
     { role: "planner", match: "Answer the question", repeat: true, object: answer },

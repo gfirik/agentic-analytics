@@ -20,7 +20,7 @@ const small = args.includes("--small");
 const slow = Number(opt("--slow-ms") ?? 0);
 const wait = () => new Promise((r) => setTimeout(r, slow));
 
-const fake = coffeePlanner({ small });
+const fake = coffeePlanner();
 const model: ModelClient = slow
   ? {
       generateObject: async (a) => {
