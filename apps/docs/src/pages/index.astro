@@ -1241,6 +1241,7 @@ AA_DEMO_MODEL=scripted bun run aa analyze examples/coffee-roaster --yes --embedd
       grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
       column-gap: var(--aa-space-6);
       align-items: start;
+      grid-template-rows: auto 1fr; /* the note sits under its label, not centred against the command */
     }
     .aa-step > .aa-label {
       grid-column: 1;

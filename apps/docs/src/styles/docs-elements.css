@@ -5,6 +5,7 @@
    A component marked .not-content (the pipeline stages) keeps its own table and code styles. */
 .sl-markdown-content table:where(:not(.not-content *)) {
   display: block;
+  width: fit-content; /* the frame hugs the table: a narrow table does not leave an empty strip inside the border */
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--aa-rule);
@@ -25,6 +26,14 @@
   padding: var(--aa-space-2) var(--aa-space-3);
   background: transparent;
   vertical-align: top;
+}
+/* From tablet width up, a name in a cell is never cut mid-word: the column grows instead. On a phone the table keeps
+   wrapping so every column stays on screen; scrolling would hide the last one. */
+@media (min-width: 48rem) {
+  .sl-markdown-content :is(th, td, td code):where(:not(.not-content *)) {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
 }
 .sl-markdown-content tr:last-child :is(td):where(:not(.not-content *)) {
   border-bottom: 0;
