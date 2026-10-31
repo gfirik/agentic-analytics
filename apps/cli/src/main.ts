@@ -48,9 +48,7 @@ import { embedderChoice, isStandalone, onlyIds, onlyProblem, replayProblem, resu
 import { todayOf, todayProblem } from "./today.ts";
 import { UsageError, usageCommand } from "./usage.ts";
 
-// The CLI reads .env like the server will; values stay in process.env and are never printed. A .env in any folder but
-// the repo's own is named on stderr: one inside a client's unpacked files could point the model routes elsewhere
-// (security §6).
+// .env from the folder `aa` runs in; one outside the repo is named (env.ts, security §6).
 loadDotEnv(import.meta.dirname);
 const CONFIG_FILE = "agentic-analytics.config.yaml";
 const configFile = () => (existsSync(CONFIG_FILE) ? (parse(readFileSync(CONFIG_FILE, "utf8")) as unknown) : undefined);

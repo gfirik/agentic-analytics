@@ -72,7 +72,7 @@
 
 - **Defaults:** Ollama, local, and **no telemetry** anywhere.
 - **Hosted endpoints.** When a hosted free endpoint is configured, `agentic-analytics doctor` and the first-run CLI print a warning: "Your data will be sent to <provider>; some free tiers use prompts for training. Use local models for real client data."
-- **Settings files.** The CLI reads `.env` from the folder it runs in. A `.env` anywhere but the repo's own is named on stderr (`aa: reading settings from <path>`), because one inside a client's files could set the model routes; its values are never printed.
+- **Settings files.** The CLI reads `.env` from the folder it runs in. A `.env` anywhere but the repo's own is named on stderr (`aa: reading settings from <path>`), because one inside a client's files could set the model routes; its values are never printed. The standalone binary has no repo, so it names every `.env`.
 - **Logs** never include raw cell values or document text unless `LOG_LEVEL=debug-data` is set explicitly.
 - **Keys** never leave the process in text: provider error messages (and their cause chain) and call records mask the configured key values (≥ 8 characters, any format) and key-like prefixes (`gsk_`, `sk-`, `csk-`, `sk_`, `AIza`, `nvapi-`, `bearer …`) before they reach a log, `status.json`, an SSE event, an API or MCP reply or a chat.
 

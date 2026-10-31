@@ -4,14 +4,19 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-/** The line naming a .env read from `cwd`, or undefined for the repo's own (`root`). */
+/** The line naming a .env read from `cwd`, or undefined for the repo's own (`root`). Quoted, so a folder name can't
+ * put control characters on the terminal. */
 export function dotEnvNotice(cwd: string, root: string): string | undefined {
   const path = resolve(cwd, ".env");
-  return path === resolve(root, ".env") ? undefined : `aa: reading settings from ${path}`;
+  return path === resolve(root, ".env") ? undefined : `aa: reading settings from ${JSON.stringify(path)}`;
 }
 
 /** Loads `<cwd>/.env` when there is one; `srcDir` is this package's src (or dist) folder, three levels under the repo. */
-export function loadDotEnv(srcDir: string, cwd = process.cwd(), warn = (line: string) => process.stderr.write(`${line}\n`)): void {
+export function loadDotEnv(
+  srcDir: string,
+  cwd = process.cwd(),
+  warn: (line: string) => void = (line) => process.stderr.write(`${line}\n`),
+): void {
   const path = join(cwd, ".env");
   if (!existsSync(path)) return;
   process.loadEnvFile(path);
