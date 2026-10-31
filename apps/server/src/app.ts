@@ -244,16 +244,37 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
         // History first, then live events. Only a live terminal event ends the stream: a resumed job's history
         // holds an earlier `awaiting_confirmation`.
         let live = false;
+        let aborted = false;
         let writes = Promise.resolve();
+        // One failed write stops the stream: later events are not written to it, and the error is reported once
+        // instead of becoming an unhandled rejection.
+        let broken = false;
+        const send = (m: { event: string; id?: string; data: string }) => {
+          writes = writes
+            .then(() => (broken || aborted ? undefined : stream.writeSSE(m)))
+            .catch((err: unknown) => {
+              broken = true;
+              o.onError?.(err instanceof Error ? err : new Error(String(err)));
+            });
+        };
         let unsubscribe: (() => void) | undefined;
         const finished = new Promise<void>((resolve) => {
-          stream.onAbort(() => resolve());
+          stream.onAbort(() => {
+            aborted = true;
+            resolve();
+          });
           void manager
             .subscribe(id, (e) => {
-              writes = writes.then(() => stream.writeSSE({ event: e.type, id: String(e.seq), data: JSON.stringify(e) }));
+              send({ event: e.type, id: String(e.seq), data: JSON.stringify(e) });
               if (live && (e.type === "done" || e.type === "failed" || e.type === "awaiting_confirmation")) void writes.then(resolve);
             })
             .then(async (u) => {
+              // The client left while the history was read: `finished` already ran its cleanup, so drop the listener
+              // here, or it stays registered for the life of the process.
+              if (aborted) {
+                u();
+                return;
+              }
               unsubscribe = u;
               live = true;
               const s = await manager.status(id);
@@ -272,8 +293,8 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
                 type: "failed",
                 error: { code, message: "the job's events could not be read" },
               };
-              writes = writes.then(() => stream.writeSSE({ event: "failed", data: JSON.stringify(failed) }));
-              void writes.then(resolve, resolve);
+              send({ event: "failed", data: JSON.stringify(failed) });
+              void writes.then(resolve);
             });
         });
         await finished;

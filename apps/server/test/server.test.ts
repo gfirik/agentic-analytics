@@ -214,6 +214,43 @@ describe("HTTP API", () => {
     expect(text).toContain('"code":"NOT_FOUND"');
   });
 
+  it("a client that leaves while the history is read leaves no listener behind", async () => {
+    const listeners = () => (manager as unknown as { listeners: Map<string, Set<unknown>> }).listeners.get(id)?.size ?? 0;
+    const before = listeners();
+    let release = () => {};
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    // The history read is slow: the client is gone before subscribe resolves.
+    const slow = Object.assign(Object.create(manager) as JobManager, {
+      subscribe: async (jobId: string, l: (e: JobEvent) => void) => {
+        await gate;
+        return manager.subscribe(jobId, l);
+      },
+    });
+    const res = await createApp(slow).request(`/v1/jobs/${id}/events`);
+    await res.body?.cancel();
+    release();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(listeners()).toBe(before);
+  });
+
+  it("a write that fails ends the stream and is reported, not an unhandled rejection", async () => {
+    const logged: unknown[] = [];
+    // An event type with a newline: writeSSE refuses it.
+    const bad = Object.assign(Object.create(manager) as JobManager, {
+      subscribe: async (jobId: string, l: (e: JobEvent) => void) => {
+        l({ job_id: jobId, seq: 0, at: new Date().toISOString(), type: "done\nevent: x" } as unknown as JobEvent);
+        l({ job_id: jobId, seq: 1, at: new Date().toISOString(), type: "done" } as unknown as JobEvent);
+        return () => {};
+      },
+    });
+    const res = await createApp(bad, { onError: (e) => logged.push(e) }).request(`/v1/jobs/${id}/events`);
+    expect(await res.text()).toBe("");
+    expect(logged).toHaveLength(1);
+    expect(String(logged[0])).toMatch(/must not contain/);
+  });
+
   it("refuses a `today` that is not a calendar date with a 400", async () => {
     for (const today of ["2026-13-45", "2026-02-30"]) {
       const res = await app.request("/v1/jobs", { method: "POST", body: upload({ today }) });
