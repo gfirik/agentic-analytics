@@ -575,6 +575,7 @@ These are checks that need something this machine doesn't have yet, such as a re
 - [final v0.1 review, security] `htmlToText` runs in linear time (tag ends precomputed per position, delimiter searches that stop once no later match can exist, an amortised O(1) skip stack with no depth cap, since an untracked level would let a closer end a hidden region early) and its output is unchanged (differential fuzz of 400k inputs) — security.md §4, packages/web/src/html.ts
 
 ## Known gaps carried forward
+- [final v0.1 review, security] A workbook or document with more than 1,000 ZIP entries is refused as `too_large` (`MAX_ZIP_ENTRIES`). Excel writes about 3 parts per sheet, so a workbook of about 330 or more sheets hits it. It bounds SheetJS's quadratic per-entry copy; parsing in a worker thread with a hard kill (the M13b gap) would let it rise.
 - [M15 PR 11] A4 is below its bar offline: kpi 8/15 = 53.3%, margin 5/7 = 71.4%, pareto 2/6 = 33.3% against 85% each (scripted; the misses are `ask` items and retail G13). The real-model run is DEFERRED and the slot is paused.
 - [M15 PR 11] `aa eval --suite roles --model <model>` is refused, so the queued `roles-m15` line (the model tie-break among the detector's candidates) can't run until that measurement is built.
 - [M15 PR 11] The margin dataset's 2026-05 price event (gross margin +818.20) is not in the top 5 findings: ranking prefers the latest month (2026-05 → 2026-06 changes take F3–F5). Planted recall 1/2 on that dataset.
