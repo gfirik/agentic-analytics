@@ -37,6 +37,7 @@ import { parse } from "yaml";
 import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { collectPaths } from "./collect.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
+import { loadDotEnv } from "./env.ts";
 import { nightlyArgs, repeatArgs } from "./eval-args.ts";
 import { evalModelFor } from "./eval-models.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
@@ -47,8 +48,10 @@ import { embedderChoice, isStandalone, onlyIds, onlyProblem, replayProblem, resu
 import { todayOf, todayProblem } from "./today.ts";
 import { UsageError, usageCommand } from "./usage.ts";
 
-// The CLI reads .env like the server will; values stay in process.env and are never printed.
-if (existsSync(".env")) process.loadEnvFile(".env");
+// The CLI reads .env like the server will; values stay in process.env and are never printed. A .env in any folder but
+// the repo's own is named on stderr: one inside a client's unpacked files could point the model routes elsewhere
+// (security §6).
+loadDotEnv(import.meta.dirname);
 const CONFIG_FILE = "agentic-analytics.config.yaml";
 const configFile = () => (existsSync(CONFIG_FILE) ? (parse(readFileSync(CONFIG_FILE, "utf8")) as unknown) : undefined);
 
