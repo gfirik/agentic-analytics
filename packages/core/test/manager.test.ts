@@ -1,6 +1,6 @@
 // M10: the job manager every door uses. A job paused for metric review resumes once definitions are confirmed,
 // RENDER writes report.html, follow-up answers are verified claims, and a number can be explained.
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
@@ -160,5 +160,128 @@ describe("JobManager.subscribe", () => {
     const seqs = got.map((e) => e.seq);
     expect(seqs).toEqual(seqs.map((_, i) => i));
     expect(seqs.at(-1)).toBe((await manager.events(id)).length);
+  });
+});
+
+describe("JobManager: one writer per job", () => {
+  // A job that fails before it touches DuckDB: resume and confirm reach their first await at once.
+  const failing = () =>
+    new JobManager({
+      root: mkdtempSync(join(root, "busy-")),
+      model,
+      deps: () => {
+        throw new Error("no model");
+      },
+    });
+  const csv = [{ name: "a.csv", bytes: new TextEncoder().encode("a,b\n1,2\n") }];
+
+  it("two concurrent resumes: one queues the job, the other is BUSY", async () => {
+    const m = failing();
+    await m.create(csv, { today: "2026-07-01" }, "twice");
+    expect((await m.wait("twice")).status).toBe("failed");
+    const out = await Promise.allSettled([m.resume("twice"), m.resume("twice")]);
+    expect(out.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+    expect(out.find((r) => r.status === "rejected")).toMatchObject({ reason: { code: "BUSY" } });
+    await m.wait("twice");
+  });
+
+  it("a resume, a metrics read or a delete during a confirm is BUSY", async () => {
+    const m = failing();
+    await m.create(csv, { today: "2026-07-01" }, "held");
+    await m.wait("held");
+    const confirming = m.confirm("held", "metrics: []\n");
+    await expect(m.resume("held")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.metrics("held")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.delete("held")).rejects.toMatchObject({ code: "BUSY" });
+    await confirming.catch(() => undefined);
+    // Released once the confirm ends, whatever its outcome.
+    await m.resume("held");
+    await m.wait("held");
+  });
+
+  it("a resume, a confirm or a delete during an open metrics read is BUSY", async () => {
+    const m = failing();
+    await m.create(csv, { today: "2026-07-01" }, "read");
+    await m.wait("read");
+    // The read counts as open from the call itself, before its first await.
+    const reading = m.metrics("read");
+    await expect(m.resume("read")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.confirm("read", "metrics: []\n")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.delete("read")).rejects.toMatchObject({ code: "BUSY" });
+    await reading.catch(() => undefined);
+    await m.resume("read");
+    await m.wait("read");
+  });
+});
+
+describe("JobManager: status files and upload names", () => {
+  const bytes = new TextEncoder().encode("a,b\n1,2\n");
+  const idle = () =>
+    new JobManager({
+      root: mkdtempSync(join(root, "files-")),
+      model,
+      deps: () => {
+        throw new Error("no model");
+      },
+    });
+
+  it("a failed status write leaves the previous status.json whole", async () => {
+    const m = idle();
+    await m.create([{ name: "a.csv", bytes }], { today: "2026-07-01" }, "atomic");
+    await m.wait("atomic");
+    const path = join(m.root, "atomic", "status.json");
+    const before = readFileSync(path, "utf8");
+    // The temporary sibling can't be created: the write fails before the real file is touched.
+    mkdirSync(`${path}.${process.pid}.tmp`);
+    const internal = m as unknown as { write(id: string, patch: Partial<JobStatus>): JobStatus };
+    expect(() => internal.write("atomic", { status: "queued" })).toThrow();
+    expect(readFileSync(path, "utf8")).toBe(before);
+  });
+
+  it("a job whose status.json is cut short is listed as failed, and the rest still list", async () => {
+    const m = idle();
+    await m.create([{ name: "a.csv", bytes }], { today: "2026-07-01" }, "good");
+    await m.create([{ name: "a.csv", bytes }], { today: "2026-07-01" }, "torn");
+    await m.wait("good");
+    await m.wait("torn");
+    writeFileSync(join(m.root, "torn", "status.json"), '{"job_id": "torn", "sta');
+    const list = await m.list();
+    expect(list.map((s) => s.job_id)).toEqual(["good", "torn"]);
+    expect(list[1]).toMatchObject({ status: "failed", error: { code: "UNREADABLE_STATUS" } });
+    // A resume writes a whole status again.
+    await m.resume("torn");
+    await m.wait("torn");
+    expect(JSON.parse(readFileSync(join(m.root, "torn", "status.json"), "utf8")).job_id).toBe("torn");
+  });
+
+  it("cleans and shortens upload names: NUL and control characters, 300-character names", async () => {
+    const m = idle();
+    const long = `${"é".repeat(300)}.csv`;
+    await m.create(
+      [
+        { name: "sa\u0000les\n.csv", bytes },
+        { name: long, bytes },
+        { name: long, bytes },
+      ],
+      { today: "2026-07-01" },
+      "names",
+    );
+    const names = readdirSync(join(m.root, "names", "input")).sort();
+    expect(names).toHaveLength(3);
+    expect(names).toContain("sales.csv");
+    for (const n of names) {
+      expect(new TextEncoder().encode(n).length).toBeLessThanOrEqual(255);
+      expect(n.endsWith(".csv")).toBe(true);
+    }
+    expect(names.some((n) => n.endsWith(" (2).csv"))).toBe(true);
+    await m.wait("names");
+  });
+
+  it("a job that can't be written leaves no folder behind", async () => {
+    const m = idle();
+    // JSON can't hold a BigInt: options.json fails after the input files are written.
+    const options = { today: "2026-07-01", objective: 1n } as unknown as { today: string };
+    await expect(m.create([{ name: "a.csv", bytes }], options, "half")).rejects.toThrow();
+    expect(existsSync(join(m.root, "half"))).toBe(false);
   });
 });

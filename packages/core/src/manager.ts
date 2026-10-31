@@ -1,7 +1,7 @@
 // The in-process job runner every door uses (ARCHITECTURE §1, §6): jobs live in `<root>/<jobId>/`, run one at a
 // time (concurrency 1 by default on CPU-only hosts), and stream their events to subscribers. The API, MCP server,
 // CLI and Telegram bot are thin adapters over this class, so the same files give the same report through any door.
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { InputFile } from "@agentic-analytics/ingest";
 import type { ModelClient } from "@agentic-analytics/models";
@@ -13,6 +13,7 @@ const isRoleErrorCode = (code: string): code is RoleErrorCode => ROLE_ERROR_CODE
 import { type ConfirmView, type JobEvent, type Report, STAGES, type Stage } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { buildConfirmView, confirmJob } from "./confirm.ts";
+import { cleanFileName } from "./file-name.ts";
 import { type Answer, askJob, explainFact, type FactExplanation } from "./followup.ts";
 import { type JobDeps, JobError, type JobOptions, runJob } from "./job.ts";
 
@@ -62,6 +63,13 @@ export class JobManager {
   /** Events of jobs run by this process, kept so a late subscriber gets the history while the job holds its file. */
   private readonly live = new Map<string, JobEvent[]>();
   private readonly active = new Set<string>();
+  /**
+   * Jobs a confirm or resume holds between its BUSY check and enqueue: the call awaits the job's DuckDB file in
+   * between, and a second call (or a read of that file) passing the check in that gap would run the job twice.
+   */
+  private readonly claimed = new Set<string>();
+  /** Reads of a job's DuckDB file in progress (metrics, events, ask, explain), by job: a confirm or resume waits for none. */
+  private readonly readers = new Map<string, number>();
   private queue: Promise<void> = Promise.resolve();
   private readonly now: () => Date;
 
@@ -84,7 +92,7 @@ export class JobManager {
 
   private write(id: string, patch: Partial<JobStatus>): JobStatus {
     const path = join(this.opts.root, id, "status.json");
-    const prev = existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as JobStatus) : undefined;
+    const prev = this.readStatus(id);
     const at = this.now().toISOString();
     const next = {
       job_id: id,
@@ -97,7 +105,17 @@ export class JobManager {
       updated_at: at,
     } as JobStatus;
     if (patch.status && patch.status !== "failed") delete (next as { error?: unknown }).error;
-    writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`);
+    // Write a sibling and rename it over the old file (atomic on POSIX and NTFS): a crash mid-write leaves the old
+    // status, never a truncated one.
+    const tmp = `${path}.${process.pid}.tmp`;
+    try {
+      writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
+      renameSync(tmp, path);
+    } catch (err) {
+      // A write cut short (a full disk) leaves no stray temp file beside the status.
+      rmSync(tmp, { force: true });
+      throw err;
+    }
     if (TERMINAL.includes(next.status)) for (const w of this.waiters.get(id) ?? []) w(next);
     return next;
   }
@@ -114,19 +132,23 @@ export class JobManager {
     const dir = join(this.opts.root, id);
     if (existsSync(dir)) throw new ManagerError("BAD_REQUEST", `job ${id} exists`);
     mkdirSync(join(dir, "input"), { recursive: true });
-    const used = new Set<string>();
-    for (const [i, f] of files.entries()) {
-      // File names come from uploads: keep the base name only, never "." or "..", and never overwrite another file.
-      let name = f.name.split(/[\\/]/).pop() ?? "";
-      if (!name || name === "." || name === "..") name = `file-${i + 1}`;
-      const dot = name.lastIndexOf(".");
-      const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
-      for (let n = 2; used.has(name.toLowerCase()); n++) name = `${stem} (${n})${ext}`;
-      used.add(name.toLowerCase());
-      writeFileSync(join(dir, "input", name), f.bytes);
+    let s: JobStatus;
+    try {
+      const used = new Set<string>();
+      for (const [i, f] of files.entries()) {
+        // File names come from uploads: a clean base name (file-name.ts), and never overwrite another file.
+        let name = cleanFileName(f.name, `file-${i + 1}`);
+        for (let n = 2; used.has(name.toLowerCase()); n++) name = cleanFileName(f.name, `file-${i + 1}`, ` (${n})`);
+        used.add(name.toLowerCase());
+        writeFileSync(join(dir, "input", name), f.bytes);
+      }
+      writeFileSync(join(dir, "options.json"), `${JSON.stringify({ ...this.opts.defaults, ...options }, null, 2)}\n`);
+      s = this.write(id, { status: "queued" });
+    } catch (err) {
+      // A folder with no status.json is never listed and never cleaned up: take it away, then report the error.
+      rmSync(dir, { recursive: true, force: true });
+      throw err;
     }
-    writeFileSync(join(dir, "options.json"), `${JSON.stringify({ ...this.opts.defaults, ...options }, null, 2)}\n`);
-    const s = this.write(id, { status: "queued" });
     this.enqueue(id);
     return s;
   }
@@ -189,7 +211,24 @@ export class JobManager {
 
   private readStatus(id: string): JobStatus | undefined {
     const path = join(this.opts.root, id, "status.json");
-    return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as JobStatus) : undefined;
+    if (!existsSync(path)) return undefined;
+    try {
+      return JSON.parse(readFileSync(path, "utf8")) as JobStatus;
+    } catch (err) {
+      // A status file cut short by a crash (before writes were atomic) or edited by hand: the job shows as failed with
+      // the reason, so the listing still works and the job can be resumed or deleted.
+      const at = statSync(path).mtime.toISOString();
+      const why = err instanceof Error ? err.message : String(err);
+      return {
+        job_id: id,
+        status: "failed",
+        progress: 0,
+        created_at: at,
+        updated_at: at,
+        timings: {},
+        error: { code: "UNREADABLE_STATUS", message: `status.json can't be read (${why}); resume or delete the job` },
+      };
+    }
   }
 
   async status(id: string): Promise<JobStatus> {
@@ -261,11 +300,16 @@ export class JobManager {
   }
 
   async events(id: string): Promise<JobEvent[]> {
+    return this.readEvents(id, (f) => this.withWorkspace(id, f));
+  }
+
+  /** `open`: how the job's file is opened (shared by a reader, or as is by the confirm or resume that holds the job). */
+  private async readEvents(id: string, open: (f: (ws: Workspace) => Promise<JobEvent[]>) => Promise<JobEvent[]>): Promise<JobEvent[]> {
     const dir = this.dir(id);
     const mem = this.live.get(id);
     if (mem) return [...mem];
     if (!existsSync(join(dir, "job.duckdb"))) return [];
-    return this.withWorkspace(id, async (ws) => {
+    return open(async (ws) => {
       const rows = await ws.all<{ seq: number; type: string; at: string; payload: string }>(
         sql`SELECT seq, type, strftime(occurred_at, '%Y-%m-%dT%H:%M:%S.%gZ') AS at, payload::VARCHAR AS payload
             FROM events WHERE job_id = ${id} ORDER BY seq`,
@@ -275,13 +319,44 @@ export class JobManager {
   }
 
   private async withWorkspace<T>(id: string, f: (ws: Workspace) => Promise<T>): Promise<T> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    const ws = await Workspace.open(join(dir, "job.duckdb"));
+    return this.shared(id, () => this.openWorkspace(id, f));
+  }
+
+  private async openWorkspace<T>(id: string, f: (ws: Workspace) => Promise<T>): Promise<T> {
+    const ws = await Workspace.open(join(this.dir(id), "job.duckdb"));
     try {
       return await f(ws);
     } finally {
       ws.close();
+    }
+  }
+
+  /** Runs a read of the job's file; BUSY while the job runs or a confirm or resume holds it. Reads may overlap. */
+  private async shared<T>(id: string, f: () => Promise<T>): Promise<T> {
+    this.dir(id);
+    if (this.active.has(id) || this.claimed.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    this.readers.set(id, (this.readers.get(id) ?? 0) + 1);
+    try {
+      return await f();
+    } finally {
+      const n = (this.readers.get(id) ?? 1) - 1;
+      if (n) this.readers.set(id, n);
+      else this.readers.delete(id);
+    }
+  }
+
+  /**
+   * Holds the job for a confirm or resume: the check and the claim happen in one synchronous step, so a second call
+   * is BUSY. `f` either enqueues the job (which marks it active before the claim is released) or leaves it idle.
+   */
+  private async exclusive<T>(id: string, f: () => Promise<T>): Promise<T> {
+    this.dir(id);
+    if (this.active.has(id) || this.claimed.has(id) || this.readers.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    this.claimed.add(id);
+    try {
+      return await f();
+    } finally {
+      this.claimed.delete(id);
     }
   }
 
@@ -302,30 +377,30 @@ export class JobManager {
    * roles only it re-drafts the code's metrics and the job keeps waiting (the returned status says which).
    */
   async confirm(id: string, yaml: string): Promise<JobStatus> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    let outcome: Awaited<ReturnType<typeof confirmJob>>;
-    try {
-      outcome = await confirmJob(dir, yaml);
-    } catch (err) {
-      // Only a refused request maps to a client error: a bad metrics file, or a role, column or business model the
-      // job doesn't have. Any other JobError is the job's own failure and goes up unchanged.
-      if (err instanceof JobError && err.code === "BAD_METRICS") throw new ManagerError("BAD_REQUEST", err.message);
-      if (err instanceof JobError && isRoleErrorCode(err.code)) throw new ManagerError(err.code, err.message);
-      throw err;
-    }
-    if (!outcome.resume) return this.status(id);
-    const history = await this.events(id);
-    const s = this.write(id, { status: "queued" });
-    this.enqueue(id, history);
-    return s;
+    return this.exclusive(id, async () => {
+      let outcome: Awaited<ReturnType<typeof confirmJob>>;
+      try {
+        outcome = await confirmJob(this.dir(id), yaml);
+      } catch (err) {
+        // Only a refused request maps to a client error: a bad metrics file, or a role, column or business model the
+        // job doesn't have. Any other JobError is the job's own failure and goes up unchanged.
+        if (err instanceof JobError && err.code === "BAD_METRICS") throw new ManagerError("BAD_REQUEST", err.message);
+        if (err instanceof JobError && isRoleErrorCode(err.code)) throw new ManagerError(err.code, err.message);
+        throw err;
+      }
+      if (!outcome.resume) return this.status(id);
+      return this.requeue(id);
+    });
   }
 
   /** Continues a failed or interrupted job from its last completed stage. */
   async resume(id: string): Promise<JobStatus> {
-    this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    const history = await this.events(id);
+    return this.exclusive(id, () => this.requeue(id));
+  }
+
+  /** Queues a held job again with its history (called inside `exclusive`). */
+  private async requeue(id: string): Promise<JobStatus> {
+    const history = await this.readEvents(id, (f) => this.openWorkspace(id, f));
     const s = this.write(id, { status: "queued" });
     this.enqueue(id, history);
     return s;
@@ -344,27 +419,30 @@ export class JobManager {
   }
 
   async ask(id: string, question: string): Promise<Answer> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
-    return askJob(dir, question, this.opts.model);
+    return this.shared(id, async () => {
+      const dir = this.dir(id);
+      if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
+      return askJob(dir, question, this.opts.model);
+    });
   }
 
   async explain(id: string, factId: string): Promise<FactExplanation> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
-    try {
-      return await explainFact(dir, factId);
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "UNKNOWN_FACT") throw new ManagerError("NOT_FOUND", err.message);
-      throw err;
-    }
+    return this.shared(id, async () => {
+      const dir = this.dir(id);
+      if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
+      try {
+        return await explainFact(dir, factId);
+      } catch (err) {
+        if (err instanceof Error && "code" in err && err.code === "UNKNOWN_FACT") throw new ManagerError("NOT_FOUND", err.message);
+        throw err;
+      }
+    });
   }
 
   async delete(id: string): Promise<void> {
     const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    // Nor while a confirm, resume or read has the job's file open: removing it under them fails them midway.
+    if (this.active.has(id) || this.claimed.has(id) || this.readers.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
     rmSync(dir, { recursive: true, force: true });
     this.live.delete(id);
   }

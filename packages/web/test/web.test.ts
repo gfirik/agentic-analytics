@@ -274,14 +274,18 @@ describe("safe fetch against a local test server", () => {
   const blocked = (ip: string) => ip !== "127.0.0.1" && isBlockedAddress(ip);
   const lookup = async () => ["127.0.0.1"];
   const cookies: string[] = [];
+  const hits: string[] = [];
   beforeAll(async () => {
     server = http.createServer((req, res) => {
       if (req.headers.cookie) cookies.push(req.headers.cookie);
+      hits.push(req.url ?? "");
       if (req.url === "/page")
         return res.writeHead(200, { "content-type": "text/html" }).end("<title>T</title><p>Specialty roasters raised prices.</p>");
       if (req.url === "/to-private") return res.writeHead(302, { location: "http://10.0.0.5/secret" }).end();
       if (req.url === "/to-page") return res.writeHead(301, { location: "/page" }).end();
       if (req.url === "/loop") return res.writeHead(302, { location: "/loop" }).end();
+      if (req.url === "/no-location") return res.writeHead(302).end();
+      if (req.url === "/not-modified") return res.writeHead(304, { location: "/page" }).end();
       if (req.url === "/big") {
         res.writeHead(200, { "content-type": "text/plain" });
         return res.end("x".repeat(5000));
@@ -336,6 +340,12 @@ describe("safe fetch against a local test server", () => {
     expect(Date.now() - t0).toBeLessThan(1500);
     await expect(run("/reset")).rejects.toMatchObject({ code: "FETCH_FAILED" });
     await expect(run("/chunked", { maxBytes: 1000 })).rejects.toMatchObject({ code: "TOO_LARGE" });
+  });
+
+  it("a 3xx with no Location, or a 304, fails at once as HTTP_STATUS (no re-request of the same URL)", async () => {
+    await expect(run("/no-location")).rejects.toMatchObject({ code: "HTTP_STATUS", message: "HTTP 302" });
+    await expect(run("/not-modified")).rejects.toMatchObject({ code: "HTTP_STATUS", message: "HTTP 304" });
+    expect(hits.filter((h) => h === "/no-location" || h === "/not-modified")).toEqual(["/no-location", "/not-modified"]);
   });
 });
 

@@ -171,7 +171,10 @@ function request(
         const contentType = String(res.headers["content-type"] ?? "");
         if (status >= 300 && status < 400) {
           res.resume();
-          resolve({ status, location: String(res.headers.location ?? ""), contentType, body: "" });
+          // Only a 3xx with a Location is a redirect. Without one (or a 304, which never redirects) the target would
+          // resolve to this same URL and be re-requested until the redirect cap: it is an HTTP_STATUS failure instead.
+          const location = res.headers.location;
+          resolve({ status, ...(location && status !== 304 ? { location } : {}), contentType, body: "" });
           return;
         }
         const declared = Number(res.headers["content-length"] ?? 0);

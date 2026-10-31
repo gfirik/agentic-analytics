@@ -1,6 +1,7 @@
 // M10: the HTTP door (interfaces §1). Every endpoint through `app.request`: upload → events → metric review →
 // report (JSON and HTML) → ask → explain → delete, plus health, OpenAPI, bearer auth and MCP at /mcp.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobManager, ManagerError } from "@agentic-analytics/core";
@@ -9,7 +10,7 @@ import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { mcpHttpHandler } from "@agentic-analytics/mcp";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { JobEvent, type Report } from "@agentic-analytics/schema";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { createApp, isLoopback, ServeError, startServer } from "../src/index.ts";
 
 const root = mkdtempSync(join(tmpdir(), "aa-srv-"));
@@ -214,6 +215,55 @@ describe("HTTP API", () => {
     expect(text).toContain('"code":"NOT_FOUND"');
   });
 
+  it("a client that leaves while the history is read leaves no listener behind", async () => {
+    const listeners = () => (manager as unknown as { listeners: Map<string, Set<unknown>> }).listeners.get(id)?.size ?? 0;
+    const before = listeners();
+    let release = () => {};
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    // The history read is slow: the client is gone before subscribe resolves.
+    let subscribed: Promise<unknown> = Promise.resolve();
+    const slow = Object.assign(Object.create(manager) as JobManager, {
+      subscribe: (jobId: string, l: (e: JobEvent) => void) => {
+        const p = gate.then(() => manager.subscribe(jobId, l));
+        subscribed = p;
+        return p;
+      },
+    });
+    const res = await createApp(slow).request(`/v1/jobs/${id}/events`);
+    await res.body?.cancel();
+    release();
+    // Wait for the subscribe itself (its history read takes as long as it takes on a loaded machine), then for the
+    // handler's cleanup after it: never a fixed time.
+    await subscribed;
+    await vi.waitFor(() => expect(listeners()).toBe(before));
+  });
+
+  it("a write that fails ends the stream and is reported, not an unhandled rejection", async () => {
+    const logged: unknown[] = [];
+    // An event type with a newline: writeSSE refuses it.
+    const bad = Object.assign(Object.create(manager) as JobManager, {
+      subscribe: async (jobId: string, l: (e: JobEvent) => void) => {
+        l({ job_id: jobId, seq: 0, at: new Date().toISOString(), type: "done\nevent: x" } as unknown as JobEvent);
+        l({ job_id: jobId, seq: 1, at: new Date().toISOString(), type: "done" } as unknown as JobEvent);
+        return () => {};
+      },
+    });
+    const res = await createApp(bad, { onError: (e) => logged.push(e) }).request(`/v1/jobs/${id}/events`);
+    expect(await res.text()).toBe("");
+    expect(logged).toHaveLength(1);
+    expect(String(logged[0])).toMatch(/must not contain/);
+  });
+
+  it("refuses a `today` that is not a calendar date with a 400", async () => {
+    for (const today of ["2026-13-45", "2026-02-30"]) {
+      const res = await app.request("/v1/jobs", { method: "POST", body: upload({ today }) });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: { code: "BAD_REQUEST", message: expect.stringMatching(/today.*calendar date/) } });
+    }
+  });
+
   it("validates input: bad options, no files, unknown job", async () => {
     expect((await app.request("/v1/jobs", { method: "POST", body: upload({ period: "2026-04" }) })).status).toBe(400);
     expect((await app.request("/v1/jobs", { method: "POST", body: new FormData() })).status).toBe(400);
@@ -349,5 +399,21 @@ describe("HTTP API", () => {
     await expect(startServer(manager, { hostname: "0.0.0.0", port: 0 })).rejects.toBeInstanceOf(ServeError);
     const s = await startServer(manager, { hostname: "0.0.0.0", port: 0, token: "s3cret" });
     await s.close();
+  });
+
+  it("a port already in use rejects with a typed error instead of crashing the process", async () => {
+    const taken = createServer();
+    await new Promise<void>((r) => taken.listen(0, "127.0.0.1", r));
+    const port = (taken.address() as { port: number }).port;
+    try {
+      const err = await startServer(manager, { port }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ServeError);
+      expect(err).toMatchObject({
+        code: "PORT_IN_USE",
+        message: `port ${port} on 127.0.0.1 is in use; stop the other server or pass --port`,
+      });
+    } finally {
+      await new Promise<void>((r) => taken.close(() => r()));
+    }
   });
 });

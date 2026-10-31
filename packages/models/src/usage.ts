@@ -5,7 +5,7 @@
 // cached answer's original usage). A live call with no token count (most failed calls, lines from before tokens
 // were logged) is unknown: it is counted apart, never as 0. Days are UTC dates, as in the log's `at` and in the
 // eval result files; a provider counts its daily quota its own way (see windowUsage).
-import type { Config } from "@agentic-analytics/schema";
+import { type Config, isCalendarDate } from "@agentic-analytics/schema";
 import { ModelError } from "./errors.ts";
 import type { CallRecord } from "./fetch.ts";
 
@@ -154,14 +154,6 @@ export interface DayUsage {
   readonly routes: RouteUsage[];
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** A real calendar date: `Date.parse` rolls "2026-02-30" over to March 2 instead of refusing it. */
-const realDay = (d: string) => {
-  const t = Date.parse(d);
-  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
-};
-
 /**
  * Usage per UTC day, newest first, each with its roles and routes (sorted by name). `day` keeps that one day (an
  * empty list when it has no calls). The limit of a route is the provider's quota on that model: it counts every
@@ -171,7 +163,7 @@ export function dailyUsage(
   calls: readonly LoggedCall[],
   o: { readonly day?: string; readonly limitOf?: (route: Pick<CallRecord, "provider" | "endpoint" | "model">) => number | undefined } = {},
 ): DayUsage[] {
-  if (o.day !== undefined && (!DAY.test(o.day) || !realDay(o.day)))
+  if (o.day !== undefined && !isCalendarDate(o.day))
     throw new ModelError("INVALID_ARGUMENT", `invalid day "${o.day}"; expected YYYY-MM-DD`);
   const days = new Map<string, LoggedCall[]>();
   for (const c of calls) {

@@ -256,8 +256,8 @@ describe("end-to-end coffee-roaster job with FakeModel (M7 acceptance)", () => {
 });
 
 describe("runJob input names (security review)", () => {
-  it("refuses a file name that is a path", async () => {
-    for (const name of ["../escape.csv", "a/b.csv", "..", "c:\\x\\y.csv"]) {
+  it("refuses a file name that is a path, holds control characters or is longer than 255 bytes", async () => {
+    for (const name of ["../escape.csv", "a/b.csv", "..", "c:\\x\\y.csv", "", "a\u0000.csv", "b\n.csv", `${"x".repeat(256)}.csv`]) {
       await expect(
         runJob(
           { dir: tempDir(), files: [{ name, bytes: new Uint8Array([97]) }], options },

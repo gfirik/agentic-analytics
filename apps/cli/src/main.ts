@@ -44,6 +44,7 @@ import { runMetricsCommand } from "./metrics.ts";
 import { lineReader } from "./prompt.ts";
 import { formatEvent, runCommand } from "./run.ts";
 import { embedderChoice, isStandalone, onlyIds, onlyProblem, replayProblem, resultsLocation, runtimeVersion } from "./standalone.ts";
+import { todayOf, todayProblem } from "./today.ts";
 import { UsageError, usageCommand } from "./usage.ts";
 
 // The CLI reads .env like the server will; values stay in process.env and are never printed.
@@ -186,7 +187,14 @@ function terminalReview(): ReviewPrompt & { close(): void } {
   return { show: io.show, choose: (q) => io.choose(q, ["accept", "edit", "drop"]), edit: io.edit, close: io.close };
 }
 
-const today = (t?: string) => t ?? new Date().toISOString().slice(0, 10);
+/** Stops the command with a one-line message (exit 1) when `--today` is not a calendar date. */
+function refuseBadToday(command: string, raw: string | undefined): boolean {
+  const problem = todayProblem(raw);
+  if (!problem) return false;
+  process.stderr.write(`aa ${command}: ${problem}\n`);
+  process.exitCode = 1;
+  return true;
+}
 
 const analyze = defineCommand({
   meta: {
@@ -206,6 +214,7 @@ const analyze = defineCommand({
     log: { type: "boolean", description: "Write structured logs to stderr" },
   },
   async run({ args }) {
+    if (refuseBadToday("analyze", args.today)) return;
     const paths = collectPaths(args._ as string[]);
     if (!paths.length) throw new Error("give one or more files or folders: aa analyze <paths…>");
     const rt = runtime(args.embedder);
@@ -215,7 +224,7 @@ const analyze = defineCommand({
         {
           files: paths.map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(p)) })),
           options: {
-            today: today(args.today),
+            today: todayOf(args.today),
             ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
             ...(args.objective ? { objective: args.objective } : {}),
             ...(args["small-model"] ? { smallModel: true } : {}),
@@ -624,6 +633,7 @@ const metrics = defineCommand({
     today: { type: "string", description: "Today's date for the future-date check (YYYY-MM-DD)" },
   },
   async run({ args }) {
+    if (refuseBadToday("metrics", args.today)) return;
     const paths = collectPaths(args._ as string[]);
     if (!paths.length) throw new Error("give one or more files or folders: aa metrics <paths…>");
     let model: ModelClient | undefined;
@@ -640,7 +650,7 @@ const metrics = defineCommand({
         {
           files: paths.map((p) => ({ name: basename(p), bytes: new Uint8Array(readFileSync(p)) })),
           yes: Boolean(args.yes),
-          today: args.today ?? new Date().toISOString().slice(0, 10),
+          today: todayOf(args.today),
           ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
           ...(args.metrics ? { metricsFile: readFileSync(args.metrics, "utf8") } : {}),
         },
@@ -718,6 +728,7 @@ const run = defineCommand({
     log: { type: "boolean", description: "Write structured logs to stderr" },
   },
   async run({ args }) {
+    if (refuseBadToday("run", args.today)) return;
     const resume = args.resume;
     const paths = collectPaths(args._ as string[]);
     if (!resume && !paths.length) throw new Error("give files or folders (aa run <paths…>), or --resume <job folder>");
@@ -748,7 +759,7 @@ const run = defineCommand({
           ? {}
           : {
               options: {
-                today: args.today ?? new Date().toISOString().slice(0, 10),
+                today: todayOf(args.today),
                 ...(args.currency ? { currency: args.currency.toUpperCase() } : {}),
                 ...(args.objective ? { objective: args.objective } : {}),
                 // --small-model, or the planner model's profile (models §4, agent-and-verifier §8).

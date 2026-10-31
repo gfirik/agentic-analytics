@@ -18,7 +18,7 @@ The job runner: the pipeline state machine with checkpoints, the event bus, stru
 - `PipelineError` (`STAGE_FAILED`, with the stage), `StagePause`, and `JobError` (`NO_INPUT`, `INVALID_DRAFT`, `BAD_OPTIONS`, `AWAITING_CONFIRMATION`, `BAD_METRICS`, `UNKNOWN_ROLE`, `UNKNOWN_COLUMN`, `UNKNOWN_BUSINESS_MODEL`).
 - `JobManager({ root, deps, model })`: jobs in `<root>/<jobId>/`, run one at a time.
   - `create`, `status`, `wait`, `subscribe` (history, then live), `events`, `metrics` (the confirm screen: metrics, column roles with evidence, table kinds, business model), `confirm` (confirms metrics and roles and resumes, or, with roles only, re-drafts and keeps waiting), `resume`, `report`, `reportHtml`, `ask`, `explain`, `delete`, `list`.
-  - Typed `ManagerError` codes: `NOT_FOUND`, `BUSY`, `NOT_READY`, `BAD_REQUEST`.
+  - Typed `ManagerError` codes: `NOT_FOUND`, `BUSY`, `NOT_READY`, `BAD_REQUEST`. One confirm or resume at a time per job (a second is `BUSY`); `status.json` is replaced atomically, and an unreadable one lists as failed (`UNREADABLE_STATUS`). Upload names are cleaned by one rule (`file-name.ts`: base name, no control characters, at most 255 bytes) that `runJob` also enforces.
 - `askJob(dir, question, model)`: the planner answers from the report and names the report claims each answer rests on. Code copies their citations, and the claims are verified with the report's passes.
 - `explainFact(dir, factId)`: a number's SQL and parameters (or function and inputs), its definition and input rows.
 - `@agentic-analytics/core/testing` exports `coffeePlanner()`: a scripted FakeModel for coffee-roaster-v1.
