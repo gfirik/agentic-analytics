@@ -62,6 +62,13 @@ export class JobManager {
   /** Events of jobs run by this process, kept so a late subscriber gets the history while the job holds its file. */
   private readonly live = new Map<string, JobEvent[]>();
   private readonly active = new Set<string>();
+  /**
+   * Jobs a confirm or resume holds between its BUSY check and enqueue: the call awaits the job's DuckDB file in
+   * between, and a second call (or a read of that file) passing the check in that gap would run the job twice.
+   */
+  private readonly claimed = new Set<string>();
+  /** Reads of a job's DuckDB file in progress (metrics, events, ask, explain), by job: a confirm or resume waits for none. */
+  private readonly readers = new Map<string, number>();
   private queue: Promise<void> = Promise.resolve();
   private readonly now: () => Date;
 
@@ -261,11 +268,16 @@ export class JobManager {
   }
 
   async events(id: string): Promise<JobEvent[]> {
+    return this.readEvents(id, (f) => this.withWorkspace(id, f));
+  }
+
+  /** `open`: how the job's file is opened (shared by a reader, or as is by the confirm or resume that holds the job). */
+  private async readEvents(id: string, open: (f: (ws: Workspace) => Promise<JobEvent[]>) => Promise<JobEvent[]>): Promise<JobEvent[]> {
     const dir = this.dir(id);
     const mem = this.live.get(id);
     if (mem) return [...mem];
     if (!existsSync(join(dir, "job.duckdb"))) return [];
-    return this.withWorkspace(id, async (ws) => {
+    return open(async (ws) => {
       const rows = await ws.all<{ seq: number; type: string; at: string; payload: string }>(
         sql`SELECT seq, type, strftime(occurred_at, '%Y-%m-%dT%H:%M:%S.%gZ') AS at, payload::VARCHAR AS payload
             FROM events WHERE job_id = ${id} ORDER BY seq`,
@@ -275,13 +287,44 @@ export class JobManager {
   }
 
   private async withWorkspace<T>(id: string, f: (ws: Workspace) => Promise<T>): Promise<T> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    const ws = await Workspace.open(join(dir, "job.duckdb"));
+    return this.shared(id, () => this.openWorkspace(id, f));
+  }
+
+  private async openWorkspace<T>(id: string, f: (ws: Workspace) => Promise<T>): Promise<T> {
+    const ws = await Workspace.open(join(this.dir(id), "job.duckdb"));
     try {
       return await f(ws);
     } finally {
       ws.close();
+    }
+  }
+
+  /** Runs a read of the job's file; BUSY while the job runs or a confirm or resume holds it. Reads may overlap. */
+  private async shared<T>(id: string, f: () => Promise<T>): Promise<T> {
+    this.dir(id);
+    if (this.active.has(id) || this.claimed.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    this.readers.set(id, (this.readers.get(id) ?? 0) + 1);
+    try {
+      return await f();
+    } finally {
+      const n = (this.readers.get(id) ?? 1) - 1;
+      if (n) this.readers.set(id, n);
+      else this.readers.delete(id);
+    }
+  }
+
+  /**
+   * Holds the job for a confirm or resume: the check and the claim happen in one synchronous step, so a second call
+   * is BUSY. `f` either enqueues the job (which marks it active before the claim is released) or leaves it idle.
+   */
+  private async exclusive<T>(id: string, f: () => Promise<T>): Promise<T> {
+    this.dir(id);
+    if (this.active.has(id) || this.claimed.has(id) || this.readers.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    this.claimed.add(id);
+    try {
+      return await f();
+    } finally {
+      this.claimed.delete(id);
     }
   }
 
@@ -302,30 +345,30 @@ export class JobManager {
    * roles only it re-drafts the code's metrics and the job keeps waiting (the returned status says which).
    */
   async confirm(id: string, yaml: string): Promise<JobStatus> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    let outcome: Awaited<ReturnType<typeof confirmJob>>;
-    try {
-      outcome = await confirmJob(dir, yaml);
-    } catch (err) {
-      // Only a refused request maps to a client error: a bad metrics file, or a role, column or business model the
-      // job doesn't have. Any other JobError is the job's own failure and goes up unchanged.
-      if (err instanceof JobError && err.code === "BAD_METRICS") throw new ManagerError("BAD_REQUEST", err.message);
-      if (err instanceof JobError && isRoleErrorCode(err.code)) throw new ManagerError(err.code, err.message);
-      throw err;
-    }
-    if (!outcome.resume) return this.status(id);
-    const history = await this.events(id);
-    const s = this.write(id, { status: "queued" });
-    this.enqueue(id, history);
-    return s;
+    return this.exclusive(id, async () => {
+      let outcome: Awaited<ReturnType<typeof confirmJob>>;
+      try {
+        outcome = await confirmJob(this.dir(id), yaml);
+      } catch (err) {
+        // Only a refused request maps to a client error: a bad metrics file, or a role, column or business model the
+        // job doesn't have. Any other JobError is the job's own failure and goes up unchanged.
+        if (err instanceof JobError && err.code === "BAD_METRICS") throw new ManagerError("BAD_REQUEST", err.message);
+        if (err instanceof JobError && isRoleErrorCode(err.code)) throw new ManagerError(err.code, err.message);
+        throw err;
+      }
+      if (!outcome.resume) return this.status(id);
+      return this.requeue(id);
+    });
   }
 
   /** Continues a failed or interrupted job from its last completed stage. */
   async resume(id: string): Promise<JobStatus> {
-    this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    const history = await this.events(id);
+    return this.exclusive(id, () => this.requeue(id));
+  }
+
+  /** Queues a held job again with its history (called inside `exclusive`). */
+  private async requeue(id: string): Promise<JobStatus> {
+    const history = await this.readEvents(id, (f) => this.openWorkspace(id, f));
     const s = this.write(id, { status: "queued" });
     this.enqueue(id, history);
     return s;
@@ -344,27 +387,30 @@ export class JobManager {
   }
 
   async ask(id: string, question: string): Promise<Answer> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
-    return askJob(dir, question, this.opts.model);
+    return this.shared(id, async () => {
+      const dir = this.dir(id);
+      if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
+      return askJob(dir, question, this.opts.model);
+    });
   }
 
   async explain(id: string, factId: string): Promise<FactExplanation> {
-    const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
-    if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
-    try {
-      return await explainFact(dir, factId);
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "UNKNOWN_FACT") throw new ManagerError("NOT_FOUND", err.message);
-      throw err;
-    }
+    return this.shared(id, async () => {
+      const dir = this.dir(id);
+      if (!existsSync(join(dir, "report.json"))) throw new ManagerError("NOT_READY", `job ${id} has no report yet`);
+      try {
+        return await explainFact(dir, factId);
+      } catch (err) {
+        if (err instanceof Error && "code" in err && err.code === "UNKNOWN_FACT") throw new ManagerError("NOT_FOUND", err.message);
+        throw err;
+      }
+    });
   }
 
   async delete(id: string): Promise<void> {
     const dir = this.dir(id);
-    if (this.active.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
+    // Nor while a confirm, resume or read has the job's file open: removing it under them fails them midway.
+    if (this.active.has(id) || this.claimed.has(id) || this.readers.has(id)) throw new ManagerError("BUSY", `job ${id} is running`);
     rmSync(dir, { recursive: true, force: true });
     this.live.delete(id);
   }

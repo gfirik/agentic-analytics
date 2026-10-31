@@ -162,3 +162,40 @@ describe("JobManager.subscribe", () => {
     expect(seqs.at(-1)).toBe((await manager.events(id)).length);
   });
 });
+
+describe("JobManager: one writer per job", () => {
+  // A job that fails before it touches DuckDB: resume and confirm reach their first await at once.
+  const failing = () =>
+    new JobManager({
+      root: mkdtempSync(join(root, "busy-")),
+      model,
+      deps: () => {
+        throw new Error("no model");
+      },
+    });
+  const csv = [{ name: "a.csv", bytes: new TextEncoder().encode("a,b\n1,2\n") }];
+
+  it("two concurrent resumes: one queues the job, the other is BUSY", async () => {
+    const m = failing();
+    await m.create(csv, { today: "2026-07-01" }, "twice");
+    expect((await m.wait("twice")).status).toBe("failed");
+    const out = await Promise.allSettled([m.resume("twice"), m.resume("twice")]);
+    expect(out.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+    expect(out.find((r) => r.status === "rejected")).toMatchObject({ reason: { code: "BUSY" } });
+    await m.wait("twice");
+  });
+
+  it("a resume, a metrics read or a delete during a confirm is BUSY", async () => {
+    const m = failing();
+    await m.create(csv, { today: "2026-07-01" }, "held");
+    await m.wait("held");
+    const confirming = m.confirm("held", "metrics: []\n");
+    await expect(m.resume("held")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.metrics("held")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.delete("held")).rejects.toMatchObject({ code: "BUSY" });
+    await confirming.catch(() => undefined);
+    // Released once the confirm ends, whatever its outcome.
+    await m.resume("held");
+    await m.wait("held");
+  });
+});
