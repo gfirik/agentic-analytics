@@ -1,6 +1,7 @@
 // M10: the HTTP door (interfaces §1). Every endpoint through `app.request`: upload → events → metric review →
 // report (JSON and HTML) → ask → explain → delete, plus health, OpenAPI, bearer auth and MCP at /mcp.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobManager, ManagerError } from "@agentic-analytics/core";
@@ -394,5 +395,21 @@ describe("HTTP API", () => {
     await expect(startServer(manager, { hostname: "0.0.0.0", port: 0 })).rejects.toBeInstanceOf(ServeError);
     const s = await startServer(manager, { hostname: "0.0.0.0", port: 0, token: "s3cret" });
     await s.close();
+  });
+
+  it("a port already in use rejects with a typed error instead of crashing the process", async () => {
+    const taken = createServer();
+    await new Promise<void>((r) => taken.listen(0, "127.0.0.1", r));
+    const port = (taken.address() as { port: number }).port;
+    try {
+      const err = await startServer(manager, { port }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ServeError);
+      expect(err).toMatchObject({
+        code: "PORT_IN_USE",
+        message: `port ${port} on 127.0.0.1 is in use; stop the other server or pass --port`,
+      });
+    } finally {
+      await new Promise<void>((r) => taken.close(() => r()));
+    }
   });
 });
