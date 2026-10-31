@@ -12,7 +12,7 @@ import { sha256Hex } from "./hash.ts";
 import { type DetectedTable, detectTables } from "./regions.ts";
 import { decodeText, sniff } from "./sniff.ts";
 import type { DocumentMeta, DocumentSection, FileKind, FileRecord, IngestIssue, IngestResult, InputFile, TableRegion } from "./types.ts";
-import { readZipEntries } from "./zip.ts";
+import { measureZip, ZipError } from "./zip.ts";
 
 export interface IngestLimits {
   readonly maxFiles: number;
@@ -94,14 +94,14 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
     }
     const kind = sniffed.kind;
     if (kind === "xlsx" || kind === "docx") {
-      const uncompressed = (readZipEntries(item.bytes) ?? []).reduce((s, e) => s + e.uncompressedSize, 0);
-      if (uncompressed > limits.maxZipUncompressedBytes) {
+      // The true decompressed size, measured before SheetJS or mammoth sees the bytes: the sizes in the
+      // ZIP headers are attacker-written (security §5). Email attachments re-enter this loop, so they pass here too.
+      try {
+        await measureZip(item.bytes, limits.maxZipUncompressedBytes);
+      } catch (err) {
+        if (!(err instanceof ZipError)) throw err;
         result.files.push({ ...base, sha256, kind, mime: sniffed.mime, status: "rejected" });
-        issue({
-          kind: "too_large",
-          severity: "high",
-          message: `decompresses to ${uncompressed} bytes (limit ${limits.maxZipUncompressedBytes}); possible ZIP bomb`,
-        });
+        issue({ kind: err.code === "TOO_LARGE" ? "too_large" : "unreadable_file", severity: "high", message: err.message });
         continue;
       }
     }

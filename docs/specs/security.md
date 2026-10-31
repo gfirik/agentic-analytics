@@ -63,7 +63,7 @@
 - **Size limits:**
   - Per file: 50 MB.
   - Per job: 200 MB.
-  - Decompressed size of zip-based Office files: 300 MB.
+  - Decompressed size of zip-based Office files: 300 MB. The sizes in a ZIP's headers are written by whoever made the file, and SheetJS and mammoth both inflate past them, so the limit is enforced on the measured size: before either parser sees the bytes, every entry is inflated with its output counted and discarded, and the file is rejected (`too_large`) as soon as the total passes the limit. Each entry is inflated only up to the next entry's local header, so the work is bounded by the file's own size. ZIP structure the parsers could read differently from that measurement is rejected as `unreadable_file`: an unknown compression method, ZIP64, multi-disk or inconsistent entry counts, a central directory not where the end record says, entries that share or overlap their data, a local header that disagrees with the central one on the method, stored data or a deflate stream that runs past its entry. Data descriptors (sizes after the data) are fine. Email attachments go back through intake, so they are measured too.
   - XLSX: 2M cells per sheet.
 - **Sandboxing:** each parse has a timeout (60s per file by default). Docling runs in its own container with no network. Not yet true: parsing in worker threads that can be killed. The timeout fires only while a parse is waiting on something, and the spreadsheet (SheetJS), CSV/TSV (with table detection) and TXT/Markdown parsers never wait, so it can't stop a pathological xlsx or CSV (known gap M13b).
 - **Never executed:** spreadsheet formulas, and macros in `.xlsm` (macros are ignored).
