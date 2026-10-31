@@ -223,6 +223,27 @@ describe("dedupe by definition", () => {
     expect(m.dropped.map((d) => d.id)).toEqual(["revenue"]);
   });
 
+  it("a later metric that refers to a dropped id now means the earlier definition, and the drop is listed", async () => {
+    // The [M15 PR 7] rebind, pinned: the model's `revenue` (sum of qty) loses its id to the pack's, so the model's
+    // ratio over `revenue` divides the pack's revenue. The ratio is kept under its own id; the drop names `revenue`.
+    const { catalog } = await setup();
+    const modelRevenue = { ...rev, expression: "qty" };
+    const perRevenue = {
+      id: "qty_share",
+      label: "Qty share",
+      type: "ratio" as const,
+      numerator: { metric: "revenue" },
+      denominator: { metric: "revenue" },
+      unit: "ratio" as const,
+      status: "assumed" as const,
+    };
+    const m = mergeMetricSets([[rev], [modelRevenue, perRevenue]], catalog);
+    expect(m.accepted.map((d) => d.id)).toEqual(["revenue", "qty_share"]);
+    expect(m.accepted.find((d) => d.id === "revenue")?.expression).toBe(rev.expression);
+    expect(m.accepted.find((d) => d.id === "qty_share")?.numerator).toEqual({ metric: "revenue" });
+    expect(m.dropped).toEqual([{ id: "revenue", reasons: ['id "revenue" is already used by a different definition'] }]);
+  });
+
   it("two ratios with the same terms are one metric", async () => {
     const { catalog } = await setup();
     const aov = {
