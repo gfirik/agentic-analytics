@@ -214,6 +214,14 @@ describe("HTTP API", () => {
     expect(text).toContain('"code":"NOT_FOUND"');
   });
 
+  it("refuses a `today` that is not a calendar date with a 400", async () => {
+    for (const today of ["2026-13-45", "2026-02-30"]) {
+      const res = await app.request("/v1/jobs", { method: "POST", body: upload({ today }) });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: { code: "BAD_REQUEST", message: expect.stringMatching(/today.*calendar date/) } });
+    }
+  });
+
   it("validates input: bad options, no files, unknown job", async () => {
     expect((await app.request("/v1/jobs", { method: "POST", body: upload({ period: "2026-04" }) })).status).toBe(400);
     expect((await app.request("/v1/jobs", { method: "POST", body: new FormData() })).status).toBe(400);

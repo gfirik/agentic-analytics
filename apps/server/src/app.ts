@@ -4,7 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { type JobManager, ManagerError } from "@agentic-analytics/core";
-import { ConfirmView } from "@agentic-analytics/schema";
+import { ConfirmView, isCalendarDate } from "@agentic-analytics/schema";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -61,9 +61,11 @@ export const JobOptionsBody = z
       .string()
       .regex(/^[A-Za-z]{3}$/)
       .optional(),
+    // The pattern goes into the OpenAPI spec; the refine also refuses dates not on the calendar (2026-02-30).
     today: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .refine(isCalendarDate, "not a calendar date (YYYY-MM-DD)")
       .optional(),
   })
   .strict()
