@@ -139,14 +139,13 @@ export function htmlToText(html: string): { title: string; text: string; hidden:
 
 /** Skipped elements whose content is code (scripts, styles, svg), not prose; see SkipStack. */
 const CODE = new Set(["script", "style", "noscript", "svg", "template", "iframe", "object", "canvas", "head", "title"]);
-/** Nesting kept inside a skipped region. Deeper opening tags are not tracked; their text stays hidden. */
-const MAX_SKIP_DEPTH = 256;
 
 /**
  * Open elements whose content is dropped: a tag name per level, so nested same-name tags close correctly. A level
  * is prose (hidden elements, page chrome) or code. Counts per name and of code levels keep every operation
  * amortised O(1): a closing tag with no open match costs nothing, and one with a match scans only the levels it
- * removes.
+ * removes. There is no depth cap: an untracked opening tag would let its closing tag pop the hidden root early and
+ * leak hidden text into `text`, and the stack is already bounded by the page's size.
  */
 class SkipStack {
   private readonly names: string[] = [];
@@ -162,7 +161,6 @@ class SkipStack {
   }
 
   open(name: string): void {
-    if (this.names.length >= MAX_SKIP_DEPTH) return;
     this.names.push(name);
     this.counts.set(name, (this.counts.get(name) ?? 0) + 1);
     if (CODE.has(name)) this.codeLevels++;

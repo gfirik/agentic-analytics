@@ -44,8 +44,18 @@ describe("readable text in linear time", () => {
     expect(closers).toEqual({ title: "", text: "after", hidden: "secret" });
   });
 
-  it("nesting past the depth cap inside a hidden region stays hidden and closes cleanly", () => {
+  it("deep nesting inside a hidden region never closes it early", () => {
     const html = `<div hidden>${"<i>".repeat(300)}deep${"</i>".repeat(300)}</div>after`;
     expect(htmlToText(html)).toEqual({ title: "", text: "after", hidden: "deep" });
+    // Every opening tag is tracked, so closers can't pop the hidden root before its own closing tag.
+    const leak = `<div hidden>${"<div>".repeat(300)}${"</div>".repeat(260)}INJECT${"</div>".repeat(41)}after`;
+    expect(htmlToText(leak)).toEqual({ title: "", text: "after", hidden: "INJECT" });
+  });
+
+  it("100k nested opening tags in a hidden region stay linear", () => {
+    const n = 100_000;
+    const { result, ms } = timed(() => htmlToText(`<div hidden>${"<div>".repeat(n)}x${"</div>".repeat(n)}</div>after`));
+    expect(ms).toBeLessThan(2000);
+    expect(result).toEqual({ title: "", text: "after", hidden: "x" });
   });
 });
