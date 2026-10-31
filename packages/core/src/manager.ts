@@ -13,6 +13,7 @@ const isRoleErrorCode = (code: string): code is RoleErrorCode => ROLE_ERROR_CODE
 import { type ConfirmView, type JobEvent, type Report, STAGES, type Stage } from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { buildConfirmView, confirmJob } from "./confirm.ts";
+import { cleanFileName } from "./file-name.ts";
 import { type Answer, askJob, explainFact, type FactExplanation } from "./followup.ts";
 import { type JobDeps, JobError, type JobOptions, runJob } from "./job.ts";
 
@@ -125,19 +126,23 @@ export class JobManager {
     const dir = join(this.opts.root, id);
     if (existsSync(dir)) throw new ManagerError("BAD_REQUEST", `job ${id} exists`);
     mkdirSync(join(dir, "input"), { recursive: true });
-    const used = new Set<string>();
-    for (const [i, f] of files.entries()) {
-      // File names come from uploads: keep the base name only, never "." or "..", and never overwrite another file.
-      let name = f.name.split(/[\\/]/).pop() ?? "";
-      if (!name || name === "." || name === "..") name = `file-${i + 1}`;
-      const dot = name.lastIndexOf(".");
-      const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
-      for (let n = 2; used.has(name.toLowerCase()); n++) name = `${stem} (${n})${ext}`;
-      used.add(name.toLowerCase());
-      writeFileSync(join(dir, "input", name), f.bytes);
+    let s: JobStatus;
+    try {
+      const used = new Set<string>();
+      for (const [i, f] of files.entries()) {
+        // File names come from uploads: a clean base name (file-name.ts), and never overwrite another file.
+        let name = cleanFileName(f.name, `file-${i + 1}`);
+        for (let n = 2; used.has(name.toLowerCase()); n++) name = cleanFileName(f.name, `file-${i + 1}`, ` (${n})`);
+        used.add(name.toLowerCase());
+        writeFileSync(join(dir, "input", name), f.bytes);
+      }
+      writeFileSync(join(dir, "options.json"), `${JSON.stringify({ ...this.opts.defaults, ...options }, null, 2)}\n`);
+      s = this.write(id, { status: "queued" });
+    } catch (err) {
+      // A folder with no status.json is never listed and never cleaned up: take it away, then report the error.
+      rmSync(dir, { recursive: true, force: true });
+      throw err;
     }
-    writeFileSync(join(dir, "options.json"), `${JSON.stringify({ ...this.opts.defaults, ...options }, null, 2)}\n`);
-    const s = this.write(id, { status: "queued" });
     this.enqueue(id);
     return s;
   }

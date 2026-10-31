@@ -4,7 +4,7 @@
 // completed stages are skipped, the interrupted one is reset and re-run. The model is used only by METRICS_DRAFT
 // (optional), EXPLAIN and DECIDE; everything numeric is deterministic code.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import {
   type AnalysisSections,
   Budget,
@@ -55,6 +55,7 @@ import { sql, Workspace } from "@agentic-analytics/store";
 import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
 import { EventBus } from "./events.ts";
+import { cleanFileName, MAX_NAME_BYTES } from "./file-name.ts";
 import { CONFIRMED_KEY, currentNotDrafted, currentSemantics, DB, type MetricsOutput, meta, setMeta } from "./jobmeta.ts";
 import { type Logger, silentLogger } from "./log.ts";
 import { type RunResult, runPipeline, type StageContext, type StageDef, StagePause } from "./pipeline.ts";
@@ -209,11 +210,14 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
       if (!input.options) throw new JobError("BAD_OPTIONS", "a new job needs options (at least `today`)");
       if (!input.files?.length && !readInputs(dir).length) throw new JobError("NO_INPUT", "a new job needs input files");
       for (const f of input.files ?? []) {
-        // Only a plain file name lands in input/: every door sanitizes names already, but runJob is public API too.
-        const name = basename(f.name.replace(/\\/g, "/"));
-        if (!name || name === "." || name === ".." || name !== f.name)
-          throw new JobError("BAD_INPUT", `input file name must be a plain file name, not a path: ${JSON.stringify(f.name)}`);
-        writeFileSync(join(dir, "input", name), f.bytes);
+        // Only a clean file name lands in input/ (file-name.ts): every door cleans names already (the job manager with
+        // the same rule), but runJob is public API too.
+        if (!f.name || cleanFileName(f.name, "") !== f.name)
+          throw new JobError(
+            "BAD_INPUT",
+            `input file name must be a plain file name (no path, no control characters, at most ${MAX_NAME_BYTES} bytes): ${JSON.stringify(f.name)}`,
+          );
+        writeFileSync(join(dir, "input", f.name), f.bytes);
       }
       options = input.options;
       jobId =

@@ -1,6 +1,6 @@
 // M10: the job manager every door uses. A job paused for metric review resumes once definitions are confirmed,
 // RENDER writes report.html, follow-up answers are verified claims, and a number can be explained.
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
@@ -200,7 +200,7 @@ describe("JobManager: one writer per job", () => {
   });
 });
 
-describe("JobManager: status files", () => {
+describe("JobManager: status files and upload names", () => {
   const bytes = new TextEncoder().encode("a,b\n1,2\n");
   const idle = () =>
     new JobManager({
@@ -238,5 +238,36 @@ describe("JobManager: status files", () => {
     await m.resume("torn");
     await m.wait("torn");
     expect(JSON.parse(readFileSync(join(m.root, "torn", "status.json"), "utf8")).job_id).toBe("torn");
+  });
+
+  it("cleans and shortens upload names: NUL and control characters, 300-character names", async () => {
+    const m = idle();
+    const long = `${"é".repeat(300)}.csv`;
+    await m.create(
+      [
+        { name: "sa\u0000les\n.csv", bytes },
+        { name: long, bytes },
+        { name: long, bytes },
+      ],
+      { today: "2026-07-01" },
+      "names",
+    );
+    const names = readdirSync(join(m.root, "names", "input")).sort();
+    expect(names).toHaveLength(3);
+    expect(names).toContain("sales.csv");
+    for (const n of names) {
+      expect(new TextEncoder().encode(n).length).toBeLessThanOrEqual(255);
+      expect(n.endsWith(".csv")).toBe(true);
+    }
+    expect(names.some((n) => n.endsWith(" (2).csv"))).toBe(true);
+    await m.wait("names");
+  });
+
+  it("a job that can't be written leaves no folder behind", async () => {
+    const m = idle();
+    // JSON can't hold a BigInt: options.json fails after the input files are written.
+    const options = { today: "2026-07-01", objective: 1n } as unknown as { today: string };
+    await expect(m.create([{ name: "a.csv", bytes }], options, "half")).rejects.toThrow();
+    expect(existsSync(join(m.root, "half"))).toBe(false);
   });
 });
