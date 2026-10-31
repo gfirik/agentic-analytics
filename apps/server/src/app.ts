@@ -246,19 +246,22 @@ export function createApp(manager: JobManager, o: ServerOptions = {}): OpenAPIHo
         let live = false;
         let aborted = false;
         let writes = Promise.resolve();
-        // One failed write stops the stream: later events are not written to it, and the error is reported once
-        // instead of becoming an unhandled rejection.
+        // One failed write ends the stream: later events are not written to it, the handler returns, and the error is
+        // reported once instead of becoming an unhandled rejection.
         let broken = false;
+        let end = () => {};
         const send = (m: { event: string; id?: string; data: string }) => {
           writes = writes
             .then(() => (broken || aborted ? undefined : stream.writeSSE(m)))
             .catch((err: unknown) => {
               broken = true;
               o.onError?.(err instanceof Error ? err : new Error(String(err)));
+              end();
             });
         };
         let unsubscribe: (() => void) | undefined;
         const finished = new Promise<void>((resolve) => {
+          end = resolve;
           stream.onAbort(() => {
             aborted = true;
             resolve();

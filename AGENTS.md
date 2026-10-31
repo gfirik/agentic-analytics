@@ -155,15 +155,15 @@ These limits keep model spend down. Where they are tighter than a rule above, th
 1. **One background agent** at a time besides the main session.
 2. **One PR at a time, end to end.** Don't start the next PR until the current one is merged.
 
-Items 1 and 2 are replaced for M15 and the v0.1 finish by the plan below; items 3 and 4 still hold.
-3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. QA subagents run on a smaller model (Sonnet), not the largest. The `spec-reviewer` runs on Opus from M15 PR 10 (the maintainer, 2026-10-28; see the v0.1 finish plan).
+Items 1–4 hold; the plan below adds roles, models, stalls and the final review for M15 and the v0.1 finish.
+3. **Reviews where they pay.** The `spec-reviewer` and `qa` subagents run only for engine, numeric or security changes. Docs, site, test-only and eval-tooling PRs need only `scripts/gate.sh` and green CI. QA subagents run on a smaller model (Sonnet), not the largest. The `spec-reviewer` runs on Opus, on security and engine PRs (see the v0.1 finish plan).
 4. **No real-model runs** (Groq or any hosted endpoint) except the nightly eval. A targeted check is allowed only when a PR can't be judged otherwise, and the PR says why.
 
 The daily Telegram summary continues.
 
 ### The v0.1 finish plan (set by the maintainer, 2026-10-23)
 
-For M15 and the run to v0.1 it replaces item 2 above. Item 1 holds again from 2026-10-31: one background agent at a time.
+For M15 and the run to v0.1 it adds to items 1–4 above (since 2026-10-31 it no longer relaxes items 1 and 2).
 
 - **Roles.** The main session (Opus) plans, coordinates, reviews every PR and merges. Builders are subagents.
 - **Models** (the maintainer, 2026-10-31). Builders and QA run on Sonnet. Only the main session, and the `spec-reviewer` on security and engine PRs, run on Opus. (2026-10-28 to 10-31, M15 PRs 10 and 11 and the first part of the final review also ran builders on Opus.)

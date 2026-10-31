@@ -10,7 +10,7 @@ import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
 import { mcpHttpHandler } from "@agentic-analytics/mcp";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { JobEvent, type Report } from "@agentic-analytics/schema";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { createApp, isLoopback, ServeError, startServer } from "../src/index.ts";
 
 const root = mkdtempSync(join(tmpdir(), "aa-srv-"));
@@ -223,17 +223,21 @@ describe("HTTP API", () => {
       release = r;
     });
     // The history read is slow: the client is gone before subscribe resolves.
+    let subscribed: Promise<unknown> = Promise.resolve();
     const slow = Object.assign(Object.create(manager) as JobManager, {
-      subscribe: async (jobId: string, l: (e: JobEvent) => void) => {
-        await gate;
-        return manager.subscribe(jobId, l);
+      subscribe: (jobId: string, l: (e: JobEvent) => void) => {
+        const p = gate.then(() => manager.subscribe(jobId, l));
+        subscribed = p;
+        return p;
       },
     });
     const res = await createApp(slow).request(`/v1/jobs/${id}/events`);
     await res.body?.cancel();
     release();
-    await new Promise((r) => setTimeout(r, 50));
-    expect(listeners()).toBe(before);
+    // Wait for the subscribe itself (its history read takes as long as it takes on a loaded machine), then for the
+    // handler's cleanup after it: never a fixed time.
+    await subscribed;
+    await vi.waitFor(() => expect(listeners()).toBe(before));
   });
 
   it("a write that fails ends the stream and is reported, not an unhandled rejection", async () => {

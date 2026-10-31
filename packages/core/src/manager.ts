@@ -108,8 +108,14 @@ export class JobManager {
     // Write a sibling and rename it over the old file (atomic on POSIX and NTFS): a crash mid-write leaves the old
     // status, never a truncated one.
     const tmp = `${path}.${process.pid}.tmp`;
-    writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
-    renameSync(tmp, path);
+    try {
+      writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
+      renameSync(tmp, path);
+    } catch (err) {
+      // A write cut short (a full disk) leaves no stray temp file beside the status.
+      rmSync(tmp, { force: true });
+      throw err;
+    }
     if (TERMINAL.includes(next.status)) for (const w of this.waiters.get(id) ?? []) w(next);
     return next;
   }

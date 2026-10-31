@@ -46,7 +46,7 @@ Limits that keep it honest:
 - **Fix loops are capped.** The reviewer gets 3 FAIL rounds and CI gets 3 failure rounds. After that, the milestone is marked `BLOCKED` with the reason, a notification goes out, and the loop stops.
 - **Fresh context per milestone.** The outer script restarts Claude for each milestone, so long runs don't degrade.
 - **Nothing reaches `main` except through a PR** that passed every gate.
-- **Token budget (AGENTS.md §9, from 2026-10-22).** The reviewer and QA steps (G, H) run only for engine, numeric or security changes, on a smaller model; docs, site, test-only and eval-tooling PRs go from the gate straight to the PR and CI. One PR at a time and one background agent, with no exceptions since 2026-10-31 (AGENTS.md §9, the v0.1 finish plan: builders and QA on Sonnet, the main session and the security/engine spec-reviewer on Opus, no agent kept only to wait on CI, the main session reviews and merges, a final v0.1 review before the tag); a PR merges as soon as it is ready; no real-model runs outside the nightly.
+- **Token budget (AGENTS.md §9, from 2026-10-22).** The reviewer and QA steps (G, H) run only for engine, numeric or security changes (QA on Sonnet, the spec-reviewer on Opus); docs, site, test-only and eval-tooling PRs go from the gate straight to the PR and CI. One PR at a time and one background agent, with no exceptions since 2026-10-31 (AGENTS.md §9, the v0.1 finish plan: builders and QA on Sonnet, the main session and the security/engine spec-reviewer on Opus, no agent kept only to wait on CI, the main session reviews and merges, a final v0.1 review before the tag); a PR merges as soon as it is ready; no real-model runs outside the nightly.
 
 ## 3. Human gates (the only planned stops)
 

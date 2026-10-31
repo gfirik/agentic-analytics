@@ -198,6 +198,20 @@ describe("JobManager: one writer per job", () => {
     await m.resume("held");
     await m.wait("held");
   });
+
+  it("a resume, a confirm or a delete during an open metrics read is BUSY", async () => {
+    const m = failing();
+    await m.create(csv, { today: "2026-07-01" }, "read");
+    await m.wait("read");
+    // The read counts as open from the call itself, before its first await.
+    const reading = m.metrics("read");
+    await expect(m.resume("read")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.confirm("read", "metrics: []\n")).rejects.toMatchObject({ code: "BUSY" });
+    await expect(m.delete("read")).rejects.toMatchObject({ code: "BUSY" });
+    await reading.catch(() => undefined);
+    await m.resume("read");
+    await m.wait("read");
+  });
 });
 
 describe("JobManager: status files and upload names", () => {

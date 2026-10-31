@@ -5,9 +5,10 @@
 export const MAX_NAME_BYTES = 255;
 // An "extension" longer than this is part of the name, so a long dotted name is shortened in its middle, not lost.
 const MAX_EXT_BYTES = 32;
-// NUL makes Node's fs throw; the other control characters break logs and terminals that show the name.
+// NUL makes Node's fs throw; the other control characters (C0, DEL and C1, which holds the 8-bit CSI) break logs and
+// terminals that show the name, and the bidi overrides and isolates can hide a name's real extension.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
-const CONTROL = /[\u0000-\u001f\u007f]/g;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 
