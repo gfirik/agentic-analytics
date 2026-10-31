@@ -17,7 +17,7 @@ The web lane: search providers (SearXNG first), the query sanitizer, the safe fe
   - http(s) only, on ports 80 and 443;
   - no credentials, and no private value in the query string;
   - every resolved address checked at connect time (`isBlockedAddress`: private, loopback, link-local, CGNAT, reserved, multicast, IPv6 and mapped forms);
-  - manual redirects, re-checked each time, at most 3;
+  - manual redirects, re-checked each time, at most 3; a 3xx without `Location`, or a 304, is an `HTTP_STATUS` failure;
   - a 10 s timeout, a 3 MB cap, and text types only.
   - `checkUrl` runs the URL checks alone. A private value is matched in the query the way the sanitizer matches it (every spelling `phrases` gives, on the normalised text, whole words, plus joined spellings).
   - The body is decoded in the page's own charset (`decodeBody`: the Content-Type header's, else `<meta charset>`, else UTF-8).
