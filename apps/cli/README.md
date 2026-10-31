@@ -4,6 +4,7 @@ The `agentic-analytics` / `aa` command line (citty).
 
 - **Status:** M0–M1 ship `aa doctor`; M4 adds `aa metrics`; M7 adds `aa run`; M10 adds `analyze`, `ask`, `explain`, `serve`, `mcp` and `jobs`. M11 adds `aa eval`; M14a adds `aa usage`.
 - **Spec:** docs/specs/interfaces.md §2
+- **Settings:** `aa` reads `.env` from the folder it runs in. A `.env` outside the repo is named on stderr (`aa: reading settings from "<path>"`); values are never printed (security.md §6).
 
 ## Commands
 

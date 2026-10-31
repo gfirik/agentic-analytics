@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# Read-only token: CI checks code and needs no write access (the other workflows set theirs too).
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
