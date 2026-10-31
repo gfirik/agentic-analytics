@@ -1,7 +1,7 @@
 // The in-process job runner every door uses (ARCHITECTURE §1, §6): jobs live in `<root>/<jobId>/`, run one at a
 // time (concurrency 1 by default on CPU-only hosts), and stream their events to subscribers. The API, MCP server,
 // CLI and Telegram bot are thin adapters over this class, so the same files give the same report through any door.
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { InputFile } from "@agentic-analytics/ingest";
 import type { ModelClient } from "@agentic-analytics/models";
@@ -91,7 +91,7 @@ export class JobManager {
 
   private write(id: string, patch: Partial<JobStatus>): JobStatus {
     const path = join(this.opts.root, id, "status.json");
-    const prev = existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as JobStatus) : undefined;
+    const prev = this.readStatus(id);
     const at = this.now().toISOString();
     const next = {
       job_id: id,
@@ -104,7 +104,11 @@ export class JobManager {
       updated_at: at,
     } as JobStatus;
     if (patch.status && patch.status !== "failed") delete (next as { error?: unknown }).error;
-    writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`);
+    // Write a sibling and rename it over the old file (atomic on POSIX and NTFS): a crash mid-write leaves the old
+    // status, never a truncated one.
+    const tmp = `${path}.${process.pid}.tmp`;
+    writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
+    renameSync(tmp, path);
     if (TERMINAL.includes(next.status)) for (const w of this.waiters.get(id) ?? []) w(next);
     return next;
   }
@@ -196,7 +200,24 @@ export class JobManager {
 
   private readStatus(id: string): JobStatus | undefined {
     const path = join(this.opts.root, id, "status.json");
-    return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as JobStatus) : undefined;
+    if (!existsSync(path)) return undefined;
+    try {
+      return JSON.parse(readFileSync(path, "utf8")) as JobStatus;
+    } catch (err) {
+      // A status file cut short by a crash (before writes were atomic) or edited by hand: the job shows as failed with
+      // the reason, so the listing still works and the job can be resumed or deleted.
+      const at = statSync(path).mtime.toISOString();
+      const why = err instanceof Error ? err.message : String(err);
+      return {
+        job_id: id,
+        status: "failed",
+        progress: 0,
+        created_at: at,
+        updated_at: at,
+        timings: {},
+        error: { code: "UNREADABLE_STATUS", message: `status.json can't be read (${why}); resume or delete the job` },
+      };
+    }
   }
 
   async status(id: string): Promise<JobStatus> {

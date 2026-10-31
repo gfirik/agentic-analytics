@@ -1,6 +1,6 @@
 // M10: the job manager every door uses. A job paused for metric review resumes once definitions are confirmed,
 // RENDER writes report.html, follow-up answers are verified claims, and a number can be explained.
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { coffeeRoasterFiles } from "@agentic-analytics/eval-datasets";
@@ -197,5 +197,46 @@ describe("JobManager: one writer per job", () => {
     // Released once the confirm ends, whatever its outcome.
     await m.resume("held");
     await m.wait("held");
+  });
+});
+
+describe("JobManager: status files", () => {
+  const bytes = new TextEncoder().encode("a,b\n1,2\n");
+  const idle = () =>
+    new JobManager({
+      root: mkdtempSync(join(root, "files-")),
+      model,
+      deps: () => {
+        throw new Error("no model");
+      },
+    });
+
+  it("a failed status write leaves the previous status.json whole", async () => {
+    const m = idle();
+    await m.create([{ name: "a.csv", bytes }], { today: "2026-07-01" }, "atomic");
+    await m.wait("atomic");
+    const path = join(m.root, "atomic", "status.json");
+    const before = readFileSync(path, "utf8");
+    // The temporary sibling can't be created: the write fails before the real file is touched.
+    mkdirSync(`${path}.${process.pid}.tmp`);
+    const internal = m as unknown as { write(id: string, patch: Partial<JobStatus>): JobStatus };
+    expect(() => internal.write("atomic", { status: "queued" })).toThrow();
+    expect(readFileSync(path, "utf8")).toBe(before);
+  });
+
+  it("a job whose status.json is cut short is listed as failed, and the rest still list", async () => {
+    const m = idle();
+    await m.create([{ name: "a.csv", bytes }], { today: "2026-07-01" }, "good");
+    await m.create([{ name: "a.csv", bytes }], { today: "2026-07-01" }, "torn");
+    await m.wait("good");
+    await m.wait("torn");
+    writeFileSync(join(m.root, "torn", "status.json"), '{"job_id": "torn", "sta');
+    const list = await m.list();
+    expect(list.map((s) => s.job_id)).toEqual(["good", "torn"]);
+    expect(list[1]).toMatchObject({ status: "failed", error: { code: "UNREADABLE_STATUS" } });
+    // A resume writes a whole status again.
+    await m.resume("torn");
+    await m.wait("torn");
+    expect(JSON.parse(readFileSync(join(m.root, "torn", "status.json"), "utf8")).job_id).toBe("torn");
   });
 });
