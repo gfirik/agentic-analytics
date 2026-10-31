@@ -80,7 +80,7 @@
 
 - Job data lives in `./data/jobs/<id>/`.
 - `DELETE /v1/jobs/{id}` and `agentic-analytics jobs rm <id>` delete the folder.
-- Optional `JOB_TTL_DAYS` auto-deletes old jobs.
+- Not in v0.1: automatic deletion of old jobs (a `JOB_TTL_DAYS` setting). Jobs stay until they are deleted.
 
 ## 8. Tests
 
