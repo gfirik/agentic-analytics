@@ -165,9 +165,11 @@ async function inflatedSize(data: Uint8Array, budget: number): Promise<number> {
   const stream = new DecompressionStream("deflate-raw");
   const writer = stream.writable.getWriter();
   const reader = stream.readable.getReader();
+  // Compression streams take ArrayBuffer-backed views only; a view on shared memory is copied.
+  const chunk = data.buffer instanceof ArrayBuffer ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : new Uint8Array(data);
   // The write side fails whenever the read side cancels or errors; the read side reports why.
   const feeding = writer
-    .write(data)
+    .write(chunk)
     .then(() => writer.close())
     .catch(() => undefined);
   let count = 0;
