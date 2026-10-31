@@ -8,4 +8,4 @@ export { DEFAULT_LIMITS, type IngestLimits, type IngestOptions, ingest } from ".
 export { type DetectedTable, detectTables, type Grid, isPeriodLabel } from "./regions.ts";
 export { delimiterOf, sniff } from "./sniff.ts";
 export type * from "./types.ts";
-export { measureZip, ZipError } from "./zip.ts";
+export { MAX_ZIP_ENTRIES, measureZip, ZipError } from "./zip.ts";

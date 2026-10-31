@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ingest } from "../src/index.ts";
-import { measureZip, readZipEntries } from "../src/zip.ts";
+import { MAX_ZIP_ENTRIES, measureZip, readZipEntries } from "../src/zip.ts";
 
 // Spies around the real parsers, so a test can prove they were never handed the bytes.
 const parsers = vi.hoisted(() => ({ grids: vi.fn(), docx: vi.fn() }));
@@ -40,6 +40,19 @@ interface Part {
   readonly centralSize?: number;
   /** Point this central entry at another part's local header. */
   readonly sameLocalAs?: number;
+  /** A central method different from the local one. */
+  readonly centralMethod?: number;
+  /** Extra field bytes for the central header. */
+  readonly centralExtra?: readonly number[];
+}
+
+interface ZipOptions {
+  /** Patch the end record's "entries on this disk" or both entry counts. */
+  readonly diskEntries?: number;
+  readonly count?: number;
+  /** Bytes between the central directory and the end record, so the directory is not where the record says. */
+  readonly gap?: readonly number[];
+  readonly comment?: readonly number[];
 }
 
 const u16 = (n: number) => [n & 0xff, (n >>> 8) & 0xff];
@@ -55,7 +68,7 @@ function crc32(data: Uint8Array): number {
 }
 
 /** A ZIP written byte by byte, so the tests control every header field. */
-function zip(parts: readonly Part[], eocdPatch?: { diskEntries?: number }): Uint8Array {
+function zip(parts: readonly Part[], opts: ZipOptions = {}): Uint8Array {
   const out: number[] = [];
   const central: number[] = [];
   const offsets: number[] = [];
@@ -76,15 +89,17 @@ function zip(parts: readonly Part[], eocdPatch?: { diskEntries?: number }): Uint
       for (const b of body) out.push(b);
       if (p.descriptor) out.push(...u32(0x08074b50), ...u32(crc), ...u32(body.length), ...u32(p.data.length));
     }
-    central.push(...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(flags), ...u16(method), ...u32(0), ...u32(crc));
-    central.push(...u32(body.length), ...u32(p.centralSize ?? p.data.length), ...u16(name.length), ...u16(0), ...u16(0));
-    central.push(...u16(0), ...u16(0), ...u32(0), ...u32(offset), ...name);
+    const extra = p.centralExtra ?? [];
+    central.push(...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(flags), ...u16(p.centralMethod ?? method), ...u32(0), ...u32(crc));
+    central.push(...u32(body.length), ...u32(p.centralSize ?? p.data.length), ...u16(name.length), ...u16(extra.length), ...u16(0));
+    central.push(...u16(0), ...u16(0), ...u32(0), ...u32(offset), ...name, ...extra);
   }
   const cdOffset = out.length;
-  out.push(...central);
-  const n = parts.length;
-  out.push(...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(eocdPatch?.diskEntries ?? n), ...u16(n));
-  out.push(...u32(central.length), ...u32(cdOffset), ...u16(0));
+  out.push(...central, ...(opts.gap ?? []));
+  const n = opts.count ?? parts.length;
+  const comment = opts.comment ?? [];
+  out.push(...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(opts.diskEntries ?? n), ...u16(n));
+  out.push(...u32(central.length), ...u32(cdOffset), ...u16(comment.length), ...comment);
   return new Uint8Array(out);
 }
 
@@ -183,6 +198,29 @@ describe("the ZIP limit measures the real decompressed size", () => {
     expect(res.tables.map((t) => t.columns.map((c) => c.name))).toEqual(plain.tables.map((t) => t.columns.map((c) => c.name)));
   });
 
+  it.each([
+    ["the local header", { localSize: 400 * MB }],
+    ["the central header", { centralSize: 400 * MB }],
+    ["the central header of a data-descriptor entry", { descriptor: true, centralSize: 400 * MB }],
+    ["a smaller size in the local header", { localSize: 10 }],
+  ])("rejects a declared uncompressed size in %s that differs from the real one, before SheetJS runs", async (_, lie) => {
+    // SheetJS allocates its output buffer at the local declared size, whatever the stream holds.
+    const parts = unzip(fx("xlsx/01-simple.xlsx")).map((p) => (p.name === "xl/workbook.xml" ? { ...p, ...lie } : p));
+    const res = await ingest([{ name: "a.xlsx", bytes: zip(parts) }]);
+    expect(res.files[0]?.status).toBe("rejected");
+    expect(res.issues).toEqual([
+      expect.objectContaining({ kind: "unreadable_file", message: expect.stringContaining("declared uncompressed size") }),
+    ]);
+    expect(parsers.grids).not.toHaveBeenCalled();
+  });
+
+  it(`rejects more than ${MAX_ZIP_ENTRIES} entries as too large`, async () => {
+    const parts = Array.from({ length: MAX_ZIP_ENTRIES + 1 }, (_, i) => ({ name: `xl/p${i}.xml`, data: new Uint8Array([65]) }));
+    const res = await ingest([{ name: "many.xlsx", bytes: zip(parts) }], { limits });
+    expect(res.issues).toEqual([expect.objectContaining({ kind: "too_large", message: expect.stringContaining("entries") })]);
+    expect(parsers.grids).not.toHaveBeenCalled();
+  });
+
   it("rejects a bomb split across many entries pointing at one compressed body", async () => {
     const kernel = { name: "xl/a.xml", data: zeros(MB / 2) };
     const bytes = zip([kernel, ...Array.from({ length: 50 }, (_, i) => ({ name: `xl/b${i}.xml`, data: kernel.data, sameLocalAs: 0 }))]);
@@ -223,6 +261,40 @@ describe("structures the parsers could read differently are rejected", () => {
 
   it("entry counts that disagree between this disk and the total", async () => {
     await reject(zip([{ name: "xl/a.xml", data: text }], { diskEntries: 2 }));
+  });
+
+  it("central records beyond the counted entries", async () => {
+    await reject(
+      zip(
+        [
+          { name: "xl/a.xml", data: text },
+          { name: "xl/b.xml", data: text },
+        ],
+        { count: 1 },
+      ),
+    );
+  });
+
+  it("a central directory that is not where the end record says (JSZip would shift every offset)", async () => {
+    await reject(zip([{ name: "xl/a.xml", data: text }], { gap: [0, 0, 0, 0] }));
+  });
+
+  it("local and central headers that disagree on the method", async () => {
+    await reject(zip([{ name: "xl/a.xml", data: text, centralMethod: 0 }]));
+  });
+
+  it("a ZIP64 extra field, on a stored or a deflated entry", async () => {
+    const zip64 = [0x01, 0x00, 16, 0x00, ...Array.from({ length: 16 }, () => 0)];
+    await reject(zip([{ name: "xl/a.xml", data: text, method: 0, centralExtra: zip64 }]));
+    await reject(zip([{ name: "xl/a.xml", data: text, centralExtra: zip64 }]));
+  });
+
+  it("a fake end-record signature inside the archive comment", async () => {
+    const fake = [0x50, 0x4b, 0x05, 0x06, ...Array.from({ length: 18 }, () => 0)];
+    const bytes = zip([{ name: "xl/a.xml", data: text }], { comment: fake });
+    // The last signature wins, as in SheetJS and JSZip: the directory it describes is empty and misplaced.
+    expect(readZipEntries(bytes)).toBeUndefined();
+    await expect(measureZip(bytes, MB)).rejects.toMatchObject({ code: "MALFORMED" });
   });
 
   it("ZIP64 sentinels in the end record", async () => {
