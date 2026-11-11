@@ -5,6 +5,9 @@ const ident = z.string().regex(/^[a-z][a-z0-9_]*$/, "snake_case identifier");
 
 export const MetricType = z.enum(["sum", "count", "count_distinct", "avg", "ratio", "derived"]);
 export const MetricUnit = z.enum(["currency", "percent", "count", "ratio", "days", "other"]);
+/** The scale a money column's header states ("value_thousand_uzs"): values stay as in the file, the display names the scale. */
+export const MetricScale = z.enum(["thousand", "million", "billion"]);
+export type MetricScale = z.infer<typeof MetricScale>;
 export const Grain = z.enum(["day", "week", "month", "quarter", "year"]);
 export type Grain = z.infer<typeof Grain>;
 
@@ -32,6 +35,7 @@ export const MetricDef = z
       .string()
       .regex(/^[A-Z]{3}$/)
       .optional(),
+    scale: MetricScale.optional(),
     dimensions: z.array(z.string()).optional(),
     /**
      * `count_distinct` only (analysis-library §8.1): count only the values (customers) whose first line in the table

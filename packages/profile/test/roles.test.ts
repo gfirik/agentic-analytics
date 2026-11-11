@@ -47,6 +47,17 @@ function propose(c: RoleColumn): Role {
   return top && top.score >= 0.4 ? top.role : "none";
 }
 
+describe("unit words in a header (pre-tag 2)", () => {
+  it("amount_mln_uzs, value_thousand_uzs and Revenue (USD mn) read as an amount, as the bare word does", () => {
+    for (const label of ["amount", "amount_mln_uzs", "value_thousand_uzs", "Revenue (USD mn)", "Sales '000"])
+      expect(propose(col(label, "currency")), label).toBe("amount");
+  });
+  it("a header that is only unit words keeps them, and a word like 'monthly' is not one", () => {
+    expect(propose(col("USD", "currency"))).not.toBe("amount");
+    expect(propose(col("monthly amount", "currency"))).toBe("amount");
+  });
+});
+
 describe("vocabulary", () => {
   it("is exactly the spec's table, in order", () => {
     const spec = readFileSync(join(root, "docs", "specs", "semantics.md"), "utf8");

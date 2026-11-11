@@ -48,8 +48,8 @@ export function describeMetric(def: MetricDef, all: readonly MetricDef[] = [], g
   const unit =
     def.unit === "currency" && def.currency
       ? def.currency === "XXX"
-        ? ", currency unknown"
-        : `, in ${def.currency}`
+        ? `, currency unknown${def.scale ? `, in ${def.scale}s` : ""}`
+        : `, in ${def.scale ? `${def.scale} ` : ""}${def.currency}`
       : def.unit === "percent"
         ? ", as a percentage"
         : "";

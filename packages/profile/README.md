@@ -12,6 +12,7 @@ The PROFILE stage. It normalizes ingested tables (dates, numbers, currency, type
 | Export | Does |
 |---|---|
 | `profileJob(ws, ingested, { today, grain? })` | The whole stage. Returns the `profile.json` summary: tables with column profiles, issues, entities and assumptions. |
+| `headerUnits(header)` | The scale (`thousand`, `million`, `billion`) and currency a header states in words (`value_thousand_uzs`, `Revenue (USD mn)`); a word counts only as its own token, and a conflict says nothing. |
 | `normalizeTable(region, grain?)` | Infers column types (date, datetime, integer, decimal, currency, percent, boolean, category, id, text) and normalizes values. A date-named column of `year.month` numbers (`Period`: `2002.10`) is read as months. Whole numbers mixed with letter-prefixed numbers (`489434`, `C489434`) are an `id` column, unless the header names a count. Raises column issues: date-order ambiguity or conflict, mixed currency, unparseable values. |
 | `yearMonthOf(n)` | `2002.1` → `2002-10-01`, `2002.01` → `2002-01-01`; undefined for anything that is not a month (`2002.13`, `2002`, years outside 1900–2100). |
 | `parseNumber(raw, decimal)`, `detectDecimal(samples)` | `1 234,56` · `1,234.56` · `1.234,56` · `(12)` · `12%` · `$`/`€`/`сум`/`so'm`/`UZS`… The decimal separator is decided per column by majority. |

@@ -20,6 +20,7 @@ export {
   sameNumbers,
   tokenOverlap,
 } from "./entities.ts";
+export { type HeaderUnits, headerUnits, type Scale } from "./header-units.ts";
 export { inRange, type ProfileOptions, type ProfileSummary, profileJob } from "./job.ts";
 export { columnNames, snakeCase, transliterate } from "./names.ts";
 export {

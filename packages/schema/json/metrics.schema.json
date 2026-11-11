@@ -175,6 +175,14 @@
             "type": "string",
             "pattern": "^[A-Z]{3}$"
           },
+          "scale": {
+            "type": "string",
+            "enum": [
+              "thousand",
+              "million",
+              "billion"
+            ]
+          },
           "dimensions": {
             "type": "array",
             "items": {

@@ -22,6 +22,7 @@ export async function readFacts(ws: Workspace): Promise<Fact[]> {
     value: number;
     unit: Fact["unit"];
     currency: string | null;
+    scale: Fact["scale"] | null;
     metric_id: string | null;
     kind: "sql" | "function";
     sql: string | null;
@@ -29,7 +30,7 @@ export async function readFacts(ws: Workspace): Promise<Fact[]> {
     fn: string | null;
     inputs: string[] | null;
     input_rows: string | null;
-  }>(sql`SELECT id, label, value, unit, currency, metric_id, kind, sql, params::VARCHAR AS params, fn, inputs,
+  }>(sql`SELECT id, label, value, unit, currency, scale, metric_id, kind, sql, params::VARCHAR AS params, fn, inputs,
       input_rows::VARCHAR AS input_rows FROM facts ORDER BY CAST(substr(id, 2) AS INTEGER)`);
   return rows.map((r) => ({
     id: r.id,
@@ -37,6 +38,7 @@ export async function readFacts(ws: Workspace): Promise<Fact[]> {
     value: r.value,
     unit: r.unit,
     ...(r.currency ? { currency: r.currency } : {}),
+    ...(r.scale ? { scale: r.scale } : {}),
     ...(r.metric_id ? { metric_id: r.metric_id } : {}),
     computation: {
       kind: r.kind,
@@ -268,7 +270,11 @@ export async function scenarioFacts(
   const context = `scenario ${r.method}`;
   const scope = await book.calcs([...r.params, r.low, r.high], context, base?.metric_id);
   // Currency follows the base fact (FactBook only knows currencies of metric series).
-  const newFacts = book.facts.map((f) => (f.unit === "currency" && base?.currency ? { ...f, currency: base.currency } : f));
+  const newFacts = book.facts.map((f) =>
+    f.unit === "currency"
+      ? { ...f, ...(base?.currency ? { currency: base.currency } : {}), ...(base?.scale ? { scale: base.scale } : {}) }
+      : f,
+  );
   await persistFacts(ws, newFacts);
   return {
     method: r.method,

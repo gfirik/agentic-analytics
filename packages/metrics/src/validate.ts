@@ -1,7 +1,9 @@
 // Code validates every metric proposal (docs/specs/metric-layer.md §2.3). The model is never trusted to be
 // right: each proposal is accepted (normalized, with defaults filled) or rejected with the reasons why.
+
+import { type HeaderUnits, headerUnits } from "@agentic-analytics/profile";
 import { MetricDef, type RatioTerm, screen } from "@agentic-analytics/schema";
-import { type Catalog, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
+import { type Catalog, type CatalogColumn, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
 import { describeExpr, type Expr, exprColumns, filterColumns, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 
 export interface Rejected {
@@ -154,17 +156,50 @@ export function validateMetrics(proposals: readonly unknown[], catalog: Catalog,
   return { accepted, rejected, assumptions };
 }
 
+/** The catalog columns a proposal's expression(s) read: its own, or its numerator's (a money-per-unit ratio). */
+function sourceColumns(r: { table?: string; expression?: string; numerator?: unknown }, catalog: Catalog): CatalogColumn[] {
+  const num = r.numerator as { table?: unknown; expression?: unknown } | undefined;
+  const table = r.table ?? (typeof num?.table === "string" ? num.table : undefined);
+  const expression = r.expression ?? (typeof num?.expression === "string" ? num.expression : undefined);
+  if (!table || !expression) return [];
+  try {
+    return exprColumns(parseExpression(expression)).flatMap((c) => catalog.get(table)?.columns.get(c) ?? []);
+  } catch {
+    return [];
+  }
+}
+
+/** The one value all the columns that state one agree on (header words, ingestion-and-profiling §6); none when they differ. */
+function agreed<T extends string>(values: readonly (T | undefined)[]): T | undefined {
+  const found = new Set(values.filter((v): v is T => v !== undefined));
+  return found.size === 1 ? [...found][0] : undefined;
+}
+
+/** The units a column's header states: its label as written in the file, else its normalized name. */
+function headerUnitsOf(c: CatalogColumn): HeaderUnits {
+  const fromLabel = headerUnits(c.label);
+  return fromLabel.scale || fromLabel.currency ? fromLabel : headerUnits(c.name);
+}
+
 function fillCurrency(raw: unknown, catalog: Catalog, options: ValidateOptions, assumptions: Validation["assumptions"]): unknown {
   if (typeof raw !== "object" || raw === null) return raw;
-  const r = raw as { id?: string; unit?: string; currency?: string; table?: string; expression?: string };
-  if (r.unit !== "currency" || r.currency) return raw;
-  let detected: string | undefined;
-  try {
-    const cols = r.expression ? exprColumns(parseExpression(r.expression)) : [];
-    detected = cols.map((c) => (r.table ? catalog.get(r.table)?.columns.get(c)?.currency : undefined)).find(Boolean);
-  } catch {
-    detected = undefined;
-  }
+  const r = raw as {
+    id?: string;
+    unit?: string;
+    currency?: string;
+    scale?: string;
+    table?: string;
+    expression?: string;
+    numerator?: unknown;
+  };
+  if (r.unit !== "currency") return raw;
+  const cols = sourceColumns(r, catalog);
+  // The scale a header states ("value_thousand_uzs"): only for money, and never over one the proposal already carries.
+  const scale = r.scale ? undefined : agreed(cols.map((c) => headerUnitsOf(c).scale));
+  const withScale = scale ? { ...raw, scale } : raw;
+  if (r.currency) return withScale;
+  // A currency marked in the column, then one the header names, then the job default.
+  const detected = cols.map((c) => c.currency).find(Boolean) ?? agreed(cols.map((c) => headerUnitsOf(c).currency));
   const currency = detected ?? options.defaultCurrency ?? "XXX";
   if (!detected) {
     assumptions.push({
@@ -174,7 +209,7 @@ function fillCurrency(raw: unknown, catalog: Catalog, options: ValidateOptions, 
         : `The currency of ${r.id} is unknown (no currency marked in the data); amounts are shown without one.`,
     });
   }
-  return { ...raw, currency };
+  return { ...withScale, currency };
 }
 
 function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly MetricDef[]): string[] {

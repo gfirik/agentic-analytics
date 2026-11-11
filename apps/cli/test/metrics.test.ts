@@ -58,7 +58,7 @@ describe("aa metrics", () => {
     expect(text).toContain(
       "Wholesale revenue = sum of amount where status is not refunded and channel is wholesale, per month, in USD (assumed)",
     );
-    expect(text).toContain("2026-03 15900 · 2026-04 7400");
+    expect(text).toContain("2026-03 15,900 USD · 2026-04 7,400 USD");
     expect(text).toContain("2026-05 2.9 · 2026-06 3.4");
     expect(parse(outcome.yaml).metrics.map((m: { id: string }) => m.id)).toEqual([
       "revenue",

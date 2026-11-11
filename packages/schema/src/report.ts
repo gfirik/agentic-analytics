@@ -1,7 +1,7 @@
 // Report v1: the product's contract (docs/specs/report-schema.md). Fields may be added within v1,
 // never removed or renamed.
 import { z } from "zod";
-import { Grain, MetricDef, MetricUnit } from "./metric.ts";
+import { Grain, MetricDef, MetricScale, MetricUnit } from "./metric.ts";
 
 export const REPORT_SCHEMA_ID = "agentic-analytics.report/v1";
 
@@ -62,6 +62,7 @@ export const Fact = z
       .string()
       .regex(/^[A-Z]{3}$/)
       .optional(),
+    scale: MetricScale.optional(),
     metric_id: z.string().optional(),
     computation: Computation,
     citations: z.array(Citation),

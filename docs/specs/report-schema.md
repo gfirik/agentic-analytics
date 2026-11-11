@@ -61,6 +61,7 @@ Fact = {
   value: number,
   unit: "currency"|"percent"|"count"|"ratio"|"days"|"other",
   currency?: string,             // ISO 4217
+  scale?: "thousand"|"million"|"billion", // money only: the scale the source header states; `value` stays as in the file, never multiplied
   metric_id?: string,            // MetricDef.id this fact measures
   computation: { kind: "sql"|"function", sql?: string, params?: Record<string, unknown>, fn?: string, inputs?: string[] /* fact ids */ },
   citations: Citation[],         // input rows

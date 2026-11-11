@@ -548,6 +548,7 @@ function clientData(report: Report, ctx: Ctx) {
         value: f.value,
         unit: f.unit,
         currency: f.currency,
+        scale: f.scale,
         display: formatFact(f),
         verified: f.verified,
         computation: f.computation,

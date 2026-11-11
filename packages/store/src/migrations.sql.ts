@@ -109,4 +109,10 @@ export const MIGRATIONS: readonly Migration[] = [
     // the concentration analysis (analysis-library §11).
     statements: ["CREATE TABLE profile_period_parts (table_id VARCHAR PRIMARY KEY, year_column VARCHAR NOT NULL, month_column VARCHAR)"],
   },
+  {
+    version: 8,
+    name: "facts.scale",
+    // The scale a money fact's header states ("thousand", "million", "billion"; report-schema §3): shown with the value, never multiplied in.
+    statements: ["ALTER TABLE facts ADD COLUMN scale VARCHAR"],
+  },
 ];

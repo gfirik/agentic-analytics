@@ -2,10 +2,12 @@
 // record and citations. Measured points carry the metric's SQL with its parameters and the input rows (from the
 // metric compiler); derived numbers carry the function id and their input fact ids. Facts are created lazily,
 // only for numbers an insight or decomposition actually references.
+
 import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import { compileMetric, compileMetricRows, marginTerms, marginValue } from "@agentic-analytics/metrics";
 import type { Citation, Fact, MetricDef } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
+import { moneyUnits } from "./money.ts";
 import type { Calc, Ref, Series, StatRef } from "./types.ts";
 
 export type AnalysisErrorCode =
@@ -142,7 +144,7 @@ export class FactBook {
       label: `${info.def.id}${member ? `[${member.dimension}=${member.value ?? "(none)"}]` : ""}_${period}`,
       value,
       unit: info.series.unit,
-      ...(info.def.currency && info.series.unit === "currency" ? { currency: info.def.currency } : {}),
+      ...moneyUnits(info.def, info.series.unit),
       ...(this.reported.has(info.def.id) ? { metric_id: info.def.id } : {}),
       computation: {
         kind: "sql",
@@ -179,7 +181,7 @@ export class FactBook {
       label: `${info.def.id}${m ? `[${m.dimension}=${m.value ?? "(none)"}]` : ""}_${period}`,
       value,
       unit: info.series.unit,
-      ...(info.def.currency && info.series.unit === "currency" ? { currency: info.def.currency } : {}),
+      ...moneyUnits(info.def, info.series.unit),
       ...(this.reported.has(info.def.id) ? { metric_id: info.def.id } : {}),
       computation: { kind: "function", fn: terms.fn, inputs: [revenueId, costId] },
       citations: [],
@@ -223,7 +225,7 @@ export class FactBook {
       label: c.factLabel ?? `${context}:${c.name}`,
       value: c.value,
       unit: c.unit,
-      ...(c.unit === "currency" && def?.currency ? { currency: def.currency } : {}),
+      ...moneyUnits(def, c.unit),
       ...(metricId && this.reported.has(metricId) && c.unit === (this.series.get(metricId)?.series.unit ?? "")
         ? { metric_id: metricId }
         : {}),
