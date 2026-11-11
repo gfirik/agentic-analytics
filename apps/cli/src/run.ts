@@ -4,6 +4,7 @@
 
 import { type JobDeps, type JobOptions, PipelineError, runJob } from "@agentic-analytics/core";
 import type { InputFile } from "@agentic-analytics/ingest";
+import { recommendationsNote } from "@agentic-analytics/report";
 import type { JobEvent } from "@agentic-analytics/schema";
 
 /** Exit code of a job that finished but read no numbers (1 means failure). */
@@ -59,6 +60,8 @@ export async function runCommand(
   deps.out("");
   deps.out(`job ${out.jobId} · ${r.findings.length} finding(s) · ${r.recommendations.length} recommendation(s) · ${r.facts.length} facts`);
   for (const f of r.findings) deps.out(`  ${f.id} ${f.title}`);
+  const note = recommendationsNote(r);
+  if (note) deps.out(note);
   deps.out(`report (verified): ${out.reportPath}`);
   deps.out(`html: ${out.htmlPath}`);
   if (out.run.skipped.length) deps.out(`skipped: ${out.run.skipped.join(", ")}`);

@@ -5,7 +5,15 @@
 import { type ScenarioRequest, scenarioFacts } from "@agentic-analytics/analysis";
 import type { Catalog, Grain } from "@agentic-analytics/metrics";
 import { type ModelClient, ModelError } from "@agentic-analytics/models";
-import { type Fact, type Finding, findFreeNumerals, type MetricDef, placeholders, type Recommendation } from "@agentic-analytics/schema";
+import {
+  type Fact,
+  type Finding,
+  findFreeNumerals,
+  type MetricDef,
+  placeholders,
+  type Recommendation,
+  type RecommendationsNote,
+} from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
 import { type BudgetedRequest, type DecideFinding, fitToBudget } from "./budget.ts";
@@ -193,9 +201,13 @@ export function decideRequest(input: {
 const CONF = { high: 1, medium: 0.6, low: 0.3 } as const;
 const EFFORT = { low: 1, medium: 1.5, high: 2 } as const;
 
-export async function decide(
-  input: DecideInput,
-): Promise<{ recommendations: Recommendation[]; dropped: Dropped[]; request?: Pick<DecideRequest, "estimate" | "untrimmed" | "steps"> }> {
+export async function decide(input: DecideInput): Promise<{
+  recommendations: Recommendation[];
+  dropped: Dropped[];
+  /** Set by code when there were findings and no recommendation; absent otherwise. */
+  note?: RecommendationsNote;
+  request?: Pick<DecideRequest, "estimate" | "untrimmed" | "steps">;
+}> {
   const dropped: Dropped[] = [];
   if (!input.findings.length) return { recommendations: [], dropped };
   let req: DecideRequest;
@@ -219,7 +231,7 @@ export async function decide(
     // costs the recommendations, not the verified findings; the reason is recorded.
     if (!(err instanceof ModelError && err.code === "INPUT_TOO_LARGE")) throw err;
     dropped.push({ claim: "(candidate actions)", reason: err.message });
-    return { recommendations: [], dropped };
+    return { recommendations: [], dropped, note: "step_failed" };
   }
   const request = { estimate: req.estimate, untrimmed: req.untrimmed, steps: req.steps };
   let object: DecideAnswer;
@@ -236,7 +248,7 @@ export async function decide(
     // findings still stand: the report ships with no recommendations, and the reason is recorded.
     if (!(err instanceof Error && "code" in err && err.code === "INVALID_OUTPUT")) throw err;
     dropped.push({ claim: "(candidate actions)", reason: `the model's candidate actions failed validation: ${err.message.slice(0, 200)}` });
-    return { recommendations: [], dropped, request };
+    return { recommendations: [], dropped, note: "step_failed", request };
   }
   const findingIds = new Set(input.findings.map((f) => f.id));
   const scored: { rec: Omit<Recommendation, "id">; score: number }[] = [];
@@ -338,7 +350,8 @@ export async function decide(
   const recommendations = scored.slice(0, input.maxRecommendations).map((s, i) => ({ id: `R${i + 1}`, ...s.rec }));
   for (const s of scored.slice(input.maxRecommendations))
     dropped.push({ claim: s.rec.action, reason: "ranked below the kept recommendations" });
-  return { recommendations, dropped, request };
+  // Candidates came back but none survived the rules above: say so rather than ship an empty section.
+  return { recommendations, dropped, ...(recommendations.length ? {} : { note: "none_passed" as const }), request };
 }
 
 function scenarioBase(s: z.infer<typeof ScenarioInput>): string {

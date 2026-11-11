@@ -344,10 +344,25 @@ function answer(r: FakeRequest): unknown {
  * candidate's risk, an empty not_advised, and one extra candidate whose rationale carries a free numeral.
  */
 export function coffeePlanner(
-  options: { web?: boolean; sloppyDecide?: boolean; searchDates?: { from: string; to: string } } = {},
+  options: {
+    web?: boolean;
+    sloppyDecide?: boolean;
+    /** "invalid": DECIDE never returns a valid answer; "unsupported": every candidate cites a finding that does not exist. */
+    decideFails?: "invalid" | "unsupported";
+    searchDates?: { from: string; to: string };
+  } = {},
 ): FakeModel {
   const web = options.web === true;
-  const decideAnswer = options.sloppyDecide ? sloppy : candidates;
+  const decideAnswer =
+    options.decideFails === "invalid"
+      ? () => ({ candidates: "not a list" })
+      : options.decideFails === "unsupported"
+        ? (r: FakeRequest) => ({
+            candidates: (candidates(r) as { candidates: Record<string, unknown>[] }).candidates.map((c) => ({ ...c, because: ["F99"] })),
+          })
+        : options.sloppyDecide
+          ? sloppy
+          : candidates;
   return new FakeModel([
     { role: "extractor", match: "<document", repeat: true, object: extract },
     { role: "planner", match: "Investigate finding", repeat: true, steps: (r: FakeRequest) => investigate(r, web, options.searchDates) },

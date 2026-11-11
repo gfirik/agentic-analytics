@@ -527,6 +527,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             ...(noNumbers ? { noNumbers } : {}),
             findings: ex.findings,
             recommendations: d.recommendations as Recommendation[],
+            ...(d.note && !noNumbers ? { recommendationsNote: d.note } : {}),
             analysisQuestions: measured.openQuestions,
             askedQuestions: ex.questions,
             quarantined: await quarantinedSources(ws),

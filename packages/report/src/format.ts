@@ -1,6 +1,6 @@
 // Display formatting for facts. Formatting is presentation only: it rounds for reading, it never derives
 // a new number (AGENTS.md §2.1). The exact value stays in the fact and in the computation panel.
-import type { Fact } from "@agentic-analytics/schema";
+import type { Fact, RecommendationsNote } from "@agentic-analytics/schema";
 
 const MINUS = "−";
 const grouped = (v: number, digits: number) =>
@@ -62,4 +62,15 @@ export function formatCell(v: string | number | null, header: string): string {
   if ((/(?:^|[^a-z])rates?(?:$|[^a-z])|%/i.test(header) || /[a-z]Rates?\b/.test(header)) && Math.abs(v) < 1)
     return `${sign(v)}${grouped(v * 100, 1)}%`;
   return `${sign(v)}${grouped(v, Number.isInteger(v) ? 0 : 2)}`;
+}
+
+const RECOMMENDATIONS_NOTE_TEXT: Record<RecommendationsNote, string> = {
+  step_failed:
+    "No recommendation could be produced: the step that drafts actions did not return a valid result. The findings above still stand.",
+  none_passed: "Recommendations were drafted but none passed the checks. The findings above still stand.",
+};
+
+/** The line shown where recommendations would be when there are none (report-schema §1); undefined when no note applies. */
+export function recommendationsNote(r: { readonly recommendations_note?: RecommendationsNote | undefined }): string | undefined {
+  return r.recommendations_note ? RECOMMENDATIONS_NOTE_TEXT[r.recommendations_note] : undefined;
 }
