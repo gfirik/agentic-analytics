@@ -24,7 +24,7 @@ describe("noNumbersReason", () => {
   });
   it("hints at files that were not read when another reason applies", () => {
     expect(noNumbersHeadline("no_table", true)).toBe(
-      "No numbers could be read from these files: no table was found (some files were not read).",
+      "No numbers could be read from these files: no table was found (add a spreadsheet or CSV with one header row); some files were not read.",
     );
     expect(noNumbersHeadline("files_rejected", true)).not.toContain("some files were not read");
   });

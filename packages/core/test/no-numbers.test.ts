@@ -24,9 +24,9 @@ async function run(files: { name: string; bytes: Uint8Array }[]) {
 }
 
 describe("a job that read no numbers", () => {
-  it("a text file with no table: the headline says no table was found, and no model is called", async () => {
+  it("a text file with no table: the headline says no table was found (add a spreadsheet or CSV with one header row), and no model is called", async () => {
     const { report } = await run([{ name: "notes.txt", bytes: enc("The board met and discussed the strategy for the coming year.\n") }]);
-    expect(report.summary.headline).toBe("No numbers could be read from these files: no table was found.");
+    expect(report.summary.headline).toBe("No numbers could be read from these files: no table was found (add a spreadsheet or CSV with one header row).");
     expect(report.summary.no_numbers).toBe("no_table");
     expect(report.summary.headline).not.toMatch(/No material changes/);
   }, 120_000);

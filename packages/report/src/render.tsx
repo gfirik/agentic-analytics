@@ -9,6 +9,10 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CLIENT_SCRIPT } from "./client-script.ts";
 import { formatCell, formatFact, formatPeriod } from "./format.ts";
+
+/** A report that read no numbers has no period to show, whatever dates profiling saw (report-schema §1). */
+const reportPeriod = (r: Report): string => (r.summary.no_numbers ? "no period" : formatPeriod(r.period.from, r.period.to));
+
 import { type Ctx, Text } from "./parts.tsx";
 import { ConcentrationView, NotRunView, ScorecardView, SemanticsView } from "./sections.tsx";
 import { STYLES } from "./styles.ts";
@@ -330,7 +334,7 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
   const v = report.verification;
   const verifiedOk = v.numbers_mismatched === 0 && v.rederivation_mismatches === 0;
   const highIssues = report.data_quality.filter((q) => q.severity === "high");
-  const period = formatPeriod(report.period.from, report.period.to);
+  const period = reportPeriod(report);
   return (
     <div className="wrap">
       <main>
@@ -563,7 +567,7 @@ function scriptJson(value: unknown): string {
 
 export function renderReportHtml(report: Report): string {
   const ctx = buildCtx(report);
-  const title = `Business diagnosis · ${formatPeriod(report.period.from, report.period.to)}`;
+  const title = `Business diagnosis · ${reportPeriod(report)}`;
   const body = renderToStaticMarkup(<ReportPage report={report} ctx={ctx} />);
   return [
     "<!doctype html>",

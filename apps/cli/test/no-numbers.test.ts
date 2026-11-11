@@ -22,7 +22,9 @@ describe("a job that read no numbers", () => {
     const lines: string[] = [];
     const r = await analyzeCommand({ files, options, out: join(tmp, "out") }, { manager, print: (l) => lines.push(l) });
     expect(r.code).toBe(2);
-    expect(lines).toContain("No numbers could be read from these files: no table was found.");
+    expect(lines).toContain(
+      "No numbers could be read from these files: no table was found (add a spreadsheet or CSV with one header row).",
+    );
     expect(lines).toContain("Read: notes.txt (document)");
     expect(lines.join("\n")).not.toContain("No material changes");
   }, 120_000);
@@ -34,6 +36,8 @@ describe("a job that read no numbers", () => {
       { model: new FakeModel([]), embedder: hashEmbedder(), out: (l) => lines.push(l) },
     );
     expect(code).toBe(2);
-    expect(lines).toContain("No numbers could be read from these files: no table was found.");
+    expect(lines).toContain(
+      "No numbers could be read from these files: no table was found (add a spreadsheet or CSV with one header row).",
+    );
   }, 120_000);
 });

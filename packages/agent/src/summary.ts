@@ -46,13 +46,13 @@ export async function noNumbersInput(ws: Workspace, facts: Iterable<{ readonly m
 
 const NO_NUMBERS_TEXT: Record<NoNumbersReason, string> = {
   files_rejected: "every file was rejected (see Files not read)",
-  no_table: "no table was found",
+  no_table: "no table was found (add a spreadsheet or CSV with one header row)",
   headers_not_recognised: "no column was recognised as a date and an amount (name them, for example, date and amount)",
 };
 
 /** The headline of a job that read no numbers: never "No material changes", which would be a false all-clear. */
 export const noNumbersHeadline = (reason: NoNumbersReason, filesNotRead = false): string =>
-  `No numbers could be read from these files: ${NO_NUMBERS_TEXT[reason]}${filesNotRead && reason !== "files_rejected" ? " (some files were not read)" : ""}.`;
+  `No numbers could be read from these files: ${NO_NUMBERS_TEXT[reason]}${filesNotRead && reason !== "files_rejected" ? "; some files were not read" : ""}.`;
 
 export async function writeHeadline(model: ModelClient, findings: readonly Finding[], small: boolean): Promise<string> {
   const first = findings[0];
