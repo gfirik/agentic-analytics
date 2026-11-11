@@ -32,10 +32,26 @@ export function formatValue(value: number, unit: Fact["unit"]): string {
  */
 const POINTS = new Set(["delta", "benchmark_gap.v1", "share_shift"]);
 
+/**
+ * A money value names its unit after the number: "40,896,000 USD", "17,776,691.7 million UZS". The scale is the one the
+ * file's header states; the value is as in the file, never multiplied (report-schema §3). "XXX" (currency unknown) is not shown.
+ */
+export function moneySuffix(f: Pick<Fact, "currency" | "scale">): string {
+  return `${f.scale ? ` ${f.scale}` : ""}${f.currency && f.currency !== "XXX" ? ` ${f.currency}` : ""}`;
+}
+
+/** A metric series value for `aa metrics`: money reads like a fact (grouped, with its scale and currency); other units stay as computed. */
+export function formatMetricValue(
+  value: number,
+  def: { readonly unit: Fact["unit"]; readonly currency?: string | undefined; readonly scale?: Fact["scale"] | undefined },
+): string {
+  return def.unit === "currency" ? `${formatValue(value, "currency")}${moneySuffix(def)}` : String(Number(value.toFixed(4)));
+}
+
 export function formatFact(f: Fact): string {
   if (f.unit === "percent" && f.computation.kind === "function" && POINTS.has(f.computation.fn ?? ""))
     return `${sign(f.value)}${grouped(f.value, 1)} pp`;
-  return formatValue(f.value, f.unit);
+  return f.unit === "currency" ? `${formatValue(f.value, f.unit)}${moneySuffix(f)}` : formatValue(f.value, f.unit);
 }
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

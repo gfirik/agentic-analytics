@@ -10,6 +10,7 @@ export {
   Grain,
   MetricDef,
   MetricFile,
+  MetricScale,
   MetricType,
   MetricUnit,
   RatioTerm,

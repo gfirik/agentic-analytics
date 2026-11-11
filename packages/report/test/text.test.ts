@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Fact, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { fillPlaceholders, formatCell, formatFact, formatPeriod, reportSummaryText } from "../src/index.ts";
+import { fillPlaceholders, formatCell, formatFact, formatMetricValue, formatPeriod, reportSummaryText } from "../src/index.ts";
 
 const report = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "..", "schema", "test", "fixtures", "report.coffee-roaster.json"), "utf8"),
@@ -99,5 +99,37 @@ describe("a report that read no numbers", () => {
   it("shows no period for the placeholder bounds 0000 and 9999", () => {
     expect(formatPeriod("0000", "9999")).toBe("no period");
     expect(formatPeriod("2026-01", "2026-06")).toBe("Jan–Jun 2026");
+  });
+});
+
+describe("money units in the display (pre-tag 2)", () => {
+  const money = (value: number, extra: Partial<Fact> = {}): Fact => ({
+    id: "N1",
+    label: "revenue_2026-01",
+    value,
+    unit: "currency",
+    computation: { kind: "sql", sql: "select 1" },
+    citations: [],
+    verified: true,
+    ...extra,
+  });
+  it("names the currency after the number, and the scale before it", () => {
+    expect(formatFact(money(40896000, { currency: "USD" }))).toBe("40,896,000 USD");
+    expect(formatFact(money(17776691.699999996, { currency: "UZS", scale: "million" }))).toBe("17,776,691.70 million UZS");
+    expect(formatFact(money(-25.5, { currency: "UZS", scale: "thousand" }))).toBe("−25.50 thousand UZS");
+    expect(formatFact(money(3, { currency: "UZS", scale: "billion" }))).toBe("3 billion UZS");
+  });
+  it("a fact with no currency or an unknown one (XXX) shows no code; percentages and counts are unaffected", () => {
+    expect(formatFact(money(1200))).toBe("1,200");
+    expect(formatFact(money(1200, { currency: "XXX" }))).toBe("1,200");
+    expect(formatFact(money(1200, { scale: "million" }))).toBe("1,200 million");
+    expect(formatFact({ ...money(12.5), unit: "percent", currency: "UZS", scale: "million" })).toBe("12.5%");
+    expect(formatFact({ ...money(1200), unit: "count", scale: "million" })).toBe("1,200");
+  });
+  it("formatMetricValue groups money with its units and leaves other units as computed", () => {
+    expect(formatMetricValue(17776691.699999996, { unit: "currency", currency: "UZS", scale: "million" })).toBe(
+      "17,776,691.70 million UZS",
+    );
+    expect(formatMetricValue(0.123456, { unit: "ratio" })).toBe("0.1235");
   });
 });

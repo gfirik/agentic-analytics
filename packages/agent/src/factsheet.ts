@@ -48,7 +48,12 @@ const round = (v: number) => (Math.abs(v) >= 100 ? Math.round(v * 100) / 100 : N
 
 export function sheetFact(f: Fact): SheetFact {
   // The label can carry a table cell (a member value): screened on its way to the planner (withhold.ts).
-  return { id: f.id, value: round(f.value), unit: f.currency && f.unit === "currency" ? f.currency : f.unit, label: withheld(f.label) };
+  return {
+    id: f.id,
+    value: round(f.value),
+    unit: f.unit === "currency" && (f.currency || f.scale) ? [f.scale, f.currency].filter(Boolean).join(" ") : f.unit,
+    label: withheld(f.label),
+  };
 }
 
 export function buildFactSheet(input: {

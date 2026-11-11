@@ -1,6 +1,7 @@
 // The role detector's per-column scoring (docs/specs/semantics.md §2.1): pure functions of one column's header, type
 // and profile statistics. Cross-column identities are added by detect.ts. Same input, same candidates.
 import type { ColumnType } from "@agentic-analytics/store";
+import { isUnitWord } from "../header-units.ts";
 import { headerTokens, stemTokens } from "./header.ts";
 import { ID_OF, ID_SUFFIXES, SYNONYMS } from "./synonyms.ts";
 import { type Role, roleOrder } from "./vocabulary.ts";
@@ -147,7 +148,10 @@ function matchPhrases(stem: readonly string[], phrases: readonly string[], via?:
 
 /** The name signal of one role for a header (§2.1, §2.3), including `<entity> id` and `<entity> code` forms. */
 export function nameHit(role: Role, c: RoleColumn): NameHit | undefined {
-  const stem = stemTokens(headerTokens(c.label));
+  const words = headerTokens(c.label);
+  // "Amount (USD mn)" and "value_thousand_uzs" name an amount: the words that state the unit are not part of the name.
+  const named = words.filter((w) => !isUnitWord(w));
+  const stem = stemTokens(named.length ? named : words);
   const own = SYNONYMS.get(role) ?? [];
   let best = matchPhrases(stem, own);
   const last = stem[stem.length - 1] ?? "";

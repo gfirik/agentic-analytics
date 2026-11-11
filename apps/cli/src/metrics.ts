@@ -18,6 +18,7 @@ import {
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
 import { periodOf, profileJob } from "@agentic-analytics/profile";
+import { formatMetricValue } from "@agentic-analytics/report";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
 import { ReviewEndedError, reviewEndedLines } from "./prompt.ts";
@@ -115,7 +116,7 @@ export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDe
       out(`  params: ${JSON.stringify(compiled.params)}`);
       const rows = await runMetric(ws, m.id, reviewed.metrics, catalog, range);
       const recent = rows.slice(-(options.lastPeriods ?? 6));
-      out(`  ${recent.map((r) => `${r.period} ${r.value === null ? "–" : Number(r.value.toFixed(4))}`).join(" · ")}`);
+      out(`  ${recent.map((r) => `${r.period} ${r.value === null ? "–" : formatMetricValue(r.value, m)}`).join(" · ")}`);
     }
     return {
       yaml: metricsYaml(reviewed.metrics, { grain: summary.grain }),

@@ -1,7 +1,9 @@
 // Code validates every metric proposal (docs/specs/metric-layer.md §2.3). The model is never trusted to be
 // right: each proposal is accepted (normalized, with defaults filled) or rejected with the reasons why.
+
+import { type HeaderUnits, headerUnits } from "@agentic-analytics/profile";
 import { MetricDef, type RatioTerm, screen } from "@agentic-analytics/schema";
-import { type Catalog, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
+import { type Catalog, type CatalogColumn, type CatalogTable, DATE_TYPES, DIMENSION_TYPES, NUMERIC_TYPES } from "./catalog.ts";
 import { describeExpr, type Expr, exprColumns, filterColumns, MetricLangError, parseExpression, parseFilter } from "./lang.ts";
 
 export interface Rejected {
@@ -70,27 +72,30 @@ function checkTableTerm(
  * proposal always follows it, so a ratio over a derived metric (gross_margin_pct over gross_margin) is checked after it.
  * Ties keep the proposals' order.
  */
-function validationOrder(proposals: readonly unknown[]): { p: unknown; i: number }[] {
-  interface Shape {
-    id?: unknown;
-    type?: unknown;
-    numerator?: { metric?: unknown };
-    denominator?: { metric?: unknown };
-    expression?: unknown;
+interface Shape {
+  id?: unknown;
+  type?: unknown;
+  numerator?: { metric?: unknown };
+  denominator?: { metric?: unknown };
+  expression?: unknown;
+}
+
+/** The other metrics a proposal references: a ratio's numerator and denominator, a derived metric's expression. */
+function refs(s: Shape): string[] {
+  const ids = [s.numerator?.metric, s.denominator?.metric].filter((m): m is string => typeof m === "string");
+  if (s.type === "derived" && typeof s.expression === "string") {
+    try {
+      ids.push(...exprColumns(parseExpression(s.expression)));
+    } catch {
+      // An expression that doesn't parse is refused by the semantic check with its reason.
+    }
   }
+  return ids;
+}
+
+function validationOrder(proposals: readonly unknown[]): { p: unknown; i: number }[] {
   const shape = proposals.map((p) => (typeof p === "object" && p !== null ? (p as Shape) : {}));
   const byId = new Map(shape.flatMap((s, i) => (typeof s.id === "string" ? [[s.id, i] as const] : [])));
-  const refs = (s: Shape): string[] => {
-    const ids = [s.numerator?.metric, s.denominator?.metric].filter((m): m is string => typeof m === "string");
-    if (s.type === "derived" && typeof s.expression === "string") {
-      try {
-        ids.push(...exprColumns(parseExpression(s.expression)));
-      } catch {
-        // An expression that doesn't parse is refused by the semantic check with its reason.
-      }
-    }
-    return ids;
-  };
   const depth = new Map<number, number>();
   const visit = (i: number, path: ReadonlySet<number>): number => {
     const known = depth.get(i);
@@ -128,7 +133,7 @@ export function validateMetrics(proposals: readonly unknown[], catalog: Catalog,
     const id = typeof (raw as { id?: unknown })?.id === "string" ? ((raw as { id: string }).id as string) : undefined;
     let def: MetricDef | undefined;
     // Currency: fill from the column or the job default before the schema's "currency metrics need a currency" rule.
-    const filled = fillCurrency(raw, catalog, options, assumptions);
+    const filled = fillCurrency(raw, catalog, accepted, options, assumptions);
     const parsed = MetricDef.safeParse(filled);
     if (!parsed.success) {
       reasons.push(...parsed.error.issues.map((i) => `${i.path.join(".") || "metric"}: ${i.message}`));
@@ -154,18 +159,87 @@ export function validateMetrics(proposals: readonly unknown[], catalog: Catalog,
   return { accepted, rejected, assumptions };
 }
 
-function fillCurrency(raw: unknown, catalog: Catalog, options: ValidateOptions, assumptions: Validation["assumptions"]): unknown {
-  if (typeof raw !== "object" || raw === null) return raw;
-  const r = raw as { id?: string; unit?: string; currency?: string; table?: string; expression?: string };
-  if (r.unit !== "currency" || r.currency) return raw;
-  let detected: string | undefined;
+/** The catalog columns a proposal's expression(s) read: its own, or its numerator's (a money-per-unit ratio). */
+function sourceColumns(r: { table?: string; expression?: string; numerator?: unknown }, catalog: Catalog): CatalogColumn[] {
+  const num = r.numerator as { table?: unknown; expression?: unknown } | undefined;
+  const table = r.table ?? (typeof num?.table === "string" ? num.table : undefined);
+  const expression = r.expression ?? (typeof num?.expression === "string" ? num.expression : undefined);
+  if (!table || !expression) return [];
   try {
-    const cols = r.expression ? exprColumns(parseExpression(r.expression)) : [];
-    detected = cols.map((c) => (r.table ? catalog.get(r.table)?.columns.get(c)?.currency : undefined)).find(Boolean);
+    return exprColumns(parseExpression(expression)).flatMap((c) => catalog.get(table)?.columns.get(c) ?? []);
   } catch {
-    detected = undefined;
+    return [];
   }
+}
+
+/** The one value all the columns that state one agree on (header words, ingestion-and-profiling §6); none when they differ. */
+function agreed<T extends string>(values: readonly (T | undefined)[]): T | undefined {
+  const found = new Set(values.filter((v): v is T => v !== undefined));
+  return found.size === 1 ? [...found][0] : undefined;
+}
+
+/** The units a column's header states: its label as written in the file, else its normalized name. */
+function headerUnitsOf(c: CatalogColumn): HeaderUnits {
+  const fromLabel = headerUnits(c.label);
+  return fromLabel.scale || fromLabel.currency ? fromLabel : headerUnits(c.name);
+}
+
+/**
+ * The scale of a metric built on other metrics (a derived `revenue - cost`, a ratio over a money numerator): the one all
+ * the money metrics it references share. Mixed scales (or a plain one beside a scaled one) state none.
+ */
+function referencedScale(r: Shape, accepted: readonly MetricDef[]): MetricDef["scale"] {
+  const money = refs(r).flatMap((id) => accepted.filter((m) => m.id === id && m.unit === "currency"));
+  const scales = new Set(money.map((m) => m.scale));
+  return money.length && scales.size === 1 ? [...scales][0] : undefined;
+}
+
+function withoutScale(raw: object): object {
+  const { scale: _scale, ...rest } = raw as { scale?: unknown };
+  return rest;
+}
+
+function fillCurrency(
+  raw: unknown,
+  catalog: Catalog,
+  accepted: readonly MetricDef[],
+  options: ValidateOptions,
+  assumptions: Validation["assumptions"],
+): unknown {
+  if (typeof raw !== "object" || raw === null) return raw;
+  const r = raw as {
+    id?: string;
+    unit?: string;
+    currency?: string;
+    scale?: string;
+    table?: string;
+    expression?: string;
+    numerator?: unknown;
+  };
+  // Percentages, counts and ratios have no scale (metric-layer §2.3 4a).
+  if (r.unit !== "currency") return withoutScale(raw);
+  const cols = sourceColumns(r, catalog);
+  // The scale is read by code from the header words (or the money metrics this one is built on); a model draft's own
+  // `scale` is never trusted, since a wrong one misstates every value by a power of a thousand. Only the owner's saved or
+  // confirmed file (keepStatus) states it, and there an absent scale stays absent, so a wrong header reading can be cleared.
+  const scale = options.keepStatus
+    ? r.scale
+    : cols.length
+      ? agreed(cols.map((c) => headerUnitsOf(c).scale))
+      : referencedScale(raw as Shape, accepted);
+  const withScale = scale ? { ...withoutScale(raw), scale } : withoutScale(raw);
+  if (r.currency) return withScale;
+  // A currency marked in the column, then one the header names, then the job default.
+  const marked = cols.map((c) => c.currency).find(Boolean);
+  const fromHeader = marked ? undefined : agreed(cols.map((c) => headerUnitsOf(c).currency));
+  const detected = marked ?? fromHeader;
   const currency = detected ?? options.defaultCurrency ?? "XXX";
+  if (fromHeader && options.defaultCurrency && fromHeader !== options.defaultCurrency) {
+    assumptions.push({
+      metric: r.id ?? "",
+      text: `Amounts in ${r.id} are taken to be in ${fromHeader}, as the column header states, not in the job's ${options.defaultCurrency}.`,
+    });
+  }
   if (!detected) {
     assumptions.push({
       metric: r.id ?? "",
@@ -174,7 +248,7 @@ function fillCurrency(raw: unknown, catalog: Catalog, options: ValidateOptions, 
         : `The currency of ${r.id} is unknown (no currency marked in the data); amounts are shown without one.`,
     });
   }
-  return { ...raw, currency };
+  return { ...withScale, currency };
 }
 
 function checkSemantics(def: MetricDef, catalog: Catalog, accepted: readonly MetricDef[]): string[] {

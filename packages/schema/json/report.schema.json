@@ -349,6 +349,14 @@
             "type": "string",
             "pattern": "^[A-Z]{3}$"
           },
+          "scale": {
+            "type": "string",
+            "enum": [
+              "thousand",
+              "million",
+              "billion"
+            ]
+          },
           "dimensions": {
             "type": "array",
             "items": {
@@ -997,6 +1005,14 @@
           "currency": {
             "type": "string",
             "pattern": "^[A-Z]{3}$"
+          },
+          "scale": {
+            "type": "string",
+            "enum": [
+              "thousand",
+              "million",
+              "billion"
+            ]
           },
           "metric_id": {
             "type": "string"

@@ -22,8 +22,8 @@ export async function persist(ws: Workspace, r: AnalysisResult): Promise<void> {
 export async function persistFacts(ws: Workspace, facts: readonly Fact[]): Promise<void> {
   for (const f of facts) {
     const c = f.computation;
-    await ws.run(sql`INSERT INTO facts (id, label, value, unit, currency, metric_id, kind, sql, params, fn, inputs, input_rows, definition_id)
-      VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
+    await ws.run(sql`INSERT INTO facts (id, label, value, unit, currency, scale, metric_id, kind, sql, params, fn, inputs, input_rows, definition_id)
+      VALUES (${f.id}, ${f.label}, ${f.value}, ${f.unit}, ${f.currency ?? null}, ${f.scale ?? null}, ${f.metric_id ?? null}, ${c.kind}, ${c.sql ?? null},
         ${c.params ? JSON.stringify(c.params) : null}::JSON, ${c.fn ?? null}, ${JSON.stringify(c.inputs ?? [])}::VARCHAR[], ${JSON.stringify(f.citations)}::JSON, ${f.metric_id ?? null})`);
   }
 }

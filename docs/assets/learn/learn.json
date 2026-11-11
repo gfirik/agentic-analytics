@@ -2375,21 +2375,21 @@
         "▸ RENDER",
         "✓ RENDER (… ms)",
         "",
-        "Revenue fell after March, driven by wholesale (a change of −7,900).",
+        "Revenue fell after March, driven by wholesale (a change of −7,900 USD).",
         "",
         "Findings:",
         "• Revenue fell after March, driven by wholesale",
-        "  Revenue went from 44,100 in 2026-03 to 36,200 in 2026-04 (a change of −7,900, −17.9%). It stood at 37,000 in 2026-06.",
+        "  Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.",
         "• Refund rate rose after the packaging supplier switch",
         "  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.",
         "• A change in revenue",
-        "  Revenue for “Green Leaf Bakery” went from 2,745.86 in 2026-05 to 1,966.87 in 2026-06 (a change of −778.99, −28.4%).",
+        "  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).",
         "",
         "Recommendations:",
         "• Offer wholesale accounts a volume-tier discount to win back paused standing orders",
-        "  Expected impact: 3,995 to 7,191 next quarter",
+        "  Expected impact: 3,995 USD to 7,191 USD next quarter",
         "• Return to the previous packaging supplier, or fix the new valve bags",
-        "  Expected impact: 407 to 732.60 next two months",
+        "  Expected impact: 407 USD to 732.60 USD next two months",
         "",
         "Note: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section.",
         "",
@@ -2407,15 +2407,15 @@
       "lines": [
         "N30 = −17.9%   (I5 trend_break.v1 revenue 2026-04:change_pct)",
         "function: pct_change",
-        "  N11 = 36,200   (revenue_2026-04)",
-        "  N12 = 44,100   (revenue_2026-03)"
+        "  N11 = 36,200 USD   (revenue_2026-04)",
+        "  N12 = 44,100 USD   (revenue_2026-03)"
       ],
       "normalised": []
     },
     "explainSql": {
       "command": "bun run aa explain <job-id> N11",
       "lines": [
-        "N11 = 36,200   (revenue_2026-04)",
+        "N11 = 36,200 USD   (revenue_2026-04)",
         "definition: Revenue = sum of amount where status is empty or status is not refunded, per month, in USD (assumed)",
         "sql:",
         "  WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL)",
@@ -2439,7 +2439,7 @@
       "command": "AA_DEMO_MODEL=scripted bun run aa ask <job-id> \"why did revenue fall in April?\"",
       "lines": [
         "Scripted demo model (no LLM): a deterministic replay for examples/coffee-roaster.",
-        "• Revenue went from 44,100 in 2026-03 to 36,200 in 2026-04 (a change of −7,900, −17.9%). It stood at 37,000 in 2026-06.",
+        "• Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.",
         "(1 statement(s) failed verification and were left out)"
       ],
       "normalised": []
@@ -2455,7 +2455,7 @@
         "Revenue = sum of amount where status is empty or status is not refunded, per month, in USD (assumed)",
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"2026-01\",\"2026-06\"]",
-        "  2026-01 41200 · 2026-02 42900 · 2026-03 44100 · 2026-04 36200 · 2026-05 35800 · 2026-06 37000",
+        "  2026-01 41,200 USD · 2026-02 42,900 USD · 2026-03 44,100 USD · 2026-04 36,200 USD · 2026-05 35,800 USD · 2026-06 37,000 USD",
         "Orders = number of distinct order_id where status is empty or status is not refunded, per month (assumed)",
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, count(DISTINCT \"order_id\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND strftime(\"date\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"2026-01\",\"2026-06\"]",
@@ -2487,11 +2487,11 @@
         "Retail revenue = sum of amount where (status is empty or status is not refunded) and channel is retail, per month, in USD (assumed)",
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND (\"channel\" = $2) AND strftime(\"date\", '%Y-%m') BETWEEN $3 AND $4 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"retail\",\"2026-01\",\"2026-06\"]",
-        "  2026-01 26400 · 2026-02 27600 · 2026-03 28200 · 2026-04 28800 · 2026-05 28700 · 2026-06 29700",
+        "  2026-01 26,400 USD · 2026-02 27,600 USD · 2026-03 28,200 USD · 2026-04 28,800 USD · 2026-05 28,700 USD · 2026-06 29,700 USD",
         "Wholesale revenue = sum of amount where (status is empty or status is not refunded) and channel is wholesale, per month, in USD (assumed)",
         "  sql: WITH m1 AS (SELECT strftime(\"date\", '%Y-%m') AS period, sum(\"amount\") AS value FROM \"t_t1\" WHERE NOT _is_total AND \"date\" IS NOT NULL AND ((\"status\" IS NULL) OR (\"status\" NOT IN ($1))) AND (\"channel\" = $2) AND strftime(\"date\", '%Y-%m') BETWEEN $3 AND $4 GROUP BY ALL) SELECT period, value FROM m1 ORDER BY period",
         "  params: [\"refunded\",\"wholesale\",\"2026-01\",\"2026-06\"]",
-        "  2026-01 14800 · 2026-02 15300 · 2026-03 15900 · 2026-04 7400 · 2026-05 7100 · 2026-06 7300",
+        "  2026-01 14,800 USD · 2026-02 15,300 USD · 2026-03 15,900 USD · 2026-04 7,400 USD · 2026-05 7,100 USD · 2026-06 7,300 USD",
         "",
         "Saved 10 metric(s) to agentic-analytics.metrics.yaml"
       ],
@@ -2600,19 +2600,19 @@
         "▸ RENDER",
         "✓ RENDER (… ms)",
         "",
-        "Revenue fell after March, driven by wholesale (a change of −7,900).",
+        "Revenue fell after March, driven by wholesale (a change of −7,900 USD).",
         "",
         "Findings:",
         "• Revenue fell after March, driven by wholesale",
-        "  Revenue went from 44,100 in 2026-03 to 36,200 in 2026-04 (a change of −7,900, −17.9%). It stood at 37,000 in 2026-06.",
+        "  Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.",
         "• A change in revenue",
-        "  Revenue for “Green Leaf Bakery” went from 2,745.86 in 2026-05 to 1,966.87 in 2026-06 (a change of −778.99, −28.4%).",
+        "  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).",
         "• Wholesale revenue fell sharply after March",
-        "  Wholesale revenue went from 15,900 in 2026-03 to 7,400 in 2026-04 (a change of −8,500, −53.5%). It stood at 7,300 in 2026-06.",
+        "  Wholesale revenue went from 15,900 USD in 2026-03 to 7,400 USD in 2026-04 (a change of −8,500 USD, −53.5%). It stood at 7,300 USD in 2026-06.",
         "",
         "Recommendations:",
         "• Offer wholesale accounts a volume-tier discount to win back paused standing orders",
-        "  Expected impact: 3,995 to 7,191 next quarter",
+        "  Expected impact: 3,995 USD to 7,191 USD next quarter",
         "",
         "report: agentic-analytics/report.json",
         "html:   agentic-analytics/report.html"
@@ -2658,21 +2658,21 @@
         "▸ RENDER",
         "✓ RENDER (… ms)",
         "",
-        "Revenue fell after March, alongside wholesale (a change of −7,900).",
+        "Revenue fell after March, alongside wholesale (a change of −7,900 USD).",
         "",
         "Findings:",
         "• Revenue fell after March, alongside wholesale",
-        "  Revenue went from 44,100 in 2026-03 to 36,200 in 2026-04 (a change of −7,900, −17.9%). It stood at 37,000 in 2026-06.",
+        "  Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.",
         "• Refund rate rose after the packaging supplier switch",
         "  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.",
         "• A change in revenue",
-        "  Revenue for “Green Leaf Bakery” went from 2,745.86 in 2026-05 to 1,966.87 in 2026-06 (a change of −778.99, −28.4%).",
+        "  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).",
         "",
         "Recommendations:",
         "• Offer wholesale accounts a volume-tier discount to win back paused standing orders",
-        "  Expected impact: 3,995 to 7,191 next quarter",
+        "  Expected impact: 3,995 USD to 7,191 USD next quarter",
         "• Return to the previous packaging supplier, or fix the new valve bags",
-        "  Expected impact: 407 to 732.60 next two months",
+        "  Expected impact: 407 USD to 732.60 USD next two months",
         "",
         "Note: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section.",
         "",
@@ -2805,7 +2805,7 @@
             "currency": "USD",
             "wait": true
           },
-          "result": "<job-id>: done\n\nRevenue fell after March, driven by wholesale (a change of −7,900).\n\nFindings:\n• Revenue fell after March, driven by wholesale\n  Revenue went from 44,100 in 2026-03 to 36,200 in 2026-04 (a change of −7,900, −17.9%). It stood at 37,000 in 2026-06.\n• Refund rate rose after the packaging supplier switch\n  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.\n• A change in revenue\n  Revenue for “Green Leaf Bakery” went from 2,745.86 in 2026-05 to 1,966.87 in 2026-06 (a change of −778.99, −28.4%).\n\nRecommendations:\n• Offer wholesale accounts a volume-tier discount to win back paused standing orders\n  Expected impact: 3,995 to 7,191 next quarter\n• Return to the previous packaging supplier, or fix the new valve bags\n  Expected impact: 407 to 732.60 next two months\n\nNote: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section."
+          "result": "<job-id>: done\n\nRevenue fell after March, driven by wholesale (a change of −7,900 USD).\n\nFindings:\n• Revenue fell after March, driven by wholesale\n  Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.\n• Refund rate rose after the packaging supplier switch\n  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.\n• A change in revenue\n  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).\n\nRecommendations:\n• Offer wholesale accounts a volume-tier discount to win back paused standing orders\n  Expected impact: 3,995 USD to 7,191 USD next quarter\n• Return to the previous packaging supplier, or fix the new valve bags\n  Expected impact: 407 USD to 732.60 USD next two months\n\nNote: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section."
         },
         {
           "tool": "explain_number",
@@ -2821,7 +2821,7 @@
             "job_id": "<job-id>",
             "question": "Why did revenue drop in April?"
           },
-          "result": "{\n  \"answer\": [\n    \"Revenue went from 44,100 in 2026-03 to 36,200 in 2026-04 (a change of −7,900, −17.9%). It stood at 37,000 in 2026-06.\"\n  ],\n  \"claims\": [\n    {\n      \"text\": \"Revenue went from {{N12}} in 2026-03 to {{N11}} in 2026-04 (a change of {{N29}}, {{N30}}). It stood at {{N17}} in 2026-06.\",\n      \"facts\": [\n        \"N12\",\n        \"N11\",\n        \"N29\",\n        \"N30\",\n        \"N17\"\n      ],\n      \"citations\": [],\n      \"causal_grade\": \"observed\",\n      \"verified\": true\n    }\n  ],\n  \"facts\": [\n    {\n      \"id\": \"N11\",\n      \"label\": \"revenue_2026-04\",\n      \"value\": 36200.00000000003,\n      \"unit\": \"currency\",\n      \"currency\": \"USD\",\n      \"metric_id\": \"revenue\",\n      \"computation\": {\n        \"kind\": \"sql\",\n        \"sql\": \"WITH m1 AS (SELECT strftime(\\\"date\\\", '%Y-%m') AS period, sum(\\\"amount\\\") AS value FROM \\\"t_t1\\\" WHERE NOT _is_total AND \\\"date\\\" IS NOT NULL AND ((\\\"status\\\" IS NULL) OR (\\\"status\\\" NOT IN ($1))) AND strftime(\\\"date\\\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL)\\nSELECT period, value FROM m1 ORDER BY period\",\n        \"params\": {\n          \"$1\": \"refunded\",\n          \"$2\": \"2026-04\",\n          \"$3\": \"2026-04\",\n          \"input_rows\": 1020\n        }\n      },\n      \"citations\": [\n        {\n          \"source_id\": \"T1\",\n          \"rows\": [\n            3095,\n            3096,\n            3097,\n            3098,\n            3099,\n            3100,\n       …"
+          "result": "{\n  \"answer\": [\n    \"Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.\"\n  ],\n  \"claims\": [\n    {\n      \"text\": \"Revenue went from {{N12}} in 2026-03 to {{N11}} in 2026-04 (a change of {{N29}}, {{N30}}). It stood at {{N17}} in 2026-06.\",\n      \"facts\": [\n        \"N12\",\n        \"N11\",\n        \"N29\",\n        \"N30\",\n        \"N17\"\n      ],\n      \"citations\": [],\n      \"causal_grade\": \"observed\",\n      \"verified\": true\n    }\n  ],\n  \"facts\": [\n    {\n      \"id\": \"N11\",\n      \"label\": \"revenue_2026-04\",\n      \"value\": 36200.00000000003,\n      \"unit\": \"currency\",\n      \"currency\": \"USD\",\n      \"metric_id\": \"revenue\",\n      \"computation\": {\n        \"kind\": \"sql\",\n        \"sql\": \"WITH m1 AS (SELECT strftime(\\\"date\\\", '%Y-%m') AS period, sum(\\\"amount\\\") AS value FROM \\\"t_t1\\\" WHERE NOT _is_total AND \\\"date\\\" IS NOT NULL AND ((\\\"status\\\" IS NULL) OR (\\\"status\\\" NOT IN ($1))) AND strftime(\\\"date\\\", '%Y-%m') BETWEEN $2 AND $3 GROUP BY ALL)\\nSELECT period, value FROM m1 ORDER BY period\",\n        \"params\": {\n          \"$1\": \"refunded\",\n          \"$2\": \"2026-04\",\n          \"$3\": \"2026-04\",\n          \"input_rows\": 1020\n        }\n      },\n      \"citations\": [\n        {\n          \"source_id\": \"T1\",\n          \"rows\": [\n            3095,\n            3096,\n            3097,\n            3098,\n            3099,\n         …"
         }
       ]
     },

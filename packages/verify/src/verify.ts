@@ -57,6 +57,15 @@ export interface VerifyResult {
 }
 
 const RANK: Record<string, number> = { observed: 0, correlated: 1, document_supported: 2, intervention_supported: 3 };
+/** V4 for money: a fact states the currency and scale of the metric it measures (report-schema §3); a mismatch would misstate the unit. */
+export function moneyUnitProblem(f: Fact, def: MetricDef): string | undefined {
+  if (f.unit !== "currency") return undefined;
+  if (def.currency && f.currency && f.currency !== def.currency)
+    return `fact ${f.id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`;
+  if (f.scale !== def.scale) return `fact ${f.id} is in ${f.scale ?? "plain"} units, ${def.id} is defined in ${def.scale ?? "plain"} units`;
+  return undefined;
+}
+
 const UNIT: Record<string, string> = { currency: "currency", percent: "percent", count: "count", ratio: "ratio", days: "days" };
 
 const Judgement = z.object({ supported: z.boolean() });
@@ -255,9 +264,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
           ? `fact ${id} measures unknown metric ${f.metric_id}`
           : def && (UNIT[def.unit] ?? "other") !== f.unit && !(def.type === "ratio" && f.unit === "ratio")
             ? `fact ${id} is in ${f.unit}, ${def.id} is defined in ${def.unit}`
-            : def && f.unit === "currency" && def.currency && f.currency && f.currency !== def.currency
-              ? `fact ${id} is in ${f.currency}, ${def.id} is defined in ${def.currency}`
-              : (definitionProblem(f) ?? marginFactProblem(f, all, ctx.defs) ?? lexicon);
+            : ((def && moneyUnitProblem(f, def)) ?? definitionProblem(f) ?? marginFactProblem(f, all, ctx.defs) ?? lexicon);
       if (problem) {
         definitionViolations++;
         return drop("V4", problem);

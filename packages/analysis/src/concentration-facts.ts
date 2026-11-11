@@ -2,11 +2,13 @@
 // the metric's own grouped query for the window goes through the fixed templates, the fact cites the metric's rows in the
 // window, and its computation carries what V2 needs to recompute it in code (rules `pareto_class`, `top_n_share`, `hhi`).
 // A window is read once for all its statistics, and its cited rows once.
+
 import { type Catalog, compileMetric, compileMetricRows, type Grain } from "@agentic-analytics/metrics";
 import type { Citation, MetricDef } from "@agentic-analytics/schema";
 import type { Sql, Workspace } from "@agentic-analytics/store";
 import { concentrationSql, windowStatsSql } from "./concentration.sql.ts";
 import { AnalysisError, type FactBook, MAX_CITED_ROWS, type StatResolver } from "./factbook.ts";
+import { moneyUnits } from "./money.ts";
 import { paretoSql } from "./pareto.sql.ts";
 import {
   CONCENTRATION_PARTS,
@@ -169,7 +171,7 @@ export class ConcentrationFacts implements StatResolver {
       label: statLabel(ref.part, this.labelOf(ref.metric, ref.dimension), ref.suffix),
       value,
       unit,
-      ...(unit === "currency" && def?.currency ? { currency: def.currency } : {}),
+      ...moneyUnits(def, unit),
       computation: {
         kind: "sql",
         sql: query.text,
