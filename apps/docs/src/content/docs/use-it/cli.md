@@ -9,7 +9,7 @@ The binary is `agentic-analytics`, alias `aa` (`bun run aa …` from a clone).
 
 | Command | Does |
 |---|---|
-| `aa analyze <paths…> [--yes] [--objective "…"] [--web] [--small-model] [--out dir] [--open] [--currency CODE] [--embedder hash]` | A full job with a live stage view and, without `--yes`, an interactive review of the drafted metrics (accept, edit as YAML, drop). Writes `<out>/agentic-analytics/report.json` and `report.html`. |
+| `aa analyze <paths…> [--yes] [--objective "…"] [--web] [--small-model] [--out dir] [--open] [--currency CODE] [--embedder hash]` | A full job with a live stage view and, without `--yes`, an interactive review of the drafted metrics (accept, edit as YAML, drop). Writes `<out>/agentic-analytics/report.json` and `report.html`. Exits 0 on success, 1 on failure, and 2 when the job finished but read no numbers (the summary says why). `aa run` uses the same codes; `aa jobs resume` exits 0 for any finished job. |
 | `aa ask <job> "question"` | A follow-up answer: claims that passed the verifier, with numbers from the report's facts. |
 | `aa explain <job> <fact>` | The computation behind a number: SQL and parameters (or function and inputs), its definition, and the input rows. |
 | `aa serve [--port 8080] [--host 127.0.0.1] [--allow-no-auth]` | The HTTP API, with the viewer at `/` and MCP at `/mcp`. A non-loopback `--host` needs `API_TOKEN` (or `--allow-no-auth` behind a proxy or a localhost-only port mapping). `AA_MCP_ROOTS` lists the folders MCP over HTTP may read. |

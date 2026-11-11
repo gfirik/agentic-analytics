@@ -22,4 +22,10 @@ describe("noNumbersReason", () => {
       expect(noNumbersHeadline(r)).not.toMatch(/No material changes/);
     }
   });
+  it("hints at files that were not read when another reason applies", () => {
+    expect(noNumbersHeadline("no_table", true)).toBe(
+      "No numbers could be read from these files: no table was found (some files were not read).",
+    );
+    expect(noNumbersHeadline("files_rejected", true)).not.toContain("some files were not read");
+  });
 });
