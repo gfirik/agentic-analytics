@@ -20,27 +20,31 @@ export interface NoNumbersInput {
   readonly sources: number;
   /** Data-quality issues that mean a whole file was not read. */
   readonly filesNotRead: number;
+  /** Some table has no date on or before today: every date it holds is in the future (a `future_date` issue says `all_future`). */
+  readonly allDatesFuture?: boolean;
 }
 
 /** Deterministic: from what the job knows, never from the model. */
 export function noNumbersReason(i: NoNumbersInput): NoNumbersReason | undefined {
   if (i.metricFacts > 0) return undefined;
-  if (i.tables > 0) return "headers_not_recognised";
+  if (i.tables > 0) return i.allDatesFuture ? "all_dates_future" : "headers_not_recognised";
   return i.sources === 0 && i.filesNotRead > 0 ? "files_rejected" : "no_table";
 }
 
 /** The counts `noNumbersReason` needs, read from the job's workspace. */
 export async function noNumbersInput(ws: Workspace, facts: Iterable<{ readonly metric_id?: string | undefined }>): Promise<NoNumbersInput> {
-  const row = await ws.one<{ tables: number; sources: number; not_read: number }>(
+  const row = await ws.one<{ tables: number; sources: number; not_read: number; all_future: number }>(
     sql`SELECT (SELECT count(*)::INTEGER FROM sources WHERE kind = 'table') AS tables,
                (SELECT count(*)::INTEGER FROM sources) AS sources,
-               (SELECT count(*)::INTEGER FROM quality_issues WHERE list_contains(${JSON.stringify([...FILE_NOT_READ_KINDS])}::VARCHAR[], kind)) AS not_read`,
+               (SELECT count(*)::INTEGER FROM quality_issues WHERE list_contains(${JSON.stringify([...FILE_NOT_READ_KINDS])}::VARCHAR[], kind)) AS not_read,
+               (SELECT count(*)::INTEGER FROM quality_issues WHERE kind = 'future_date' AND (details->>'all_future') = 'true') AS all_future`,
   );
   return {
     metricFacts: [...facts].filter((f) => f.metric_id).length,
     tables: row?.tables ?? 0,
     sources: row?.sources ?? 0,
     filesNotRead: row?.not_read ?? 0,
+    allDatesFuture: (row?.all_future ?? 0) > 0,
   };
 }
 
@@ -48,6 +52,7 @@ const NO_NUMBERS_TEXT: Record<NoNumbersReason, string> = {
   files_rejected: "every file was rejected (see Files not read)",
   no_table: "no table was found (add a spreadsheet or CSV with one header row)",
   headers_not_recognised: "no column was recognised as a date and an amount (name them, for example, date and amount)",
+  all_dates_future: "every date is after today's date (check the date the job ran as, or the dates)",
 };
 
 /** The headline of a job that read no numbers: never "No material changes", which would be a false all-clear. */

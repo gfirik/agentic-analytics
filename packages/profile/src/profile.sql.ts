@@ -30,31 +30,56 @@ export const duplicateRows = (table: string, columns: readonly string[]): Sql =>
         SELECT count(*) AS c FROM ${ident(table)} WHERE ${fragment(detail)} GROUP BY ${idents(columns)})`;
 
 /**
- * Coverage of the date column. Rows dated after `today` are not history (ingestion spec §5, future dates): they leave
- * the first/last date, the grain and the missing periods, so no period after today's is ever measured. The future-date
- * rule still lists them.
+ * The last date that counts as history (ingestion spec §5, future dates): `today`, or, when some rows are dated after
+ * today inside today's own period at the job grain, the day before that period starts. Like a part-period that stops
+ * early, a period that is partly in the future can't be measured whole, so it is dropped and the report says so.
  */
-export const dateCoverage = (table: string, column: string, today?: string): Sql =>
+export const dateCutoff = (table: string, column: string, today: string, grain: "day" | "week" | "month" | "quarter" | "year"): Sql => {
+  const unit = { text: `'${grain}'`, params: [] };
+  return sql`SELECT CASE WHEN EXISTS (SELECT 1 FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)}::DATE > ${today}::DATE
+        AND date_trunc(${fragment(unit)}, ${ident(column)}::DATE) = date_trunc(${fragment(unit)}, ${today}::DATE))
+      THEN (date_trunc(${fragment(unit)}, ${today}::DATE) - INTERVAL 1 DAY)::DATE::VARCHAR ELSE ${today} END AS cutoff`;
+};
+
+/**
+ * Coverage of the date column. Rows dated after `cutoff` (see `dateCutoff`) are not history: they leave the first/last
+ * date, the grain and the missing periods, so no period after it is ever measured. The future-date rule still lists them.
+ */
+export const dateCoverage = (table: string, column: string, cutoff?: string): Sql =>
   sql`SELECT min(${ident(column)})::DATE::VARCHAR AS first, max(${ident(column)})::DATE::VARCHAR AS last,
       count(DISTINCT ${ident(column)}::DATE) AS days, count(DISTINCT date_trunc('week', ${ident(column)})) AS weeks,
       count(DISTINCT date_trunc('month', ${ident(column)})) AS months,
       count(*) FILTER (WHERE day(${ident(column)}) <> 1) AS not_first_of_month,
       count(DISTINCT dayofweek(${ident(column)})) AS weekdays
-      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL${today ? fragment(sql` AND ${ident(column)}::DATE <= ${today}::DATE`) : fragment(sql``)}`;
+      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL${cutoff ? fragment(sql` AND ${ident(column)}::DATE <= ${cutoff}::DATE`) : fragment(sql``)}`;
 
 /**
  * First and last month of a table whose period is a year and a month column (semantics §2.1 "Period parts"), dated as
  * the metric compiler dates its rows (`timeExpr`): the first day of the month, January for a year alone, and no date
  * for a month outside 1–12.
  */
-export const periodPartsCoverage = (table: string, year: string, month?: string): Sql => {
+/** The date of a year/month period-parts row (see `periodPartsCoverage`): null for a month outside 1–12. */
+const periodPartsDate = (year: string, month?: string): Sql => {
   const y = sql`CAST(${ident(year)} AS INTEGER)`;
-  const date = month
+  return month
     ? sql`CASE WHEN CAST(${ident(month)} AS INTEGER) BETWEEN 1 AND 12 THEN make_date(${fragment(y)}, CAST(${ident(month)} AS INTEGER), 1) END`
     : sql`make_date(${fragment(y)}, 1, 1)`;
-  return sql`SELECT min(${fragment(date)})::VARCHAR AS first, max(${fragment(date)})::VARCHAR AS last
-      FROM ${ident(table)} WHERE ${fragment(detail)}`;
 };
+
+/**
+ * First and last month of a table whose period is a year and a month column (semantics §2.1 "Period parts"), dated as
+ * the metric compiler dates its rows (`timeExpr`): the first day of the month, January for a year alone, and no date
+ * for a month outside 1–12. Months after the month of `today` are not history and are left out.
+ */
+export const periodPartsCoverage = (table: string, year: string, month: string | undefined, today: string): Sql => {
+  const date = periodPartsDate(year, month);
+  return sql`SELECT min(${fragment(date)})::VARCHAR AS first, max(${fragment(date)})::VARCHAR AS last
+      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${fragment(date)} <= date_trunc('month', ${today}::DATE)`;
+};
+
+/** Detail rows of a year/month table dated in a month after today's month. */
+export const futurePeriodPartsRows = (table: string, year: string, month: string | undefined, today: string): Sql =>
+  sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${fragment(periodPartsDate(year, month))} > date_trunc('month', ${today}::DATE) ORDER BY _row`;
 
 const STEP = { day: "1 DAY", week: "1 WEEK", month: "1 MONTH" } as const;
 const FORMAT = { day: "%Y-%m-%d", week: "%Y-%m-%d", month: "%Y-%m" } as const;
@@ -126,6 +151,10 @@ export const fallingCumulativeRows = (table: string, column: string, date: strin
       FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL AND ${ident(date)} IS NOT NULL)
     WHERE v < prev ORDER BY _row`;
 };
+
+/** Detail rows of a text-like column whose value names a refund or return (`pattern` is an RE2 pattern, matched without case). */
+export const refundMarkerCount = (table: string, column: string, pattern: string): Sql =>
+  sql`SELECT count(*) AS n FROM ${ident(table)} WHERE ${fragment(detail)} AND regexp_matches(${ident(column)}::VARCHAR, ${pattern}, 'i')`;
 
 export const futureDateRows = (table: string, column: string, today: string): Sql =>
   sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)}::DATE > ${today}::DATE ORDER BY _row`;

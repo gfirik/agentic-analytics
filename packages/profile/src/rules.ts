@@ -8,12 +8,16 @@ import {
   fallingCumulativeRows,
   farFromMedian,
   futureDateRows,
+  futurePeriodPartsRows,
   idPrefixes,
   negativeRows,
   nullRows,
+  periodPartsCoverage,
   powerOfTenJumps,
+  refundMarkerCount,
 } from "./profile.sql.ts";
 import type { TableRoles } from "./roles/detect.ts";
+import type { TableKind } from "./roles/kinds.ts";
 import type { TableProfile } from "./stats.ts";
 
 export type RuleIssueKind =
@@ -56,18 +60,26 @@ const REFUND_WORD = /refund|return|credit|cancel|chargeback|возврат|от�
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
 const FACTOR = { 1: "10", 2: "100", 3: "1,000" } as const;
 
-/**
- * `roles` (the detected column roles) tells which column is the sales amount; without it no amount is checked.
- * `dateColumn` is the table's period column: a future date there is left out of the analysis, which the issue records.
- */
+export interface RuleOptions {
+  /** The detected column roles: they tell which column is the sales amount and which year/month columns are the period. */
+  readonly roles?: TableRoles;
+  /** The table's period column: a future date there is left out of the analysis, which the issue records. */
+  readonly dateColumn?: string;
+  /** The table's kind: a negative amount is checked only in sales lines and period summaries (a ledger is signed by design). */
+  readonly kind?: TableKind;
+}
+
+/** Table kinds whose amount column holds sales, so a negative value is out of the ordinary. */
+const SALES_KINDS: ReadonlySet<TableKind> = new Set(["sales_lines", "period_summary"]);
+
 export async function runRules(
   ws: Workspace,
   t: NormalizedTable,
   profile: TableProfile,
   today: string,
-  roles?: TableRoles,
-  dateColumn?: string,
+  options: RuleOptions = {},
 ): Promise<RuleIssue[]> {
+  const { roles, dateColumn, kind } = options;
   const name = tableName(t.id);
   const issues: RuleIssue[] = [];
 
@@ -118,8 +130,17 @@ export async function runRules(
     }
     // A negative sales amount is a refund, a credit or an entry error. Refunds are legitimately negative, so the rule
     // stays quiet when the table itself says it keeps them: a status or type value, or a column, named refund/return.
+    // A column already reported as a negative quantity is not reported again.
     const isAmount = roles?.columns.some((r) => r.column === c.name && r.role === "amount") ?? false;
-    if (isAmount && AMOUNT_TYPES.has(c.type) && !keepsRefunds(t, profile, c.name)) {
+    const quantityFlagged = issues.some((i) => i.kind === "negative_quantity" && i.column === c.name);
+    if (
+      isAmount &&
+      kind &&
+      SALES_KINDS.has(kind) &&
+      AMOUNT_TYPES.has(c.type) &&
+      !quantityFlagged &&
+      !(await keepsRefunds(ws, t, name, c.name))
+    ) {
       const rows = (await ws.all<{ _row: number }>(negativeRows(name, c.name))).map((r) => r._row);
       if (rows.length)
         issues.push({
@@ -134,7 +155,15 @@ export async function runRules(
     }
     // A running total never falls within its year, except by a revision or a negative month; it is flagged, not repaired.
     if (AMOUNT_TYPES.has(c.type) && CUMULATIVE_NAME.test(c.label) && dateColumn && dateColumn !== c.name) {
-      const dims = t.columns.filter((x) => x.type === "category").map((x) => x.name);
+      // The members of a series: every column that names one (category, id, text, flag), unless it is nearly unique,
+      // which would make every row its own series.
+      const members = new Set(["category", "id", "text", "boolean"]);
+      const dims = t.columns
+        .filter((x) => {
+          const px = profile.columns.find((y) => y.name === x.name);
+          return members.has(x.type) && x.name !== dateColumn && (px?.distinct_count ?? 0) * 2 <= profile.detail_rows;
+        })
+        .map((x) => x.name);
       const rows = (await ws.all<{ _row: number }>(fallingCumulativeRows(name, c.name, dateColumn, dims))).map((r) => r._row);
       if (rows.length)
         issues.push({
@@ -169,7 +198,7 @@ export async function runRules(
           severity: "medium",
           message: `"${c.label}" is after ${today} at row ${r._row}`,
           row: r._row,
-          details: { today, left_out: c.name === dateColumn },
+          details: { today, left_out: c.name === dateColumn, all_future: c.name === dateColumn && profile.date_first === undefined },
         });
       }
     }
@@ -223,15 +252,39 @@ export async function runRules(
       }
     }
   }
+  // A table dated by a year and a month column: months after today's month are left out of its coverage too.
+  const parts = roles?.period_parts;
+  if (parts && !dateColumn) {
+    const rows = (await ws.all<{ _row: number }>(futurePeriodPartsRows(name, parts.year, parts.month, today))).map((r) => r._row);
+    const col = t.columns.find((c) => c.name === parts.year);
+    if (rows.length && col) {
+      const cov = await ws.one<{ first: string | null }>(periodPartsCoverage(name, parts.year, parts.month, today));
+      issues.push({
+        table_id: t.id,
+        column: col.name,
+        letter: col.letter,
+        kind: "future_date",
+        severity: "medium",
+        message: `"${col.label}" holds months after ${today} in ${rows.length} rows`,
+        row: rows[0] as number,
+        rows: rows.slice(0, MAX_ROWS),
+        details: { today, left_out: true, all_future: cov?.first == null, count: rows.length },
+      });
+    }
+  }
   return issues;
 }
 
-/** Whether the table keeps refunds or returns as marked rows, so a negative amount in it is expected. */
-function keepsRefunds(t: NormalizedTable, profile: TableProfile, amount: string): boolean {
-  return t.columns.some((c) => {
-    if (c.name === amount) return false;
+/**
+ * Whether the table keeps refunds or returns as marked rows, so a negative amount in it is expected: another column
+ * whose header names them, or text in a category or text column that does (counted over every row, not a sample).
+ */
+async function keepsRefunds(ws: Workspace, t: NormalizedTable, name: string, amount: string): Promise<boolean> {
+  for (const c of t.columns) {
+    if (c.name === amount) continue;
     if (REFUND_WORD.test(c.label)) return true;
-    const p = profile.columns.find((x) => x.name === c.name);
-    return c.type === "category" && (p?.top_values.some((v) => REFUND_WORD.test(v.value)) ?? false);
-  });
+    if (c.type !== "category" && c.type !== "text") continue;
+    if (Number((await ws.one<{ n: number }>(refundMarkerCount(name, c.name, REFUND_WORD.source)))?.n ?? 0) > 0) return true;
+  }
+  return false;
 }

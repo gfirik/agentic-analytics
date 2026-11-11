@@ -43,6 +43,7 @@ import {
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
 import {
+  cutoffPeriod,
   type ProfileSummary,
   partialLastMonth,
   periodOf,
@@ -295,7 +296,10 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
           const partial = partialLastMonth(summary.tables, grain);
           const first = periods[0] ?? "0000";
           const dropLast = partial !== undefined && first < partial;
-          const range = { from: first, to: dropLast ? previousMonth(partial) : (periods.at(-1) ?? "9999"), grain };
+          const last = dropLast ? previousMonth(partial) : (periods.at(-1) ?? "9999");
+          // Rows after today inside today's own period leave that period out too (spec §5, future dates).
+          const cut = cutoffPeriod(summary.tables, grain);
+          const range = { from: first, to: cut !== undefined && cut < last ? cut : last, grain };
           // --yes semantics (interactive review lands with the CLI in M10): drafts are kept as assumptions.
           const defs = draft.validation.accepted.map((d) => ({ ...d, status: "assumed" as const }));
           await saveMetricDefs(ws, defs, catalog, range);

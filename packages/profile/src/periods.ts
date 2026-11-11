@@ -1,5 +1,6 @@
 // Incomplete last period (ingestion spec §5, date coverage): day-level data that stops early in its last month
 // (an export taken on the 9th) would compare a part-month with whole months and read as a collapse.
+import { type Grain, periodOf } from "./normalize.ts";
 
 /** The share of its month the last date must reach for that month to count as complete. */
 export const COMPLETE_SHARE = 0.75;
@@ -30,4 +31,13 @@ export function previousMonth(p: string): string {
   const y = Number(p.slice(0, 4));
   const m = Number(p.slice(5, 7));
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
+
+/**
+ * The last period that counts as history when some table has rows after today inside today's period (`date_cutoff`):
+ * the period of the earliest such cutoff, at the job grain. Undefined when no table does.
+ */
+export function cutoffPeriod(tables: readonly { readonly date_cutoff?: string }[], grain: Grain): string | undefined {
+  const first = tables.flatMap((t) => (t.date_cutoff ? [t.date_cutoff] : [])).sort()[0];
+  return first === undefined ? undefined : periodOf(first, grain);
 }

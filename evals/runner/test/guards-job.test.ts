@@ -48,6 +48,8 @@ describe("dates after today (backtest pre-tag 4a)", () => {
     expect(withFuture.period).toEqual(without.period);
     // Every fact equals the run without the two future rows (1.7 million between them); none is that large.
     expect(withFuture.facts.map((f) => f.value)).toEqual(without.facts.map((f) => f.value));
+    // Hand-computed: November revenue is (1000 + 11) + (500 + 11) = 1,522.
+    expect(withFuture.facts.map((f) => f.value)).toContain(1522);
     expect(Math.max(...withFuture.facts.map((f) => Math.abs(f.value)))).toBeLessThan(900000);
     const q = withFuture.data_quality.find((i) => i.kind === "future_date");
     expect(q?.description).toContain("after today's date; those rows were left out of the analysis");
@@ -83,5 +85,56 @@ describe("negative amounts and falling cumulative columns (backtest pre-tag 4b)"
     expect(q?.description).toContain("cumulative series falls");
     expect(q?.citations[0]?.rows).toEqual([18]);
     expect(findFreeNumerals(q?.description ?? "")).toEqual([]);
+  }, 180_000);
+});
+
+describe("rows after today inside today's period (spec review)", () => {
+  it("the period is left out whole: the range ends the month before, and the late row is nowhere", async () => {
+    // Rows on the 28th of each month (so November is whole), then December rows on the 25th and the 30th: the
+    // 30th is after --today 2023-12-28, in today's own month.
+    const rows = ["date,product,quantity,amount"];
+    for (let m = 1; m <= 11; m++)
+      for (const [p, base] of [
+        ["tea", 1000],
+        ["coffee", 500],
+      ] as const)
+        rows.push(`2023-${String(m).padStart(2, "0")}-28,${p},10,${base + m}`);
+    rows.push("2023-12-25,tea,10,50", "2023-12-30,tea,10,900000");
+    const report = await run(`${rows.join("\n")}\n`, "2023-12-28");
+    expect(report.period.to).toBe("2023-11");
+    expect(Math.max(...report.facts.map((f) => Math.abs(f.value)))).toBeLessThan(900000);
+    // Hand-computed: November revenue is (1000 + 11) + (500 + 11) = 1,522.
+    expect(report.facts.map((f) => f.value)).toContain(1522);
+    expect(report.facts.some((f) => f.value === 1524)).toBe(false);
+    const q = report.data_quality.find((i) => i.kind === "future_date");
+    expect(q?.description).toContain("those rows were left out of the analysis");
+  }, 180_000);
+
+  it("a year and month table: later months never reach a period, and the item is in the report", async () => {
+    const rows = ["year,month,region,amount"];
+    for (let m = 1; m <= 12; m++)
+      for (const [r, base] of [
+        ["north", 1000],
+        ["south", 500],
+      ] as const)
+        rows.push(`2023,${m},${r},${base + m}`);
+    rows.push("2026,9,north,999999");
+    const report = await run(`${rows.join("\n")}\n`);
+    expect(report.period.to <= "2023-12").toBe(true);
+    expect(Math.max(...report.facts.map((f) => Math.abs(f.value)))).toBeLessThan(999999);
+    expect(report.data_quality.find((i) => i.kind === "future_date")?.description).toContain(
+      "after today's date; those rows were left out",
+    );
+  }, 180_000);
+
+  it("every date after today: says so, not that the headers were not recognised", async () => {
+    const rows = ["date,product,quantity,amount"];
+    for (let m = 1; m <= 6; m++) rows.push(`2026-${String(m).padStart(2, "0")}-15,tea,10,${100 + m}`);
+    const report = await run(`${rows.join("\n")}\n`);
+    expect(report.summary.no_numbers).toBe("all_dates_future");
+    expect(report.summary.headline).toBe(
+      "No numbers could be read from these files: every date is after today's date (check the date the job ran as, or the dates).",
+    );
+    expect(findFreeNumerals(report.summary.headline)).toEqual([]);
   }, 180_000);
 });

@@ -34,7 +34,7 @@ export {
   yearMonthOf,
 } from "./normalize.ts";
 export { type DecimalSeparator, decimalEvidence, detectCurrency, detectDecimal, type ParsedNumber, parseNumber } from "./numbers.ts";
-export { COMPLETE_SHARE, partialLastMonth, previousMonth } from "./periods.ts";
+export { COMPLETE_SHARE, cutoffPeriod, partialLastMonth, previousMonth } from "./periods.ts";
 export * from "./roles/index.ts";
-export { type RuleIssue, runRules } from "./rules.ts";
+export { type RuleIssue, type RuleOptions, runRules } from "./rules.ts";
 export { type ColumnProfile, profileTable, type TableProfile } from "./stats.ts";
