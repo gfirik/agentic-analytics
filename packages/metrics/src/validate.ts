@@ -194,6 +194,11 @@ function referencedScale(r: Shape, accepted: readonly MetricDef[]): MetricDef["s
   return money.length && scales.size === 1 ? [...scales][0] : undefined;
 }
 
+function withoutScale(raw: object): object {
+  const { scale: _scale, ...rest } = raw as { scale?: unknown };
+  return rest;
+}
+
 function fillCurrency(
   raw: unknown,
   catalog: Catalog,
@@ -211,15 +216,26 @@ function fillCurrency(
     expression?: string;
     numerator?: unknown;
   };
-  if (r.unit !== "currency") return raw;
+  // Percentages, counts and ratios have no scale (metric-layer §2.3 4a).
+  if (r.unit !== "currency") return withoutScale(raw);
   const cols = sourceColumns(r, catalog);
-  // The scale a header states ("value_thousand_uzs"): only for money, and never over one the proposal already carries.
-  const scale = r.scale ? undefined : cols.length ? agreed(cols.map((c) => headerUnitsOf(c).scale)) : referencedScale(r, accepted);
-  const withScale = scale ? { ...raw, scale } : raw;
+  // The scale is read by code from the header words (or the money metrics this one is built on); a model draft's own
+  // `scale` is never trusted, since a wrong one misstates every value by a power of a thousand. Only the owner's saved or
+  // confirmed file (keepStatus) states it, and there an absent scale stays absent, so a wrong header reading can be cleared.
+  const scale = options.keepStatus ? r.scale : cols.length ? agreed(cols.map((c) => headerUnitsOf(c).scale)) : referencedScale(r, accepted);
+  const withScale = scale ? { ...withoutScale(raw), scale } : withoutScale(raw);
   if (r.currency) return withScale;
   // A currency marked in the column, then one the header names, then the job default.
-  const detected = cols.map((c) => c.currency).find(Boolean) ?? agreed(cols.map((c) => headerUnitsOf(c).currency));
+  const marked = cols.map((c) => c.currency).find(Boolean);
+  const fromHeader = marked ? undefined : agreed(cols.map((c) => headerUnitsOf(c).currency));
+  const detected = marked ?? fromHeader;
   const currency = detected ?? options.defaultCurrency ?? "XXX";
+  if (fromHeader && options.defaultCurrency && fromHeader !== options.defaultCurrency) {
+    assumptions.push({
+      metric: r.id ?? "",
+      text: `Amounts in ${r.id} are taken to be in ${fromHeader}, as the column header states, not in the job's ${options.defaultCurrency}.`,
+    });
+  }
   if (!detected) {
     assumptions.push({
       metric: r.id ?? "",

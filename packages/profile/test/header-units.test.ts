@@ -26,6 +26,13 @@ describe("headerUnits (scale and currency words in a header)", () => {
     ["thousandth_place", {}],
     ["milk_amount", {}],
     ["amount", {}],
+    // A header of unit words only names no amount ("MN" for Minnesota); a scale after "per" is a per-unit price.
+    ["MN", {}],
+    ["K", {}],
+    ["USD", {}],
+    ["price_per_k", {}],
+    ["cost per thousand", {}],
+    ["constructor_amount", {}],
     // Conflicts say nothing.
     ["amount_mln_bn", {}],
     ["amount_usd_eur", {}],

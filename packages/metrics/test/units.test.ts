@@ -66,18 +66,39 @@ describe("scale and currency words in a money header", () => {
     }
   });
 
-  it("a scale the proposal states is kept; counts and percentages never get one", async () => {
+  it("a model draft's own scale is ignored (the header decides); counts and percentages never keep one", async () => {
     const catalog = await catalogFor("amount_mln", "amount_mln");
     const v = validateMetrics(
       [
         { ...metric("amount_mln"), scale: "billion" },
-        { id: "orders", label: "Orders", type: "count", table: "t_t1", unit: "count" },
+        { id: "orders", label: "Orders", type: "count", table: "t_t1", unit: "count", scale: "million" },
       ],
       catalog,
       { defaultCurrency: "USD" },
     );
-    expect(v.accepted.find((m) => m.id === "revenue")?.scale).toBe("billion");
+    expect(v.rejected).toEqual([]);
+    expect(v.accepted.find((m) => m.id === "revenue")?.scale).toBe("million");
     expect(v.accepted.find((m) => m.id === "orders")?.scale).toBeUndefined();
+    const plain = await catalogFor("amount", "amount");
+    expect(
+      validateMetrics([{ ...metric("amount"), scale: "million" }], plain, { defaultCurrency: "USD" }).accepted[0]?.scale,
+    ).toBeUndefined();
+  });
+
+  it("the owner's saved or confirmed file decides the scale: kept as written, and a removed scale stays removed", async () => {
+    const catalog = await catalogFor("amount_mln", "amount_mln");
+    const owner = { defaultCurrency: "USD", keepStatus: true };
+    expect(validateMetrics([{ ...metric("amount_mln"), scale: "billion" }], catalog, owner).accepted[0]?.scale).toBe("billion");
+    expect(validateMetrics([metric("amount_mln")], catalog, owner).accepted[0]?.scale).toBeUndefined();
+  });
+
+  it("a header currency that differs from --currency wins and says so in an assumption", async () => {
+    const catalog = await catalogFor("amount_uzs", "amount_uzs");
+    const v = validateMetrics([metric("amount_uzs")], catalog, { defaultCurrency: "USD" });
+    expect(v.accepted[0]?.currency).toBe("UZS");
+    expect(v.assumptions.map((a) => a.text)).toEqual([
+      "Amounts in revenue are taken to be in UZS, as the column header states, not in the job's USD.",
+    ]);
   });
 
   it("a metric built on money metrics shares their scale: derived and ratio in million; mixed scales state none", async () => {
@@ -108,12 +129,13 @@ describe("scale and currency words in a money header", () => {
     expect(v.accepted.find((m) => m.id === "per_order")?.scale).toBe("million");
     const mixed = validateMetrics(
       [
-        metric("amount_mln"),
+        { ...metric("amount_mln"), scale: "million" },
         { ...metric("amount_mln"), id: "refunds", label: "Refunds", scale: "billion" },
         { id: "net", label: "Net", type: "derived", expression: "revenue - refunds", unit: "currency" },
       ],
       catalog,
-      { defaultCurrency: "USD" },
+      // An owner's file is where two money metrics can differ in scale.
+      { defaultCurrency: "USD", keepStatus: true },
     );
     expect(mixed.accepted.find((m) => m.id === "net")?.scale).toBeUndefined();
   });
