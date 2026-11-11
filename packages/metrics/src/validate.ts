@@ -222,7 +222,11 @@ function fillCurrency(
   // The scale is read by code from the header words (or the money metrics this one is built on); a model draft's own
   // `scale` is never trusted, since a wrong one misstates every value by a power of a thousand. Only the owner's saved or
   // confirmed file (keepStatus) states it, and there an absent scale stays absent, so a wrong header reading can be cleared.
-  const scale = options.keepStatus ? r.scale : cols.length ? agreed(cols.map((c) => headerUnitsOf(c).scale)) : referencedScale(raw as Shape, accepted);
+  const scale = options.keepStatus
+    ? r.scale
+    : cols.length
+      ? agreed(cols.map((c) => headerUnitsOf(c).scale))
+      : referencedScale(raw as Shape, accepted);
   const withScale = scale ? { ...withoutScale(raw), scale } : withoutScale(raw);
   if (r.currency) return withScale;
   // A currency marked in the column, then one the header names, then the job default.
