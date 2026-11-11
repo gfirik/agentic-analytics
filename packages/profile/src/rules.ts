@@ -56,7 +56,10 @@ const RATE_NAME = /\b(rate|ratio|share|percent|pct)\b|%|доля|ставка|п
 const CUMULATIVE_NAME =
   /cumulative|(?<![a-z])(?:cum|ytd)(?![a-z])|year[ _-]to[ _-]date|(?<![a-z])to[ _-]date|accumulated|нарастающ|с начала года|нарастан/i;
 /** A column or a category value that says the table keeps refunds or returns as negative sales (also in Russian and Uzbek). */
-const REFUND_WORD = /refund|return|credit|cancel|chargeback|возврат|отмен|qaytar/i;
+// Kept as a string: the same pattern goes to DuckDB (RE2), and a bundler may rewrite non-ASCII letters inside a regex
+// literal as `\u` escapes, which RE2 rejects ("invalid escape sequence"); a string's value keeps the letters.
+const REFUND_PATTERN = "refund|return|credit|cancel|chargeback|возврат|отмен|qaytar";
+const REFUND_WORD = new RegExp(REFUND_PATTERN, "i");
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
 const FACTOR = { 1: "10", 2: "100", 3: "1,000" } as const;
 
@@ -284,7 +287,7 @@ async function keepsRefunds(ws: Workspace, t: NormalizedTable, name: string, amo
     if (c.name === amount) continue;
     if (REFUND_WORD.test(c.label)) return true;
     if (c.type !== "category" && c.type !== "text") continue;
-    if (Number((await ws.one<{ n: number }>(refundMarkerCount(name, c.name, REFUND_WORD.source)))?.n ?? 0) > 0) return true;
+    if (Number((await ws.one<{ n: number }>(refundMarkerCount(name, c.name, REFUND_PATTERN)))?.n ?? 0) > 0) return true;
   }
   return false;
 }
