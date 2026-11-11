@@ -94,6 +94,20 @@ export type IngestIssueKind =
   | "too_many_cells"
   | "no_tables_found";
 
+/** Why a file was rejected, machine-readable so the report can say what the owner should do (reports never echo `reason`). */
+export type RejectCause =
+  | "zip"
+  | "gzip"
+  | "seven_zip"
+  | "rar"
+  | "damaged_office"
+  | "legacy_doc"
+  | "nul_bytes"
+  | "not_utf8"
+  | "file_limit"
+  | "job_limit"
+  | "unpacked_limit";
+
 export interface IngestIssue {
   readonly kind: IngestIssueKind;
   readonly severity: "high" | "medium" | "low";
@@ -101,6 +115,8 @@ export interface IngestIssue {
   readonly file: string;
   /** Developer-facing detail; reports render their own wording (free-numeral rule, report-schema §3). */
   readonly message: string;
+  /** Machine-readable cause of a rejected file ("gzip", "nul_bytes", "file_limit", …); the report words it (report-schema §3). */
+  readonly cause?: RejectCause;
   readonly sheet?: string;
   readonly cell?: string;
   readonly page?: number;

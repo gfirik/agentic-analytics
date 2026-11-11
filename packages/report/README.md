@@ -7,7 +7,7 @@ Renders a report v1 (`report.json`) to one self-contained `report.html`: React s
 
 ## Public API
 
-- `reportSummaryText(report, { findings?, recommendations? })`: headline, top findings and recommendations, and the assumed-metrics notice as plain text, for chat-like doors. `fillPlaceholders(text, facts)` fills `{{N…}}` with formatted fact values.
+- `reportSummaryText(report, { findings?, recommendations? })`: headline, top findings and recommendations, the files that were not read ("Files not read:", one line each, from the data-quality kinds in `FILE_NOT_READ_KINDS`), and the assumed-metrics notice as plain text, for chat-like doors. `fillPlaceholders(text, facts)` fills `{{N…}}` with formatted fact values.
 
 | Export | Does |
 |---|---|

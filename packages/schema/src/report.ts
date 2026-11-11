@@ -119,6 +119,16 @@ export const Recommendation = z.object({
 
 export const OpenQuestion = z.object({ id, question: z.string(), why_it_matters: z.string(), would_change: z.array(id) });
 export const Assumption = z.object({ id, text: z.string(), affects: z.array(id) });
+/** Data-quality kinds that mean a whole file was not read (ingestion spec §1): the report words them, and the plain-text
+ * summaries list them under "Files not read". */
+export const FILE_NOT_READ_KINDS: ReadonlySet<string> = new Set([
+  "archive_rejected",
+  "unsupported_type",
+  "unreadable_file",
+  "password_protected",
+  "too_large",
+  "too_many_files",
+]);
 export const QualityIssue = z.object({ id, kind: z.string(), severity: level, description: z.string(), citations: z.array(Citation) });
 
 // §5 Verification

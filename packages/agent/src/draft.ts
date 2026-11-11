@@ -7,6 +7,7 @@ import { describeMetric } from "@agentic-analytics/metrics";
 import {
   type Assumption,
   type Fact,
+  FILE_NOT_READ_KINDS,
   type Finding,
   findFreeNumerals,
   type MetricDef,
@@ -22,6 +23,7 @@ import {
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
+import { fileIssueText } from "./file-issues.ts";
 import { qualityCount } from "./quality.sql.ts";
 import { sectionFactIds } from "./sections.ts";
 import { businessModelAffects, roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "./semantics.ts";
@@ -137,7 +139,6 @@ const ISSUE_WORDING: Record<string, string> = {
   missing_id: "Some rows have no identifier, so they can't be linked to a customer, order or document",
   missing_value: "Some values are empty, so the totals of the periods they fall in leave them out",
   prefixed_id: "Some document numbers carry a letter prefix the others lack; these are often cancellations or credit notes",
-  too_large: "A file is larger than the job's size limit and was not read",
 };
 
 /** A grouped quality issue cites at most this many rows. */
@@ -153,8 +154,9 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     rows: number[] | null;
     column_name: string | null;
     prefix: string | null;
+    cause: string | null;
   }>(
-    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name, i.details->>'prefix' AS prefix
+    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name, i.details->>'prefix' AS prefix, i.details->>'cause' AS cause
         FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY TRY_CAST(substr(i.id, 2) AS INTEGER), i.id`,
   );
   // One report item per kind of issue in one column of one table: a real file can have thousands of negative
@@ -174,6 +176,11 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
   let next = await nextFactNumber(ws);
   for (const [i, g] of [...groups.values()].entries()) {
     const r = g[0] as (typeof rows)[number];
+    const fileText = FILE_NOT_READ_KINDS.has(r.kind) ? fileIssueText(r.kind, r.cause ?? undefined, r.file ?? "") : undefined;
+    if (fileText) {
+      issues.push({ id: `Q${i + 1}`, kind: r.kind, severity: r.severity, description: fileText, citations: [] });
+      continue;
+    }
     const what = ISSUE_WORDING[r.kind] ?? `Data issue: ${r.kind.replace(/_/g, " ")}`;
     const where = [r.column_name ? `column ${q(r.column_name)}` : "", r.file ? `in ${q(r.file)}` : ""].filter(Boolean).join(" ");
     const cited = [...new Set(g.flatMap((x) => x.rows ?? []))].sort((a, b) => a - b).slice(0, MAX_CITED_ROWS);

@@ -1,10 +1,10 @@
 // File-type detection from magic bytes; the extension is only a hint (ingestion spec §1).
-import type { FileKind } from "./types.ts";
+import type { FileKind, RejectCause } from "./types.ts";
 import { readZipEntries } from "./zip.ts";
 
 export type Sniffed =
   | { readonly kind: FileKind; readonly mime: string }
-  | { readonly kind: "archive" | "unknown"; readonly mime: string; readonly reason: string };
+  | { readonly kind: "archive" | "unknown"; readonly mime: string; readonly reason: string; readonly cause: RejectCause };
 
 const MIME: Record<FileKind, string> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -32,24 +32,44 @@ export function sniff(bytes: Uint8Array, name: string): Sniffed {
     if (names.some((n) => n.startsWith("xl/"))) return known("xlsx");
     if (names.some((n) => n.startsWith("word/"))) return known("docx");
     if (!entries && (e === "xlsx" || e === "xlsm" || e === "docx"))
-      return { kind: "unknown", mime: "application/zip", reason: "damaged Office file (ZIP directory unreadable)" };
-    return { kind: "archive", mime: "application/zip", reason: "ZIP archives are not supported in v0.1; upload the files inside it" };
+      return {
+        kind: "unknown",
+        mime: "application/zip",
+        reason: "damaged Office file (ZIP directory unreadable)",
+        cause: "damaged_office",
+      };
+    return {
+      kind: "archive",
+      mime: "application/zip",
+      reason: "ZIP archives are not supported in v0.1; upload the files inside it",
+      cause: "zip",
+    };
   }
   if (startsWith(bytes, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) {
     // OLE2 container: legacy .xls (SheetJS reads it). Legacy .doc is not supported.
     return e === "doc"
-      ? { kind: "unknown", mime: "application/msword", reason: "legacy .doc is not supported; save as .docx" }
+      ? { kind: "unknown", mime: "application/msword", reason: "legacy .doc is not supported; save as .docx", cause: "legacy_doc" }
       : known("xls");
   }
   if (startsWith(bytes, [0x1f, 0x8b]))
-    return { kind: "archive", mime: "application/gzip", reason: "gzip archives are not supported in v0.1" };
+    return { kind: "archive", mime: "application/gzip", reason: "gzip archives are not supported in v0.1", cause: "gzip" };
   if (startsWith(bytes, [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]))
-    return { kind: "archive", mime: "application/x-7z-compressed", reason: "7z archives are not supported in v0.1" };
+    return { kind: "archive", mime: "application/x-7z-compressed", reason: "7z archives are not supported in v0.1", cause: "seven_zip" };
   if (startsWith(bytes, [0x52, 0x61, 0x72, 0x21]))
-    return { kind: "archive", mime: "application/vnd.rar", reason: "RAR archives are not supported in v0.1" };
+    return { kind: "archive", mime: "application/vnd.rar", reason: "RAR archives are not supported in v0.1", cause: "rar" };
 
-  const text = decodeText(bytes.subarray(0, 64 * 1024));
-  if (text === undefined) return { kind: "unknown", mime: "application/octet-stream", reason: "unrecognized binary file" };
+  const head = bytes.subarray(0, 64 * 1024);
+  const text = decodeText(head);
+  if (text === undefined) {
+    // NUL bytes are what UTF-16 text and real binaries both have; otherwise the bytes are not valid UTF-8.
+    const nul = head.includes(0);
+    return {
+      kind: "unknown",
+      mime: "application/octet-stream",
+      reason: nul ? "contains NUL bytes (binary, or text saved as UTF-16)" : "not valid UTF-8 text",
+      cause: nul ? "nul_bytes" : "not_utf8",
+    };
+  }
   if (looksLikeEmail(text)) return known("eml");
   if (e === "md" || e === "markdown") return known("md");
   if (e === "txt") return known("txt");

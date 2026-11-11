@@ -23,6 +23,35 @@ describe("plain-text report views", () => {
   });
 });
 
+describe("files that were not read", () => {
+  it("the summary lists each skipped file on its own line, with the fix", () => {
+    const withFiles: Report = {
+      ...report,
+      data_quality: [
+        {
+          id: "Q1",
+          kind: "archive_rejected",
+          severity: "medium",
+          description: 'The file "reviews.csv.gz" is gzip-compressed. Unzip it first.',
+          citations: [],
+        },
+        {
+          id: "Q2",
+          kind: "too_large",
+          severity: "medium",
+          description: 'The file "big.csv" is over the per-file size limit. Split the file.',
+          citations: [],
+        },
+        { id: "Q3", kind: "missing_value", severity: "low", description: "Some values are empty.", citations: [] },
+      ],
+    };
+    const t = reportSummaryText(withFiles);
+    expect(t).toContain('Files not read:\n• The file "reviews.csv.gz" is gzip-compressed. Unzip it first.\n• The file "big.csv"');
+    expect(t).not.toContain("Some values are empty");
+    expect(reportSummaryText({ ...report, data_quality: [] })).not.toContain("Files not read");
+  });
+});
+
 describe("percentage points", () => {
   const fact = (fn: string, value: number): Fact => ({
     id: "N1",
