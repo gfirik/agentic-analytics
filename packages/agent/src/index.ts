@@ -75,7 +75,7 @@ export {
   sectionFactIds,
 } from "./sections.ts";
 export { businessModelAffects, type SemanticsInput } from "./semantics.ts";
-export { writeHeadline } from "./summary.ts";
+export { type NoNumbersInput, type NoNumbersReason, noNumbersHeadline, noNumbersReason, writeHeadline } from "./summary.ts";
 export { Budget, buildTools, type OpenQuestionDraft, type ToolContext } from "./tools.ts";
 export { privateTerms, searchAndStore, type WebLane } from "./web.ts";
 export { WITHHELD, withheld, withheldKeys, withheldMember } from "./withhold.ts";

@@ -557,6 +557,14 @@
               "verified"
             ]
           }
+        },
+        "no_numbers": {
+          "type": "string",
+          "enum": [
+            "files_rejected",
+            "no_table",
+            "headers_not_recognised"
+          ]
         }
       },
       "required": [

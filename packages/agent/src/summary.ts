@@ -1,12 +1,42 @@
 // The report headline (report-schema §1): one sentence on the most important finding. The planner writes it with
 // placeholders from the findings only; small-model mode, or no findings, uses the first finding's title.
 import type { ModelClient } from "@agentic-analytics/models";
-import { type Finding, findFreeNumerals, placeholders } from "@agentic-analytics/schema";
+import { type Finding, findFreeNumerals, placeholders, type Report } from "@agentic-analytics/schema";
 import { z } from "zod";
 import { data, renderPrompt } from "./prompts.ts";
 import { withheld } from "./withhold.ts";
 
 const noNumerals = (s: string) => findFreeNumerals(s).length === 0;
+
+/** Why a job read no numbers, or undefined when it read some (agent-and-verifier §6, report-schema §1). */
+export type NoNumbersReason = NonNullable<Report["summary"]["no_numbers"]>;
+
+export interface NoNumbersInput {
+  /** Facts that came from a metric (they carry a metric id). */
+  readonly metricFacts: number;
+  readonly tables: number;
+  /** Sources registered for the report (tables, documents, emails). */
+  readonly sources: number;
+  /** Data-quality issues that mean a whole file was not read. */
+  readonly filesNotRead: number;
+}
+
+/** Deterministic: from what the job knows, never from the model. */
+export function noNumbersReason(i: NoNumbersInput): NoNumbersReason | undefined {
+  if (i.metricFacts > 0) return undefined;
+  if (i.tables > 0) return "headers_not_recognised";
+  return i.sources === 0 && i.filesNotRead > 0 ? "files_rejected" : "no_table";
+}
+
+const NO_NUMBERS_TEXT: Record<NoNumbersReason, string> = {
+  files_rejected: "every file was rejected (see Files not read)",
+  no_table: "no table was found",
+  headers_not_recognised: "the column headers were not recognised as a date and an amount",
+};
+
+/** The headline of a job that read no numbers: never "No material changes", which would be a false all-clear. */
+export const noNumbersHeadline = (reason: NoNumbersReason): string =>
+  `No numbers could be read from these files: ${NO_NUMBERS_TEXT[reason]}.`;
 
 export async function writeHeadline(model: ModelClient, findings: readonly Finding[], small: boolean): Promise<string> {
   const first = findings[0];

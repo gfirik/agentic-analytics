@@ -40,8 +40,10 @@ export function formatFact(f: Fact): string {
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** "2026-01".."2026-06" → "Jan–Jun 2026"; other bounds are shown as given. */
+/** "2026-01".."2026-06" → "Jan–Jun 2026"; "0000".."9999" (no dates found) → "no period"; other bounds are shown as given. */
 export function formatPeriod(from: string, to: string): string {
+  // A job that found no dates keeps the placeholder bounds 0000 and 9999 (report-schema §1): there is no period to show.
+  if (from === "0000" && to === "9999") return "no period";
   const a = /^(\d{4})-(\d{2})$/.exec(from);
   const b = /^(\d{4})-(\d{2})$/.exec(to);
   if (a && b) {

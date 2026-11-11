@@ -509,7 +509,7 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const openQuestions = draft.open_questions.map((q) => ({ ...q, would_change: q.would_change.filter((x) => live.has(x)) }));
   const report: Report = {
     ...draft,
-    summary: { headline: headlineText, bullets },
+    summary: { ...draft.summary, headline: headlineText, bullets },
     findings,
     recommendations,
     assumptions,

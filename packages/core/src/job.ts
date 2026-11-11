@@ -15,6 +15,8 @@ import {
   decide,
   type ExplainResult,
   explainFindings,
+  noNumbersHeadline,
+  noNumbersReason,
   type OpenQuestionDraft,
   privateTerms,
   quarantinedSources,
@@ -50,7 +52,14 @@ import {
 } from "@agentic-analytics/profile";
 import { renderReportHtml } from "@agentic-analytics/report";
 import { type Embedder, indexDocuments, type Reranker } from "@agentic-analytics/retrieval";
-import { type JobEvent, type MetricDef, type Recommendation, type Report, validateReport } from "@agentic-analytics/schema";
+import {
+  FILE_NOT_READ_KINDS,
+  type JobEvent,
+  type MetricDef,
+  type Recommendation,
+  type Report,
+  validateReport,
+} from "@agentic-analytics/schema";
 import { sql, Workspace } from "@agentic-analytics/store";
 import { persistChecks, VerifyError, verifyReport } from "@agentic-analytics/verify";
 import type { FetchedPage, SearchProvider } from "@agentic-analytics/web";
@@ -505,7 +514,17 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               untrimmed: d.request.untrimmed,
               steps: d.request.steps,
             });
-          const headline = await writeHeadline(deps.model, ex.findings, small);
+          // No metric was computed: the report says so, from what the job knows, instead of an all-clear.
+          const allFacts = await factMap();
+          const noNumbers = noNumbersReason({
+            metricFacts: [...allFacts.values()].filter((f) => f.metric_id).length,
+            tables: (await ws.one<{ n: number }>(sql`SELECT count(*)::INTEGER AS n FROM sources WHERE kind = 'table'`))?.n ?? 0,
+            sources: (await ws.one<{ n: number }>(sql`SELECT count(*)::INTEGER AS n FROM sources`))?.n ?? 0,
+            filesNotRead: (await ws.all<{ kind: string }>(sql`SELECT kind FROM quality_issues`)).filter((i) =>
+              FILE_NOT_READ_KINDS.has(i.kind),
+            ).length,
+          });
+          const headline = noNumbers ? noNumbersHeadline(noNumbers) : await writeHeadline(deps.model, ex.findings, small);
           // The roles as they stand after the confirm step (the person's edits), else PROFILE's proposals.
           const semantics = await currentSemantics(ws);
           const report = await buildDraft(ws, {
@@ -516,6 +535,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             objective: { text: objectiveText(opts), source: opts.objective ? "user" : "default" },
             defs: m.defs,
             headline,
+            ...(noNumbers ? { noNumbers } : {}),
             findings: ex.findings,
             recommendations: d.recommendations as Recommendation[],
             analysisQuestions: measured.openQuestions,

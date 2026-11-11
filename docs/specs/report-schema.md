@@ -16,7 +16,8 @@ Report = {
   metrics: MetricDef[],          // confirmed or assumed definitions actually used
   assumptions: Assumption[],     // anything not confirmed by the user
   data_quality: QualityIssue[],
-  summary: { headline: string, bullets: Claim[] },          // ≤ 5 bullets
+  summary: { headline: string, bullets: Claim[],            // ≤ 5 bullets
+             no_numbers?: "files_rejected"|"no_table"|"headers_not_recognised" },  // additive (pre-tag 1), see below
   findings: Finding[],
   recommendations: Recommendation[],
   open_questions: OpenQuestion[],
@@ -109,6 +110,8 @@ OpenQuestion = { id: string, question: string, why_it_matters: string, would_cha
 Assumption   = { id: string, text: string, affects: string[] }
 QualityIssue = { id: string, kind: string, severity: "high"|"medium"|"low", description: string, citations: Citation[] }
 ```
+
+**`summary.no_numbers`** (additive, optional; the schema stays `agentic-analytics.report/v1`). Set by code when no metric was computed (no fact carries a `metric_id`). The reason is deterministic: `files_rejected` (no source was registered and some file was not read), `no_table` (no table was found, or only documents), `headers_not_recognised` (tables exist, but no metric could be drafted from their headers: no date and amount). The headline is then written by code ("No numbers could be read from these files: <reason>.") and never says "No material changes", which is kept for jobs that did read numbers. The period of such a job may be the placeholder `0000`–`9999`; the HTML report and the plain-text views show "no period". The plain-text summary adds a "Read: <file> (<kind>), …" line (names and kinds only, no counts). The model stages that have nothing to work on make no model call.
 
 ## 5. Verification summary
 

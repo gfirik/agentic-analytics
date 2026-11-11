@@ -181,6 +181,7 @@ All passes run on the draft report. Results are written to the `verification` ta
   - the lexicon also covers bare "because", "driven by", "drove", "triggered", "stemmed from", RU "благодаря", "повлекло", "стало причиной", and UZ "sabab bo'ldi";
   - titles, the headline, actions and `not_advised` get the same rewrite unless their finding has a document-supported claim. The headline's finding is the one whose facts its placeholders use (or whose title it fell back to; with neither, the top finding).
   - Everything rewritten or downgraded is listed in `claims_downgraded`.
+- **No numbers (pre-tag 1).** When no metric was computed, DECIDE writes the headline itself (`noNumbersHeadline`, no model call) and sets `summary.no_numbers` (report-schema §1); VERIFY keeps both. A headline of "No material changes" means numbers were read and nothing material changed.
 - **V7** keeps a recommendation only when at least one of its findings survived, its impact facts exist, its check threshold is a fact, its check date is after the data, and (when it had any) at least one rationale claim survived. The cascade also prunes assumption `affects` and open-question `would_change` references to dropped items. The headline falls back to the first surviving finding's title when its placeholders no longer resolve.
 
 **Failure policy:**

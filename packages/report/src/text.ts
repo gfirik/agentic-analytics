@@ -25,6 +25,11 @@ export function reportSummaryText(report: Report, o: SummaryOptions = {}): strin
   const facts = new Map(report.facts.map((f) => [f.id, f]));
   const fill = (t: string) => fillPlaceholders(t, facts);
   const lines = [fill(report.summary.headline), ""];
+  // A job that read no numbers names what it did read (file names and kinds only: a count would be a free numeral).
+  if (report.summary.no_numbers) {
+    const read = [...new Set(report.sources.filter((s) => !s.external).map((s) => `${s.file} (${s.kind})`))];
+    lines.push(read.length ? `Read: ${read.join(", ")}` : "Read: nothing", "");
+  }
   const findings = report.findings.slice(0, o.findings ?? 3);
   if (findings.length) lines.push("Findings:");
   for (const f of findings) {

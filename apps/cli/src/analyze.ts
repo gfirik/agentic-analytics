@@ -9,7 +9,7 @@ import { metricsYaml, parseMetricsYaml, type ReviewChoice, rolesYaml } from "@ag
 import { reportSummaryText } from "@agentic-analytics/report";
 import type { BusinessModelEntry, ConfirmView, MetricDef, RoleEntry } from "@agentic-analytics/schema";
 import { ReviewEndedError, reviewEndedLines } from "./prompt.ts";
-import { formatEvent } from "./run.ts";
+import { formatEvent, NO_NUMBERS_EXIT } from "./run.ts";
 
 /** What the metric review asks a person (a terminal, or a script in tests). */
 export interface ReviewPrompt {
@@ -194,7 +194,13 @@ export async function analyzeCommand(input: AnalyzeInput, deps: AnalyzeDeps): Pr
     print("");
     print(`report: ${join(dest, "report.json")}`);
     print(`html:   ${join(dest, "report.html")}`);
-    return { code: 0, jobId: id, reportPath: join(dest, "report.json"), htmlPath: join(dest, "report.html") };
+    // Exit 2: the job finished but read no numbers, so there is nothing to act on (interfaces §2).
+    return {
+      code: report.summary.no_numbers ? NO_NUMBERS_EXIT : 0,
+      jobId: id,
+      reportPath: join(dest, "report.json"),
+      htmlPath: join(dest, "report.html"),
+    };
   } finally {
     unsubscribe();
   }
