@@ -6,6 +6,7 @@ import { nextFactNumber, persistFacts } from "@agentic-analytics/analysis";
 import { describeMetric } from "@agentic-analytics/metrics";
 import {
   type Assumption,
+  type Claim,
   type Fact,
   FILE_NOT_READ_KINDS,
   type Finding,
@@ -22,6 +23,7 @@ import {
   type Source,
 } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
+import { caveatAssumptions } from "./caveats.ts";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
 import { fileIssueText } from "./file-issues.ts";
@@ -51,6 +53,8 @@ export interface DraftInput {
   readonly dropped: readonly Dropped[];
   readonly downgraded: readonly Downgraded[];
   readonly facts: ReadonlyMap<string, Fact>;
+  /** The claims code built for each finding (`codeClaimsOf`): the engine caveats are decided from these, never from model claims. */
+  readonly codeClaims?: ReadonlyMap<string, readonly Claim[]>;
   /** An incomplete last month the analysis left out (it becomes an assumption). */
   readonly partialPeriod?: string;
   /** Roles, table kinds and the business model from PROFILE (M15; report-schema §5b). Absent: the report carries none. */
@@ -307,6 +311,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       text: "The data stops early in its last month, so that part-month is left out: comparing it with whole months would read as a fall.",
       affects: input.findings.map((f) => f.id),
     });
+  assumptions.push(...caveatAssumptions(input.findings, input.codeClaims ?? new Map(), input.facts, assumptions.length + 1));
   // One assumption per assumed role an analysis reads (semantics §5); confirmed roles need none.
   const roleReads = input.semantics
     ? roleAssumptions(

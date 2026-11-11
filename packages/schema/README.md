@@ -11,6 +11,7 @@ Zod contracts for the engine: report v1, metric YAML, config and job events, wit
 |---|---|
 | `Report`, `Fact`, `Claim`, `Finding`, `Recommendation`, `Source`, `Citation`, `Evidence`, … | Report v1 schema parts (Zod values and inferred types) |
 | `FILE_NOT_READ_KINDS` | Data-quality kinds that mean a whole file was not read (worded per file, listed under "Files not read" in plain-text summaries) |
+| `ASSUMPTION_CAVEATS`, `AssumptionCaveat` | The engine's fixed caveats an `Assumption` can carry in its optional `caveat` field: `nominal` (amounts are not inflation-adjusted) and `seasonal` (a December-vs-November change) |
 | `validateReport(json)` | Zod shape check, then `checkReportIntegrity`; returns `{ ok, report }` or `{ ok: false, issues }` |
 | `checkReportIntegrity(report)` | Cross-reference rules: every `{{N…}}` placeholder and fact id exists, citations point at sources, no free numerals in model text |
 | `ColumnRole`, `TableKind`, `BusinessModel`, `COLUMN_ROLES`, `TABLE_KINDS` | Business semantics in the report (M15, additive and optional): a role per column with evidence, a kind per table, and the business model as an assumption (report-schema §5b) |

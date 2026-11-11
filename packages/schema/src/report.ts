@@ -119,7 +119,10 @@ export const Recommendation = z.object({
 });
 
 export const OpenQuestion = z.object({ id, question: z.string(), why_it_matters: z.string(), would_change: z.array(id) });
-export const Assumption = z.object({ id, text: z.string(), affects: z.array(id) });
+/** The engine's fixed caveats (report-schema §3): amounts are nominal; a December-vs-November change is probably seasonal. */
+export const ASSUMPTION_CAVEATS = ["nominal", "seasonal"] as const;
+export type AssumptionCaveat = (typeof ASSUMPTION_CAVEATS)[number];
+export const Assumption = z.object({ id, text: z.string(), affects: z.array(id), caveat: z.enum(ASSUMPTION_CAVEATS).optional() });
 /** Data-quality kinds that mean a whole file was not read (ingestion spec §1): the report words them, and the plain-text
  * summaries list them under "Files not read". */
 export const FILE_NOT_READ_KINDS: ReadonlySet<string> = new Set([

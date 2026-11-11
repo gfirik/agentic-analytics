@@ -4,11 +4,12 @@
 // - Cascade: a finding with no claims left is dropped, a recommendation without a surviving finding is dropped.
 // - Every check is a row in the `verification` table; drops and downgrades are listed in the report.
 
-import { data, renderPrompt } from "@agentic-analytics/agent";
+import { data, renderPrompt, statesDecemberStep } from "@agentic-analytics/agent";
 import { externalFacts, readFacts } from "@agentic-analytics/analysis";
 import { type Catalog, compileMetric, compileMetricRows, type Grain, marginTerms, runMetric } from "@agentic-analytics/metrics";
 import { type ModelClient, ModelError } from "@agentic-analytics/models";
 import {
+  type Assumption,
   type Claim,
   checkReportIntegrity,
   type Fact,
@@ -512,13 +513,13 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const verifiedFacts = new Set(v2.filter((r) => r.ok).map((r) => r.fact));
   // References to dropped findings and recommendations go too (assumptions, open questions).
   const live = new Set([...findings.map((f) => f.id), ...recommendations.map((r) => r.id), ...draft.metrics.map((m) => m.id)]);
-  const assumptions = draft.assumptions.map((a) => ({ ...a, affects: a.affects.filter((x) => live.has(x)) }));
+  const assumptions = liveAssumptions(draft.assumptions, findings, new Map(draft.facts.map((f) => [f.id, f])), live);
   const openQuestions = draft.open_questions.map((q) => ({ ...q, would_change: q.would_change.filter((x) => live.has(x)) }));
   const { recommendations_note: _draftNote, ...draftRest } = draft;
   const report: Report = {
     ...draftRest,
     summary: { ...draft.summary, headline: headlineText, bullets },
-    findings,
+    findings: withoutLostCaveats(findings, draft.assumptions, assumptions),
     recommendations,
     ...noteAfterVerify(draft, findings.length, recommendations.length),
     assumptions,
@@ -677,4 +678,29 @@ export function noteAfterVerify(draft: Report, findings: number, kept: number): 
   if (kept > 0 || findings === 0 || draft.summary.no_numbers) return {};
   if (draft.recommendations.length > 0) return { recommendations_note: "none_passed" };
   return draft.recommendations_note ? { recommendations_note: draft.recommendations_note } : {};
+}
+
+/**
+ * Assumptions after VERIFY: references to dropped findings go. An engine caveat follows what justifies it: the
+ * seasonal one stays only on a finding that still has a claim comparing November with December, and a caveat left with
+ * no finding to qualify is removed, so no orphan caveat stays in the report. Other assumptions stay as they were.
+ */
+export function liveAssumptions(
+  assumptions: readonly Assumption[],
+  findings: readonly Finding[],
+  facts: ReadonlyMap<string, Fact>,
+  live: ReadonlySet<string>,
+): Assumption[] {
+  const justified = (id: string, caveat: Assumption["caveat"]) =>
+    caveat !== "seasonal" || (findings.find((f) => f.id === id)?.claims ?? []).some((c) => statesDecemberStep(c, facts));
+  return assumptions
+    .map((a) => ({ ...a, affects: a.affects.filter((x) => live.has(x) && justified(x, a.caveat)) }))
+    .filter((a) => !a.caveat || a.affects.length > 0);
+}
+
+/** A finding no longer lists a caveat that stopped applying to it (the caveat's `affects` is the source of truth). */
+export function withoutLostCaveats(findings: readonly Finding[], drafted: readonly Assumption[], kept: readonly Assumption[]): Finding[] {
+  const caveats = new Set(drafted.filter((a) => a.caveat).map((a) => a.id));
+  const applies = (id: string, finding: string) => kept.find((a) => a.id === id)?.affects.includes(finding) ?? false;
+  return findings.map((f) => ({ ...f, assumptions: f.assumptions.filter((id) => !caveats.has(id) || applies(id, f.id)) }));
 }

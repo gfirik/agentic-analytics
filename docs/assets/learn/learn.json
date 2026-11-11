@@ -2385,6 +2385,8 @@
         "• A change in revenue",
         "  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).",
         "",
+        "Note: Amounts are nominal, as in the files; they are not adjusted for inflation.",
+        "",
         "Recommendations:",
         "• Offer wholesale accounts a volume-tier discount to win back paused standing orders",
         "  Expected impact: 3,995 USD to 7,191 USD next quarter",
@@ -2610,6 +2612,8 @@
         "• Wholesale revenue fell sharply after March",
         "  Wholesale revenue went from 15,900 USD in 2026-03 to 7,400 USD in 2026-04 (a change of −8,500 USD, −53.5%). It stood at 7,300 USD in 2026-06.",
         "",
+        "Note: Amounts are nominal, as in the files; they are not adjusted for inflation.",
+        "",
         "Recommendations:",
         "• Offer wholesale accounts a volume-tier discount to win back paused standing orders",
         "  Expected impact: 3,995 USD to 7,191 USD next quarter",
@@ -2667,6 +2671,8 @@
         "  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.",
         "• A change in revenue",
         "  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).",
+        "",
+        "Note: Amounts are nominal, as in the files; they are not adjusted for inflation.",
         "",
         "Recommendations:",
         "• Offer wholesale accounts a volume-tier discount to win back paused standing orders",
@@ -2805,7 +2811,7 @@
             "currency": "USD",
             "wait": true
           },
-          "result": "<job-id>: done\n\nRevenue fell after March, driven by wholesale (a change of −7,900 USD).\n\nFindings:\n• Revenue fell after March, driven by wholesale\n  Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.\n• Refund rate rose after the packaging supplier switch\n  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.\n• A change in revenue\n  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).\n\nRecommendations:\n• Offer wholesale accounts a volume-tier discount to win back paused standing orders\n  Expected impact: 3,995 USD to 7,191 USD next quarter\n• Return to the previous packaging supplier, or fix the new valve bags\n  Expected impact: 407 USD to 732.60 USD next two months\n\nNote: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section."
+          "result": "<job-id>: done\n\nRevenue fell after March, driven by wholesale (a change of −7,900 USD).\n\nFindings:\n• Revenue fell after March, driven by wholesale\n  Revenue went from 44,100 USD in 2026-03 to 36,200 USD in 2026-04 (a change of −7,900 USD, −17.9%). It stood at 37,000 USD in 2026-06.\n• Refund rate rose after the packaging supplier switch\n  Refund rate went from 1.2% in 2026-03 to 1.3% in 2026-04 (a change of 0.1 pp, 8.3%). It stood at 3.4% in 2026-06.\n• A change in revenue\n  Revenue for “Green Leaf Bakery” went from 2,745.86 USD in 2026-05 to 1,966.87 USD in 2026-06 (a change of −778.99 USD, −28.4%).\n\nNote: Amounts are nominal, as in the files; they are not adjusted for inflation.\n\nRecommendations:\n• Offer wholesale accounts a volume-tier discount to win back paused standing orders\n  Expected impact: 3,995 USD to 7,191 USD next quarter\n• Return to the previous packaging supplier, or fix the new valve bags\n  Expected impact: 407 USD to 732.60 USD next two months\n\nNote: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section."
         },
         {
           "tool": "explain_number",
