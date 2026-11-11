@@ -30,6 +30,7 @@ export {
   Evidence,
   Fact,
   FactUnit,
+  FILE_NOT_READ_KINDS,
   Finding,
   FindingType,
   ModelRole,

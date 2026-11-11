@@ -2,15 +2,6 @@
 // (quoted: file names carry digits, and so do names such as “UTF-8”) and what the owner should do. No sizes: a size would be a free numeral.
 import { q } from "./claims.ts";
 
-/** The ingestion issue kinds that mean "this file was not read". */
-export const FILE_ISSUE_KINDS: ReadonlySet<string> = new Set([
-  "archive_rejected",
-  "unsupported_type",
-  "unreadable_file",
-  "password_protected",
-  "too_large",
-]);
-
 const TOO_LARGE_FIX =
   "Drop the columns the analysis does not need (free-text columns such as comments make files big), filter to the period you need, or split the file, then add it again.";
 

@@ -1,7 +1,7 @@
 // Report wording for files that were not read: each names the file and the fix, with no free numeral.
-import { findFreeNumerals } from "@agentic-analytics/schema";
+import { FILE_NOT_READ_KINDS, findFreeNumerals } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { FILE_ISSUE_KINDS, fileIssueText } from "../src/file-issues.ts";
+import { fileIssueText } from "../src/file-issues.ts";
 
 describe("file rejection wording", () => {
   it("a gzip file: says gzip, names the file, tells the owner to unzip it", () => {
@@ -33,7 +33,7 @@ describe("file rejection wording", () => {
   });
 
   it("every rejection kind has plain wording without a generated fallback or a free numeral", () => {
-    for (const kind of FILE_ISSUE_KINDS)
+    for (const kind of FILE_NOT_READ_KINDS)
       for (const cause of [undefined, "gzip", "zip", "nul_bytes", "not_utf8", "file_limit", "job_limit", "unpacked_limit"]) {
         const t = fileIssueText(kind, cause, "a1.csv");
         expect(t, `${kind}/${cause}`).toBeTruthy();

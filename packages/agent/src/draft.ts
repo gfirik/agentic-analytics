@@ -7,6 +7,7 @@ import { describeMetric } from "@agentic-analytics/metrics";
 import {
   type Assumption,
   type Fact,
+  FILE_NOT_READ_KINDS,
   type Finding,
   findFreeNumerals,
   type MetricDef,
@@ -22,7 +23,7 @@ import {
 import { sql, type Workspace } from "@agentic-analytics/store";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
-import { FILE_ISSUE_KINDS, fileIssueText } from "./file-issues.ts";
+import { fileIssueText } from "./file-issues.ts";
 import { qualityCount } from "./quality.sql.ts";
 import { sectionFactIds } from "./sections.ts";
 import { businessModelAffects, roleAssumptions, type SemanticsInput, semanticsParts, visibleRoles } from "./semantics.ts";
@@ -175,7 +176,7 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
   let next = await nextFactNumber(ws);
   for (const [i, g] of [...groups.values()].entries()) {
     const r = g[0] as (typeof rows)[number];
-    const fileText = FILE_ISSUE_KINDS.has(r.kind) ? fileIssueText(r.kind, r.cause ?? undefined, r.file ?? "") : undefined;
+    const fileText = FILE_NOT_READ_KINDS.has(r.kind) ? fileIssueText(r.kind, r.cause ?? undefined, r.file ?? "") : undefined;
     if (fileText) {
       issues.push({ id: `Q${i + 1}`, kind: r.kind, severity: r.severity, description: fileText, citations: [] });
       continue;
