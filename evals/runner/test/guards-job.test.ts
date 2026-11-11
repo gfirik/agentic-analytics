@@ -133,7 +133,7 @@ describe("rows after today inside today's period (spec review)", () => {
     const report = await run(`${rows.join("\n")}\n`);
     expect(report.summary.no_numbers).toBe("all_dates_future");
     expect(report.summary.headline).toBe(
-      "No numbers could be read from these files: every date is after today's date (check the date the job ran as, or the dates).",
+      "No numbers could be read from these files: no date falls in a whole period before today's date (check the date the job ran as, or the dates).",
     );
     expect(findFreeNumerals(report.summary.headline)).toEqual([]);
   }, 180_000);

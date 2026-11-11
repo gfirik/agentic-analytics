@@ -52,7 +52,7 @@ const NO_NUMBERS_TEXT: Record<NoNumbersReason, string> = {
   files_rejected: "every file was rejected (see Files not read)",
   no_table: "no table was found (add a spreadsheet or CSV with one header row)",
   headers_not_recognised: "no column was recognised as a date and an amount (name them, for example, date and amount)",
-  all_dates_future: "every date is after today's date (check the date the job ran as, or the dates)",
+  all_dates_future: "no date falls in a whole period before today's date (check the date the job ran as, or the dates)",
 };
 
 /** The headline of a job that read no numbers: never "No material changes", which would be a false all-clear. */
