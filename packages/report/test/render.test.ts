@@ -223,3 +223,14 @@ describe("the concentration section's share table (analysis-library §11.2)", ()
     expect(rows).toEqual(["2026-06", "trailing year", "2025"]);
   });
 });
+
+describe("a report that read no numbers", () => {
+  it("shows no period, whatever dates profiling saw", () => {
+    const r = fixture();
+    const html = renderReportHtml({
+      ...r,
+      summary: { ...r.summary, headline: "No numbers could be read from these files.", no_numbers: "headers_not_recognised" },
+    });
+    expect(html).toContain("Business diagnosis · no period");
+  });
+});

@@ -34,6 +34,7 @@ export {
   Finding,
   FindingType,
   ModelRole,
+  NO_NUMBERS_REASONS,
   NOT_RUN_REASONS,
   NotRun,
   NotRunReason,

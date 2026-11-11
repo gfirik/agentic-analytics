@@ -38,6 +38,7 @@ EXPLAIN and DECIDE.
   - Trimming is pure and deterministic. Kept values are never changed, and facts the findings cite are always kept.
   - Without a budget, the request is byte for byte the untrimmed one.
   - `test/fixtures/printing-shop-v1-decide.json` is a real request that a provider refused at 7,804 tokens.
+- **`noNumbersReason`, `noNumbersHeadline`**: when no metric was computed, the reason (`files_rejected`, `no_table`, `headers_not_recognised`) and the code-written headline; `buildDraft` takes it as `noNumbers` and sets `summary.no_numbers`.
 - **`writeHeadline`, `buildDraft`**: the headline and the report v1 draft. With `semantics` (from the profile) the draft also carries `roles`, `table_kinds` and `business_model`, their measurements as SQL facts and the business model as an assumption; a quarantined table and a column whose name addresses a model are left out.
   - Every fact referenced is included, with its inputs.
   - Quality issues and open questions are worded without numerals.

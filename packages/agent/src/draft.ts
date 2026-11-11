@@ -37,6 +37,8 @@ export interface DraftInput {
   readonly objective: Report["objective"];
   readonly defs: readonly MetricDef[];
   readonly headline: string;
+  /** Set when the job read no numbers: `summary.no_numbers` carries the reason (report-schema §1). */
+  readonly noNumbers?: NonNullable<Report["summary"]["no_numbers"]>;
   readonly findings: readonly Finding[];
   readonly recommendations: readonly Recommendation[];
   /** Developer-facing open questions from the analysis (mapped to report wording here). */
@@ -374,7 +376,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     metrics,
     assumptions,
     data_quality: quality.issues,
-    summary: { headline: input.headline, bullets },
+    summary: { headline: input.headline, bullets, ...(input.noNumbers ? { no_numbers: input.noNumbers } : {}) },
     findings: withModel,
     recommendations: [...input.recommendations],
     open_questions: questions,

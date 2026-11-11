@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Fact, Report } from "@agentic-analytics/schema";
 import { describe, expect, it } from "vitest";
-import { fillPlaceholders, formatCell, formatFact, reportSummaryText } from "../src/index.ts";
+import { fillPlaceholders, formatCell, formatFact, formatPeriod, reportSummaryText } from "../src/index.ts";
 
 const report = JSON.parse(
   readFileSync(join(import.meta.dirname, "..", "..", "schema", "test", "fixtures", "report.coffee-roaster.json"), "utf8"),
@@ -79,5 +79,25 @@ describe("formatCell keeps the sign of a rate", () => {
     // "rate" inside another word is not a rate column.
     expect(formatCell(0.5, "Corporate client")).toBe("0.50");
     expect(formatCell(0.5, "Separate fee")).toBe("0.50");
+  });
+});
+
+describe("a report that read no numbers", () => {
+  const none: Report = {
+    ...report,
+    sources: [],
+    metrics: [],
+    findings: [],
+    recommendations: [],
+    summary: { headline: "No numbers could be read from these files: no table was found.", bullets: [], no_numbers: "no_table" },
+  };
+  it("names what was read, or that nothing was", () => {
+    expect(reportSummaryText(none)).toBe("No numbers could be read from these files: no table was found.\n\nRead: nothing\n");
+    const src = report.sources[0];
+    if (src) expect(reportSummaryText({ ...none, sources: [src] })).toContain(`Read: ${src.file} (${src.kind})`);
+  });
+  it("shows no period for the placeholder bounds 0000 and 9999", () => {
+    expect(formatPeriod("0000", "9999")).toBe("no period");
+    expect(formatPeriod("2026-01", "2026-06")).toBe("Jan–Jun 2026");
   });
 });

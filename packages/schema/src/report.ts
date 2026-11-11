@@ -129,6 +129,8 @@ export const FILE_NOT_READ_KINDS: ReadonlySet<string> = new Set([
   "too_large",
   "too_many_files",
 ]);
+/** Why a job read no numbers at all (report-schema §1, `summary.no_numbers`). */
+export const NO_NUMBERS_REASONS = ["files_rejected", "no_table", "headers_not_recognised"] as const;
 export const QualityIssue = z.object({ id, kind: z.string(), severity: level, description: z.string(), citations: z.array(Citation) });
 
 // §5 Verification
@@ -326,7 +328,7 @@ export const Report = z.object({
   metrics: z.array(ReportMetric),
   assumptions: z.array(Assumption),
   data_quality: z.array(QualityIssue),
-  summary: z.object({ headline: z.string(), bullets: z.array(Claim).max(5) }),
+  summary: z.object({ headline: z.string(), bullets: z.array(Claim).max(5), no_numbers: z.enum(NO_NUMBERS_REASONS).optional() }),
   findings: z.array(Finding),
   recommendations: z.array(Recommendation),
   open_questions: z.array(OpenQuestion),

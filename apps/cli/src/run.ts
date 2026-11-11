@@ -6,6 +6,9 @@ import { type JobDeps, type JobOptions, PipelineError, runJob } from "@agentic-a
 import type { InputFile } from "@agentic-analytics/ingest";
 import type { JobEvent } from "@agentic-analytics/schema";
 
+/** Exit code of a job that finished but read no numbers (1 means failure). */
+export const NO_NUMBERS_EXIT = 2;
+
 export interface RunCommandInput {
   readonly dir: string;
   /** Files for a new job; empty when resuming. */
@@ -59,5 +62,9 @@ export async function runCommand(
   deps.out(`report (verified): ${out.reportPath}`);
   deps.out(`html: ${out.htmlPath}`);
   if (out.run.skipped.length) deps.out(`skipped: ${out.run.skipped.join(", ")}`);
+  if (r.summary.no_numbers) {
+    deps.out(r.summary.headline);
+    return NO_NUMBERS_EXIT;
+  }
   return 0;
 }

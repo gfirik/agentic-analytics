@@ -140,7 +140,8 @@ function candidates(r: FakeRequest): unknown {
 
 function headline(r: FakeRequest): unknown {
   const findings = json<{ title: string }[]>(between(r.system, "<findings>", "</findings>"), []);
-  return { headline: findings[0]?.title ?? "No material changes were found in this period." };
+  // The engine writes the headline of a job with no findings itself (no model call), so a title is always there.
+  return { headline: findings[0]?.title ?? "No verified findings for this period." };
 }
 
 /** Supported when the claim and its excerpts share at least two content words. */

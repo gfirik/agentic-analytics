@@ -15,6 +15,9 @@ import {
   decide,
   type ExplainResult,
   explainFindings,
+  noNumbersHeadline,
+  noNumbersInput,
+  noNumbersReason,
   type OpenQuestionDraft,
   privateTerms,
   quarantinedSources,
@@ -505,7 +508,12 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
               untrimmed: d.request.untrimmed,
               steps: d.request.steps,
             });
-          const headline = await writeHeadline(deps.model, ex.findings, small);
+          // No metric was computed: the report says so, from what the job knows, instead of an all-clear.
+          const counts = await noNumbersInput(ws, (await factMap()).values());
+          const noNumbers = noNumbersReason(counts);
+          const headline = noNumbers
+            ? noNumbersHeadline(noNumbers, counts.filesNotRead > 0)
+            : await writeHeadline(deps.model, ex.findings, small);
           // The roles as they stand after the confirm step (the person's edits), else PROFILE's proposals.
           const semantics = await currentSemantics(ws);
           const report = await buildDraft(ws, {
@@ -516,6 +524,7 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
             objective: { text: objectiveText(opts), source: opts.objective ? "user" : "default" },
             defs: m.defs,
             headline,
+            ...(noNumbers ? { noNumbers } : {}),
             findings: ex.findings,
             recommendations: d.recommendations as Recommendation[],
             analysisQuestions: measured.openQuestions,
