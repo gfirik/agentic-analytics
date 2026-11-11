@@ -2,7 +2,7 @@
 /** @jsxImportSource react */
 // Pieces every report section shares: the render context and numbers as clickable facts (report-schema §6: clicking a
 // number shows its computation). Formatting rounds for reading; the exact value stays in the fact.
-import type { Fact, Finding, ReportMetric, Source } from "@agentic-analytics/schema";
+import type { AssumptionCaveat, Fact, Finding, ReportMetric, Source } from "@agentic-analytics/schema";
 import { formatFact } from "./format.ts";
 
 export interface Ctx {
@@ -12,7 +12,7 @@ export interface Ctx {
   readonly findings: Map<string, Finding>;
   readonly assumptions: Map<string, string>;
   /** Assumption id → the engine caveat it states, when it is one. */
-  readonly caveats: Map<string, string>;
+  readonly caveats: Map<string, AssumptionCaveat>;
   /** `${source_id}\u0000${quote}` → quote id used to highlight that passage in the evidence viewer. */
   readonly quoteIds: Map<string, string>;
 }

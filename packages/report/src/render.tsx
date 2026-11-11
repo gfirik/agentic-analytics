@@ -4,7 +4,7 @@
 // Server-side React only: no hydration, no external requests, inline CSS and a small inline script.
 // The pragmas above select the automatic JSX runtime wherever this file is compiled: the CLI runs it through tsx
 // from the repo root, where no tsconfig sets `jsx` (without them RENDER failed with "React is not defined").
-import type { Citation, Claim, Evidence, Finding, Recommendation, Report, Source } from "@agentic-analytics/schema";
+import type { AssumptionCaveat, Citation, Claim, Evidence, Finding, Recommendation, Report, Source } from "@agentic-analytics/schema";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CLIENT_SCRIPT } from "./client-script.ts";
@@ -598,11 +598,11 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const CAVEAT_ORDER = ["seasonal", "nominal"];
+const CAVEAT_ORDER: readonly AssumptionCaveat[] = ["seasonal", "nominal"];
 /** A finding's assumption ids with the engine caveats first (seasonal, then nominal), the rest in their order. */
-export function assumesOrder(ids: readonly string[], caveats: ReadonlyMap<string, string>): string[] {
+export function assumesOrder(ids: readonly string[], caveats: ReadonlyMap<string, AssumptionCaveat>): string[] {
   const rank = (id: string) => {
-    const i = CAVEAT_ORDER.indexOf(caveats.get(id) ?? "");
+    const i = CAVEAT_ORDER.findIndex((c) => c === caveats.get(id));
     return i < 0 ? CAVEAT_ORDER.length : i;
   };
   return [...ids].sort((a, b) => rank(a) - rank(b));

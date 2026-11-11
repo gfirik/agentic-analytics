@@ -49,33 +49,43 @@ describe("isDecemberStep", () => {
   });
 });
 
+/** The findings' own claims as the code-built ones (these hand-built findings have no model claims). */
+const code = (fs: Finding[]) => new Map(fs.map((f) => [f.id, f.claims]));
+const run = (fs: Finding[], first: number) => caveatAssumptions(fs, code(fs), facts, first);
+
 describe("caveatAssumptions", () => {
   it("Nov to Dec on a money metric: both caveats, each affecting the finding, numbered from firstId", () => {
-    const out = caveatAssumptions([finding("F1", ["N1", "N2"])], facts, 3);
+    const out = run([finding("F1", ["N1", "N2"])], 3);
     expect(out).toEqual([
       { id: "A3", text: NOMINAL_TEXT, affects: ["F1"], caveat: "nominal" },
       { id: "A4", text: DECEMBER_TEXT, affects: ["F1"], caveat: "seasonal" },
     ]);
   });
   it("the nominal assumption appears once however many findings compare money", () => {
-    const out = caveatAssumptions([finding("F1", ["N4", "N1"]), finding("F2", ["N3", "N2"])], facts, 1);
+    const out = run([finding("F1", ["N4", "N1"]), finding("F2", ["N3", "N2"])], 1);
     expect(out).toEqual([{ id: "A1", text: NOMINAL_TEXT, affects: ["F1", "F2"], caveat: "nominal" }]);
   });
   it("not a December step: no December caveat (year on year, October to November)", () => {
-    expect(caveatAssumptions([finding("F1", ["N3", "N2"])], facts, 1).map((a) => a.text)).not.toContain(DECEMBER_TEXT);
-    expect(caveatAssumptions([finding("F1", ["N4", "N1"])], facts, 1).map((a) => a.text)).not.toContain(DECEMBER_TEXT);
+    expect(run([finding("F1", ["N3", "N2"])], 1).map((a) => a.text)).not.toContain(DECEMBER_TEXT);
+    expect(run([finding("F1", ["N4", "N1"])], 1).map((a) => a.text)).not.toContain(DECEMBER_TEXT);
   });
   it("a count metric: no nominal assumption, the December caveat still applies", () => {
-    expect(caveatAssumptions([finding("F1", ["N5", "N6"])], facts, 1)).toEqual([
-      { id: "A1", text: DECEMBER_TEXT, affects: ["F1"], caveat: "seasonal" },
-    ]);
+    expect(run([finding("F1", ["N5", "N6"])], 1)).toEqual([{ id: "A1", text: DECEMBER_TEXT, affects: ["F1"], caveat: "seasonal" }]);
   });
   it("a claim across two metrics is no December comparison, but still states a money change", () => {
-    expect(caveatAssumptions([finding("F1", ["N1", "N7"])], facts, 1)).toEqual([
-      { id: "A1", text: NOMINAL_TEXT, affects: ["F1"], caveat: "nominal" },
-    ]);
+    expect(run([finding("F1", ["N1", "N7"])], 1)).toEqual([{ id: "A1", text: NOMINAL_TEXT, affects: ["F1"], caveat: "nominal" }]);
+  });
+  it("a model claim alone never triggers a caveat: only code-built claims count", () => {
+    // The finding is year on year; the model's own claim cites Nov and Dec revenue (and a currency fact).
+    const yoy = finding("F1", ["N3", "N2"]);
+    const model = { ...finding("F1", ["N1", "N2"]).claims[0], text: "model claim" } as Claim;
+    const withModel = { ...yoy, claims: [...yoy.claims, model] };
+    const out = caveatAssumptions([withModel], new Map([["F1", yoy.claims]]), facts, 1);
+    expect(out.map((a) => a.caveat)).toEqual(["nominal"]); // from the code claim; no seasonal one from the model claim
+    // A finding with only model claims (code built none) gets neither.
+    expect(caveatAssumptions([withModel], new Map(), facts, 1)).toEqual([]);
   });
   it("no findings: nothing", () => {
-    expect(caveatAssumptions([], facts, 1)).toEqual([]);
+    expect(run([], 1)).toEqual([]);
   });
 });

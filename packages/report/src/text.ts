@@ -18,8 +18,8 @@ export interface SummaryOptions {
 }
 
 /**
- * The headline, the top findings (title and first claim), the top recommendations and a notice when metrics were
- * assumed rather than confirmed. Numbers are the report's facts.
+ * The headline, the top findings (title and first claim, then a `  Note:` line for a seasonal caveat), the nominal-amounts
+ * note once after the findings, the top recommendations and a notice when metrics were assumed rather than confirmed. Numbers are the report's facts.
  */
 export function reportSummaryText(report: Report, o: SummaryOptions = {}): string {
   const facts = new Map(report.facts.map((f) => [f.id, f]));
@@ -38,7 +38,8 @@ export function reportSummaryText(report: Report, o: SummaryOptions = {}): strin
     if (c) lines.push(`  ${fill(c.text)}`);
     for (const a of caveatsOf(report, f.assumptions, "seasonal")) lines.push(`  Note: ${a.text}`);
   }
-  // The nominal caveat holds for every finding, so it is said once.
+  // The nominal caveat is the same sentence for every finding that carries it, so it is said once, and only when a
+  // listed finding carries it.
   const nominal = findings.flatMap((f) => caveatsOf(report, f.assumptions, "nominal"))[0];
   if (nominal) lines.push("", `Note: ${nominal.text}`);
   const recs = report.recommendations.slice(0, o.recommendations ?? 2);
