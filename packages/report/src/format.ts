@@ -67,7 +67,7 @@ export function formatCell(v: string | number | null, header: string): string {
 const RECOMMENDATIONS_NOTE_TEXT = {
   step_failed:
     "No recommendation could be produced: the step that drafts actions did not return a valid result. The findings above still stand.",
-  none_passed: "Recommendations were drafted but none passed verification. The findings above still stand.",
+  none_passed: "Recommendations were drafted but none passed the checks. The findings above still stand.",
 } as const;
 
 /** The line shown where recommendations would be when there are none (report-schema §1); undefined when no note applies. */

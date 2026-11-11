@@ -41,8 +41,8 @@ describe("an empty recommendations section says why", () => {
     const report = await run("unsupported");
     expect(report.recommendations).toEqual([]);
     expect(report.recommendations_note).toBe("none_passed");
-    expect(reportSummaryText(report)).toContain("Recommendations were drafted but none passed verification.");
-    expect(renderReportHtml(report)).toContain("Recommendations were drafted but none passed verification.");
+    expect(reportSummaryText(report)).toContain("Recommendations were drafted but none passed the checks.");
+    expect(renderReportHtml(report)).toContain("Recommendations were drafted but none passed the checks.");
   }, 180_000);
 
   it("a normal job has recommendations and no note", async () => {
