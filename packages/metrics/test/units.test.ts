@@ -80,6 +80,44 @@ describe("scale and currency words in a money header", () => {
     expect(v.accepted.find((m) => m.id === "orders")?.scale).toBeUndefined();
   });
 
+  it("a metric built on money metrics shares their scale: derived and ratio in million; mixed scales state none", async () => {
+    const catalog = await catalogFor("amount_mln", "amount_mln");
+    const base = [
+      metric("amount_mln"),
+      { ...metric("amount_mln"), id: "refunds", label: "Refunds" },
+      { id: "orders", label: "Orders", type: "count", table: "t_t1", unit: "count" },
+    ];
+    const v = validateMetrics(
+      [
+        ...base,
+        { id: "net", label: "Net", type: "derived", expression: "revenue - refunds", unit: "currency" },
+        {
+          id: "per_order",
+          label: "Revenue per order",
+          type: "ratio",
+          numerator: { metric: "revenue" },
+          denominator: { metric: "orders" },
+          unit: "currency",
+        },
+      ],
+      catalog,
+      { defaultCurrency: "USD" },
+    );
+    expect(v.rejected).toEqual([]);
+    expect(v.accepted.find((m) => m.id === "net")?.scale).toBe("million");
+    expect(v.accepted.find((m) => m.id === "per_order")?.scale).toBe("million");
+    const mixed = validateMetrics(
+      [
+        metric("amount_mln"),
+        { ...metric("amount_mln"), id: "refunds", label: "Refunds", scale: "billion" },
+        { id: "net", label: "Net", type: "derived", expression: "revenue - refunds", unit: "currency" },
+      ],
+      catalog,
+      { defaultCurrency: "USD" },
+    );
+    expect(mixed.accepted.find((m) => m.id === "net")?.scale).toBeUndefined();
+  });
+
   it("a currency of unknown code with a scale reads as 'currency unknown, in millions'", () => {
     const def = {
       id: "r",

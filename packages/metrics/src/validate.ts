@@ -72,27 +72,30 @@ function checkTableTerm(
  * proposal always follows it, so a ratio over a derived metric (gross_margin_pct over gross_margin) is checked after it.
  * Ties keep the proposals' order.
  */
-function validationOrder(proposals: readonly unknown[]): { p: unknown; i: number }[] {
-  interface Shape {
-    id?: unknown;
-    type?: unknown;
-    numerator?: { metric?: unknown };
-    denominator?: { metric?: unknown };
-    expression?: unknown;
+interface Shape {
+  id?: unknown;
+  type?: unknown;
+  numerator?: { metric?: unknown };
+  denominator?: { metric?: unknown };
+  expression?: unknown;
+}
+
+/** The other metrics a proposal references: a ratio's numerator and denominator, a derived metric's expression. */
+function refs(s: Shape): string[] {
+  const ids = [s.numerator?.metric, s.denominator?.metric].filter((m): m is string => typeof m === "string");
+  if (s.type === "derived" && typeof s.expression === "string") {
+    try {
+      ids.push(...exprColumns(parseExpression(s.expression)));
+    } catch {
+      // An expression that doesn't parse is refused by the semantic check with its reason.
+    }
   }
+  return ids;
+}
+
+function validationOrder(proposals: readonly unknown[]): { p: unknown; i: number }[] {
   const shape = proposals.map((p) => (typeof p === "object" && p !== null ? (p as Shape) : {}));
   const byId = new Map(shape.flatMap((s, i) => (typeof s.id === "string" ? [[s.id, i] as const] : [])));
-  const refs = (s: Shape): string[] => {
-    const ids = [s.numerator?.metric, s.denominator?.metric].filter((m): m is string => typeof m === "string");
-    if (s.type === "derived" && typeof s.expression === "string") {
-      try {
-        ids.push(...exprColumns(parseExpression(s.expression)));
-      } catch {
-        // An expression that doesn't parse is refused by the semantic check with its reason.
-      }
-    }
-    return ids;
-  };
   const depth = new Map<number, number>();
   const visit = (i: number, path: ReadonlySet<number>): number => {
     const known = depth.get(i);
@@ -130,7 +133,7 @@ export function validateMetrics(proposals: readonly unknown[], catalog: Catalog,
     const id = typeof (raw as { id?: unknown })?.id === "string" ? ((raw as { id: string }).id as string) : undefined;
     let def: MetricDef | undefined;
     // Currency: fill from the column or the job default before the schema's "currency metrics need a currency" rule.
-    const filled = fillCurrency(raw, catalog, options, assumptions);
+    const filled = fillCurrency(raw, catalog, accepted, options, assumptions);
     const parsed = MetricDef.safeParse(filled);
     if (!parsed.success) {
       reasons.push(...parsed.error.issues.map((i) => `${i.path.join(".") || "metric"}: ${i.message}`));
@@ -181,7 +184,23 @@ function headerUnitsOf(c: CatalogColumn): HeaderUnits {
   return fromLabel.scale || fromLabel.currency ? fromLabel : headerUnits(c.name);
 }
 
-function fillCurrency(raw: unknown, catalog: Catalog, options: ValidateOptions, assumptions: Validation["assumptions"]): unknown {
+/**
+ * The scale of a metric built on other metrics (a derived `revenue - cost`, a ratio over a money numerator): the one all
+ * the money metrics it references share. Mixed scales (or a plain one beside a scaled one) state none.
+ */
+function referencedScale(r: Shape, accepted: readonly MetricDef[]): MetricDef["scale"] {
+  const money = refs(r).flatMap((id) => accepted.filter((m) => m.id === id && m.unit === "currency"));
+  const scales = new Set(money.map((m) => m.scale));
+  return money.length && scales.size === 1 ? [...scales][0] : undefined;
+}
+
+function fillCurrency(
+  raw: unknown,
+  catalog: Catalog,
+  accepted: readonly MetricDef[],
+  options: ValidateOptions,
+  assumptions: Validation["assumptions"],
+): unknown {
   if (typeof raw !== "object" || raw === null) return raw;
   const r = raw as {
     id?: string;
@@ -195,7 +214,7 @@ function fillCurrency(raw: unknown, catalog: Catalog, options: ValidateOptions, 
   if (r.unit !== "currency") return raw;
   const cols = sourceColumns(r, catalog);
   // The scale a header states ("value_thousand_uzs"): only for money, and never over one the proposal already carries.
-  const scale = r.scale ? undefined : agreed(cols.map((c) => headerUnitsOf(c).scale));
+  const scale = r.scale ? undefined : cols.length ? agreed(cols.map((c) => headerUnitsOf(c).scale)) : referencedScale(r, accepted);
   const withScale = scale ? { ...raw, scale } : raw;
   if (r.currency) return withScale;
   // A currency marked in the column, then one the header names, then the job default.
