@@ -31,7 +31,7 @@ export function noNumbersReason(i: NoNumbersInput): NoNumbersReason | undefined 
 const NO_NUMBERS_TEXT: Record<NoNumbersReason, string> = {
   files_rejected: "every file was rejected (see Files not read)",
   no_table: "no table was found",
-  headers_not_recognised: "the column headers were not recognised as a date and an amount",
+  headers_not_recognised: "no column was recognised as a date and an amount (name them, for example, date and amount)",
 };
 
 /** The headline of a job that read no numbers: never "No material changes", which would be a false all-clear. */

@@ -34,7 +34,7 @@ describe("a job that read no numbers", () => {
   it("a CSV whose headers are not recognised: says the headers were not recognised", async () => {
     const { report } = await run([{ name: "odd.csv", bytes: enc("foo,bar,baz\nalpha,beta,gamma\none,two,three\nx,y,z\n") }]);
     expect(report.summary.headline).toBe(
-      "No numbers could be read from these files: the column headers were not recognised as a date and an amount.",
+      "No numbers could be read from these files: no column was recognised as a date and an amount (name them, for example, date and amount).",
     );
     expect(report.summary.no_numbers).toBe("headers_not_recognised");
   }, 120_000);
