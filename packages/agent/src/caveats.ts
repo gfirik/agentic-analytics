@@ -2,7 +2,7 @@
 // are nominal, and a December change against November is probably the season. Both are report assumptions linked to
 // the findings they qualify, so they reach the reader (the metric layer's validation notes never do). Text carries no
 // numerals: the periods are read from the facts of the observed claim, never written into the caveat.
-import type { Assumption, Fact, Finding } from "@agentic-analytics/schema";
+import type { Assumption, AssumptionCaveat, Fact, Finding } from "@agentic-analytics/schema";
 import { periodOf } from "./claims.ts";
 
 export const NOMINAL_TEXT = "Amounts are nominal, as in the files; they are not adjusted for inflation.";
@@ -49,14 +49,16 @@ export function isDecemberStep(from: string, to: string): boolean {
 export function caveatAssumptions(findings: readonly Finding[], facts: ReadonlyMap<string, Fact>, firstId: number): Assumption[] {
   const compared = findings.map((f) => ({ id: f.id, steps: comparedPeriods(f, facts) }));
   const out: Assumption[] = [];
-  const add = (text: string, affects: string[]) => {
-    if (affects.length) out.push({ id: `A${firstId + out.length}`, text, affects });
+  const add = (caveat: AssumptionCaveat, text: string, affects: string[]) => {
+    if (affects.length) out.push({ id: `A${firstId + out.length}`, text, affects, caveat });
   };
   add(
+    "nominal",
     NOMINAL_TEXT,
     findings.filter((f) => comparesMoney(f, facts)).map((f) => f.id),
   );
   add(
+    "seasonal",
     DECEMBER_TEXT,
     compared.filter((c) => c.steps.some((s) => isDecemberStep(s.from, s.to))).map((c) => c.id),
   );

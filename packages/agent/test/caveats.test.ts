@@ -53,23 +53,27 @@ describe("caveatAssumptions", () => {
   it("Nov to Dec on a money metric: both caveats, each affecting the finding, numbered from firstId", () => {
     const out = caveatAssumptions([finding("F1", ["N1", "N2"])], facts, 3);
     expect(out).toEqual([
-      { id: "A3", text: NOMINAL_TEXT, affects: ["F1"] },
-      { id: "A4", text: DECEMBER_TEXT, affects: ["F1"] },
+      { id: "A3", text: NOMINAL_TEXT, affects: ["F1"], caveat: "nominal" },
+      { id: "A4", text: DECEMBER_TEXT, affects: ["F1"], caveat: "seasonal" },
     ]);
   });
   it("the nominal assumption appears once however many findings compare money", () => {
     const out = caveatAssumptions([finding("F1", ["N4", "N1"]), finding("F2", ["N3", "N2"])], facts, 1);
-    expect(out).toEqual([{ id: "A1", text: NOMINAL_TEXT, affects: ["F1", "F2"] }]);
+    expect(out).toEqual([{ id: "A1", text: NOMINAL_TEXT, affects: ["F1", "F2"], caveat: "nominal" }]);
   });
   it("not a December step: no December caveat (year on year, October to November)", () => {
     expect(caveatAssumptions([finding("F1", ["N3", "N2"])], facts, 1).map((a) => a.text)).not.toContain(DECEMBER_TEXT);
     expect(caveatAssumptions([finding("F1", ["N4", "N1"])], facts, 1).map((a) => a.text)).not.toContain(DECEMBER_TEXT);
   });
   it("a count metric: no nominal assumption, the December caveat still applies", () => {
-    expect(caveatAssumptions([finding("F1", ["N5", "N6"])], facts, 1)).toEqual([{ id: "A1", text: DECEMBER_TEXT, affects: ["F1"] }]);
+    expect(caveatAssumptions([finding("F1", ["N5", "N6"])], facts, 1)).toEqual([
+      { id: "A1", text: DECEMBER_TEXT, affects: ["F1"], caveat: "seasonal" },
+    ]);
   });
   it("a claim across two metrics is no December comparison, but still states a money change", () => {
-    expect(caveatAssumptions([finding("F1", ["N1", "N7"])], facts, 1)).toEqual([{ id: "A1", text: NOMINAL_TEXT, affects: ["F1"] }]);
+    expect(caveatAssumptions([finding("F1", ["N1", "N7"])], facts, 1)).toEqual([
+      { id: "A1", text: NOMINAL_TEXT, affects: ["F1"], caveat: "nominal" },
+    ]);
   });
   it("no findings: nothing", () => {
     expect(caveatAssumptions([], facts, 1)).toEqual([]);

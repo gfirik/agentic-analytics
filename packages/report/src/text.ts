@@ -1,6 +1,6 @@
 // Plain-text views of a verified report for chat-like doors (MCP, Telegram, the CLI): placeholders are filled with
 // the formatted fact values, never with recomputed numbers. Interfaces §3–§4.
-import { type Fact, FILE_NOT_READ_KINDS, type Report } from "@agentic-analytics/schema";
+import { type Assumption, type Fact, FILE_NOT_READ_KINDS, type Report } from "@agentic-analytics/schema";
 import { formatFact, recommendationsNote } from "./format.ts";
 
 /** Replaces each `{{N…}}` with its fact's formatted value (an unknown id stays as written). */
@@ -36,7 +36,11 @@ export function reportSummaryText(report: Report, o: SummaryOptions = {}): strin
     lines.push(`• ${fill(f.title)}`);
     const c = f.claims[0];
     if (c) lines.push(`  ${fill(c.text)}`);
+    for (const a of caveatsOf(report, f.assumptions, "seasonal")) lines.push(`  Note: ${a.text}`);
   }
+  // The nominal caveat holds for every finding, so it is said once.
+  const nominal = findings.flatMap((f) => caveatsOf(report, f.assumptions, "nominal"))[0];
+  if (nominal) lines.push("", `Note: ${nominal.text}`);
   const recs = report.recommendations.slice(0, o.recommendations ?? 2);
   const note = recs.length ? undefined : recommendationsNote(report);
   if (recs.length) lines.push("", "Recommendations:");
@@ -52,4 +56,9 @@ export function reportSummaryText(report: Report, o: SummaryOptions = {}): strin
   if (report.metrics.some((m) => m.status === "assumed"))
     lines.push("", "Note: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section.");
   return lines.join("\n");
+}
+
+/** The finding's engine caveat assumptions of one kind (matched by the `caveat` field, not by wording). */
+function caveatsOf(report: Report, ids: readonly string[], caveat: "nominal" | "seasonal"): Assumption[] {
+  return report.assumptions.filter((a) => a.caveat === caveat && ids.includes(a.id));
 }

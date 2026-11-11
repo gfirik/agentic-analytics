@@ -11,6 +11,8 @@ export interface Ctx {
   readonly metrics: Map<string, ReportMetric>;
   readonly findings: Map<string, Finding>;
   readonly assumptions: Map<string, string>;
+  /** Assumption id → the engine caveat it states, when it is one. */
+  readonly caveats: Map<string, string>;
   /** `${source_id}\u0000${quote}` → quote id used to highlight that passage in the evidence viewer. */
   readonly quoteIds: Map<string, string>;
 }

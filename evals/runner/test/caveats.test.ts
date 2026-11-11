@@ -8,6 +8,7 @@ import { runJob } from "@agentic-analytics/core";
 import { hashEmbedder } from "@agentic-analytics/retrieval";
 import { findFreeNumerals } from "@agentic-analytics/schema";
 import { afterAll, describe, expect, it } from "vitest";
+import { renderReportHtml, reportSummaryText } from "../../../packages/report/src/index.ts";
 import { baselineModel } from "../src/baseline.ts";
 
 const NOMINAL = "Amounts are nominal, as in the files; they are not adjusted for inflation.";
@@ -64,6 +65,17 @@ describe("one-line caveats (backtest pre-tag 5)", () => {
     const december = report.assumptions.find((a) => a.text === DECEMBER);
     expect(december?.affects.length).toBeGreaterThan(0);
     for (const id of december?.affects ?? []) expect(report.findings.find((f) => f.id === id)?.assumptions).toContain(december?.id);
+    // The caveats are typed, and the reader sees them: in the text summary and first in the HTML "Assumes".
+    expect(report.assumptions.find((a) => a.text === NOMINAL)?.caveat).toBe("nominal");
+    expect(december?.caveat).toBe("seasonal");
+    const lines = reportSummaryText(report).split("\n");
+    expect(lines.filter((l) => l === `  Note: ${DECEMBER}`).length).toBeGreaterThan(0);
+    expect(lines.filter((l) => l === `Note: ${NOMINAL}`)).toHaveLength(1);
+    const first = report.findings.find((f) => december?.affects.includes(f.id));
+    const html = renderReportHtml(report);
+    const assumes = html.slice(html.indexOf("Assumes", html.indexOf(first?.id ?? "")));
+    expect(assumes.indexOf(DECEMBER)).toBeGreaterThan(-1);
+    expect(assumes.indexOf(DECEMBER)).toBeLessThan(assumes.indexOf("drafted automatically"));
     expect(findFreeNumerals(NOMINAL)).toEqual([]);
     expect(findFreeNumerals(DECEMBER)).toEqual([]);
   }, 180_000);

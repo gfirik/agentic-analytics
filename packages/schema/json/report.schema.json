@@ -413,6 +413,13 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "caveat": {
+            "type": "string",
+            "enum": [
+              "nominal",
+              "seasonal"
+            ]
           }
         },
         "required": [

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { type Report, validateReport } from "@agentic-analytics/schema";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatValue, renderReportHtml } from "../src/index.ts";
+import { formatValue, renderReportHtml, reportSummaryText } from "../src/index.ts";
 
 const fixture = (): Report => {
   const res = validateReport(
@@ -232,5 +232,48 @@ describe("a report that read no numbers", () => {
       summary: { ...r.summary, headline: "No numbers could be read from these files.", no_numbers: "headers_not_recognised" },
     });
     expect(html).toContain("Business diagnosis · no period");
+  });
+});
+
+describe("engine caveats (backtest pre-tag 5)", () => {
+  /** The fixture's first finding, assuming three things in an order where the caveats come last. */
+  const withCaveats = (): Report => {
+    const r = fixture();
+    const f = r.findings[0];
+    if (!f) throw new Error("fixture has no finding");
+    const plain = { id: "A90", text: "Plain assumption zz.", affects: [f.id] };
+    const nominal = { id: "A91", text: "Nominal caveat zz.", affects: [f.id], caveat: "nominal" as const };
+    const seasonal = { id: "A92", text: "Seasonal caveat zz.", affects: [f.id], caveat: "seasonal" as const };
+    return {
+      ...r,
+      assumptions: [...r.assumptions, plain, nominal, seasonal],
+      findings: [{ ...f, assumptions: ["A90", "A91", "A92"] }, ...r.findings.slice(1)],
+    };
+  };
+
+  it("HTML: a finding's Assumes lists the seasonal caveat first, then the nominal one, then the rest", () => {
+    const html = renderReportHtml(withCaveats());
+    const at = (t: string) => html.indexOf(t);
+    expect(at("Seasonal caveat zz.")).toBeGreaterThan(-1);
+    expect(at("Seasonal caveat zz.")).toBeLessThan(at("Nominal caveat zz."));
+    expect(at("Nominal caveat zz.")).toBeLessThan(at("Plain assumption zz."));
+  });
+
+  it("text summary: a Note line under the finding with a seasonal caveat, and the nominal caveat once after the findings", () => {
+    const r = withCaveats();
+    // A second listed finding carries the nominal caveat too: it must still be said only once.
+    const [f1, f2] = r.findings;
+    if (!f1 || !f2) throw new Error("fixture needs two findings");
+    const two = { ...r, findings: [f1, { ...f2, assumptions: [...f2.assumptions, "A91"] }, ...r.findings.slice(2)] };
+    const lines = reportSummaryText(two).split("\n");
+    const i = lines.findIndex((l) => l === "  Note: Seasonal caveat zz.");
+    expect(i).toBeGreaterThan(0);
+    expect(lines[i - 1]).toMatch(/^ {2}\S/); // directly under the finding's claim
+    expect(lines.filter((l) => l.includes("Nominal caveat zz."))).toEqual(["Note: Nominal caveat zz."]);
+    expect(lines.filter((l) => l.includes("Plain assumption zz."))).toEqual([]);
+  });
+
+  it("text summary: no caveat line when no listed finding carries one", () => {
+    expect(reportSummaryText(fixture())).not.toMatch(/Note: (?!some metric)/);
   });
 });

@@ -35,6 +35,7 @@ function buildCtx(r: Report): Ctx {
     metrics: new Map(r.metrics.map((m) => [m.id, m])),
     findings: new Map(r.findings.map((f) => [f.id, f])),
     assumptions: new Map(r.assumptions.map((a) => [a.id, a.text])),
+    caveats: new Map(r.assumptions.flatMap((a) => (a.caveat ? [[a.id, a.caveat] as const] : []))),
     quoteIds,
   };
 }
@@ -166,7 +167,12 @@ function FindingView({ f, ctx }: { f: Finding; ctx: Ctx }) {
           <>
             <dt>Assumes</dt>
             <dd>
-              <Text text={f.assumptions.map((a) => ctx.assumptions.get(a) ?? a).join(" ")} ctx={ctx} />
+              <Text
+                text={assumesOrder(f.assumptions, ctx.caveats)
+                  .map((a) => ctx.assumptions.get(a) ?? a)
+                  .join(" ")}
+                ctx={ctx}
+              />
             </dd>
           </>
         ) : null}
@@ -590,4 +596,14 @@ export function renderReportHtml(report: Report): string {
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+const CAVEAT_ORDER = ["seasonal", "nominal"];
+/** A finding's assumption ids with the engine caveats first (seasonal, then nominal), the rest in their order. */
+export function assumesOrder(ids: readonly string[], caveats: ReadonlyMap<string, string>): string[] {
+  const rank = (id: string) => {
+    const i = CAVEAT_ORDER.indexOf(caveats.get(id) ?? "");
+    return i < 0 ? CAVEAT_ORDER.length : i;
+  };
+  return [...ids].sort((a, b) => rank(a) - rank(b));
 }

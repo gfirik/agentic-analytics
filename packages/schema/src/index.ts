@@ -18,7 +18,9 @@ export {
 } from "./metric.ts";
 export { jsonSchemaRegistry } from "./registry.ts";
 export {
+  ASSUMPTION_CAVEATS,
   Assumption,
+  type AssumptionCaveat,
   BusinessModel,
   CausalGrade,
   Citation,
