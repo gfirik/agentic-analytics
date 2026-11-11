@@ -13,6 +13,7 @@ export {
   type TrimStep,
   trimDecideInput,
 } from "./budget.ts";
+export { caveatAssumptions, DECEMBER_TEXT, NOMINAL_TEXT } from "./caveats.ts";
 export {
   contributionDrivers,
   decompositionClaims,

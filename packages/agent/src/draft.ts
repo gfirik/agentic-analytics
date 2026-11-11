@@ -22,6 +22,7 @@ import {
   type Source,
 } from "@agentic-analytics/schema";
 import { sql, type Workspace } from "@agentic-analytics/store";
+import { caveatAssumptions } from "./caveats.ts";
 import { label, q } from "./claims.ts";
 import type { Downgraded, Dropped } from "./explain.ts";
 import { fileIssueText } from "./file-issues.ts";
@@ -307,6 +308,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
       text: "The data stops early in its last month, so that part-month is left out: comparing it with whole months would read as a fall.",
       affects: input.findings.map((f) => f.id),
     });
+  assumptions.push(...caveatAssumptions(input.findings, input.facts, assumptions.length + 1));
   // One assumption per assumed role an analysis reads (semantics §5); confirmed roles need none.
   const roleReads = input.semantics
     ? roleAssumptions(
