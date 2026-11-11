@@ -12,6 +12,15 @@ export function fillPlaceholders(text: string, facts: ReadonlyMap<string, Fact> 
   });
 }
 
+/** Data-quality kinds that mean a whole file was skipped (ingestion spec §1). */
+const FILE_NOT_READ: ReadonlySet<string> = new Set([
+  "archive_rejected",
+  "unsupported_type",
+  "unreadable_file",
+  "password_protected",
+  "too_large",
+]);
+
 export interface SummaryOptions {
   readonly findings?: number;
   readonly recommendations?: number;
@@ -38,6 +47,10 @@ export function reportSummaryText(report: Report, o: SummaryOptions = {}): strin
     lines.push(`• ${fill(r.action)}`);
     lines.push(`  Expected impact: ${fill(`{{${r.impact.low}}}`)} to ${fill(`{{${r.impact.high}}}`)} ${r.impact.horizon}`);
   }
+  // Files that were not read are the owner's to fix, so the summary names each one (one line per file).
+  const skipped = report.data_quality.filter((i) => FILE_NOT_READ.has(i.kind));
+  if (skipped.length) lines.push("", "Files not read:");
+  for (const i of skipped) lines.push(`• ${fill(i.description)}`);
   if (report.metrics.some((m) => m.status === "assumed"))
     lines.push("", "Note: some metric definitions were assumed, not confirmed. Check them in the report's Metrics section.");
   return lines.join("\n");

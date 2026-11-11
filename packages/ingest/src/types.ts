@@ -101,6 +101,8 @@ export interface IngestIssue {
   readonly file: string;
   /** Developer-facing detail; reports render their own wording (free-numeral rule, report-schema §3). */
   readonly message: string;
+  /** Machine-readable cause of a rejected file ("gzip", "nul_bytes", "file_limit", …); the report words it (report-schema §3). */
+  readonly cause?: string;
   readonly sheet?: string;
   readonly cell?: string;
   readonly page?: number;

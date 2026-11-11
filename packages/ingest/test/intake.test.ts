@@ -64,6 +64,40 @@ describe("intake", () => {
     expect(res2.issues.map((i) => i.kind)).toEqual(["too_many_files"]);
   });
 
+  it("tells a gzip file by its magic bytes, whatever the name", async () => {
+    const gz = new Uint8Array([0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 3, 1, 2, 3]);
+    const res = await ingest([
+      { name: "reviews.csv.gz", bytes: gz },
+      { name: "renamed.csv", bytes: gz.slice().fill(7, 11) },
+    ]);
+    expect(res.issues.map((i) => [i.file, i.kind, i.cause])).toEqual([
+      ["reviews.csv.gz", "archive_rejected", "gzip"],
+      ["renamed.csv", "archive_rejected", "gzip"],
+    ]);
+  });
+
+  it("names the cause of a text file with NUL bytes or invalid UTF-8", async () => {
+    const utf16 = new Uint8Array([0xff, 0xfe, 0x61, 0, 0x2c, 0, 0x62, 0, 0x0a, 0, 0x31, 0, 0x2c, 0, 0x32, 0]);
+    const latin1 = new Uint8Array([0x61, 0x2c, 0x62, 0x0a, 0xe9, 0x2c, 0xe8, 0x0a]);
+    const res = await ingest([
+      { name: "form.csv", bytes: utf16 },
+      { name: "old.csv", bytes: latin1 },
+    ]);
+    expect(res.issues.map((i) => [i.file, i.kind, i.cause])).toEqual([
+      ["form.csv", "unsupported_type", "nul_bytes"],
+      ["old.csv", "unsupported_type", "not_utf8"],
+    ]);
+  });
+
+  it("says which size limit a file went over", async () => {
+    const a = { name: "a.txt", bytes: text("x".repeat(100)) };
+    const b = { name: "b.txt", bytes: text("y".repeat(100)) };
+    const perFile = await ingest([a], { limits: { maxFileBytes: 50 } });
+    expect(perFile.issues).toEqual([expect.objectContaining({ file: "a.txt", kind: "too_large", cause: "file_limit" })]);
+    const perJob = await ingest([a, b], { limits: { maxJobBytes: 150 } });
+    expect(perJob.issues).toEqual([expect.objectContaining({ file: "b.txt", kind: "too_large", cause: "job_limit" })]);
+  });
+
   it("rejects ZIP-based files that decompress beyond the limit", async () => {
     const res = await ingest([{ name: "big.xlsx", bytes: fx("xlsx/01-simple.xlsx") }], { limits: { maxZipUncompressedBytes: 100 } });
     expect(res.files[0]?.status).toBe("rejected");

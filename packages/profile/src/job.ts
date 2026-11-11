@@ -60,6 +60,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
       kind: i.kind,
       severity: i.severity,
       message: i.message,
+      ...(i.cause ? { details: { cause: i.cause } } : {}),
       ...(i.file_id ? { file_id: i.file_id } : {}),
       ...(table ? { source_id: table.id } : {}),
       ...(i.sheet ? { sheet: i.sheet } : {}),

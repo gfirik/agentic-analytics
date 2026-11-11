@@ -61,12 +61,16 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
       issue({ kind: "too_many_files", severity: "medium", message: `more than ${limits.maxFiles} files in one job; this one was skipped` });
       continue;
     }
-    if (item.bytes.length > limits.maxFileBytes || jobBytes + item.bytes.length > limits.maxJobBytes) {
+    const overFile = item.bytes.length > limits.maxFileBytes;
+    if (overFile || jobBytes + item.bytes.length > limits.maxJobBytes) {
       result.files.push({ ...base, sha256, kind: "unknown", mime: "", status: "rejected" });
       issue({
         kind: "too_large",
         severity: "medium",
-        message: `file of ${item.bytes.length} bytes exceeds the per-file or per-job size limit`,
+        cause: overFile ? "file_limit" : "job_limit",
+        message: overFile
+          ? `file of ${item.bytes.length} bytes exceeds the per-file size limit of ${limits.maxFileBytes} bytes`
+          : `file of ${item.bytes.length} bytes does not fit in the per-job size limit of ${limits.maxJobBytes} bytes (${jobBytes} already read)`,
       });
       continue;
     }
@@ -88,6 +92,7 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
         kind:
           sniffed.kind === "archive" ? "archive_rejected" : sniffed.reason.startsWith("damaged") ? "unreadable_file" : "unsupported_type",
         severity: "medium",
+        cause: sniffed.cause,
         message: sniffed.reason,
       });
       continue;
@@ -101,7 +106,12 @@ export async function ingest(inputs: readonly InputFile[], options: IngestOption
       } catch (err) {
         if (!(err instanceof ZipError)) throw err;
         result.files.push({ ...base, sha256, kind, mime: sniffed.mime, status: "rejected" });
-        issue({ kind: err.code === "TOO_LARGE" ? "too_large" : "unreadable_file", severity: "high", message: err.message });
+        issue({
+          kind: err.code === "TOO_LARGE" ? "too_large" : "unreadable_file",
+          severity: "high",
+          ...(err.code === "TOO_LARGE" ? { cause: "unpacked_limit" } : {}),
+          message: err.message,
+        });
         continue;
       }
     }

@@ -8,6 +8,7 @@
 - **Never fatal:**
   - A file that fails to parse becomes a `QualityIssue` (kind `unreadable_file`) and the job continues.
   - Password-protected files become a `QualityIssue` too.
+  - A rejected file's issue carries a machine-readable `cause` (`gzip`, `zip`, `nul_bytes`, `not_utf8`, `file_limit`, `job_limit`, …). The report words each rejection (`archive_rejected`, `unsupported_type`, `unreadable_file`, `password_protected`, `too_large`) as one sentence that names the file and the fix: a gzip file is detected by its magic bytes (1f 8b) and the owner is told to unzip it and add the file inside (v0.1 does not decompress); a text file with NUL bytes (binary, or UTF-16) or invalid UTF-8 is told to be saved as plain UTF-8; a file over a size limit names which limit (per file or per job) and says to drop unneeded columns, filter to the period or split the file. Sizes stay out of the report text (they would be free numerals). The CLI, MCP and Telegram summaries list these under "Files not read", one line per file.
 - **Safety:** see specs/security.md §5.
 
 ## 2. Spreadsheets: grid read
