@@ -332,6 +332,7 @@ function EvidenceView({ e, ctx }: { e: Evidence; ctx: Ctx }) {
 
 function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
   const v = report.verification;
+  const recNote = recommendationsNote(report);
   const verifiedOk = v.numbers_mismatched === 0 && v.rederivation_mismatches === 0;
   const highIssues = report.data_quality.filter((q) => q.severity === "high");
   const period = reportPeriod(report);
@@ -387,9 +388,7 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
           {report.recommendations.map((r) => (
             <RecommendationView key={r.id} r={r} ctx={ctx} />
           ))}
-          {report.recommendations.length === 0 && recommendationsNote(report) ? (
-            <p className="muted">{recommendationsNote(report)}</p>
-          ) : null}
+          {report.recommendations.length === 0 && recNote ? <p className="muted">{recNote}</p> : null}
         </section>
 
         {report.concentration?.length ? (

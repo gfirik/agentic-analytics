@@ -43,6 +43,7 @@ export {
   RECOMMENDATIONS_NOTES,
   REPORT_SCHEMA_ID,
   Recommendation,
+  type RecommendationsNote,
   Report,
   ReportMetric,
   ReportRole,

@@ -12,7 +12,7 @@ import {
   type MetricDef,
   placeholders,
   type Recommendation,
-  type Report,
+  type RecommendationsNote,
 } from "@agentic-analytics/schema";
 import type { Workspace } from "@agentic-analytics/store";
 import { z } from "zod";
@@ -200,9 +200,6 @@ export function decideRequest(input: {
 
 const CONF = { high: 1, medium: 0.6, low: 0.3 } as const;
 const EFFORT = { low: 1, medium: 1.5, high: 2 } as const;
-
-/** Why findings came with no recommendations: the drafting step failed, or every draft was dropped (report-schema §1). */
-export type RecommendationsNote = NonNullable<Report["recommendations_note"]>;
 
 export async function decide(input: DecideInput): Promise<{
   recommendations: Recommendation[];

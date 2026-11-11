@@ -133,6 +133,7 @@ export const FILE_NOT_READ_KINDS: ReadonlySet<string> = new Set([
 export const NO_NUMBERS_REASONS = ["files_rejected", "no_table", "headers_not_recognised"] as const;
 /** Why a report with findings has no recommendations (report-schema §1, `recommendations_note`). */
 export const RECOMMENDATIONS_NOTES = ["step_failed", "none_passed"] as const;
+export type RecommendationsNote = (typeof RECOMMENDATIONS_NOTES)[number];
 export const QualityIssue = z.object({ id, kind: z.string(), severity: level, description: z.string(), citations: z.array(Citation) });
 
 // §5 Verification

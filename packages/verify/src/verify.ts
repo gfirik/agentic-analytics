@@ -666,7 +666,7 @@ export async function persistChecks(ws: Workspace, checks: readonly CheckRow[]):
  * The note on an empty recommendations section (report-schema §1). Recommendations that reached this stage and
  * were all dropped here read as "none passed"; a note DECIDE set stays; any shipped recommendation clears it.
  */
-function noteAfterVerify(draft: Report, findings: number, kept: number): Pick<Report, "recommendations_note"> {
+export function noteAfterVerify(draft: Report, findings: number, kept: number): Pick<Report, "recommendations_note"> {
   if (kept > 0 || findings === 0 || draft.summary.no_numbers) return {};
   if (draft.recommendations.length > 0) return { recommendations_note: "none_passed" };
   return draft.recommendations_note ? { recommendations_note: draft.recommendations_note } : {};

@@ -16,6 +16,7 @@ import {
   type QualityIssue,
   REPORT_SCHEMA_ID,
   type Recommendation,
+  type RecommendationsNote,
   type Report,
   type ReportMetric,
   type Source,
@@ -42,7 +43,7 @@ export interface DraftInput {
   readonly findings: readonly Finding[];
   readonly recommendations: readonly Recommendation[];
   /** Why there are findings but no recommendations, when DECIDE knows (report-schema §1). */
-  readonly recommendationsNote?: NonNullable<Report["recommendations_note"]>;
+  readonly recommendationsNote?: RecommendationsNote;
   /** Developer-facing open questions from the analysis (mapped to report wording here). */
   readonly analysisQuestions: readonly string[];
   readonly askedQuestions: readonly OpenQuestionDraft[];
