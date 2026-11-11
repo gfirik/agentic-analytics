@@ -29,13 +29,18 @@ export const duplicateRows = (table: string, columns: readonly string[]): Sql =>
   sql`SELECT coalesce(sum(c - 1), 0)::BIGINT AS duplicates FROM (
         SELECT count(*) AS c FROM ${ident(table)} WHERE ${fragment(detail)} GROUP BY ${idents(columns)})`;
 
-export const dateCoverage = (table: string, column: string): Sql =>
+/**
+ * Coverage of the date column. Rows dated after `today` are not history (ingestion spec §5, future dates): they leave
+ * the first/last date, the grain and the missing periods, so no period after today's is ever measured. The future-date
+ * rule still lists them.
+ */
+export const dateCoverage = (table: string, column: string, today?: string): Sql =>
   sql`SELECT min(${ident(column)})::DATE::VARCHAR AS first, max(${ident(column)})::DATE::VARCHAR AS last,
       count(DISTINCT ${ident(column)}::DATE) AS days, count(DISTINCT date_trunc('week', ${ident(column)})) AS weeks,
       count(DISTINCT date_trunc('month', ${ident(column)})) AS months,
       count(*) FILTER (WHERE day(${ident(column)}) <> 1) AS not_first_of_month,
       count(DISTINCT dayofweek(${ident(column)})) AS weekdays
-      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL`;
+      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL${today ? fragment(sql` AND ${ident(column)}::DATE <= ${today}::DATE`) : fragment(sql``)}`;
 
 /**
  * First and last month of a table whose period is a year and a month column (semantics §2.1 "Period parts"), dated as
@@ -108,6 +113,19 @@ export const idPrefixes = (table: string, column: string): Sql =>
 /** Percent columns hold fractions, so a rate above 100% is a value above 1. */
 export const aboveOneRows = (table: string, column: string): Sql =>
   sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} > 1 ORDER BY _row`;
+
+/**
+ * Rows of a cumulative column whose value is below the previous period's, within the same calendar year and the same
+ * member of every dimension column (ingestion spec §5, cumulative columns). Rows sharing a date are ordered by row.
+ */
+export const fallingCumulativeRows = (table: string, column: string, date: string, dims: readonly string[]): Sql => {
+  const partition = dims.length ? sql`, ${idents(dims)}` : sql``;
+  return sql`SELECT _row FROM (
+      SELECT _row, ${ident(column)} AS v,
+        lag(${ident(column)}) OVER (PARTITION BY year(${ident(date)}::DATE)${fragment(partition)} ORDER BY ${ident(date)}::DATE, _row) AS prev
+      FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)} IS NOT NULL AND ${ident(date)} IS NOT NULL)
+    WHERE v < prev ORDER BY _row`;
+};
 
 export const futureDateRows = (table: string, column: string, today: string): Sql =>
   sql`SELECT _row FROM ${ident(table)} WHERE ${fragment(detail)} AND ${ident(column)}::DATE > ${today}::DATE ORDER BY _row`;

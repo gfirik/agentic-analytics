@@ -77,7 +77,9 @@ Each document is split into sections with page numbers and character offsets. Th
 
 - negative quantities where the column name suggests a count;
 - percentages above 100% where the name suggests a rate;
-- future dates;
+- future dates: a date after the job's `today`. On the table's period column the rows are not history: they are left out of the date coverage (first and last date, grain, missing periods), so no measured period or analysis range ends after today's period, and the issue says "those rows were left out of the analysis" (`details.left_out`). On any other date column the rows stay and the issue only flags them;
+- negative sales amounts (`negative_amount`, medium): a column whose proposed role is `amount` that is negative in some rows, cited. Refunds are legitimately negative, so the rule is silent when the table marks them: a column whose header names a refund, return, credit, cancellation or chargeback (also in Russian and Uzbek), or a category column whose most common values do. The count is a fact whose SQL counts the rows;
+- falling cumulative columns (`non_monotone_cumulative`, medium): a number column whose header names a running total (cumulative, cum, YTD, year to date, to date, accumulated, `нарастающим`, `с начала года`) with a value below the previous period's within the same calendar year and the same member of every category column of the table. A cumulative series should not fall within a year (likely a revision or a negative month). Rows are cited; nothing is de-cumulated (v0.2);
 - sudden ×10 or ×1000 jumps, which suggest a unit or decimal error;
 - mixed currencies in one column;
 - missing identifiers: an id-named column (customer ID, order number) that is empty in some rows but filled in at least half (`missing_id`), since those rows can't be linked to anyone;

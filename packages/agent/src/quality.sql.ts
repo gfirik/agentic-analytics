@@ -11,6 +11,7 @@ export function qualityCount(kind: string, sourceId: string, column: string, pre
   const c = ident(column);
   switch (kind) {
     case "negative_quantity":
+    case "negative_amount":
       return sql`SELECT count(*) AS value FROM ${t} WHERE NOT _is_total AND ${c} < 0`;
     case "missing_id":
     case "missing_value":

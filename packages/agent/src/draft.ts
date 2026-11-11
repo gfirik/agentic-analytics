@@ -128,7 +128,10 @@ const ISSUE_WORDING: Record<string, string> = {
   unit_error: "Some values look like they are in a different unit than the rest of the column",
   negative_quantity: "Some quantities are negative",
   rate_above_100: "Some rates are above one hundred percent",
-  future_date: "Some dates are in the future",
+  negative_amount: "Some sales amounts are negative and the file has no refund or return marker, so they may be entry errors",
+  non_monotone_cumulative:
+    "A cumulative series falls from one period to the next within a year; this is likely a revision or a negative month, and the figures are used as given",
+  future_date: "Some dates are after today's date",
   mixed_currency: "Amounts are in more than one currency",
   unparseable_value: "Some values could not be read as numbers or dates",
   date_format_ambiguity: "Some dates could be read as day-month or month-day",
@@ -146,6 +149,9 @@ const ISSUE_WORDING: Record<string, string> = {
   prefixed_id: "Some document numbers carry a letter prefix the others lack; these are often cancellations or credit notes",
 };
 
+/** Added to a future-date issue on the table's period column: those rows never reach a measured period. */
+const LEFT_OUT = "; those rows were left out of the analysis";
+
 /** A grouped quality issue cites at most this many rows. */
 const MAX_CITED_ROWS = 20;
 
@@ -159,9 +165,10 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
     rows: number[] | null;
     column_name: string | null;
     prefix: string | null;
+    left_out: string | null;
     cause: string | null;
   }>(
-    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name, i.details->>'prefix' AS prefix, i.details->>'cause' AS cause
+    sql`SELECT i.id, i.kind, i.severity, f.name AS file, i.source_id, i.rows, i.column_name, i.details->>'prefix' AS prefix, i.details->>'left_out' AS left_out, i.details->>'cause' AS cause
         FROM quality_issues i LEFT JOIN files f ON f.id = i.file_id ORDER BY TRY_CAST(substr(i.id, 2) AS INTEGER), i.id`,
   );
   // One report item per kind of issue in one column of one table: a real file can have thousands of negative
@@ -186,7 +193,8 @@ async function qualityIssues(ws: Workspace, quarantined: readonly string[]): Pro
       issues.push({ id: `Q${i + 1}`, kind: r.kind, severity: r.severity, description: fileText, citations: [] });
       continue;
     }
-    const what = ISSUE_WORDING[r.kind] ?? `Data issue: ${r.kind.replace(/_/g, " ")}`;
+    const leftOut = r.kind === "future_date" && g.some((x) => x.left_out === "true") ? LEFT_OUT : "";
+    const what = `${ISSUE_WORDING[r.kind] ?? `Data issue: ${r.kind.replace(/_/g, " ")}`}${leftOut}`;
     const where = [r.column_name ? `column ${q(r.column_name)}` : "", r.file ? `in ${q(r.file)}` : ""].filter(Boolean).join(" ");
     const cited = [...new Set(g.flatMap((x) => x.rows ?? []))].sort((a, b) => a - b).slice(0, MAX_CITED_ROWS);
     const severity = g.map((x) => x.severity).sort((a, b) => rank[a] - rank[b])[0] ?? r.severity;

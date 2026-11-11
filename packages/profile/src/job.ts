@@ -98,7 +98,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
   const kinds: KindResult[] = [];
   const ruleIssues: IssueRow[] = [];
   for (const n of normalized) {
-    const profile = await profileTable(ws, n.table, n.periodColumn);
+    const profile = await profileTable(ws, n.table, n.periodColumn, options.today);
     tables.push({
       ...profile,
       name: `t_${n.table.id.toLowerCase()}`,
@@ -121,7 +121,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
     await saveTableKind(ws, kind);
     allRoles.push(roles);
     kinds.push(kind);
-    for (const r of await runRules(ws, n.table, profile, options.today)) {
+    for (const r of await runRules(ws, n.table, profile, options.today, roles, n.periodColumn)) {
       ruleIssues.push({
         id: nextId(),
         kind: r.kind,

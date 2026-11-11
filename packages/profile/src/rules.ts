@@ -5,6 +5,7 @@ import { COUNT_NAME, ID_HEADER } from "./normalize.ts";
 import {
   aboveHundredRows,
   aboveOneRows,
+  fallingCumulativeRows,
   farFromMedian,
   futureDateRows,
   idPrefixes,
@@ -12,10 +13,22 @@ import {
   nullRows,
   powerOfTenJumps,
 } from "./profile.sql.ts";
+import type { TableRoles } from "./roles/detect.ts";
 import type { TableProfile } from "./stats.ts";
 
+export type RuleIssueKind =
+  | "unit_error"
+  | "negative_quantity"
+  | "negative_amount"
+  | "non_monotone_cumulative"
+  | "rate_above_100"
+  | "future_date"
+  | "missing_id"
+  | "missing_value"
+  | "prefixed_id";
+
 export interface RuleIssue {
-  readonly kind: "unit_error" | "negative_quantity" | "rate_above_100" | "future_date" | "missing_id" | "missing_value" | "prefixed_id";
+  readonly kind: RuleIssueKind;
   readonly severity: "high" | "medium" | "low";
   readonly message: string;
   readonly table_id: string;
@@ -32,10 +45,25 @@ export interface RuleIssue {
 const MAX_ROWS = 20;
 
 const RATE_NAME = /\b(rate|ratio|share|percent|pct)\b|%|доля|ставка|процент|ulush|foiz/i;
+/** A header that marks a running total (ingestion spec §5, cumulative columns), also in Russian. */
+const CUMULATIVE_NAME = /cumulative|\bcum\b|\bytd\b|year[ _-]to[ _-]date|to[ _-]date|accumulated|нарастающ|с начала года|нарастан/i;
+/** A column or a category value that says the table keeps refunds or returns as negative sales (also in Russian and Uzbek). */
+const REFUND_WORD = /refund|return|credit|cancel|chargeback|возврат|отмен|qaytar/i;
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
 const FACTOR = { 1: "10", 2: "100", 3: "1,000" } as const;
 
-export async function runRules(ws: Workspace, t: NormalizedTable, profile: TableProfile, today: string): Promise<RuleIssue[]> {
+/**
+ * `roles` (the detected column roles) tells which column is the sales amount; without it no amount is checked.
+ * `dateColumn` is the table's period column: a future date there is left out of the analysis, which the issue records.
+ */
+export async function runRules(
+  ws: Workspace,
+  t: NormalizedTable,
+  profile: TableProfile,
+  today: string,
+  roles?: TableRoles,
+  dateColumn?: string,
+): Promise<RuleIssue[]> {
   const name = tableName(t.id);
   const issues: RuleIssue[] = [];
 
@@ -84,6 +112,37 @@ export async function runRules(ws: Workspace, t: NormalizedTable, profile: Table
         });
       }
     }
+    // A negative sales amount is a refund, a credit or an entry error. Refunds are legitimately negative, so the rule
+    // stays quiet when the table itself says it keeps them: a status or type value, or a column, named refund/return.
+    const isAmount = roles?.columns.some((r) => r.column === c.name && r.role === "amount") ?? false;
+    if (isAmount && AMOUNT_TYPES.has(c.type) && !keepsRefunds(t, profile, c.name)) {
+      const rows = (await ws.all<{ _row: number }>(negativeRows(name, c.name))).map((r) => r._row);
+      if (rows.length)
+        issues.push({
+          ...base,
+          kind: "negative_amount",
+          severity: "medium",
+          message: `"${c.label}" is negative in ${rows.length} rows, and the table has no refund or return marker`,
+          row: rows[0] as number,
+          rows: rows.slice(0, MAX_ROWS),
+          details: { count: rows.length },
+        });
+    }
+    // A running total never falls within its year, except by a revision or a negative month; it is flagged, not repaired.
+    if (AMOUNT_TYPES.has(c.type) && CUMULATIVE_NAME.test(c.label) && dateColumn && dateColumn !== c.name) {
+      const dims = t.columns.filter((x) => x.type === "category").map((x) => x.name);
+      const rows = (await ws.all<{ _row: number }>(fallingCumulativeRows(name, c.name, dateColumn, dims))).map((r) => r._row);
+      if (rows.length)
+        issues.push({
+          ...base,
+          kind: "non_monotone_cumulative",
+          severity: "medium",
+          message: `"${c.label}" falls from the previous period within a year in ${rows.length} rows; a cumulative series should not fall`,
+          row: rows[0] as number,
+          rows: rows.slice(0, MAX_ROWS),
+          details: { count: rows.length },
+        });
+    }
     // Percent columns hold fractions (above 1 = above 100%); rate-named plain numbers hold points (above 100).
     const rateNamed = (c.type === "decimal" || c.type === "integer") && RATE_NAME.test(c.label);
     if (c.type === "percent" || rateNamed) {
@@ -106,7 +165,7 @@ export async function runRules(ws: Workspace, t: NormalizedTable, profile: Table
           severity: "medium",
           message: `"${c.label}" is after ${today} at row ${r._row}`,
           row: r._row,
-          details: { today },
+          details: { today, left_out: c.name === dateColumn },
         });
       }
     }
@@ -161,4 +220,14 @@ export async function runRules(ws: Workspace, t: NormalizedTable, profile: Table
     }
   }
   return issues;
+}
+
+/** Whether the table keeps refunds or returns as marked rows, so a negative amount in it is expected. */
+function keepsRefunds(t: NormalizedTable, profile: TableProfile, amount: string): boolean {
+  return t.columns.some((c) => {
+    if (c.name === amount) return false;
+    if (REFUND_WORD.test(c.label)) return true;
+    const p = profile.columns.find((x) => x.name === c.name);
+    return c.type === "category" && (p?.top_values.some((v) => REFUND_WORD.test(v.value)) ?? false);
+  });
 }
