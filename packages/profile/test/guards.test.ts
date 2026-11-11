@@ -137,6 +137,27 @@ describe("cumulative columns", () => {
     expect(n).toEqual([]);
   });
 
+  it("reads cumulative header words as their own tokens (snake_case too), not inside other words", async () => {
+    const falling: Cell[][] = [
+      ["2026-01-31", "North", 10],
+      ["2026-02-28", "North", 5],
+    ];
+    for (const label of ["revenue_ytd", "cum_sales", "Sales (YTD)", "sales_to_date", "Нарастающим итогом"]) {
+      const t = table([DAY, REGION, { ...CUM, label }], falling);
+      expect(
+        (await rules(t)).issues.filter((i) => i.kind === "non_monotone_cumulative"),
+        label,
+      ).toHaveLength(1);
+    }
+    for (const label of ["cucumber_sales", "custom_total", "accumulator_id"]) {
+      const t = table([DAY, REGION, { ...CUM, label }], falling);
+      expect(
+        (await rules(t)).issues.filter((i) => i.kind === "non_monotone_cumulative"),
+        label,
+      ).toEqual([]);
+    }
+  });
+
   it("only looks at columns named as cumulative", async () => {
     const plain = { ...CUM, name: "sales", label: "Sales" };
     const t = table(

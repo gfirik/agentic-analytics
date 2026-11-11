@@ -45,8 +45,12 @@ export interface RuleIssue {
 const MAX_ROWS = 20;
 
 const RATE_NAME = /\b(rate|ratio|share|percent|pct)\b|%|доля|ставка|процент|ulush|foiz/i;
-/** A header that marks a running total (ingestion spec §5, cumulative columns), also in Russian. */
-const CUMULATIVE_NAME = /cumulative|\bcum\b|\bytd\b|year[ _-]to[ _-]date|to[ _-]date|accumulated|нарастающ|с начала года|нарастан/i;
+/**
+ * A header that marks a running total (ingestion spec §5, cumulative columns), also in Russian. Short words count only
+ * as their own token: `\b` treats `_` as a letter, so "revenue_ytd" and "cum_sales" need the explicit lookarounds.
+ */
+const CUMULATIVE_NAME =
+  /cumulative|(?<![a-z])(?:cum|ytd)(?![a-z])|year[ _-]to[ _-]date|(?<![a-z])to[ _-]date|accumulated|нарастающ|с начала года|нарастан/i;
 /** A column or a category value that says the table keeps refunds or returns as negative sales (also in Russian and Uzbek). */
 const REFUND_WORD = /refund|return|credit|cancel|chargeback|возврат|отмен|qaytar/i;
 const AMOUNT_TYPES = new Set(["integer", "decimal", "currency"]);
