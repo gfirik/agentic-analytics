@@ -127,6 +127,7 @@ export const FILE_NOT_READ_KINDS: ReadonlySet<string> = new Set([
   "unreadable_file",
   "password_protected",
   "too_large",
+  "too_many_files",
 ]);
 export const QualityIssue = z.object({ id, kind: z.string(), severity: level, description: z.string(), citations: z.array(Citation) });
 

@@ -1,13 +1,10 @@
 // File-type detection from magic bytes; the extension is only a hint (ingestion spec §1).
-import type { FileKind } from "./types.ts";
+import type { FileKind, RejectCause } from "./types.ts";
 import { readZipEntries } from "./zip.ts";
 
 export type Sniffed =
   | { readonly kind: FileKind; readonly mime: string }
   | { readonly kind: "archive" | "unknown"; readonly mime: string; readonly reason: string; readonly cause: RejectCause };
-
-/** Why a file was rejected, machine-readable so the report can say what the owner should do (reports never echo `reason`). */
-export type RejectCause = "zip" | "gzip" | "seven_zip" | "rar" | "damaged_office" | "legacy_doc" | "nul_bytes" | "not_utf8";
 
 const MIME: Record<FileKind, string> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -69,7 +66,7 @@ export function sniff(bytes: Uint8Array, name: string): Sniffed {
     return {
       kind: "unknown",
       mime: "application/octet-stream",
-      reason: nul ? "contains NUL or control characters (binary, or text saved as UTF-16)" : "not valid UTF-8 text",
+      reason: nul ? "contains NUL bytes (binary, or text saved as UTF-16)" : "not valid UTF-8 text",
       cause: nul ? "nul_bytes" : "not_utf8",
     };
   }

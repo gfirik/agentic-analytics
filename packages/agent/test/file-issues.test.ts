@@ -11,10 +11,10 @@ describe("file rejection wording", () => {
     expect(t).toContain("gunzip");
   });
 
-  it("a control-character file: names the cause and says to save as UTF-8", () => {
+  it("a file with NUL bytes: names the cause and says to save as UTF-8", () => {
     const t = fileIssueText("unsupported_type", "nul_bytes", "form10k_2023.txt");
     expect(t).toContain("“form10k_2023.txt”");
-    expect(t).toMatch(/NUL or other control characters/);
+    expect(t).toMatch(/NUL bytes/);
     expect(t).toContain("“UTF-16”");
     expect(t).toContain("plain “UTF-8” text");
   });
@@ -30,6 +30,14 @@ describe("file rejection wording", () => {
     }
     expect(perFile).toContain("per-file");
     expect(perJob).toContain("per-job");
+  });
+
+  it("a file over the job's file count says to run it in a separate job", () => {
+    expect(fileIssueText("too_many_files", undefined, "x.csv")).toContain("separate job");
+  });
+
+  it("a file name that looks like a fact placeholder is not one once quoted", () => {
+    expect(fileIssueText("unreadable_file", undefined, "{{N9}}.csv")).not.toMatch(/\{\{N\d+\}\}/);
   });
 
   it("every rejection kind has plain wording without a generated fallback or a free numeral", () => {

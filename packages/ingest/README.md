@@ -9,7 +9,7 @@ Files in, clean tables and document sections out, with provenance on everything.
 
 | Export | Does |
 |---|---|
-| `ingest(files, { limits?, docling? })` | Intake (sniff, sha256, dedupe, limits, archive rejection), then per-type parsing. Returns `{ files, tables, documents, documents_meta, issues }`. |
+| `ingest(files, { limits?, docling? })` | Intake (sniff, sha256, dedupe, limits, archive rejection), then per-type parsing. Returns `{ files, tables, documents, documents_meta, issues }`. A rejected file's issue carries a machine-readable `cause` (`RejectCause`: `gzip`, `nul_bytes`, `not_utf8`, `file_limit`, `job_limit`, …) that the report words. |
 | `sniff(bytes, name)` | File type from magic bytes. The extension is only a hint. |
 | `detectTables(grid, opts?)` | Table-region detection on a cell grid: occupancy and 1-gap regions, side-by-side/stacked splitting, notes, multi-row merged headers (`Parent / Child`), unmerging, totals, transposed → long. |
 | `readWorkbookGrids(bytes)` | SheetJS grid read: values, types, formulas (never evaluated), number formats, merges, hidden sheets. It does no size check: untrusted bytes go through `ingest`, or `measureZip` first. |
