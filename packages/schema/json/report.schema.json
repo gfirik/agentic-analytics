@@ -571,7 +571,8 @@
           "enum": [
             "files_rejected",
             "no_table",
-            "headers_not_recognised"
+            "headers_not_recognised",
+            "all_dates_future"
           ]
         }
       },

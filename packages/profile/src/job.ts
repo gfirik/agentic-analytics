@@ -98,7 +98,7 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
   const kinds: KindResult[] = [];
   const ruleIssues: IssueRow[] = [];
   for (const n of normalized) {
-    const profile = await profileTable(ws, n.table, n.periodColumn);
+    const profile = await profileTable(ws, n.table, n.periodColumn, options.today, grain);
     tables.push({
       ...profile,
       name: `t_${n.table.id.toLowerCase()}`,
@@ -114,14 +114,20 @@ export async function profileJob(ws: Workspace, ingested: IngestResult, options:
     // period range and the KPI pack read it (semantics §2.1 "Period parts").
     if (roles.period_parts && !profile.date_column && named) {
       const { year, month } = roles.period_parts;
-      const cov = await ws.one<{ first: string | null; last: string | null }>(periodPartsCoverage(tableName(n.table.id), year, month));
+      const cov = await ws.one<{ first: string | null; last: string | null }>(
+        periodPartsCoverage(tableName(n.table.id), year, month, options.today),
+      );
       if (cov?.first && cov.last) tables[tables.length - 1] = { ...named, date_first: cov.first, date_last: cov.last, grain: "month" };
     }
     const kind = await classifyTable(ws, roles, profile, [named?.name ?? "", named?.file ?? "", named?.sheet ?? ""].filter(Boolean));
     await saveTableKind(ws, kind);
     allRoles.push(roles);
     kinds.push(kind);
-    for (const r of await runRules(ws, n.table, profile, options.today)) {
+    for (const r of await runRules(ws, n.table, profile, options.today, {
+      roles,
+      kind: kind.kind,
+      ...(n.periodColumn ? { dateColumn: n.periodColumn } : {}),
+    })) {
       ruleIssues.push({
         id: nextId(),
         kind: r.kind,

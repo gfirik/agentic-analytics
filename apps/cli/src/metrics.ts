@@ -17,7 +17,7 @@ import {
   validateMetrics,
 } from "@agentic-analytics/metrics";
 import type { ModelClient } from "@agentic-analytics/models";
-import { periodOf, profileJob } from "@agentic-analytics/profile";
+import { cutoffPeriod, periodOf, profileJob } from "@agentic-analytics/profile";
 import { formatMetricValue } from "@agentic-analytics/report";
 import type { MetricDef } from "@agentic-analytics/schema";
 import { Workspace } from "@agentic-analytics/store";
@@ -105,7 +105,9 @@ export async function runMetricsCommand(options: MetricsOptions, deps: MetricsDe
     const periods = summary.tables
       .flatMap((t) => (t.date_first && t.date_last ? [periodOf(t.date_first, grain), periodOf(t.date_last, grain)] : []))
       .sort();
-    const range = { from: periods[0] ?? "0000", to: periods[periods.length - 1] ?? "9999", grain };
+    const last = periods[periods.length - 1] ?? "9999";
+    const cut = cutoffPeriod(summary.tables, grain);
+    const range = { from: periods[0] ?? "0000", to: cut !== undefined && cut < last ? cut : last, grain };
     await saveMetricDefs(ws, reviewed.metrics, catalog, range);
 
     out("");

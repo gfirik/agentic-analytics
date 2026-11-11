@@ -1,8 +1,10 @@
 // Column and table profiling (ingestion spec §5), computed in DuckDB and stored in profile_columns/profile_tables.
+import type { Grain } from "@agentic-analytics/schema";
 import { type NormalizedTable, sql, tableName, type Workspace } from "@agentic-analytics/store";
 import {
   columnStats,
   dateCoverage,
+  dateCutoff,
   duplicateRows,
   madOutliers,
   missingPeriods,
@@ -40,12 +42,24 @@ export interface TableProfile {
   readonly date_column?: string;
   readonly date_first?: string;
   readonly date_last?: string;
+  /** Set when rows after today fall inside today's period: the day before that period, where history ends (`dateCutoff`). */
+  readonly date_cutoff?: string;
   readonly grain?: "day" | "week" | "month";
   readonly missing_periods: string[];
   readonly columns: ColumnProfile[];
 }
 
-export async function profileTable(ws: Workspace, t: NormalizedTable, periodColumn?: string): Promise<TableProfile> {
+/**
+ * `today` (ISO) leaves rows dated after it out of the date coverage: they are not history. With the job `grain`, a
+ * period of today that holds such rows is dropped whole (`date_cutoff`).
+ */
+export async function profileTable(
+  ws: Workspace,
+  t: NormalizedTable,
+  periodColumn?: string,
+  today?: string,
+  grain?: Grain,
+): Promise<TableProfile> {
   const name = tableName(t.id);
   const columns: ColumnProfile[] = [];
   for (const c of t.columns) {
@@ -91,6 +105,9 @@ export async function profileTable(ws: Workspace, t: NormalizedTable, periodColu
 
   let coverage: Partial<TableProfile> = { missing_periods: [] };
   if (periodColumn) {
+    const cutoff = today
+      ? (await ws.one<{ cutoff: string }>(grain ? dateCutoff(name, periodColumn, today, grain) : sql`SELECT ${today} AS cutoff`))?.cutoff
+      : undefined;
     const cov = await ws.one<{
       first: string | null;
       last: string | null;
@@ -99,12 +116,19 @@ export async function profileTable(ws: Workspace, t: NormalizedTable, periodColu
       months: number;
       not_first_of_month: number;
       weekdays: number;
-    }>(dateCoverage(name, periodColumn));
+    }>(dateCoverage(name, periodColumn, cutoff));
     if (cov?.first && cov.last) {
       // The data's own grain: one date per month on the 1st → month; dates all on one weekday → week; else day.
       const grain = cov.days === cov.months && cov.not_first_of_month === 0 ? "month" : cov.days > 1 && cov.weekdays === 1 ? "week" : "day";
       const missing = (await ws.all<{ p: string }>(missingPeriods(name, periodColumn, cov.first, cov.last, grain))).map((r) => r.p);
-      coverage = { date_column: periodColumn, date_first: cov.first, date_last: cov.last, grain, missing_periods: missing };
+      coverage = {
+        date_column: periodColumn,
+        date_first: cov.first,
+        date_last: cov.last,
+        grain,
+        missing_periods: missing,
+        ...(cutoff && cutoff !== today ? { date_cutoff: cutoff } : {}),
+      };
     }
   }
 

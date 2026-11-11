@@ -131,7 +131,7 @@ export const FILE_NOT_READ_KINDS: ReadonlySet<string> = new Set([
   "too_many_files",
 ]);
 /** Why a job read no numbers at all (report-schema §1, `summary.no_numbers`). */
-export const NO_NUMBERS_REASONS = ["files_rejected", "no_table", "headers_not_recognised"] as const;
+export const NO_NUMBERS_REASONS = ["files_rejected", "no_table", "headers_not_recognised", "all_dates_future"] as const;
 /** Why a report with findings has no recommendations (report-schema §1, `recommendations_note`). */
 export const RECOMMENDATIONS_NOTES = ["step_failed", "none_passed"] as const;
 export type RecommendationsNote = (typeof RECOMMENDATIONS_NOTES)[number];
