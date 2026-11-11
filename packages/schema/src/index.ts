@@ -40,6 +40,7 @@ export {
   NotRunReason,
   OpenQuestion,
   QualityIssue,
+  RECOMMENDATIONS_NOTES,
   REPORT_SCHEMA_ID,
   Recommendation,
   Report,

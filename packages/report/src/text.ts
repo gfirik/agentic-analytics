@@ -1,7 +1,7 @@
 // Plain-text views of a verified report for chat-like doors (MCP, Telegram, the CLI): placeholders are filled with
 // the formatted fact values, never with recomputed numbers. Interfaces §3–§4.
 import { type Fact, FILE_NOT_READ_KINDS, type Report } from "@agentic-analytics/schema";
-import { formatFact } from "./format.ts";
+import { formatFact, recommendationsNote } from "./format.ts";
 
 /** Replaces each `{{N…}}` with its fact's formatted value (an unknown id stays as written). */
 export function fillPlaceholders(text: string, facts: ReadonlyMap<string, Fact> | readonly Fact[]): string {
@@ -38,7 +38,9 @@ export function reportSummaryText(report: Report, o: SummaryOptions = {}): strin
     if (c) lines.push(`  ${fill(c.text)}`);
   }
   const recs = report.recommendations.slice(0, o.recommendations ?? 2);
+  const note = recs.length ? undefined : recommendationsNote(report);
   if (recs.length) lines.push("", "Recommendations:");
+  else if (note) lines.push("", "Recommendations:", note);
   for (const r of recs) {
     lines.push(`• ${fill(r.action)}`);
     lines.push(`  Expected impact: ${fill(`{{${r.impact.low}}}`)} to ${fill(`{{${r.impact.high}}}`)} ${r.impact.horizon}`);

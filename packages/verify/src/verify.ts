@@ -507,11 +507,13 @@ export async function verifyReport(draft: Report, ctx: VerifyContext): Promise<V
   const live = new Set([...findings.map((f) => f.id), ...recommendations.map((r) => r.id), ...draft.metrics.map((m) => m.id)]);
   const assumptions = draft.assumptions.map((a) => ({ ...a, affects: a.affects.filter((x) => live.has(x)) }));
   const openQuestions = draft.open_questions.map((q) => ({ ...q, would_change: q.would_change.filter((x) => live.has(x)) }));
+  const { recommendations_note: _draftNote, ...draftRest } = draft;
   const report: Report = {
-    ...draft,
+    ...draftRest,
     summary: { ...draft.summary, headline: headlineText, bullets },
     findings,
     recommendations,
+    ...recommendationsNote(draft, findings.length, recommendations.length),
     assumptions,
     open_questions: openQuestions,
     ...(draft.analyses_not_run ? { analyses_not_run: notRun.kept } : {}),
@@ -658,4 +660,14 @@ export async function persistChecks(ws: Workspace, checks: readonly CheckRow[]):
       // claim_id holds where the claim sits (e.g. "finding F1"); the claim text goes in the detail.
       sql`INSERT INTO verification VALUES (${`V${i + 1}`}, ${c.where ?? null}, ${c.fact ?? null}, ${c.check}, ${c.passed}, ${c.claim ? `${c.detail} — “${c.claim}”` : c.detail})`,
     );
+}
+
+/**
+ * The note on an empty recommendations section (report-schema §1). Recommendations that reached this stage and
+ * were all dropped here read as "none passed"; a note DECIDE set stays; any shipped recommendation clears it.
+ */
+function recommendationsNote(draft: Report, findings: number, kept: number): Pick<Report, "recommendations_note"> {
+  if (kept > 0 || findings === 0 || draft.summary.no_numbers) return {};
+  if (draft.recommendations.length > 0) return { recommendations_note: "none_passed" };
+  return draft.recommendations_note ? { recommendations_note: draft.recommendations_note } : {};
 }

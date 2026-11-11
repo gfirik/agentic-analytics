@@ -63,3 +63,16 @@ export function formatCell(v: string | number | null, header: string): string {
     return `${sign(v)}${grouped(v * 100, 1)}%`;
   return `${sign(v)}${grouped(v, Number.isInteger(v) ? 0 : 2)}`;
 }
+
+const RECOMMENDATIONS_NOTE_TEXT = {
+  step_failed:
+    "No recommendation could be produced: the step that drafts actions did not return a valid result. The findings above still stand.",
+  none_passed: "Recommendations were drafted but none passed verification. The findings above still stand.",
+} as const;
+
+/** The line shown where recommendations would be when there are none (report-schema §1); undefined when no note applies. */
+export function recommendationsNote(r: {
+  readonly recommendations_note?: keyof typeof RECOMMENDATIONS_NOTE_TEXT | undefined;
+}): string | undefined {
+  return r.recommendations_note ? RECOMMENDATIONS_NOTE_TEXT[r.recommendations_note] : undefined;
+}

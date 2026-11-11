@@ -8,7 +8,7 @@ import type { Citation, Claim, Evidence, Finding, Recommendation, Report, Source
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CLIENT_SCRIPT } from "./client-script.ts";
-import { formatCell, formatFact, formatPeriod } from "./format.ts";
+import { formatCell, formatFact, formatPeriod, recommendationsNote } from "./format.ts";
 
 /** A report that read no numbers has no period to show, whatever dates profiling saw (report-schema §1). */
 const reportPeriod = (r: Report): string => (r.summary.no_numbers ? "no period" : formatPeriod(r.period.from, r.period.to));
@@ -387,6 +387,9 @@ function ReportPage({ report, ctx }: { report: Report; ctx: Ctx }) {
           {report.recommendations.map((r) => (
             <RecommendationView key={r.id} r={r} ctx={ctx} />
           ))}
+          {report.recommendations.length === 0 && recommendationsNote(report) ? (
+            <p className="muted">{recommendationsNote(report)}</p>
+          ) : null}
         </section>
 
         {report.concentration?.length ? (

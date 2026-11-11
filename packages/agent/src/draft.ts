@@ -41,6 +41,8 @@ export interface DraftInput {
   readonly noNumbers?: NonNullable<Report["summary"]["no_numbers"]>;
   readonly findings: readonly Finding[];
   readonly recommendations: readonly Recommendation[];
+  /** Why there are findings but no recommendations, when DECIDE knows (report-schema §1). */
+  readonly recommendationsNote?: NonNullable<Report["recommendations_note"]>;
   /** Developer-facing open questions from the analysis (mapped to report wording here). */
   readonly analysisQuestions: readonly string[];
   readonly askedQuestions: readonly OpenQuestionDraft[];
@@ -379,6 +381,7 @@ export async function buildDraft(ws: Workspace, input: DraftInput): Promise<Repo
     summary: { headline: input.headline, bullets, ...(input.noNumbers ? { no_numbers: input.noNumbers } : {}) },
     findings: withModel,
     recommendations: [...input.recommendations],
+    ...(input.recommendationsNote ? { recommendations_note: input.recommendationsNote } : {}),
     open_questions: questions,
     facts,
     ...(semantics ? { roles: semantics.roles, table_kinds: semantics.table_kinds, business_model: semantics.business_model } : {}),

@@ -930,6 +930,13 @@
         ]
       }
     },
+    "recommendations_note": {
+      "type": "string",
+      "enum": [
+        "step_failed",
+        "none_passed"
+      ]
+    },
     "open_questions": {
       "type": "array",
       "items": {
