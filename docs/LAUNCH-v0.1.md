@@ -1,6 +1,6 @@
 # v0.1 launch: the final review and what's left for the maintainer
 
-The final v0.1 review is done (AGENTS.md §9, "The v0.1 finish plan"), and so are the backtest's pre-tag fixes and the final hands-on check (§1b, §1c). This page says what was checked and fixed, the decisions only the maintainer can make, and the launch steps. The public, irreversible steps themselves are in [LAUNCH.md](LAUNCH.md). **Work stops here until the maintainer says yes to the v0.1.0 tag.**
+The final v0.1 review is done (AGENTS.md §9, "The v0.1 finish plan"), and so are the backtest's pre-tag fixes and the final hands-on check (§1b, §1c). This page says what was checked and fixed, the decisions only the maintainer can make, and the launch steps. The public, irreversible steps themselves are in [LAUNCH.md](LAUNCH.md). **Update 2026-11-12: the maintainer said yes; v0.1.0 is tagged and released and the repo is public (LAUNCH.md "Go public" has what is left).**
 
 ## 1. What the final review did
 
@@ -82,13 +82,7 @@ B1 with the configured Groq model: **skipped**, to protect the nightly.
 1. Decide item 2 above and commit the nightly results in a PR if that's the choice. Then `bun run readme:assets` and `bun run readme:check`.
 2. Follow [LAUNCH.md](LAUNCH.md) "Before going public": the manual README check in light and dark, and rotating any key ever pasted into a chat or transcript. Its first item, the M12 PR, is already merged.
 3. Optional, to test the release workflow first: push a pre-release tag (`v0.1.0-rc.1`). It is published as a pre-release, never tagged `latest`, and doesn't need a notes file.
-4. Follow LAUNCH.md "Go public":
-   - make the repo public;
-   - turn on Pages and run the docs workflow;
-   - enable private vulnerability reporting;
-   - `git tag v0.1.0 && git push origin v0.1.0` (the release workflow builds the image and binaries and publishes `docs/releases/v0.1.0.md`);
-   - make the GHCR package public;
-   - the fresh-machine quickstart under 10 minutes.
+4. Follow LAUNCH.md "Go public". Done on 2026-11-12, except two steps: making the GHCR package public and the fresh-machine quickstart under 10 minutes. The repo is public, Pages serves the docs, private vulnerability reporting is on, and v0.1.0 is tagged and released.
 5. Announce per LAUNCH.md "Announce".
 
-The agent does none of these steps. Tags, releases, visibility and settings need the maintainer's explicit yes (AGENTS.md §5, STATE).
+The v0.1.0 tag was pushed on the maintainer's yes (2026-11-12). Releases, visibility, settings and announcements still need the maintainer's explicit yes (AGENTS.md §5, STATE).
