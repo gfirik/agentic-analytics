@@ -11,6 +11,10 @@ Since 2026-10-16 (maintainer's instruction, from PR #15 on): post the spec-revie
 
 Since 2026-10-21 (maintainer's standing instruction): work through the whole plan without stopping (3D PR → code-quality review and fixes → M14 → M15 → M16 onwards). From then on every milestone's human gate is `notify`: merge when the gate, reviewer, QA and CI pass, then Telegram; rows before that date keep the gate they had. Where the plan asks the maintainer to review or decide something, the agent chooses the most spec-consistent option and records it under "Decisions made by agents". Still need the maintainer's explicit yes (noted under Blockers and skipped): a v* release tag or publishing a release, public announcements, repo settings and visibility, anything that costs money or needs their private credentials. A daily Telegram summary runs from the system crontab (`scripts/daily-summary.sh`).
 
+## Handoff (2026-11-12)
+
+The real-data backtest's seven pre-tag fixes are merged (#140–#146), the backtest was re-run on them (data/backtests/REPORT.md §7, local), and the final hands-on check is done: see [docs/LAUNCH-v0.1.md](../LAUNCH-v0.1.md) §1b and §1c. Work **stops** again for the maintainer's yes on the v0.1.0 tag. Small defects found in the hands-on check are listed in LAUNCH-v0.1.md §1c (none changes a number). The main checkout, which runs the 03:00 nightly, is still detached at 3be7f9b with uncommitted nightly results.
+
 ## Handoff (2026-10-31)
 
 The final v0.1 review is **done**. Work **stops** for the maintainer's yes on the v0.1.0 tag: see [docs/LAUNCH-v0.1.md](../LAUNCH-v0.1.md) for what the review found, the decisions left to him and the launch steps. Cron jobs keep running (nightly 03:00, daily summary 20:47; the 03:30 deferred slot stays paused).
