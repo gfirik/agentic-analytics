@@ -80,6 +80,7 @@ export const CLIENT_SCRIPT = String.raw`(function () {
       f.cites.forEach(function (c) {
         var b = el("button", "cite", c.label);
         b.type = "button";
+        b.title = c.label;
         b.setAttribute("aria-pressed", "false");
         b.setAttribute("data-source", c.source);
         if (c.rows) b.setAttribute("data-rows", c.rows);

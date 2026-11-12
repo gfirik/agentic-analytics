@@ -67,7 +67,7 @@ function Cite({ c, ctx }: { c: Citation; ctx: Ctx }) {
   const d = citeData(c, ctx);
   const external = ctx.sources.get(c.source_id)?.external ?? false;
   return (
-    <button type="button" className="cite" aria-pressed="false" data-source={d.source} data-rows={d.rows} data-cells={d.cells} data-q={d.q}>
+    <button type="button" className="cite" title={d.label} aria-pressed="false" data-source={d.source} data-rows={d.rows} data-cells={d.cells} data-q={d.q}>
       {d.label}
       {external ? <span className="ext">External</span> : null}
     </button>
