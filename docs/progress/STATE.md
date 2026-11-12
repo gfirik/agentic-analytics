@@ -13,7 +13,7 @@ Since 2026-10-21 (maintainer's standing instruction): work through the whole pla
 
 ## Handoff (2026-11-12)
 
-The real-data backtest's seven pre-tag fixes are merged (#140–#146), the backtest was re-run on them (data/backtests/REPORT.md §7, local), and the final hands-on check is done: see [docs/LAUNCH-v0.1.md](../LAUNCH-v0.1.md) §1b and §1c. Work **stops** again for the maintainer's yes on the v0.1.0 tag. Small defects found in the hands-on check are listed in LAUNCH-v0.1.md §1c (none changes a number). The main checkout, which runs the 03:00 nightly, is still detached at 3be7f9b with uncommitted nightly results.
+The real-data backtest's seven pre-tag fixes are merged (#140–#146), the backtest was re-run on them (data/backtests/REPORT.md §7, local), and the final hands-on check is done: see [docs/LAUNCH-v0.1.md](../LAUNCH-v0.1.md) §1b and §1c. Work **stops** again for the maintainer's yes on the v0.1.0 tag. The defects the hands-on check found are fixed (#148: a documents-only upload with review on no longer dead-ends, and the README has the viewer build step; #149: the number-panel display). The main checkout, which runs the 03:00 nightly, is on main at 63cf0e5; its old uncommitted nightly results are in data/archive/nightly-uncommitted-2026-11-12/. The configured Groq quickstart run was skipped to protect tonight's uncached nightly (LAUNCH-v0.1.md §1c).
 
 ## Handoff (2026-10-31)
 
