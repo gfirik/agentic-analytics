@@ -8,7 +8,7 @@ import type { AssumptionCaveat, Citation, Claim, Evidence, Finding, Recommendati
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CLIENT_SCRIPT } from "./client-script.ts";
-import { formatCell, formatFact, formatPeriod, recommendationsNote } from "./format.ts";
+import { formatCell, formatExact, formatFact, formatPeriod, metricLine, recommendationsNote, rowLabel } from "./format.ts";
 
 /** A report that read no numbers has no period to show, whatever dates profiling saw (report-schema §1). */
 const reportPeriod = (r: Report): string => (r.summary.no_numbers ? "no period" : formatPeriod(r.period.from, r.period.to));
@@ -40,20 +40,13 @@ function buildCtx(r: Report): Ctx {
   };
 }
 
-function rowSpan(rows: readonly number[]): string {
-  if (!rows.length) return "";
-  const sorted = [...rows].sort((a, b) => a - b);
-  const contiguous = sorted.every((v, i) => i === 0 || v === (sorted[i - 1] ?? 0) + 1);
-  return contiguous && sorted.length > 1 ? `r${sorted[0]}–r${sorted.at(-1)}` : sorted.map((x) => `r${x}`).join(",");
-}
-
 export function citationLabel(c: Citation, ctx: Ctx): string {
   const s = ctx.sources.get(c.source_id);
   if (!s) return c.source_id;
   const loc = s.locator;
   if (s.kind === "web" && "url" in loc) return `web · ${new URL(loc.url).hostname}`;
   if ("table_id" in loc) {
-    const where = c.rows?.length ? rowSpan(c.rows) : (c.cells?.join(",") ?? loc.range);
+    const where = c.rows?.length ? rowLabel(c.rows) : (c.cells?.join(",") ?? loc.range);
     return `${s.file} · ${loc.sheet ? `${loc.sheet} ` : ""}${where}`;
   }
   if ("char_start" in loc) return `${s.file}${loc.page ? ` p.${loc.page}` : loc.section && s.kind !== "email" ? ` § ${loc.section}` : ""}`;
@@ -556,9 +549,10 @@ function clientData(report: Report, ctx: Ctx) {
         currency: f.currency,
         scale: f.scale,
         display: formatFact(f),
+        exact: formatExact(f),
         verified: f.verified,
         computation: f.computation,
-        metric: m ? { label: m.label, plain: m.plain, status: m.status } : undefined,
+        metric: m ? metricLine(m) : undefined,
         cites: f.citations.map((c) => citeData(c, ctx)),
       };
     }),

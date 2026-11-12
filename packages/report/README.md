@@ -15,6 +15,9 @@ Renders a report v1 (`report.json`) to one self-contained `report.html`: React s
 | `renderReportHtml(report)` | Full HTML document as a string |
 | `formatValue(value, unit)`, `formatFact(fact)`, `formatMetricValue(value, def)` | Display formatting (rounding for reading only; exact values stay in the computation panel). A money fact names its unit after the number: `40,896,000 USD`, `17,776,691.70 million UZS` (the scale is the header's; the value is not multiplied). |
 | `formatPeriod(from, to)` | `2026-01`..`2026-06` → `Jan–Jun 2026` |
+| `rowLabel(rows)` | `[2025..2039]` → `r2025–r2039`; gaps join ranges with commas; past two ranges `+N more` (the `data-rows` attribute keeps every row) |
+| `formatExact(fact)` | the number panel's "Exact value": float noise dropped (`44100.000000000065` → `44100`), no grouping |
+| `metricLine(metric)` | the panel's Metric line, with "(assumed)" shown once |
 | `formatCell(value, header)` | A spreadsheet cell for the evidence viewer, as the owner typed it: a fraction under a rate or `%` header shows as a percentage |
 | `citationLabel(citation, ctx)` | A citation's short label: `file · Sheet r12–r20`, `file p.3`, `file § Heading` or `web · host` |
 

@@ -90,3 +90,29 @@ const RECOMMENDATIONS_NOTE_TEXT: Record<RecommendationsNote, string> = {
 export function recommendationsNote(r: { readonly recommendations_note?: RecommendationsNote | undefined }): string | undefined {
   return r.recommendations_note ? RECOMMENDATIONS_NOTE_TEXT[r.recommendations_note] : undefined;
 }
+
+/** Row numbers as a short label: consecutive rows become a range, gaps join ranges with commas, and past two ranges the rest is "+N more". */
+export function rowLabel(rows: readonly number[]): string {
+  const sorted = [...new Set(rows)].sort((a, b) => a - b);
+  const ranges: [number, number][] = [];
+  for (const r of sorted) {
+    const last = ranges.at(-1);
+    if (last && r === last[1] + 1) last[1] = r;
+    else ranges.push([r, r]);
+  }
+  const text = ([a, b]: [number, number]) => (a === b ? `r${a}` : `r${a}\u2013r${b}`);
+  const shown = ranges.slice(0, 2).map(text).join(", ");
+  const rest = ranges.slice(2).reduce((n, [a, b]) => n + b - a + 1, 0);
+  return rest ? `${shown} +${rest} more` : shown;
+}
+
+/** The "Exact value" line of the number panel: the stored value without binary float noise (44100.000000000065 reads 44100), never grouped or rounded further. */
+export function formatExact(f: Pick<Fact, "value" | "unit" | "currency" | "scale">): string {
+  return `${Number(f.value.toPrecision(14))}${moneySuffix(f)}${f.unit === "percent" ? " %" : ""}`;
+}
+
+/** The panel's Metric line. The description already ends in "(assumed)" for an assumed metric, so the marker is added only when it is missing. */
+export function metricLine(m: { readonly label: string; readonly plain: string; readonly status?: string | undefined }): string {
+  const marker = " (assumed)";
+  return `${m.label}: ${m.plain}${m.status === "assumed" && !m.plain.endsWith(marker) ? marker : ""}`;
+}
