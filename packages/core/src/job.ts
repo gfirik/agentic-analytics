@@ -320,6 +320,13 @@ export async function runJob(input: RunJobInput, deps: JobDeps): Promise<JobOutc
         skip: () => (opts.autoConfirm === false ? undefined : "metrics kept as assumptions (auto-confirm)"),
         run: async (ctx) => {
           const confirmed = await meta<MetricDef[]>(ws, CONFIRMED_KEY);
+          // No table at all (documents only): no roles and no metrics, so there is nothing to review and a pause would
+          // never end. The job goes on to the report that says no table was found.
+          const summary = (await ctx.output<ProfileSummary>("PROFILE")) as ProfileSummary;
+          if (!confirmed && summary.tables.length === 0) {
+            ctx.log.info("review skipped", { reason: "no table was found, so there are no roles or metrics to review" });
+            return { defs: [], reviewSkipped: "no table was found" };
+          }
           if (!confirmed) {
             await ctx.bus.emit({ type: "awaiting_confirmation", stage: "AWAIT_CONFIRM" });
             throw new StagePause("AWAIT_CONFIRM", "waiting for the metric definitions to be confirmed");

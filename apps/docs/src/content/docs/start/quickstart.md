@@ -59,6 +59,15 @@ Walk through what it found: [Your first report](../first-report/).
 
 On your own files: v0.1 reads tidy CSV or Excel tables (one header row, a date and an amount column) and uses PDFs, Word and email as evidence. See [Which files work](../which-files/) before you start.
 
+## Viewer from a clone
+
+```bash
+bun run --filter @agentic-analytics/viewer build   # once
+bun run aa serve                                   # viewer at http://127.0.0.1:8080
+```
+
+Without the build, `aa serve` runs the API and says the viewer is not built.
+
 ## Docker
 
 ```bash

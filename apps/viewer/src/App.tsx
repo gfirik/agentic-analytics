@@ -350,6 +350,7 @@ export function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: stri
       </button>
       <h3>Metrics</h3>
       <p className="muted">Edit the YAML to change one, or delete an entry to drop it.</p>
+      {data.metrics.length ? null : <p className="muted">No table or metric was found. Confirming continues to a report that says why.</p>}
       <ul>
         {data.metrics.map((m) => (
           <li key={m.id}>{m.text}</li>

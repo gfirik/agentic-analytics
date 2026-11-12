@@ -157,7 +157,12 @@ export async function confirmJob(dir: string, yaml: string): Promise<ConfirmOutc
           `rejected: ${v.rejected.map((r) => `${r.id ?? "(no id)"}: ${r.reasons.join("; ")}`).join(" | ")}`,
           v.rejected,
         );
-      if (!v.accepted.length) throw new JobError("BAD_METRICS", "no metric definitions given");
+      // An empty list drops every drafted metric, which is refused. When the draft had none (the headers were not
+      // recognised) there is nothing to drop, and the job goes on to the report that says why (semantics §5).
+      if (!v.accepted.length) {
+        const drafted = (await stageOutput<MetricsOutput>(ws, "METRICS_DRAFT")) as MetricsOutput;
+        if ((await shownDefs(ws, drafted)).length) throw new JobError("BAD_METRICS", "no metric definitions given");
+      }
       accepted = v.accepted;
     } else if (!file.roles?.length && !file.business_model) {
       throw new JobError("BAD_METRICS", "nothing to confirm: give metrics, roles or a business model");
