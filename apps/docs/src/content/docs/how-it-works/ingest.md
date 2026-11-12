@@ -1,6 +1,6 @@
 ---
 title: Ingest and table detection
-description: How messy spreadsheets become real tables, and documents become cited sections.
+description: How spreadsheets with titles, notes and merged headers become real tables, and documents become cited sections.
 sidebar:
   order: 2
 ---
@@ -11,4 +11,4 @@ CSV files are sniffed for delimiter, encoding and quoting. Documents are split i
 
 Limits apply per file and per job (size, sheets, cells, a ZIP-bomb check), and every problem is reported as an ingest issue rather than silently dropped.
 
-See `docs/specs/ingestion-and-profiling.md` for the full rules.
+These rules read tidy tables well; wide layouts, count-only tables and filings in HTML are not read as data in v0.1. [Which files work](../../start/which-files/) lists what is read, the header words, and what is not read yet. See `docs/specs/ingestion-and-profiling.md` for the full rules.

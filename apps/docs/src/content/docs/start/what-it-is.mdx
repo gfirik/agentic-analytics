@@ -7,7 +7,7 @@ sidebar:
 
 import PipelineStages from "../../../components/site/PipelineStages.astro";
 
-agentic-analytics reads a small or medium business's own files — spreadsheets, CSV exports, PDFs, Word documents, emails — and writes a report: **what changed, why it changed, where the data is wrong, and what to do next**.
+agentic-analytics reads a small or medium business's own tables (CSV or Excel, with a date and an amount column) and the documents around them (PDFs, Word, emails, which are searched and quoted as evidence, never read as numbers), and writes a report: **what changed, why it changed, where the data is wrong, and what to do next**.
 
 It is built around three refusals:
 
@@ -21,6 +21,7 @@ Below is one real run on the example business (scripted planner, no LLM): its st
 
 ## What it is not
 
+- Not a reader of any file: v0.1 reads tidy tables. [Which files work](../which-files/) says what it reads and what it does not yet.
 - Not a dashboard or a BI tool: it answers "what changed and why", once per period.
 - Not a chatbot over your files: follow-up questions are answered with verified claims only (`aa ask`).
 - Not a forecaster: v0.1 explains the past and proposes checks; it does not predict.

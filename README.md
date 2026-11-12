@@ -1,13 +1,13 @@
 # agentic-analytics
 
-**Open-source, self-hosted agentic analytics. Any data in, verified decisions out.**
+**Open-source, self-hosted agentic analytics. Business tables in, verified decisions out.**
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-dark.svg">
   <img alt="Business files flow into three lanes (tables via SQL, documents via retrieval, a sanitized web lane), then to an analyst, then to a verifier that recomputes every number and checks every citation, then to a cited report." src="docs/assets/readme/hero-light.svg" width="100%">
 </picture>
 
-Give it a business's real files: spreadsheets, CSV exports, PDFs, Word documents and emails. It returns a report on what changed, why it changed, where the data is wrong, and what to do next.
+Give it a business's tidy tables (CSV or Excel), with PDFs, Word documents and emails as supporting evidence. It returns a report on what changed, why it changed, where the data is wrong, and what to do next.
 
 - **Every number** is computed by SQL in DuckDB and recomputed by a verifier before the report ships. The model never does arithmetic.
 - **Every claim** links to the exact row, cell, page or URL it came from.
@@ -50,13 +50,22 @@ bun run aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-
 
 Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/quickstart/).
 
+### What files work
+
+- **Numbers come from tables:** CSV, TSV or Excel, one header row, one row per transaction or per period, with a date column and an amount column named in words the engine knows (`date`, `amount`, `revenue`, `region`, `product`; a header may end in a scale or currency such as `amount_mln_uzs`).
+- **Documents are evidence:** text PDFs, Word, email, TXT and Markdown are searched and quoted, never read as numbers.
+- **Not read yet in v0.1:** most wide layouts (years as columns, portal exports with code and name columns), counts-only tables with no money column, gzip or zip archives, files over the size limit, portal PDFs that hold no statements, HTML filings and JSON data dumps, and scanned PDFs without the Docling container.
+- **When nothing can be read,** the report says "No numbers could be read from these files" with the reason, and `aa analyze` exits with code 2.
+
+Details and the header words: [Which files work in v0.1](https://gfirik.github.io/agentic-analytics/start/which-files/).
+
 ## What it fixes
 
 <!-- table:problems:start -->
 | Problem | Typical AI analyst | agentic-analytics |
 |---|---|---|
 | **Confidently wrong numbers** | The model does arithmetic in its head; reviews of AI data tools cite figures that were simply wrong. | The model never computes. DuckDB runs the SQL, and a verifier recomputes every number before the report ships. [How →](https://gfirik.github.io/agentic-analytics/how-it-works/verifier/) |
-| **Spreadsheets treated as text** | Excel files are chunked like documents, so totals and trends are invented. | Tables are detected and loaded as real tables (merged headers, several tables per sheet). Text gets search, numbers get SQL. [How →](https://gfirik.github.io/agentic-analytics/how-it-works/ingest/) |
+| **Spreadsheets treated as text** | Excel files are chunked like documents, so totals and trends are invented. | Tidy tables are loaded as real tables, also from sheets with titles, merged headers or several tables (tested on fixtures). Text gets search, numbers get SQL. [How →](https://gfirik.github.io/agentic-analytics/how-it-works/ingest/) |
 | **No way to check a claim** | Answers arrive as prose with no source. | Every claim carries a row, cell, page or URL, clickable in the HTML report. [How →](https://gfirik.github.io/agentic-analytics/reference/report-schema/) |
 | **Advice with no basis** | “Consider improving marketing.” | Recommendations cite verified findings, carry an impact range and confidence, and name the metric and date that will judge them. [How →](https://gfirik.github.io/agentic-analytics/how-it-works/decide/) |
 | **Tables, documents and the web never meet** | Text-to-SQL tools ignore documents; research agents ignore your numbers. | One analysis joins three lanes; outside sources are always labelled External and can never replace your numbers. [How →](https://gfirik.github.io/agentic-analytics/how-it-works/documents/) |
@@ -80,7 +89,7 @@ Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/qui
 <sub>One real engine run on `examples/coffee-roaster` with the scripted planner (no LLM) and an offline web fixture: every number on screen comes from that run: facts are shown with their ids, counts come from the report and the verifier's check table, and the stages follow its event log. Recorded by `scripts/readme-assets/pipeline-gif.ts` from the same animation as the docs site.</sub>
 <!-- diagram:pipeline-gif:end -->
 
-1. **Ingest and profile.** Tables are detected inside messy spreadsheets: merged headers, several tables on one sheet. Documents are parsed into sections. Data-quality problems become findings of their own.
+1. **Ingest and profile.** Tables are detected inside spreadsheets with titles, notes, merged headers or several tables on one sheet (tested on fixtures). Documents are parsed into sections. Data-quality problems become findings of their own.
 2. **Metric layer.** Definitions are drafted (what "revenue" means, the grain, the currency, the filters), shown in plain words, and confirmed or kept as flagged assumptions.
 3. **Analyze.** SQL insight templates find the changes. Decompositions (contribution, price–volume–mix, rate vs mix) split each change into drivers.
 4. **Explain.** Drivers are matched to events quoted from your documents and to labelled outside benchmarks. Each "why" is graded: observed, correlated or document-supported.
