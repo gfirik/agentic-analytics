@@ -119,6 +119,27 @@ describe("HTTP API: roles on the confirm screen (M15)", () => {
   }, 240_000);
 });
 
+describe("HTTP API: a review with no metrics drafted (pre-tag B3)", () => {
+  it("confirming the empty draft is accepted and the job ends with the headers report", async () => {
+    const form = new FormData();
+    form.append("files[]", new File(["foo,bar,baz\nalpha,beta,gamma\none,two,three\nx,y,z\n"], "odd.csv"));
+    form.append("options", JSON.stringify({ currency: "UZS", auto_confirm: false }));
+    const id = ((await (await app.request("/v1/jobs", { method: "POST", body: form })).json()) as { job_id: string }).job_id;
+    expect((await sse(id)).at(-1)?.event).toBe("awaiting_confirmation");
+    const v = (await (await app.request(`/v1/jobs/${id}/metrics`)).json()) as { metrics: unknown[]; metrics_yaml: string };
+    expect(v.metrics).toEqual([]);
+    const res = await app.request(`/v1/jobs/${id}/metrics`, {
+      method: "POST",
+      body: v.metrics_yaml,
+      headers: { "content-type": "application/yaml" },
+    });
+    expect(res.status).toBe(202);
+    expect((await sse(id)).at(-1)?.event).toBe("done");
+    const report = (await (await app.request(`/v1/jobs/${id}/report`)).json()) as Report;
+    expect(report.summary.no_numbers).toBe("headers_not_recognised");
+  }, 120_000);
+});
+
 describe("HTTP API", () => {
   let id: string;
 

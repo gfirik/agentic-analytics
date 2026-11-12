@@ -11,7 +11,7 @@ The core engine is shared: every door calls `@agentic-analytics/core`.
 | GET | `/v1/jobs/{id}` | status, current stage, progress %, timings, errors |
 | GET | `/v1/jobs/{id}/events` | Server-Sent Events: `stage_started`, `stage_completed`, `progress`, `awaiting_confirmation`, `warning`, `done`, `failed` |
 | GET | `/v1/jobs/{id}/metrics` | the confirm screen: drafted metric YAML + plain-language rendering, and from M15 the column roles with their evidence, the table kinds, the business model and the vocabularies (semantics §5; the shape is the `ConfirmView` schema, in `/openapi.json`) |
-| POST | `/v1/jobs/{id}/metrics` | confirm or edit metrics and roles (YAML body with an optional `roles:` block, metric-layer §1). With `metrics:` the job resumes; with roles only (or a business model) the metrics are drafted again from the new roles and the job keeps waiting (`202` with status `awaiting_confirmation`) |
+| POST | `/v1/jobs/{id}/metrics` | confirm or edit metrics and roles (YAML body with an optional `roles:` block, metric-layer §1). With `metrics:` the job resumes (`metrics: []` is accepted only when no metric was drafted, semantics §5); with roles only (or a business model) the metrics are drafted again from the new roles and the job keeps waiting (`202` with status `awaiting_confirmation`) |
 | GET | `/v1/jobs/{id}/report` | `report.json` (`Accept: application/json`) or `report.html` (`Accept: text/html` or `?format=html`) |
 | POST | `/v1/jobs/{id}/ask` | `{ question }` → answer as `Claim[]` with facts and citations (same rules as reports) |
 | GET | `/v1/jobs/{id}/facts/{factId}` | explain a number: SQL, params, input rows, definition |
