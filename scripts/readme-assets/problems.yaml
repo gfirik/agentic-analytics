@@ -9,7 +9,7 @@ rows:
     source: blueprint §04
   - problem: Spreadsheets treated as text
     before: Excel files are chunked like documents, so totals and trends are invented.
-    after: Tables are detected and loaded as real tables (merged headers, several tables per sheet). Text gets search, numbers get SQL.
+    after: Tidy tables are loaded as real tables, also from sheets with titles, merged headers or several tables (tested on fixtures). Text gets search, numbers get SQL.
     docs: how-it-works/ingest/
     source: blueprint §04
   - problem: No way to check a claim

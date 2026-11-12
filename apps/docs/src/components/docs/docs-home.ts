@@ -22,6 +22,7 @@ export const MAIN_SECTIONS: HomeSection[] = [
     links: [
       { label: "What it is", slug: "start/what-it-is" },
       { label: "Quickstart", slug: "start/quickstart" },
+      { label: "Which files work", slug: "start/which-files" },
       { label: "Your first report", slug: "start/first-report" },
       { label: "Running on free models", slug: "models/running-free" },
     ],

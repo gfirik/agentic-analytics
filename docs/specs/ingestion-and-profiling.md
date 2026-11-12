@@ -11,6 +11,16 @@
   - A rejected file's issue carries a machine-readable `cause` (`gzip`, `zip`, `nul_bytes`, `not_utf8`, `file_limit`, `job_limit`, …). The report words each rejection (`archive_rejected`, `unsupported_type`, `unreadable_file`, `password_protected`, `too_large`) as one sentence that names the file and the fix: a gzip file is detected by its magic bytes (1f 8b) and the owner is told to unzip it and add the file inside (v0.1 does not decompress); a text file with NUL bytes (binary, or UTF-16) or invalid UTF-8 is told to be saved as plain UTF-8; a file over a size limit names which limit (per file or per job) and says to drop unneeded columns, filter to the period or split the file. Sizes stay out of the report text (they would be free numerals). The CLI, MCP and Telegram summaries list these under "Files not read", one line per file.
 - **Safety:** see specs/security.md §5.
 
+### Tested input shapes in v0.1
+
+What the v0.1 engine reads as numbers, from a backtest on public company-report, tourism, retail, SEC filing and rental-listing files (the docs page `start/which-files` says the same in plain words):
+
+- **Read:** a CSV, TSV or Excel table with one header row, one row per transaction or per period, a date column (or a year column and a month-number column) and an amount column whose header is, or ends with, a role synonym (`semantics.md` §2.3: `amount`, `revenue`, `sales`, `turnover`, ...). Unit words in the header (§6) are ignored by the role detector and name the scale and currency. Titles, notes, merged headers, several tables per sheet and total rows are handled on the fixtures in `fixtures/xlsx/`. Text PDFs, DOCX, EML, TXT and MD are documents: sections for search and quotes, never numbers.
+- **Not read:** years or months as columns (wide layouts, with the code and name columns of portal exports), counts-only tables with no money column, descriptive headers that match no synonym (`trips_thousand`), long statement tables (`line_code, value`), gzip and zip archives, files over the size limits, annual-report PDFs that hold no statements, HTML filings and large JSON dumps (indexed as text; their tables and fields are not read as data), scanned PDFs without Docling. Annual and quarterly data is labelled with the month grain, and a snapshot table (a price per listing) is not told apart from a history.
+- **Said, not silent:** a rejected file is named with the fix (§1); a job that read no number says "No numbers could be read from these files" and why, and `aa analyze` exits 2 (`report-schema.md` §4, `summary.no_numbers`).
+
+These are known gaps of v0.1, not promises.
+
 ## 2. Spreadsheets: grid read
 
 Use SheetJS to read every sheet into a raw cell grid. For each cell, keep:

@@ -57,6 +57,8 @@ bun run aa analyze examples/coffee-roaster --yes --currency USD --today 2026-07-
 
 Walk through what it found: [Your first report](../first-report/).
 
+On your own files: v0.1 reads tidy CSV or Excel tables (one header row, a date and an amount column) and uses PDFs, Word and email as evidence. See [Which files work](../which-files/) before you start.
+
 ## Docker
 
 ```bash

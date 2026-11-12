@@ -100,6 +100,7 @@ export default defineConfig({
           items: [
             "start/what-it-is",
             "start/quickstart",
+            "start/which-files",
             "start/first-report",
             { label: "Running on free models", slug: "models/running-free" },
           ],
