@@ -65,8 +65,8 @@ export const CLIENT_SCRIPT = String.raw`(function () {
     body.appendChild(el("p", "fp-label mono", f.id + " · " + f.label));
     var dl = el("dl", "kv");
     function row(k, v) { if (v == null || v === "") return; dl.appendChild(el("dt", null, k)); dl.appendChild(el("dd", null, v)); }
-    row("Exact value", String(f.value) + (f.scale ? " " + f.scale : "") + (f.currency ? " " + f.currency : "") + (f.unit === "percent" ? " %" : ""));
-    if (f.metric) row("Metric", f.metric.label + ": " + f.metric.plain + (f.metric.status === "assumed" ? " (assumed)" : ""));
+    row("Exact value", f.exact);
+    if (f.metric) row("Metric", f.metric);
     row("Computed by", f.computation.kind === "sql" ? "SQL in DuckDB" : "function " + f.computation.fn);
     if (f.computation.params) row("Parameters", JSON.stringify(f.computation.params));
     if (f.computation.inputs && f.computation.inputs.length) {
@@ -80,6 +80,7 @@ export const CLIENT_SCRIPT = String.raw`(function () {
       f.cites.forEach(function (c) {
         var b = el("button", "cite", c.label);
         b.type = "button";
+        b.title = c.label;
         b.setAttribute("aria-pressed", "false");
         b.setAttribute("data-source", c.source);
         if (c.rows) b.setAttribute("data-rows", c.rows);

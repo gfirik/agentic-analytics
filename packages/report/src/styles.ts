@@ -54,7 +54,7 @@ section{display:grid;gap:14px}
 .num{font:inherit;font-weight:700;color:inherit;background:linear-gradient(transparent 60%,var(--hl-soft) 60%);border:0;border-bottom:1px dotted var(--accent);padding:0 1px;cursor:pointer}
 .num:hover,.num:focus-visible{background:var(--hl-soft)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.cite{font-family:var(--mono);font-size:.76rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:2px 10px;cursor:pointer}
+.cite{font-family:var(--mono);font-size:.76rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:2px 10px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .cite:hover{border-color:var(--accent)}
 .cite[aria-pressed="true"]{background:var(--hl);border-color:var(--hl);color:#14201c}
 .ext{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ext);border:1px solid var(--ext);border-radius:4px;padding:0 4px;margin-left:4px}
