@@ -1,6 +1,6 @@
 # Launch checklist (v0.1.0)
 
-M12 is a human gate. The agent prepared everything that can be reviewed in a pull request. The steps below are public or irreversible, so the maintainer performs them, in this order.
+M12 is a human gate. The agent prepared everything that can be reviewed in a pull request. The steps below are public or irreversible, so the maintainer performs them or says yes to each first.
 
 ## Before going public
 
@@ -11,12 +11,14 @@ M12 is a human gate. The agent prepared everything that can be reviewed in a pul
 
 ## Go public
 
-1. Settings → General → Change visibility → **Public**.
-2. Settings → Pages → Source: **GitHub Actions**. While the repo was private the `docs` workflow built the site but skipped the Pages upload and deploy; after making it public, run it on main with `gh workflow run docs.yml --ref main` (a re-run of an old push reuses its private flag and skips again) and confirm https://gfirik.github.io/agentic-analytics/ loads.
-3. Settings → Security: enable private vulnerability reporting (SECURITY.md points to it).
-4. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`. The `release` workflow then pushes `ghcr.io/gfirik/agentic-analytics:0.1.0` and `:latest` and creates the GitHub release from `docs/releases/v0.1.0.md`.
-5. Set the GHCR package visibility to public (Packages → agentic-analytics → Settings).
-6. Fresh-machine check: on a clean machine, follow only the docs Quickstart and time it from clone to report (target: under 10 minutes).
+Status on 2026-11-12: the repo is public and v0.1.0 is tagged and released. Checked as a logged-out visitor:
+
+1. Visibility: **public** (done).
+2. Pages: done. The `docs` workflow deploys on every push to main; https://gfirik.github.io/agentic-analytics/ serves the v0.1 content, including "Which files work in v0.1". To redeploy by hand: `gh workflow run docs.yml --ref main`.
+3. Private vulnerability reporting: **enabled** (SECURITY.md points to it).
+4. Release: done. `v0.1.0` is on b26a722; the `release` workflow pushed `ghcr.io/gfirik/agentic-analytics:0.1.0` and `:latest` and published https://github.com/gfirik/agentic-analytics/releases/tag/v0.1.0 from `docs/releases/v0.1.0.md`. The four binaries and `SHA256SUMS` download without login.
+5. **To do:** set the GHCR package visibility to public (https://github.com/users/gfirik/packages/container/agentic-analytics/settings → Danger Zone → Change visibility). Until then `docker pull ghcr.io/gfirik/agentic-analytics:0.1.0` without login returns `unauthorized`. GitHub has no API for this, so it is done in the web UI.
+6. **To do:** fresh-machine check: on a clean machine, follow only the docs Quickstart and time it from clone to report (target: under 10 minutes).
 
 ## Announce
 
