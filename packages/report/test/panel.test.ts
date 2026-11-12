@@ -43,8 +43,12 @@ describe("formatExact", () => {
 
 describe("metricLine", () => {
   it("shows (assumed) once", () => {
-    expect(metricLine({ label: "Revenue", plain: "Revenue = sum(amount) (assumed)", status: "assumed" })).toBe("Revenue: Revenue = sum(amount) (assumed)");
-    expect(metricLine({ label: "Revenue", plain: "Revenue = sum(amount)", status: "assumed" })).toBe("Revenue: Revenue = sum(amount) (assumed)");
+    expect(metricLine({ label: "Revenue", plain: "Revenue = sum(amount) (assumed)", status: "assumed" })).toBe(
+      "Revenue: Revenue = sum(amount) (assumed)",
+    );
+    expect(metricLine({ label: "Revenue", plain: "Revenue = sum(amount)", status: "assumed" })).toBe(
+      "Revenue: Revenue = sum(amount) (assumed)",
+    );
     expect(metricLine({ label: "R", plain: "R = sum(a)", status: "confirmed" })).toBe("R: R = sum(a)");
   });
 });
@@ -60,7 +64,9 @@ describe("number panel", () => {
       metric.status = "assumed";
       metric.plain = `${metric.label} = sum(amount) (assumed)`;
     }
-    const window = new Window({ settings: { enableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true } });
+    const window = new Window({
+      settings: { enableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true },
+    });
     window.document.write(renderReportHtml(r));
     await window.happyDOM.waitUntilComplete();
     const doc = window.document;
