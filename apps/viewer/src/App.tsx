@@ -350,7 +350,12 @@ export function MetricsForm({ api, jobId, onConfirmed }: { api: Api; jobId: stri
       </button>
       <h3>Metrics</h3>
       <p className="muted">Edit the YAML to change one, or delete an entry to drop it.</p>
-      {data.metrics.length ? null : <p className="muted">No metric could be drafted from these columns. Fix a role above, or confirm to get a report that says why.</p>}
+      {data.metrics.length ? null : (
+        <p className="muted">
+          No metric could be drafted from these columns. Changing a role above may let one be drafted; confirming goes on to a report that
+          says why.
+        </p>
+      )}
       <ul>
         {data.metrics.map((m) => (
           <li key={m.id}>{m.text}</li>

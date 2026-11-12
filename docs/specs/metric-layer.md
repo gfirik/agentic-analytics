@@ -72,7 +72,7 @@ Metrics and column roles are confirmed **on one screen** (analyst-grade §6.2; s
 - **As built (PR 6):** the CLI asks one question for all the roles ("accept all, edit one by one, or drop"; the last leaves them unconfirmed as assumptions), then the business model, then each metric. A changed role or model is sent as a roles-only revision, the metrics are drafted again and shown, and the metric pass follows; the final request carries the metrics and every role shown. The API's `GET` returns `yaml` (metrics and roles, ready to post back), `metrics_yaml`, `metrics`, `roles` (with `evidence`, `status`, `source`), `columns_without_role`, `table_kinds`, `business_model`, `vocabulary` and `business_models`; `POST` follows semantics §5 "As built". MCP prints the same screen as text (`confirm_metrics` takes the YAML) and the viewer renders it as one form. Every role posted is confirmed; the rest stay assumed.
 - **Reuse:** confirmed definitions and roles can be saved to `./agentic-analytics.metrics.yaml` and reused on the next run (P2: per-client memory).
 
-**Empty confirmation (pre-tag B3).** `metrics: []` is accepted only when the draft shown held no metric; with drafted metrics it is refused (`no metric definitions given`). Documents-only jobs skip the review (semantics §5).
+**Empty confirmation (pre-tag B3).** `metrics: []` is accepted only when neither the draft shown nor the redraft from posted role edits holds a metric (with role edits that redraft metrics it is a revision); with drafted metrics it is refused (`no metric definitions given`). Documents-only jobs skip the review (semantics §5).
 
 ## 4. Compilation
 

@@ -32,6 +32,12 @@ async function shownDefs(ws: Workspace, drafted: MetricsOutput): Promise<MetricD
   return confirmed?.defs ?? (await meta<MetricDef[]>(ws, REDRAFT_KEY)) ?? drafted.defs;
 }
 
+/** How many metrics the screen shows now. */
+async function shownCount(ws: Workspace): Promise<number> {
+  const drafted = (await stageOutput<MetricsOutput>(ws, "METRICS_DRAFT")) as MetricsOutput;
+  return (await shownDefs(ws, drafted)).length;
+}
+
 /** A percentage for the screen: the identity's SQL rate, shown to one decimal at most. */
 const pct = (rate: number): string => `${Number(rate.toFixed(1))}%`;
 
@@ -145,6 +151,8 @@ export async function confirmJob(dir: string, yaml: string): Promise<ConfirmOutc
     const validateOptions = { ...(options.currency ? { defaultCurrency: options.currency } : {}), keepStatus: true };
 
     let accepted: MetricDef[] | undefined;
+    let emptyList = false;
+    let shownBefore = 0;
     if (file.metrics) {
       const v = validateMetrics(
         file.metrics.map((m) => ({ ...m, status: "confirmed" })),
@@ -158,12 +166,17 @@ export async function confirmJob(dir: string, yaml: string): Promise<ConfirmOutc
           v.rejected,
         );
       // An empty list drops every drafted metric, which is refused. When the draft had none (the headers were not
-      // recognised) there is nothing to drop, and the job goes on to the report that says why (semantics §5).
-      if (!v.accepted.length) {
-        const drafted = (await stageOutput<MetricsOutput>(ws, "METRICS_DRAFT")) as MetricsOutput;
-        if ((await shownDefs(ws, drafted)).length) throw new JobError("BAD_METRICS", "no metric definitions given");
+      // recognised) there is nothing to drop, and the job goes on to the report that says why (semantics §5). With
+      // role edits in the same request it is decided after the redraft below, since the edits may yield metrics.
+      if (v.accepted.length) accepted = v.accepted;
+      else {
+        emptyList = true;
+        shownBefore = await shownCount(ws);
+        if (!file.roles?.length && !file.business_model) {
+          if (shownBefore > 0) throw new JobError("BAD_METRICS", "no metric definitions given");
+          accepted = [];
+        }
       }
-      accepted = v.accepted;
     } else if (!file.roles?.length && !file.business_model) {
       throw new JobError("BAD_METRICS", "nothing to confirm: give metrics, roles or a business model");
     }
@@ -198,6 +211,11 @@ export async function confirmJob(dir: string, yaml: string): Promise<ConfirmOutc
         );
         await setMeta(ws, REDRAFT_KEY, again.accepted);
         redrafted = true;
+        // The posted empty list was written against the old draft: unless both are empty, the owner sees the new one.
+        if (emptyList && !again.accepted.length && shownBefore === 0) accepted = [];
+      } else if (emptyList) {
+        if (shownBefore > 0) throw new JobError("BAD_METRICS", "no metric definitions given");
+        accepted = [];
       }
     }
     if (accepted) {

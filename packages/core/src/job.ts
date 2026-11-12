@@ -86,7 +86,7 @@ export interface JobOptions {
   /** The web lane (off by default; built in M8). */
   readonly web?: boolean;
   /**
-   * Keep drafted metrics as assumptions and go on (default true). When false the job pauses at AWAIT_CONFIRM until
+   * Keep drafted metrics as assumptions and go on (default true). When false the job pauses at AWAIT_CONFIRM (unless no table was found, then there is nothing to review) until
    * `confirmJobMetrics` stores the confirmed definitions and roles (metric-layer §3, interfaces §1).
    */
   readonly autoConfirm?: boolean;

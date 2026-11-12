@@ -18,7 +18,7 @@ A job is a folder with one DuckDB file. Each stage is checkpointed: a killed job
 | INGEST | Detects tables in spreadsheets and CSV; parses PDF, DOCX, EML, MD, TXT into sections | — |
 | PROFILE | Types, units, dates, duplicates, outliers, entity matching; screens table text for injections | — |
 | METRICS_DRAFT | Drafts metric definitions, validated by code | optional |
-| AWAIT_CONFIRM | Pauses for review unless `--yes` / `auto_confirm` | — |
+| AWAIT_CONFIRM | Pauses for review unless `--yes` / `auto_confirm`, or when no table was found | — |
 | MEASURE · DETECT · DECOMPOSE | Insight templates and decompositions, all SQL | — |
 | INDEX_DOCS | Screens and indexes documents: BM25 + vectors | — |
 | WEB_CONTEXT | Prepares the sanitized web lane (`--web` only) | — |
