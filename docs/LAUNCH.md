@@ -40,7 +40,7 @@ Post once the docs site and the image are live. Each post links the repo, the do
 >
 > It runs locally with Ollama or a free endpoint. There's a CLI, an HTTP API, an MCP server and a Telegram bot.
 >
-> Honest status: it doesn't meet our own eval bars yet. On the smoke suite no free model we tried finds the planted events with the right driver (0% recall@5; the one that completed every job found the key event twice but named the wrong driver). Every result is in evals/RESULTS.md, weak ones included.
+> Honest status: before the release we ran it on real public data (Uzbek company filings and statistics, three SEC food companies, Inside Airbnb Istanbul). In 17 of 27 runs it read no numbers and still said "no material changes"; after the fixes that is 0 of 27, and each of those runs says why nothing was read and exits with code 2. Files with honest headers such as `retail_turnover_mln_uzs` or `revenue_usd` that read nothing before now give findings (5 on the retail file; 1, 2 and 1 on the SEC companies), with the units and scale on the page. It still doesn't read everything: count-only or descriptive columns, long `line_code, value` statements and gzip files are v0.2. Every eval result is in evals/RESULTS.md, weak ones included.
 
 ### Draft: r/selfhosted
 
