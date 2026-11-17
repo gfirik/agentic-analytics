@@ -93,6 +93,10 @@ A word counts only as a whole word (`kg`, `monthly` and `bank` say nothing). A h
 - **Scanned PDFs** without the Docling container.
 - **A snapshot is not a history.** A listings export with a price per listing and a "last review" date is not a sales history. Do not read it as revenue.
 
+## How far to trust the report
+
+In v0.1 the numbers and citations are reliable, but the recommendations are weak: treat them as suggestions. In the real-data backtest, 1 of the 5 recommendations that came out was partly borne out the next year and 4 were wrong ([the backtest report](https://github.com/gfirik/agentic-analytics/blob/main/data/backtests/REPORT.md)).
+
 ## When nothing could be read
 
 If no number could be computed, the report no longer says "No material changes were found". Its headline starts with **"No numbers could be read from these files:"** and gives the reason, and `aa analyze` exits with **code 2** (1 stays for a failed job). A "Read:" line lists the files that were read, and a "Files not read" section lists the others, one line per file with the fix.

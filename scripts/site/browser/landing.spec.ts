@@ -193,7 +193,7 @@ test("the status strip scrolls sideways with no scrollbar and a fade where there
 test("the status strip leads with proven results and links the nightly regression suite to §3", async ({ page }) => {
   await page.goto(LANDING);
   await expect(page.locator(".aa-strip")).toContainText(
-    /v\d+\.\d+\.\d+ (pre-)?release\s*·\s*real public data: \d+\/\d+ checks\s*·\s*real-model smoke: \d+\/\d+ jobs[^·]*·\s*\d+ test files\s*·\s*verifier on every report\s*·\s*nightly regression: \d+ generated businesses/,
+    /v\d+\.\d+\.\d+ (pre-)?release\s*·\s*real public data: \d+\/\d+ checks\s*·\s*real-model smoke: \d+\/\d+ jobs[^·]*·\s*[\d,]+ tests\s*·\s*verifier on every report\s*·\s*nightly regression: \d+ generated businesses/,
   );
   await expect(page.locator(".aa-strip")).not.toContainText(/in progress|partial/);
   await expect(page.locator(".aa-strip a")).toHaveAttribute("href", "#results");

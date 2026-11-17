@@ -9,7 +9,11 @@ coverage/
 *.swp
 *.swo
 *~
-data/
+# data/ is local, except the real-data backtest report the README links to
+data/*
+!data/backtests/
+data/backtests/*
+!data/backtests/REPORT.md
 *.duckdb
 *.duckdb.wal
 .DS_Store
