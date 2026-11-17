@@ -15,6 +15,7 @@ import { hashEmbedder, searchDocuments } from "@agentic-analytics/retrieval";
 import type { JobEvent } from "@agentic-analytics/schema";
 import { createApp } from "@agentic-analytics/server";
 import { sql, Workspace } from "@agentic-analytics/store";
+import { countTests } from "../../../scripts/test-count.ts";
 import vitestConfig from "../../../vitest.config.ts";
 import type { PipelineData } from "../src/components/pipeline-scene.ts";
 import {
@@ -22,7 +23,6 @@ import {
   exhibitData,
   exhibitIds,
   exhibitRows,
-  globToRegExp,
   LandingDataError,
   landingData,
   proofChips,
@@ -237,18 +237,12 @@ for (const d of ["architecture", "pipeline"])
   const r = real.data as RealSuiteResult;
   const smoke = suite("-configured-small-smoke.json");
   const full = suite("-configured-small-full.json");
-  // The status strip (landing page, DESIGN.md §4): every item generated. Tests are counted as the test files vitest's
-  // own include globs select (an exact count of test cases needs a vitest run, too heavy for every generate).
-  const include = vitestConfig.test?.include ?? [];
-  const globs = include.map(globToRegExp);
-  const walk = (rel: string): string[] =>
-    readdirSync(join(ROOT, rel), { withFileTypes: true }).flatMap((e) =>
-      e.isDirectory() ? (["node_modules", "dist", ".astro"].includes(e.name) ? [] : walk(`${rel}/${e.name}`)) : [`${rel}/${e.name}`],
-    );
-  const testFiles = ["packages", "apps", "evals", "scripts"].flatMap(walk).filter((f) => globs.some((g) => g.test(f))).length;
+  // The status strip (landing page, DESIGN.md §4): every item generated, the test count from the declarations in
+  // the files vitest's own include globs select (scripts/test-count.ts).
+  const { tests } = countTests(ROOT, vitestConfig.test?.include ?? []);
   const strip = statusStrip({
     changelog: readFileSync(join(ROOT, "CHANGELOG.md"), "utf8"),
-    testFiles,
+    tests,
     real: r,
     smoke: {
       completed: smoke.completed,

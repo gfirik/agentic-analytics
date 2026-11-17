@@ -312,7 +312,7 @@ describe("results table run labels (docs/EVALS.md §4)", () => {
 describe("status strip", () => {
   const base = {
     changelog: "# Changelog\n\n## v0.1.0 (unreleased)\n\ntext",
-    testFiles: 94,
+    tests: 1456,
     real: { datasets: [{ checks: [{ pass: true }, { pass: true }] }, { checks: [{ pass: true }, { pass: false }] }] },
     smoke: { completed: 3, datasets: 3, mismatches: 0 },
     full: { datasets: 30 },
@@ -324,7 +324,7 @@ describe("status strip", () => {
       "v0.1.0 pre-release",
       "real public data: 3/4 checks",
       "real-model smoke: 3/3 jobs, 0 wrong numbers",
-      "94 test files",
+      "1,456 tests",
       "verifier on every report",
       "nightly regression: 30 generated businesses",
     ]);

@@ -64,7 +64,7 @@ describe("evalsTable", () => {
 });
 
 describe("statusBlock", () => {
-  it("leads with the real data and the smoke run, and links the full suite as the nightly regression check", () => {
+  it("leads with the real data and the smoke run, and links the full suite as the regression check", () => {
     const dir = mkdtempSync(join(tmpdir(), "aa-status-"));
     const check = (pass: boolean) => ({ id: "c", about: "a", pass });
     writeFileSync(
@@ -92,7 +92,7 @@ describe("statusBlock", () => {
     expect(lines[3]).toContain(
       "qwen/qwen3.8-27b (Groq free tier) finished 3 of 3 smoke jobs, every number recomputed before shipping, and 100% citation precision",
     );
-    expect(lines.at(-1)).toContain("30 generated businesses with planted events are the nightly regression check");
+    expect(lines.at(-1)).toContain("30 generated businesses with planted events are the regression check, run fresh");
     // The full suite's partial pass is linked, never headlined.
     expect(text).not.toMatch(/partial|3 of 30|in progress/);
   });

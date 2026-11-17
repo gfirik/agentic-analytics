@@ -19,9 +19,9 @@ It runs **fully locally, at $0**: models through Ollama (or a free endpoint such
 >
 > - **Real public data:** 18 of 20 checks pass on 4 public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).
 > - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (Groq free tier) finished 3 of 3 smoke jobs, every number recomputed before shipping, and 100% citation precision ([details](#real-model-runs)).
-> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.
+> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 1,458 tests run with no model or key.
 >
-> 30 generated businesses with planted events are the nightly regression check (each run over up to two nights within the free tier's daily quota: a night the quota cuts short resumes the next); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
+> 30 generated businesses with planted events are the regression check, run fresh within the free tier's daily quota (a rotating eighth each night, all of them each week); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
 <!-- status:end -->
 
 ![A scripted, deterministic run of `aa analyze examples/coffee-roaster --open`: live stages, the summary, then the report opening and a citation click highlighting the source rows.](docs/assets/readme/demo.gif)
@@ -56,6 +56,7 @@ Full guide: [the docs site](https://gfirik.github.io/agentic-analytics/start/qui
 - **Numbers come from tables:** CSV, TSV or Excel, one header row, one row per transaction or per period, with a date column and an amount column named in words the engine knows (`date`, `amount`, `revenue`, `region`, `product`; a header may end in a scale or currency such as `amount_mln_uzs`).
 - **Documents are evidence:** text PDFs, Word, email, TXT and Markdown are searched and quoted, never read as numbers.
 - **Not read yet in v0.1:** most wide layouts (years as columns, portal exports with code and name columns), counts-only tables with no money column, gzip or zip archives, files over the size limit, portal PDFs that hold no statements, HTML filings and JSON data dumps, and scanned PDFs without the Docling container.
+- **Recommendations are suggestions.** In v0.1 the numbers and citations are reliable, but the recommendations are weak: treat them as suggestions. In the real-data backtest, 1 of the 5 recommendations that came out was partly borne out the next year and 4 were wrong ([data/backtests/REPORT.md](data/backtests/REPORT.md)).
 - **When nothing can be read,** the report says "No numbers could be read from these files" with the reason, and `aa analyze` exits with code 2.
 
 Details and the header words: [Which files work in v0.1](https://gfirik.github.io/agentic-analytics/start/which-files/).
@@ -176,7 +177,7 @@ stateDiagram-v2
 
 ### Real public data
 
-The engine on three public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines), New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged) and two Portuguese hotels' bookings (*Data in Brief* hotel booking demand, 119,390 bookings, cancellations included). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities, suppressed values and an extreme rate are reported, whether the seasonal peak lands in the right month, and whether a part-month or a regular seasonal fall (January for card spending, November for hotel bookings) is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
+The engine on four public datasets with their real mess left in: a UK online retailer's invoice lines (UCI Online Retail II, every 10th invoice: 105,797 lines), New Zealand's official monthly card spending by industry (Stats NZ, the published CSV rows unchanged), a US county's monthly warehouse and retail sales by item (Montgomery County, Maryland, 2017–2020: 307,645 rows, with the year and month in separate columns) and two Portuguese hotels' bookings (*Data in Brief* hotel booking demand, 119,390 bookings, cancellations included). The checks ask whether the job finishes, whether cancellations, missing customer IDs, negative quantities, suppressed values and an extreme rate are reported, whether the seasonal peak lands in the right month, and whether a part-month or a regular seasonal fall (January for card spending, November for hotel bookings) is kept out of the findings. Every expected answer is established with SQL on the data, never taken from the engine's output. Failed checks are shown; they are known gaps. How to run it: [evals/real/README.md](evals/real/README.md).
 
 <!-- table:real-data:start -->
 18 of 20 checks pass (offline baseline, no language model, 2026-10-29). Each check reads only report.json; its expected numbers come from SQL in [evals/real/answers](evals/real/answers).
@@ -234,7 +235,7 @@ The 2026-10-21 full row is the *before* of M14a: the engine before its fixes (#4
 TypeScript on Node 22, Hono, and DuckDB for all SQL and all search (full-text and vector), in one file per job. The model layer is the Vercel AI SDK with Ollama and OpenAI-compatible free endpoints. Embeddings and reranking run in-process. Docling is optional for hard PDFs. Bun is the package manager. The reasoning behind each choice is in [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ```bash
-bun install && bun run check   # lint, types, 500+ tests, schema drift, README drift: no model or key needed
+bun install && bun run check   # lint, types, unit tests, schema drift, README drift: no model or key needed
 ```
 
 ## Documentation

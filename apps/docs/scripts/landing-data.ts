@@ -186,14 +186,7 @@ const cell = (v: unknown): string => {
   return /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z$/.test(text) ? text.slice(0, 10) : text;
 };
 
-/** A vitest include glob (`packages/*\/test/**\/*.test.ts`) as a RegExp over repo-relative paths. */
-export function globToRegExp(glob: string): RegExp {
-  const re = glob
-    .split(/(\*\*\/|\*)/)
-    .map((part) => (part === "**/" ? "(?:.*/)?" : part === "*" ? "[^/]*" : part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")))
-    .join("");
-  return new RegExp(`^${re}$`);
-}
+export { globToRegExp } from "../../../scripts/test-count.ts";
 
 export type ExhibitPart = { readonly text: string } | { readonly fact: string } | { readonly source: string };
 
@@ -423,8 +416,8 @@ export type ExhibitData = ReturnType<typeof exhibitData>;
 export interface StatusInputs {
   /** CHANGELOG.md's first release heading, e.g. "## v0.1.0 (unreleased)". */
   readonly changelog: string;
-  /** The test files vitest runs (its include globs). */
-  readonly testFiles: number;
+  /** The tests declared in the files vitest runs (scripts/test-count.ts). */
+  readonly tests: number;
   readonly real: { readonly datasets: readonly { readonly checks: readonly { readonly pass: boolean }[] }[] };
   /** The latest real-model smoke run: jobs finished, and numbers the verifier found wrong. */
   readonly smoke: { readonly completed: number; readonly datasets: number; readonly mismatches: number | null };
@@ -440,8 +433,7 @@ export interface StripItem {
 }
 
 /**
- * The strip's items, proven results first: the release, the real public data, the real-model smoke run, the test
- * files, the verifier, then the generated-business suite as the nightly regression check (its numbers are a link to
+ * The strip's items, proven results first: the release, the real public data, the real-model smoke run, the tests, the verifier, then the generated-business suite as the nightly regression check (its numbers are a link to
  * §3, never the headline: a partial pass reads as failure next to results that are proven).
  */
 export function statusStrip(s: StatusInputs): StripItem[] {
@@ -454,7 +446,7 @@ export function statusStrip(s: StatusInputs): StripItem[] {
     { text: `${m[1]} ${m[2] ? "pre-release" : "release"}` },
     { text: `real public data: ${passed}/${checks.length} checks` },
     { text: `real-model smoke: ${s.smoke.completed}/${s.smoke.datasets} jobs${wrong}` },
-    { text: `${s.testFiles} test files` },
+    { text: `${s.tests.toLocaleString("en-US")} tests` },
     { text: "verifier on every report" },
     { text: `nightly regression: ${s.full.datasets} generated businesses`, href: "#results", more: "latest results in section 3" },
   ];

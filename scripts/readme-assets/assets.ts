@@ -7,6 +7,8 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { join } from "node:path";
 import { parse } from "yaml";
 import { type Passes, resultsPage, runStatus } from "../../evals/runner/src/index.ts";
+import vitestConfig from "../../vitest.config.ts";
+import { countTests } from "../test-count.ts";
 import { DARK, heroSvg, LIGHT } from "./hero.ts";
 import { pipelineInputsHash, pipelinePicture, pipelineProblems, readPipelineData } from "./pipeline.ts";
 
@@ -192,12 +194,12 @@ export function statusBlock(dir = join(ROOT, "evals/results")): string {
     );
   }
   lines.push(
-    "> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 500+ tests run with no model or key.",
+    `> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. ${countTests(ROOT, vitestConfig.test?.include ?? []).tests.toLocaleString("en-US")} tests run with no model or key.`,
   );
   if (full)
     lines.push(
       ">",
-      `> ${full.datasets} generated businesses with planted events are the nightly regression check (each run over up to two nights within the free tier's daily quota: a night the quota cuts short resumes the next); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
+      `> ${full.datasets} generated businesses with planted events are the regression check, run fresh within the free tier's daily quota (a rotating eighth each night, all of them each week); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
     );
   return lines.join("\n");
 }

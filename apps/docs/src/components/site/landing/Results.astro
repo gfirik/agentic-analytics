@@ -49,7 +49,7 @@ const full = evals.full as Suite;
 // the nightly regression check, and the offline baseline only checks the harness.
 const runs = [
   { run: "Free-tier model, smoke", note: `${model(smoke.model).split(" planner")[0]} on Groq, small-model mode`, suite: smoke },
-  { run: "Nightly regression", note: `${full.datasets} generated businesses, same roles, over up to two nights`, suite: full },
+  { run: "Nightly regression", note: `${full.datasets} generated businesses, same roles, run fresh`, suite: full },
   { run: "Offline baseline", note: "scripted heuristic, no LLM: checks the harness", suite: synthetic },
 ];
 const realChecks = evals.real.datasets.flatMap((d) => d.checks);
@@ -154,8 +154,8 @@ const sources = [evals.real.file, smoke.file, full.file, synthetic.file];
       </div>
       <p class="aa-small aa-under">
         Real public data is checked against SQL written separately; a free-tier model then runs the smoke suite. The generated businesses
-        with planted events are the nightly regression check, run over up to two nights within the free tier's quota; the latest published
-        run is shown, labelled partial only if jobs are still unfinished after its second night. The offline baseline is a scripted
+        with planted events are the regression check, run fresh within the free tier's quota (a rotating eighth each night, all of them
+        each week); the latest published run is shown, labelled partial if jobs didn't finish. The offline baseline is a scripted
         heuristic tuned on the same datasets, so its scores are optimistic: it tests the engine and the harness, not model quality. <a href={withBase("quality/results/")}>All results (RESULTS.md)</a> ·{" "}
         <a href={withBase("quality/evals/")}>How quality is measured</a>
       </p>
