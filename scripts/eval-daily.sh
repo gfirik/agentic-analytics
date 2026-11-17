@@ -64,7 +64,15 @@ planner_tokens() {
     }
     END { print s + 0 }'
 }
-fmt() { printf "%'d" "$1" 2>/dev/null || printf '%d' "$1"; }
+# Thousands separators without relying on the locale (cron and CI run in C).
+fmt() {
+  local n=$1 s=""
+  while [ ${#n} -gt 3 ]; do
+    s=",${n: -3}$s"
+    n=${n:0:${#n}-3}
+  done
+  printf '%s' "$n$s"
+}
 
 since=$(node -e 'console.log(new Date(Date.now() - 864e5).toISOString())')
 used=$(planner_tokens "$since" 0)
