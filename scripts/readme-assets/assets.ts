@@ -199,7 +199,7 @@ export function statusBlock(dir = join(ROOT, "evals/results")): string {
   if (full)
     lines.push(
       ">",
-      `> ${full.datasets} generated businesses with planted events are the regression check, run fresh within the free tier's daily quota (a rotating eighth each night, all of them each week); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
+      `> ${full.datasets} generated businesses with planted events are the regression check, run fresh within the free tier's daily quota (a rotating eighth each night, all of them over eight nights); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).`,
     );
   return lines.join("\n");
 }

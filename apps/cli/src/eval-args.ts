@@ -38,6 +38,25 @@ export function nightlyArgs(
   };
 }
 
+/**
+ * `aa eval --no-cache` as the command declares it. citty reads `--no-<name>` as the negation of a boolean `<name>`,
+ * so an argument declared as "no-cache" is never set: `--no-cache` arrives as `cache: false`. (Until 2026-11-19 it was
+ * declared that way and the flag did nothing: the scheduled eval ran "--no-cache" and replayed evals/.cache.) Declared
+ * as `cache`, default on, the flag keeps its spelling and reaches `noCacheFlag`.
+ */
+export const CACHE_ARG = {
+  cache: {
+    type: "boolean",
+    default: true,
+    description: "Read and write the response cache (evals/.cache); the default",
+    negativeDescription: "Don't read or write the response cache (evals/.cache): every model call is live. Implied by --repeat",
+  },
+} as const;
+
+/** True when the parsed arguments carry `--no-cache`, however the parser spelled it. */
+export const noCacheFlag = (a: { readonly cache?: boolean | undefined; readonly "no-cache"?: boolean | undefined }): boolean =>
+  a.cache === false || a["no-cache"] === true;
+
 export interface RepeatArgs {
   /** `--repeat N`: the run count, absent for a single run. */
   readonly repeat?: number;

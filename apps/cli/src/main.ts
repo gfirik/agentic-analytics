@@ -38,7 +38,7 @@ import { analyzeCommand, type ReviewPrompt } from "./analyze.ts";
 import { collectPaths } from "./collect.ts";
 import { exitCode, formatReport, runDoctor } from "./doctor.ts";
 import { loadDotEnv } from "./env.ts";
-import { nightlyArgs, repeatArgs } from "./eval-args.ts";
+import { CACHE_ARG, nightlyArgs, noCacheFlag, repeatArgs } from "./eval-args.ts";
 import { evalModelFor } from "./eval-models.ts";
 import { askCommand, explainCommand, jobsList } from "./followup.ts";
 import { runMetricsCommand } from "./metrics.ts";
@@ -446,10 +446,7 @@ const evalCmd = defineCommand({
       description:
         "Run the suite N times (N ≥ 2) with the response cache off and measure how often the runs agree (numbers, findings, driver, cause grade, action)",
     },
-    "no-cache": {
-      type: "boolean",
-      description: "Don't read or write the response cache (evals/.cache): every model call is live. Implied by --repeat",
-    },
+    ...CACHE_ARG,
     dataset: { type: "string", description: "With --suite golden: one dataset (default: every real dataset with a golden set)" },
     split: { type: "string", description: "With --suite golden: dev (default) or heldout (release runs only)" },
   },
@@ -485,13 +482,14 @@ const evalCmd = defineCommand({
     const only = args.only === undefined ? undefined : onlyIds(args.only);
     const cacheDir = modelsDir();
     const where = resultsLocation(args["results-dir"], process.env, process.cwd(), checkoutResults, Boolean(args.answers));
+    const noCache = noCacheFlag(args);
     const { repeat, cacheOff } = repeatArgs({
       ...(args.repeat !== undefined ? { repeat: args.repeat } : {}),
-      ...(args["no-cache"] ? { noCache: true } : {}),
+      ...(noCache ? { noCache: true } : {}),
       ...(args.suite !== undefined ? { suite: args.suite } : {}),
       ...(args.passes !== undefined ? { passes: args.passes } : {}),
     });
-    if (repeat !== undefined && !args["no-cache"] && (args.models !== undefined || model !== "baseline"))
+    if (repeat !== undefined && !noCache && (args.models !== undefined || model !== "baseline"))
       print("--repeat: the response cache is off, so every call is live (runs 2..N can't replay run 1)");
     const deps = {
       // Evals default to the hash embedder everywhere (deterministic, no download), unlike analyze.

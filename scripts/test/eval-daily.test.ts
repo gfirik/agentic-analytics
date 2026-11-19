@@ -1,5 +1,5 @@
 // scripts/eval-daily.sh (the scheduled eval, run from cron, docs/EVALS.md §4): a fresh pass (response cache off) that
-// writes only under data/, picks a rotating eighth of the suite on nightly passes and the whole suite on weekly ones,
+// writes only under data/, picks a rotating eighth of the suite each night (the whole suite only by hand, where the quota allows),
 // skips when the planner's 24-hour quota can't take it, and reports the cache-hit rate. Its log is one file per mode
 // and UTC day, appended to, so a same-day rerun counts only its own job lines. The script runs in a copy of the repo
 // layout with stand-ins for bun, heavy.sh and notify.sh: no eval, no lock, no network.
@@ -35,8 +35,11 @@ const call = (o: { cached: boolean; role?: string; tokens?: number; at?: string 
     outputTokens: 0,
   })}\n`;
 
-/** A fake repo whose `bun run eval` prints `evalOutput`, records its arguments and appends `calls` to the call log. */
-function fakeRepo(evalOutput: string, calls = "") {
+/**
+ * A fake repo whose `bun run eval` prints `evalOutput`, records its arguments, appends `calls` to the call log and
+ * exits with `evalStatus` (1 is the real eval's status for a missed bar).
+ */
+function fakeRepo(evalOutput: string, calls = "", evalStatus = 0) {
   const repo = mkdtempSync(join(tmpdir(), "aa-eval-daily-"));
   dirs.push(repo);
   mkdirSync(join(repo, "scripts"));
@@ -53,7 +56,8 @@ function fakeRepo(evalOutput: string, calls = "") {
     `[ "$2" = eval ] || exit 0
 printf '%s\\n' "$@" > "${join(repo, "eval-args")}"
 cat "${join(repo, "calls.txt")}" >> data/logs/model-calls.jsonl
-cat "${join(repo, "eval-output.txt")}"`,
+cat "${join(repo, "eval-output.txt")}"
+exit ${evalStatus}`,
   );
   return repo;
 }
@@ -72,7 +76,9 @@ describe("eval-daily.sh", () => {
   it("runs a nightly eighth fresh, writes under data/, and reports the cache-hit rate and planner tokens", () => {
     const repo = fakeRepo(
       "[1/2] a-v1: done\n[2/2] b-v1: failed (RATE_LIMITED: quota)\nPlanted recall@5: 84.0% (bar ≥ 80%)\nDriver accuracy: 96.4% (bar ≥ 90%)\n",
-      call({ cached: false, tokens: 1200 }) + call({ cached: false, role: "extractor", tokens: 500 }) + call({ cached: true }),
+      call({ cached: false, tokens: 1200 }) +
+        call({ cached: false, role: "extractor", tokens: 500 }) +
+        call({ cached: false, role: "judge" }),
     );
     // 2026-11-18 is day 20775 since the epoch: 20775 % 8 = 7, so the 8th, 16th… of the sorted 15 here.
     const r = runDaily(repo, "nightly", { AA_TODAY: "2026-11-18" });
@@ -81,9 +87,34 @@ describe("eval-daily.sh", () => {
     expect(args).toEqual(expect.arrayContaining(["--no-cache", "--suite", "full", "--model", "configured", "--small-model"]));
     expect(args[args.indexOf("--only") + 1]).toBe("coffee_roaster-v2");
     expect(args[args.indexOf("--results-dir") + 1]).toBe("data/eval-runs/nightly-2026-11-18");
-    const summary = `eval nightly (fresh, 1 of 15 datasets: coffee_roaster-v2): 1 of 2 jobs finished, 1 stopped on the rate limit, 0 failed otherwise; cache hits 1 of 3 calls (33%); 1,200 planner tokens; Planted recall@5: 84.0%, Driver accuracy: 96.4% (results: data/eval-runs/nightly-2026-11-18; log: data/logs/eval-nightly-${day()}.log)`;
+    const summary = `eval nightly (fresh, 1 of 15 datasets: coffee_roaster-v2): 1 of 2 jobs finished, 1 stopped on the rate limit, 0 failed otherwise; cache hits 0 of 3 calls (0%); 1,200 planner tokens; Planted recall@5: 84.0%, Driver accuracy: 96.4% (results: data/eval-runs/nightly-2026-11-18; log: data/logs/eval-nightly-${day()}.log)`;
     expect(r.stdout.trim().split("\n").at(-1)).toBe(summary);
     expect(readFileSync(join(repo, "notified"), "utf8")).toBe(summary);
+    // The daily summary reads this line from the log.
+    expect(readFileSync(join(repo, "data", "logs", `eval-nightly-${day()}.log`), "utf8")).toContain(`\nsummary: ${summary}\n`);
+  });
+
+  it("still sends the summary when the eval exits 1 on a missed bar, and keeps that status", () => {
+    const repo = fakeRepo(
+      '[1/1] a-v1: 1/2 planted found\nPlanted recall@5: 50.0% (bar ≥ 80%)\nerror: script "eval" exited with code 1\n',
+      call({ cached: false, tokens: 900 }),
+      1,
+    );
+    const r = runDaily(repo, "nightly", { AA_TODAY: "2026-11-18" });
+    expect(r.status).toBe(1);
+    const sent = readFileSync(join(repo, "notified"), "utf8");
+    expect(sent).toContain("1 of 1 jobs finished");
+    expect(sent).toContain("cache hits 0 of 1 calls (0%); 900 planner tokens; Planted recall@5: 50.0%; a bar was missed (results: ");
+    expect(r.stdout.trim().split("\n").at(-1)).toBe(sent);
+  });
+
+  it("says NOT FRESH and fails when a --no-cache pass logged a cached call", () => {
+    const repo = fakeRepo("[1/1] a-v1: done\n", call({ cached: false, tokens: 10 }) + call({ cached: true }));
+    const r = runDaily(repo, "nightly", { AA_TODAY: "2026-11-18" });
+    expect(r.status).toBe(3);
+    expect(readFileSync(join(repo, "notified"), "utf8")).toMatch(
+      /^NOT FRESH \(cached calls in a --no-cache run\): eval nightly .*cache hits 1 of 2 calls \(50%\)/,
+    );
   });
 
   it("rotates the nightly subset so consecutive nights take different datasets", () => {
@@ -93,10 +124,10 @@ describe("eval-daily.sh", () => {
     expect(ids).toBe("agency-v1,coffee_roaster-v3");
   });
 
-  it("runs the whole suite on a weekly pass and on the weekly day in auto mode", () => {
+  it("runs the whole suite on a weekly pass by hand, when the route's limit allows it", () => {
     const repo = fakeRepo("[1/1] a-v1: done\n");
     // 2026-11-22 is a Sunday.
-    const r = runDaily(repo, "auto", { AA_TODAY: "2026-11-22" });
+    const r = runDaily(repo, "weekly", { AA_TODAY: "2026-11-22", AA_PLANNER_LIMIT: "1000000" });
     expect(r.status).toBe(0);
     const args = evalArgs(repo);
     expect(args).not.toContain("--only");
@@ -117,8 +148,9 @@ describe("eval-daily.sh", () => {
     const r = runDaily(repo, "weekly");
     expect(r.status).toBe(0);
     expect(() => readFileSync(join(repo, "eval-args"))).toThrow();
+    expect(readFileSync(join(repo, "data", "logs", `eval-weekly-${day()}.log`), "utf8")).toContain("\nsummary: eval weekly skipped: ");
     expect(readFileSync(join(repo, "notified"), "utf8")).toBe(
-      "eval weekly skipped: 130,000 planner tokens used in the last 24 h + about 140,000 for this pass would pass the 200,000 free-tier limit",
+      "eval weekly skipped: 130,000 planner tokens used in the last 24 h + about 300,000 for this pass (15 datasets) would pass the 200,000 free-tier limit",
     );
     // The same day's nightly estimate still fits.
     expect(runDaily(repo, "nightly").stdout).not.toContain("skipped");
@@ -128,9 +160,20 @@ describe("eval-daily.sh", () => {
     const repo = fakeRepo("[1/3] a-v1: done\n[2/3] b-v1: failed (RATE_LIMITED: quota)\n[3/3] c-v1: failed (BAD_OUTPUT: x)\n");
     const log = join(repo, "data", "logs", `eval-weekly-${day()}.log`);
     writeFileSync(log, `[earlier] header\n${[1, 2, 3, 4, 5].map((i) => `[${i}/5] x${i}: done`).join("\n")}\n`);
-    const r = runDaily(repo, "weekly");
+    const r = runDaily(repo, "weekly", { AA_PLANNER_LIMIT: "1000000" });
     expect(r.stdout).toContain("1 of 3 jobs finished, 1 stopped on the rate limit, 1 failed otherwise");
     expect(readFileSync(log, "utf8")).toMatch(/x5: done\n\[.*--suite full --model configured --small-model --no-cache --results-dir/);
+  });
+
+  it("auto is the nightly rotation every day, Sundays included: the whole suite is more than a free day's quota", () => {
+    const repo = fakeRepo("[1/1] a-v1: done\n");
+    // 2026-11-22 is a Sunday.
+    const r = runDaily(repo, "auto", { AA_TODAY: "2026-11-22" });
+    expect(evalArgs(repo)).toContain("--only");
+    expect(r.stdout).toContain("eval nightly (fresh, ");
+    // The whole suite in one pass is refused on the free tier: 15 datasets x 20,000 here.
+    const w = runDaily(fakeRepo(""), "weekly");
+    expect(w.stdout).toContain("eval weekly skipped: 0 planner tokens used in the last 24 h + about 300,000 for this pass (15 datasets)");
   });
 
   it("refuses an unknown mode", () => {

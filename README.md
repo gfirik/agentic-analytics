@@ -19,9 +19,9 @@ It runs **fully locally, at $0**: models through Ollama (or a free endpoint such
 >
 > - **Real public data:** 18 of 20 checks pass on 4 public datasets, each expected answer set by SQL written separately ([details](#real-public-data)).
 > - **A free real model:** qwen/qwen3.8-27b planner, gpt-oss-120b extractor, gpt-oss-20b judge (Groq free tier) finished 3 of 3 smoke jobs, every number recomputed before shipping, and 100% citation precision ([details](#real-model-runs)).
-> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 1,458 tests run with no model or key.
+> - **Every report is verified:** before a report ships, the verifier recomputes every number and checks every citation. 1,466 tests run with no model or key.
 >
-> 30 generated businesses with planted events are the regression check, run fresh within the free tier's daily quota (a rotating eighth each night, all of them each week); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
+> 30 generated businesses with planted events are the regression check, run fresh within the free tier's daily quota (a rotating eighth each night, all of them over eight nights); the latest published run is in [Real-model runs](#real-model-runs), shown as it is. Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
 <!-- status:end -->
 
 ![A scripted, deterministic run of `aa analyze examples/coffee-roaster --open`: live stages, the summary, then the report opening and a citation click highlighting the source rows.](docs/assets/readme/demo.gif)

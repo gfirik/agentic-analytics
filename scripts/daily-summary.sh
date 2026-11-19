@@ -32,8 +32,11 @@ moving=$(printf '%s\n' "$moving" | cut -c1-90)
 drift=$(printf '%s\n' "$drift" | cut -c1-110)
 # Items that wait on the maintainer's explicit yes (tags, releases, settings, money).
 needsyes=$(grep -iE 'needs (the maintainer.s|your) (explicit )?yes' "$state_file" | cut -c1-110)
-nightly_log=$(ls -t data/logs/eval-full-*.log 2>/dev/null | head -1)
-nightly=$( [ -n "$nightly_log" ] && grep -E 'combined:|Planted recall|partial|in progress|RATE_LIMITED' "$nightly_log" | tail -2 | cut -c1-110 )
+# The scheduled eval's own summary line (scripts/eval-daily.sh), from its newest nightly or weekly log; a pass that
+# was killed before it wrote one shows its last result lines instead.
+nightly_log=$(ls -t data/logs/eval-nightly-*.log data/logs/eval-weekly-*.log 2>/dev/null | head -1)
+nightly=$( [ -n "$nightly_log" ] && { grep -E '^summary: ' "$nightly_log" | tail -1 | sed -e 's/^summary: //' -e 's/ (results: .*//' | cut -c1-400 | grep . ||
+  grep -E 'skipped|Planted recall|RATE_LIMITED' "$nightly_log" | tail -2 | cut -c1-110; } )
 msg="Daily summary $(date +%F)
 Merged (24h): ${merged:-nothing}
 Open PRs: ${open:-none}

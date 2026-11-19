@@ -9,12 +9,28 @@ export const ROOT = join(import.meta.dirname, "..", "..");
 
 // ── The CLI, read from its source (main.ts runs the CLI on import, so it is parsed, not imported) ──
 const main = readFileSync(join(ROOT, "apps", "cli", "src", "main.ts"), "utf8");
+const cliSrc = join(ROOT, "apps", "cli", "src");
+/** The body of `export const NAME = { … } as const;` in one of the CLI's source files, or "". */
+function argGroup(name: string): string {
+  for (const f of readdirSync(cliSrc).filter((x) => x.endsWith(".ts"))) {
+    const m = new RegExp(`export const ${name} = \\{([\\s\\S]*?)\\n\\} as const;`).exec(readFileSync(join(cliSrc, f), "utf8"));
+    if (m) return m[1] as string;
+  }
+  return "";
+}
 export const commands = new Map<string, Set<string>>();
 for (const chunk of main.split("defineCommand(").slice(1)) {
   const name = /meta:\s*\{\s*name:\s*"([\w-]+)"/.exec(chunk)?.[1];
   if (!name || name === "aa") continue;
   const own = chunk.split(/subCommands:/)[0] ?? chunk;
-  const flags = new Set([...own.matchAll(/"?([a-z][a-z-]*)"?:\s*\{\s*type:\s*"(?:string|boolean)"/g)].map((m) => m[1] as string));
+  // Argument groups defined beside main.ts and spread into a command (`...CACHE_ARG`, apps/cli/src/eval-args.ts).
+  const spread = [...own.matchAll(/\.\.\.([A-Z][A-Z_]*),/g)].map((m) => argGroup(m[1] as string)).join("\n");
+  const flags = new Set<string>();
+  for (const m of `${own}\n${spread}`.matchAll(/"?([a-z][a-z-]*)"?:\s*\{\s*type:\s*"(string|boolean)"/g)) {
+    flags.add(m[1] as string);
+    // citty reads `--no-<name>` as the negation of a boolean `<name>`.
+    if (m[2] === "boolean") flags.add(`no-${m[1]}`);
+  }
   commands.set(name, flags);
 }
 export const top = new Set(
