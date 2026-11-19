@@ -78,6 +78,13 @@ describe("commands on the site", () => {
     expect([...(nested.jobs ?? [])].sort()).toEqual(["ls", "resume", "rm"]);
   });
 
+  it("knows --no-cache as the negation of eval's cache flag, and no flag is declared with a no- prefix", () => {
+    expect(commands.get("eval")?.has("cache")).toBe(true);
+    expect(checkAa(["eval", "--no-cache"])).toBeUndefined();
+    // citty never sets an argument declared as "no-<x>": `--no-<x>` arrives as `<x>: false` (the 2026-11 nightly bug).
+    expect(readFileSync(join(ROOT, "apps", "cli", "src", "main.ts"), "utf8")).not.toMatch(/"no-[a-z-]+":\s*\{/);
+  });
+
   it("flags a command that doesn't exist (the check works)", () => {
     expect(checkAa(["analyse", "x"])).toMatch(/no aa subcommand/);
     expect(checkAa(["analyze", "x", "--fast"])).toMatch(/no --fast/);

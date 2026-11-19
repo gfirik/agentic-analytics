@@ -1,9 +1,10 @@
 // `aa eval --no-cache` (implied by --repeat, docs/specs/accuracy.md §7): with the cache off, no call reads or writes
 // it, so runs 2..N can't replay run 1. The real client runs against a stubbed transport, never a network model.
 import { type CallRecord, memoryCache, type ResponseCache, Router, resolveModelConfig } from "@agentic-analytics/models";
+import { parseArgs } from "citty";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { repeatArgs } from "../src/eval-args.ts";
+import { CACHE_ARG, noCacheFlag, repeatArgs } from "../src/eval-args.ts";
 import { evalModelFor } from "../src/eval-models.ts";
 
 (globalThis as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
@@ -24,9 +25,8 @@ function stub(sent: { n: number }): typeof fetch {
 }
 
 /** The same request once per run, each run with a fresh client as evalRepeat builds one per dataset per run. */
-async function repeatRuns(cacheOff: boolean, runs: number) {
+async function repeatRuns(cacheOff: boolean, runs: number, cache = memoryCache()) {
   const sent = { n: 0 };
-  const cache = memoryCache();
   let built = 0;
   const records: CallRecord[] = [];
   const modelFor = evalModelFor({
@@ -62,6 +62,30 @@ describe("evalModelFor and the response cache", () => {
     expect(r.records.map((c) => c.cached)).toEqual([false, true, true]);
     expect(r.sent).toBe(1);
     expect(r.stored).toBe(1);
+  });
+});
+
+describe("--no-cache on the command line", () => {
+  /** The flags as `aa eval` receives them: its own argument definition through citty's parser. */
+  const cacheOffFor = (argv: string[]) => {
+    const args = parseArgs(argv, CACHE_ARG) as { cache?: boolean; "no-cache"?: boolean };
+    return repeatArgs({ ...(noCacheFlag(args) ? { noCache: true } : {}) }).cacheOff;
+  };
+
+  it("reaches the model layer: a --no-cache run over a full cache logs no cached call", async () => {
+    // An earlier run filled the cache with this very request.
+    const cache = memoryCache();
+    const warm = await repeatRuns(false, 2, cache);
+    expect(warm.records.map((c) => c.cached)).toEqual([false, true]);
+    const r = await repeatRuns(cacheOffFor(["--suite", "full", "--no-cache"]), 3, cache);
+    expect(r.records.filter((c) => c.cached)).toEqual([]);
+    expect(r.sent).toBe(3);
+    expect(r.built).toBe(0);
+  });
+
+  it("leaves the cache on without the flag", () => {
+    expect(cacheOffFor(["--suite", "full"])).toBe(false);
+    expect(cacheOffFor(["--cache"])).toBe(false);
   });
 });
 

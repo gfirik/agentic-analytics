@@ -16,10 +16,10 @@ The eval suite: how we prove the engine works (docs/EVALS.md). Results are in [R
 ```bash
 bun run eval -- --suite full --model baseline        # offline, a few minutes
 bun run eval -- --suite full --model configured      # the models in .env / agentic-analytics.config.yaml
-bash scripts/eval-daily.sh auto                      # scheduled: fresh nightly eighth, fresh weekly full suite
+bash scripts/eval-daily.sh auto                      # scheduled: a fresh eighth of the suite each night
 ```
 
-The scheduled run (`scripts/eval-daily.sh`, docs/EVALS.md §4) keeps the response cache off: each night runs a rotating eighth of the 30 businesses fresh, and each Sunday the whole suite, inside the Groq free tier (200k planner tokens per rolling 24 hours; it skips a pass the day's usage leaves no room for). Results go to `data/eval-runs/` (gitignored), so the checkout stays clean; a weekly run is published by copying its file to `evals/results/` in a PR.
+The scheduled run (`scripts/eval-daily.sh`, docs/EVALS.md §4) keeps the response cache off: each night runs a rotating eighth of the 30 businesses fresh, so eight nights make one fresh run of the suite. A fresh business costs about 20k planner tokens, so the whole suite (about 600k) does not fit in one day of the Groq free tier (200k per rolling 24 hours); the pass skips when the day's usage leaves no room. Results go to `data/eval-runs/` (gitignored), so the checkout stays clean; a run is published by copying its file to `evals/results/` in a PR.
 
 ## Run the full suite on Kaggle (free 2×T4)
 

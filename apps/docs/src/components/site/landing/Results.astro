@@ -155,7 +155,7 @@ const sources = [evals.real.file, smoke.file, full.file, synthetic.file];
       <p class="aa-small aa-under">
         Real public data is checked against SQL written separately; a free-tier model then runs the smoke suite. The generated businesses
         with planted events are the regression check, run fresh within the free tier's quota (a rotating eighth each night, all of them
-        each week); the latest published run is shown, labelled partial if jobs didn't finish. The offline baseline is a scripted
+        over eight nights); the latest published run is shown, labelled partial if jobs didn't finish. The offline baseline is a scripted
         heuristic tuned on the same datasets, so its scores are optimistic: it tests the engine and the harness, not model quality. <a href={withBase("quality/results/")}>All results (RESULTS.md)</a> ·{" "}
         <a href={withBase("quality/evals/")}>How quality is measured</a>
       </p>
